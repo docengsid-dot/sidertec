@@ -1021,8 +1021,12 @@ ALTER TABLE medicao_terceiros
         </div>
       </div>
 
-      <!-- Linha 4: BM / NF -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
+      <!-- Linha 4: PS / BM / NF -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
+        <div class="field-group">
+          <label class="field-label">📄 Nº PS (Pedido de Serviço) *</label>
+          <input type="text" class="field-input" id="med-num-ps" placeholder="Ex: PS-001/2026" style="font-size:16px;">
+        </div>
         <div class="field-group">
           <label class="field-label">📋 Nº BM (Boletim de Medição)</label>
           <input type="text" class="field-input" id="med-bm" placeholder="Ex: BM-01/2026" style="font-size:16px;">
@@ -6536,30 +6540,50 @@ function renderMedicao(){
             ? '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ATIVO</span>'
             : '<span style="background:#f1f5f9;color:#64748b;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ENCERRADO</span>';
           const dataFmt = m.data ? m.data.split('-').reverse().join('/') : '—';
+
+          // ── Calcular pesos e status das TAGs do cronograma ──
+          let tagEntradas = [];
+          try { const p=JSON.parse(m.subobras_ids||''); if(Array.isArray(p)) tagEntradas=p.map(x=>({id:String(x.id||x),etapa:x.etapa,pct:x.pct,peso_med:x.peso_med||null})); }
+          catch(e){ tagEntradas=(m.subobras_ids||'').split(',').map(s=>s.trim()).filter(Boolean).map(id=>({id,etapa:'modelo',pct:40,peso_med:null})); }
+
+          const tagSubs = tagEntradas.map(e=>(allCronSubobras||[]).find(s=>String(s.id)===e.id)).filter(Boolean);
+          const sumPesoPrev = tagSubs.reduce((a,s)=>a+(Number(s.peso_previsto)||0),0);
+          const sumPesoDet  = tagSubs.reduce((a,s)=>a+(Number(s.peso_detalhado)||0),0);
+
+          // Status distintos das TAGs (do cronograma)
+          const statusSet = [...new Set(tagSubs.map(s=>s.status).filter(Boolean))];
+          const statusTagsHtml = statusSet.length
+            ? statusSet.slice(0,2).map(st=>{ const cfg=(typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[st])||{color:'#475569',bg:'#f1f5f9',icon:'•'}; return `<span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;display:inline-block;margin:1px;">${cfg.icon} ${st}</span>`; }).join('') + (statusSet.length>2?`<span style="font-size:7px;color:#94a3b8;"> +${statusSet.length-2}</span>`:'')
+            : '<span style="font-size:9px;color:#94a3b8;">—</span>';
+
+          const fmtPeso = v => v>0 ? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+
           return `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:8px 10px;font-family:'Courier New',monospace,monospace;font-size:16px;font-weight:600;color:#0e7490;white-space:nowrap;">${dataFmt}</td>
             <td style="padding:8px 10px;font-size:16px;font-weight:500;">${(m.equipe||'—').split('(')[0].trim()}</td>
             <td style="padding:8px 10px;font-size:16px;color:var(--blue);font-family:'Courier New',monospace,monospace;">${(m.obra||'—').split(' ').slice(0,2).join(' ')}</td>
-            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;">${m.peso_previsto?Number(m.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
-            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;color:#1d4ed8;font-weight:600;">${m.peso_detalhado?Number(m.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
+            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;">
+              ${fmtPeso(sumPesoPrev)}
+              ${sumPesoPrev>0&&m.peso_previsto&&Math.abs(sumPesoPrev-Number(m.peso_previsto))>1?`<div style="font-size:7px;color:#94a3b8;">(contrato: ${fmtPeso(Number(m.peso_previsto))})</div>`:''}
+            </td>
+            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;color:#1d4ed8;font-weight:600;">
+              ${fmtPeso(sumPesoDet)}
+              ${sumPesoDet>0&&m.peso_detalhado&&Math.abs(sumPesoDet-Number(m.peso_detalhado))>1?`<div style="font-size:7px;color:#94a3b8;">(contrato: ${fmtPeso(Number(m.peso_detalhado))})</div>`:''}
+            </td>
             <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;">R$ ${Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
             <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;font-weight:700;color:#166534;">${fmtBRL(vt)}</td>
             <td style="padding:8px 10px;text-align:center;font-family:'Courier New',monospace,monospace;font-size:16px;">${m.bm?`<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;">${m.bm}</span>`:'—'}</td>
             <td style="padding:8px 10px;text-align:center;font-family:'Courier New',monospace,monospace;font-size:16px;">${m.nf?`<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;">${m.nf}</span>`:'—'}</td>
             <td style="padding:8px 10px;text-align:center;">${statusC}</td>
-            <td style="padding:6px 8px;text-align:center;max-width:160px;">
+            <td style="padding:6px 8px;text-align:center;max-width:180px;">
               ${(()=>{
-                const ids = (m.subobras_ids||'').split(',').map(s=>s.trim()).filter(Boolean);
-                if(!ids.length) return '<span style="color:#94a3b8;font-size:9px;">—</span>';
-                const tags = ids.map(id=>{
-                  const sub = (allCronSubobras||[]).find(s=>String(s.id)===String(id));
-                  return sub ? sub.subobra : null;
-                }).filter(Boolean);
-                if(!tags.length) return `<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;">${ids.length} TAG${ids.length>1?'s':''}</span>`;
-                const visiveis = tags.slice(0,3);
-                const resto = tags.length - visiveis.length;
-                return visiveis.map(t=>`<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 6px;font-size:8px;font-family:'Courier New',monospace;font-weight:700;margin:1px;">${t}</span>`).join('')
-                  + (resto>0?`<span style="font-size:8px;color:#64748b;margin-left:2px;">+${resto}</span>`:'');
+                if(!tagEntradas.length) return '<span style="color:#94a3b8;font-size:9px;">—</span>';
+                const n = tagEntradas.length;
+                const names = tagSubs.slice(0,2).map(s=>s.subobra).filter(Boolean);
+                const resto = n - names.length;
+                const badge = `<span style="background:#dbeafe;color:#1e40af;border-radius:4px;padding:2px 9px;font-size:9px;font-weight:700;cursor:pointer;" title="${tagSubs.map(s=>s.subobra).join(', ')}">${n} TAG${n!==1?'s':''}</span>`;
+                const nameChips = names.map(t=>`<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:3px;padding:1px 5px;font-size:7px;font-family:'Courier New',monospace;font-weight:700;margin:1px;">${t}</span>`).join('') + (resto>0?`<span style="font-size:7px;color:#64748b;margin-left:2px;">+${resto}</span>`:'');
+                return badge + '<br>' + nameChips + '<div style="margin-top:2px;">' + statusTagsHtml + '</div>';
               })()}
             </td>
             <td style="padding:4px 6px;text-align:center;">
@@ -6579,13 +6603,33 @@ function limparFiltrosMedicao(){
   renderMedicao();
 }
 
+function _calcTotalTags(){
+  // Soma o valor real de cada TAG selecionada (considerando peso_med e etapa/%)
+  const vkg = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
+  if(!vkg || !_medTagsMap.size) return 0;
+  let total = 0;
+  _medTagsMap.forEach(({etapa,pct,peso_med},id)=>{
+    const s = (allCronSubobras||[]).find(x=>String(x.id)===id);
+    if(!s) return;
+    const pesoD = Number(s.peso_detalhado)||0;
+    const pesoB = Number(s.peso_previsto)||0;
+    const pmVal = peso_med ? Number(peso_med) : 0;
+    const pesoRef = pmVal>0 ? pmVal : (pesoD>0?pesoD:pesoB);
+    if(pesoRef>0) total += vkg * pesoRef * (pct/100);
+  });
+  return total;
+}
+
 function recalcularMedicao(){
   const vkg      = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
   const pesoPrev = parseFloat(document.getElementById('med-peso-previsto')?.value)||0;
   const pesoDet  = parseFloat(document.getElementById('med-peso-detalhado')?.value)||0;
-  // Usa peso detalhado se preenchido, senão usa previsto
-  const pesoBase = pesoDet > 0 ? pesoDet : pesoPrev;
-  const total    = vkg > 0 && pesoBase > 0 ? vkg * pesoBase : 0;
+
+  // Prefere soma das TAGs; fallback para peso geral caso não haja TAGs
+  const totalTags = _calcTotalTags();
+  const pesoBase  = pesoDet > 0 ? pesoDet : pesoPrev;
+  const totalGeral = vkg > 0 && pesoBase > 0 ? vkg * pesoBase : 0;
+  const total = totalTags > 0 ? totalTags : totalGeral;
 
   const el = document.getElementById('med-valor-total-preview');
   if(el){
@@ -6595,11 +6639,11 @@ function recalcularMedicao(){
 
   const el2 = document.getElementById('med-modal-totais');
   if(el2 && total > 0){
-    const label = pesoDet > 0 ? '(usando Peso Detalhado)' : '(usando Peso Previsto)';
+    const label = totalTags > 0
+      ? `(soma das ${_medTagsMap.size} TAG${_medTagsMap.size!==1?'s':''})`
+      : pesoDet > 0 ? '(usando Peso Detalhado)' : '(usando Peso Previsto)';
     el2.innerHTML = `<span style="font-size:11px;color:var(--ink3);">
-      <b>${pesoBase.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</b>
-      × R$ <b>${vkg.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}/kg</b>
-      = <b style="color:var(--green);">${fmtBRL(total)}</b>
+      Total = <b style="color:var(--green);">${fmtBRL(total)}</b>
       <span style="margin-left:.4rem;color:var(--blue);">${label}</span>
     </span>`;
   } else if(el2){
@@ -6806,6 +6850,8 @@ function atualizarResumoMedTags(){
       <span style="font-size:10px;font-weight:700;color:#0e7490;">TOTAL DAS TAGS</span>
       <span style="font-family:'Courier New',monospace;font-size:12px;font-weight:800;color:#166534;">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
     </div>`:''}`;
+  // Atualiza preview do valor total no modal
+  if(typeof recalcularMedicao==='function') recalcularMedicao();
 }
 
 function getMedTagsIds(){
@@ -6842,7 +6888,7 @@ function abrirModalMedicao(id){
 
   // Reset todos os campos
   ['med-data','med-valor-kg','med-peso-previsto','med-peso-detalhado',
-   'med-bm','med-nf','med-obs-contrato','med-tags-busca'
+   'med-num-ps','med-bm','med-nf','med-obs-contrato','med-tags-busca'
   ].forEach(fid=>{ const el=document.getElementById(fid); if(el) el.value=''; });
   _medTagsMap = new Map();
   document.getElementById('med-status-contrato').value = 'ATIVO';
@@ -6862,6 +6908,7 @@ function abrirModalMedicao(id){
     sv('med-peso-previsto', m.peso_previsto);
     sv('med-peso-detalhado', m.peso_detalhado);
     sv('med-valor-kg', m.valor_kg);
+    sv('med-num-ps', m.num_ps);
     sv('med-bm', m.bm);
     sv('med-nf', m.nf);
     sv('med-obs-contrato', m.obs_contrato);
@@ -6894,15 +6941,19 @@ async function salvarMedicao(){
   if(!equipe){ showToast('Campo obrigatório','Selecione a Engenharia/Equipe.','error'); return; }
   if(!obra  ){ showToast('Campo obrigatório','Selecione a Obra.','error'); return; }
   if(!valor_kg){ showToast('Campo obrigatório','Informe o valor por kg.','error'); return; }
+  const num_ps = (document.getElementById('med-num-ps')?.value||'').trim() || null;
+  if(!num_ps){ showToast('Campo obrigatório','Informe o Nº PS (Pedido de Serviço).','error'); return; }
 
   const peso_previsto  = parseFloat(document.getElementById('med-peso-previsto')?.value)||null;
   const peso_detalhado = parseFloat(document.getElementById('med-peso-detalhado')?.value)||null;
   const pesoBase       = peso_detalhado || peso_previsto || null;
-  const valor_total    = pesoBase ? valor_kg * pesoBase : null;
+  // valor_total = soma real das TAGs (considera peso_med e % de cada etapa)
+  const _vtTags = _calcTotalTags();
+  const valor_total = _vtTags > 0 ? _vtTags : (pesoBase ? valor_kg * pesoBase : null);
 
   const gv = id => document.getElementById(id)?.value||null;
   const payload = {
-    data, equipe, obra, valor_kg,
+    data, equipe, obra, valor_kg, num_ps,
     peso_previsto, peso_detalhado, valor_total,
     bm: gv('med-bm'),
     nf: gv('med-nf'),
