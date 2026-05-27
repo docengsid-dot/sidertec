@@ -1098,7 +1098,22 @@ ALTER TABLE medicao_terceiros
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
         <div class="field-group" style="margin-bottom:0;">
           <label class="field-label">Status</label>
-          <select class="field-input" id="rel-status" style="font-size:16px;"><option value="">Todos</option></select>
+          <!-- Multi-select de status para o relatório -->
+          <div id="rel-status-wrap" style="position:relative;">
+            <div id="rel-status-btn" onclick="toggleRelStatusDD()" style="display:flex;align-items:center;gap:5px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r2);padding:7px 10px;cursor:pointer;font-size:11px;user-select:none;min-height:38px;">
+              <span id="rel-status-label" style="flex:1;color:var(--ink3);">Todos</span>
+              <span style="color:var(--ink3);font-size:9px;">▾</span>
+            </div>
+            <div id="rel-status-dd" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:600;background:#fff;border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow2);min-width:240px;padding:.35rem 0;">
+              <div style="padding:.2rem .65rem .35rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;">Status do Relatório</span>
+                <span onclick="relStatusLimpar()" style="font-size:9px;color:var(--accent);cursor:pointer;font-weight:600;">Limpar</span>
+              </div>
+              <div id="rel-status-items"></div>
+            </div>
+          </div>
+          <!-- Campo oculto para compatibilidade legada (mantém 1 valor) -->
+          <select id="rel-status" style="display:none;"><option value="">Todos</option></select>
         </div>
         <div class="field-group" style="margin-bottom:0;">
           <label class="field-label">Etapa concluída</label>
@@ -1464,18 +1479,29 @@ ALTER TABLE medicao_terceiros
         </div>
         <div class="field-group">
           <label class="field-label">Status</label>
-          <select class="field-input" id="rcron-status" style="font-size:16px;">
-            <option value="">Todos</option>
-              <option>AG. PROJ. BÁSICO</option>
-              <option>AG. MODELO PARA APROV.</option>
-              <option>MODELO EM APROV.</option>
-              <option>EMISSÃO PCTE FAB.</option>
-              <option>INSP. INTERNA</option>
-              <option>LIB. FABRICAÇÃO</option>
-              <option>EM COTAÇÃO ENG.</option>
-              <option>AG. DOCUMENTOS</option>
-              <option>HOLD</option>
-</select>
+          <div id="rcron-status-wrap" style="position:relative;">
+            <div id="rcron-status-btn" onclick="toggleRcronStatusDD()" style="display:flex;align-items:center;gap:5px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r2);padding:7px 10px;cursor:pointer;font-size:11px;user-select:none;min-height:38px;">
+              <span id="rcron-status-label" style="flex:1;color:var(--ink3);">Todos</span>
+              <span style="color:var(--ink3);font-size:9px;">▾</span>
+            </div>
+            <div id="rcron-status-dd" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:600;background:#fff;border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow2);min-width:260px;padding:.35rem 0;">
+              <div style="padding:.2rem .65rem .35rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;">Selecionar Status</span>
+                <span onclick="rcronStatusLimpar()" style="font-size:9px;color:var(--accent);cursor:pointer;font-weight:600;">Limpar</span>
+              </div>
+              <label class="ms-item"><input type="checkbox" value="AG. PROJ. BÁSICO"       onchange="onRcronStatusChange(this)"> AG. Proj. Básico</label>
+              <label class="ms-item"><input type="checkbox" value="AG. MODELO PARA APROV." onchange="onRcronStatusChange(this)"> AG. Modelo p/ Aprov.</label>
+              <label class="ms-item"><input type="checkbox" value="MODELO EM APROV."       onchange="onRcronStatusChange(this)"> Modelo em Aprov.</label>
+              <label class="ms-item"><input type="checkbox" value="EMISSÃO PCTE FAB."      onchange="onRcronStatusChange(this)"> Emissão Pcte Fab.</label>
+              <label class="ms-item"><input type="checkbox" value="INSP. INTERNA"          onchange="onRcronStatusChange(this)"> Inspeção Interna</label>
+              <label class="ms-item"><input type="checkbox" value="LIB. FABRICAÇÃO"        onchange="onRcronStatusChange(this)"> 🔩 Lib. Fabricação</label>
+              <label class="ms-item"><input type="checkbox" value="EM COTAÇÃO ENG."        onchange="onRcronStatusChange(this)"> Em Cotação Eng.</label>
+              <label class="ms-item"><input type="checkbox" value="AG. DOCUMENTOS"         onchange="onRcronStatusChange(this)"> Ag. Documentos</label>
+              <label class="ms-item"><input type="checkbox" value="HOLD"                   onchange="onRcronStatusChange(this)"> ⏸ Hold</label>
+            </div>
+          </div>
+          <!-- Campo oculto legado -->
+          <select id="rcron-status" style="display:none;"><option value="">Todos</option></select>
         </div>
         <div class="field-group">
           <label class="field-label">Data Prev. Lib. De</label>
@@ -5391,10 +5417,75 @@ function abrirModalImprimir(){
   if(selO) selO.innerHTML = '<option value="">Todas</option>'+obras.map(o=>`<option>${o}</option>`).join('');
   if(selE) selE.innerHTML = '<option value="">Todas</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
   if(selS) selS.innerHTML = '<option value="">Todos</option>'+statuses.map(s=>`<option>${s}</option>`).join('');
+  // Popular multi-select de status do relatório
+  _relStatusSelecionados = [];
+  const relStatusItems = document.getElementById('rel-status-items');
+  if(relStatusItems){
+    // Ordem fixa + dinâmica
+    const STATUS_FIXOS = ['AG. PROJ. BÁSICO','AG. MODELO PARA APROV.','MODELO EM APROV.','EMISSÃO PCTE FAB.','INSP. INTERNA','LIB. FABRICAÇÃO','EM COTAÇÃO ENG.','AG. DOCUMENTOS','HOLD'];
+    const extras = statuses.filter(s=>!STATUS_FIXOS.includes(s));
+    const lista = [...STATUS_FIXOS.filter(s=>statuses.includes(s)), ...extras];
+    relStatusItems.innerHTML = lista.map(s=>`<label class="ms-item"><input type="checkbox" value="${s}" onchange="onRelStatusChange(this)"> ${s}</label>`).join('');
+  }
+  _atualizarRelStatusLabel();
   // Reset preview
   const prev = document.getElementById('rel-preview');
   if(prev) prev.innerHTML = 'Ajuste os filtros e clique em <b>Contar</b> ou <b>Gerar PDF</b>.';
   document.getElementById('modal-imprimir').classList.add('show');
+}
+
+// ── MULTI-SELECT STATUS RELATÓRIO ──────────────────────────────────
+var _relStatusSelecionados = [];
+
+function toggleRelStatusDD(){
+  const dd = document.getElementById('rel-status-dd');
+  if(!dd) return;
+  const open = dd.style.display !== 'none';
+  dd.style.display = open ? 'none' : 'block';
+  if(!open){
+    setTimeout(()=>{
+      document.addEventListener('click', _fecharRelStatusOutside, {once:true});
+    }, 10);
+  }
+}
+function _fecharRelStatusOutside(e){
+  const wrap = document.getElementById('rel-status-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    const dd = document.getElementById('rel-status-dd');
+    if(dd) dd.style.display = 'none';
+  } else {
+    setTimeout(()=>{
+      document.addEventListener('click', _fecharRelStatusOutside, {once:true});
+    }, 10);
+  }
+}
+function onRelStatusChange(cb){
+  const val = cb.value;
+  if(cb.checked){
+    if(!_relStatusSelecionados.includes(val)) _relStatusSelecionados.push(val);
+  } else {
+    _relStatusSelecionados = _relStatusSelecionados.filter(s=>s!==val);
+  }
+  _atualizarRelStatusLabel();
+}
+function relStatusLimpar(){
+  _relStatusSelecionados = [];
+  document.querySelectorAll('#rel-status-items input[type=checkbox]').forEach(cb=>cb.checked=false);
+  _atualizarRelStatusLabel();
+}
+function _atualizarRelStatusLabel(){
+  const lbl = document.getElementById('rel-status-label');
+  if(!lbl) return;
+  if(_relStatusSelecionados.length === 0){
+    lbl.textContent = 'Todos';
+    lbl.style.color = 'var(--ink3)';
+  } else if(_relStatusSelecionados.length === 1){
+    lbl.textContent = _relStatusSelecionados[0];
+    lbl.style.color = 'var(--accent)';
+  } else {
+    lbl.textContent = _relStatusSelecionados.length + ' status selecionados';
+    lbl.style.color = 'var(--accent)';
+  }
 }
 
 function fecharModalImprimir(){
@@ -5404,7 +5495,8 @@ function fecharModalImprimir(){
 function _filtrarRel(){
   const obraF   = document.getElementById('rel-obra')?.value;
   const equipeF = document.getElementById('rel-equipe')?.value;
-  const statusF = document.getElementById('rel-status')?.value;
+  const statusFs = (typeof _relStatusSelecionados !== 'undefined') ? _relStatusSelecionados : [];
+  const statusF = statusFs.length === 1 ? statusFs[0] : ''; // legado single
   const etapaF  = document.getElementById('rel-etapa-conc')?.value;
   const projF   = (document.getElementById('rel-proj-basico')?.value||'').toLowerCase().trim();
   const dataDeF = document.getElementById('rel-data-de')?.value;
@@ -5414,7 +5506,7 @@ function _filtrarRel(){
   return (allCronSubobras||[]).filter(s=>{
     if(obraF   && s.obra!==obraF) return false;
     if(equipeF && s.equipe!==equipeF) return false;
-    if(statusF && s.status!==statusF) return false;
+    if(statusFs.length > 0 && !statusFs.includes(s.status)) return false;
     if(etapaF  && !s[etapaF]) return false;
     if(projF   && !(s.num_proj_basico||'').toLowerCase().includes(projF)) return false;
     if(dataDeF && s.prev_lib_fab && s.prev_lib_fab < dataDeF) return false;
@@ -5446,7 +5538,7 @@ function gerarRelatorioCompleto(){
   const filtrosTexto = [
     document.getElementById('rel-obra')?.value    ? 'Obra: '+document.getElementById('rel-obra').value : '',
     document.getElementById('rel-equipe')?.value  ? 'Equipe: '+document.getElementById('rel-equipe').value : '',
-    document.getElementById('rel-status')?.value  ? 'Status: '+document.getElementById('rel-status').value : '',
+    (typeof _relStatusSelecionados !== 'undefined' && _relStatusSelecionados.length > 0) ? 'Status: '+_relStatusSelecionados.join(', ') : '',
     document.getElementById('rel-busca')?.value   ? 'Busca: '+document.getElementById('rel-busca').value : '',
     document.getElementById('rel-avanco-min')?.value ? 'Avanço ≥ '+document.getElementById('rel-avanco-min').value+'%' : '',
   ].filter(Boolean).join(' · ') || 'Sem filtros (todas)';
@@ -5665,11 +5757,51 @@ function abrirRelatorioCron(){
 function fecharRelatorioCron(e){
   if(!e||e.target.id==='modal-rel-cron') document.getElementById('modal-rel-cron').classList.remove('show');
 }
+// ── MULTI-SELECT STATUS RELATÓRIO CRON ──────────────────────────────
+var _rcronStatusSelecionados = [];
+function toggleRcronStatusDD(){
+  const dd = document.getElementById('rcron-status-dd');
+  if(!dd) return;
+  const open = dd.style.display !== 'none';
+  dd.style.display = open ? 'none' : 'block';
+  if(!open){
+    setTimeout(()=>{ document.addEventListener('click', _fecharRcronOutside, {once:true}); }, 10);
+  }
+}
+function _fecharRcronOutside(e){
+  const wrap = document.getElementById('rcron-status-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    const dd = document.getElementById('rcron-status-dd');
+    if(dd) dd.style.display = 'none';
+  } else {
+    setTimeout(()=>{ document.addEventListener('click', _fecharRcronOutside, {once:true}); }, 10);
+  }
+}
+function onRcronStatusChange(cb){
+  const val = cb.value;
+  if(cb.checked){ if(!_rcronStatusSelecionados.includes(val)) _rcronStatusSelecionados.push(val); }
+  else { _rcronStatusSelecionados = _rcronStatusSelecionados.filter(s=>s!==val); }
+  _atualizarRcronStatusLabel();
+}
+function rcronStatusLimpar(){
+  _rcronStatusSelecionados = [];
+  document.querySelectorAll('#rcron-status-dd input[type=checkbox]').forEach(cb=>cb.checked=false);
+  _atualizarRcronStatusLabel();
+}
+function _atualizarRcronStatusLabel(){
+  const lbl = document.getElementById('rcron-status-label');
+  if(!lbl) return;
+  if(_rcronStatusSelecionados.length === 0){ lbl.textContent='Todos'; lbl.style.color='var(--ink3)'; }
+  else if(_rcronStatusSelecionados.length === 1){ lbl.textContent=_rcronStatusSelecionados[0]; lbl.style.color='var(--accent)'; }
+  else { lbl.textContent=_rcronStatusSelecionados.length+' status selecionados'; lbl.style.color='var(--accent)'; }
+}
+
 function gerarRelatorioCron(){
   const obraF  = document.getElementById('rcron-obra').value;
   const tagF   = document.getElementById('rcron-tag').value.toLowerCase();
   const engF   = document.getElementById('rcron-eng').value;
-  const statusF= document.getElementById('rcron-status').value;
+  const statusFs= (typeof _rcronStatusSelecionados!=='undefined') ? _rcronStatusSelecionados : [];
+  const statusF= statusFs.length===1 ? statusFs[0] : '';
   const prevF  = document.getElementById('rcron-prev-de').value;
   const prevAF = document.getElementById('rcron-prev-ate').value;
   const hoje   = new Date().toLocaleDateString('pt-BR');
@@ -5678,7 +5810,7 @@ function gerarRelatorioCron(){
     if(obraF && s.obra!==obraF) return false;
     if(tagF  && !(s.subobra||'').toLowerCase().includes(tagF)) return false;
     if(engF  && s.equipe!==engF) return false;
-    if(statusF && s.status!==statusF) return false;
+    if(statusFs.length>0 && !statusFs.includes(s.status)) return false;
     if(prevF && s.prev_lib_fab && s.prev_lib_fab < prevF) return false;
     if(prevAF && s.prev_lib_fab && s.prev_lib_fab > prevAF) return false;
     return true;
