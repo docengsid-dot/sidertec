@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sidertec — Diário de Execução</title>
+<style>
+/* Fontes carregadas de forma não-bloqueante */
+@font-face { font-family: 'DM Serif Display'; src: local('Georgia'); }
+@font-face { font-family: 'DM Mono'; src: local('Courier New'); }
+@font-face { font-family: 'Outfit'; src: local('Segoe UI'), local('Helvetica Neue'), local('Arial'); }
+:root{
+  --bg:#F5F3EE;--bg2:#EDEAE2;--bg3:#E3DFD5;
+  --ink:#1A1714;--ink2:#4A4540;--ink3:#8A847A;
+  --accent:#C4501A;--accent2:#E8763A;--accent3:#F5C89A;
+  --green:#2A7A4A;--green2:#E8F5EE;
+  --blue:#1A4A7A;--blue2:#E8F0F8;
+  --yellow:#D4A017;--yellow2:#FBF3DC;
+  --orange:#E07000;--orange2:#FEF3E2;
+  --red:#C0392B;--red2:#FDEDEC;
+  --purple:#6B21A8;--purple2:#F3E8FF;
+  --border:#D8D3C8;--border2:#C8C2B5;
+  --shadow:0 2px 12px rgba(26,23,20,0.08);
+  --shadow2:0 8px 32px rgba(26,23,20,0.14);
+  --r:8px;--r2:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI','Helvetica Neue',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;}
+
+/* HEADER */
+header{background:var(--ink);padding:0 2rem;display:flex;align-items:center;gap:1.5rem;height:60px;position:sticky;top:0;z-index:300;}
+.logo-sq{width:32px;height:32px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'Georgia',serif;font-size:13px;color:#fff;}
+.logo-txt{font-family:'Georgia',serif;font-size:15px;color:#fff;}
+.logo-txt span{color:var(--accent2);}
+.hd-sep{width:1px;height:24px;background:rgba(255,255,255,0.15);}
+.hd-sub{font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:.1em;text-transform:uppercase;}
+.hd-right{margin-left:auto;display:flex;gap:.6rem;align-items:center;}
+.hd-date{font-size:10px;color:rgba(255,255,255,0.45);font-family:'Courier New',monospace;}
+.hbtn{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.13);border-radius:3px;color:rgba(255,255,255,0.75);font-size:10px;padding:4px 11px;cursor:pointer;font-family:'Segoe UI','Helvetica Neue',sans-serif;transition:all .15s;}
+.hbtn:hover{background:rgba(255,255,255,0.14);}
+.hbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.hbtn.primary:hover{background:var(--accent2);}
+
+/* NAV */
+.nav-tabs{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;position:sticky;top:60px;z-index:200;overflow-x:auto;}
+.nav-tabs::-webkit-scrollbar{height:0;}
+.tab{padding:12px 16px;font-size:12px;font-weight:500;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--ink2);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* PAGE */
+.page{display:none;padding:1.75rem 2rem;}
+.page.active{display:block;}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.85rem;margin-bottom:1.5rem;}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.2rem;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);}
+.kpi.green::before{background:var(--green);}
+.kpi.blue::before{background:var(--blue);}
+.kpi.yellow::before{background:var(--yellow);}
+.kpi.purple::before{background:var(--purple);}
+.kpi.red::before{background:var(--red);}
+.kpi-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:.3rem;}
+.kpi-val{font-family:'Georgia',serif;font-size:24px;color:var(--ink);line-height:1;margin-bottom:.2rem;}
+.kpi-sub{font-size:10px;color:var(--ink3);}
+
+/* SECTION HEADER */
+.sec-hd{font-family:'Georgia',serif;font-size:17px;color:var(--ink);margin-bottom:.85rem;display:flex;align-items:center;gap:.6rem;}
+.sec-hd::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* FILTERS */
+.filters{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.65rem .9rem;margin-bottom:1rem;}
+.filters label{font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;}
+select,input[type=text],input[type=date]{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);color:var(--ink);font-family:'Segoe UI','Helvetica Neue',sans-serif;font-size:11px;padding:5px 8px;outline:none;cursor:pointer;}
+select:focus,input:focus{border-color:var(--accent);}
+.fsep{width:1px;height:18px;background:var(--border);}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead{background:var(--ink);}
+thead th{padding:9px 12px;color:#fff;font-weight:500;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--bg);}
+tbody td{padding:8px 12px;color:var(--ink2);vertical-align:middle;}
+.empty-row td{text-align:center;padding:2rem;color:var(--ink3);font-size:12px;}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;white-space:nowrap;}
+.badge-concluido{background:#dcfce7;color:#166534;}
+.badge-andamento{background:#fef3c7;color:#92400e;}
+.badge-pendente{background:#fee2e2;color:#991b1b;}
+.badge-cancelado{background:#f1f5f9;color:#475569;}
+.nivel-1{background:#dcfce7;color:#166534;}
+.nivel-2{background:#fef3c7;color:#92400e;}
+.nivel-3{background:#fee2e2;color:#991b1b;}
+
+/* FORM CARD */
+.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;box-shadow:var(--shadow);}
+.fc-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem;}
+.fc-title::before{content:'';width:3px;height:12px;background:var(--accent);border-radius:2px;display:inline-block;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.form-grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;}
+.field-group{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.85rem;}
+.field-group.no-mb{margin-bottom:0;}
+.field-label{font-size:10px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;}
+.field-input{background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r2);color:var(--ink);font-family:'Segoe UI','Helvetica Neue',sans-serif;font-size:12px;padding:8px 10px;outline:none;transition:all .15s;width:100%;}
+.field-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,80,26,.08);}
+textarea.field-input{resize:vertical;min-height:72px;}
+.field-hint{font-size:9px;color:var(--ink3);}
+.btn-row{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1rem;}
+.btn{border:none;border-radius:var(--r2);font-family:'Segoe UI','Helvetica Neue',sans-serif;font-size:12px;font-weight:600;padding:9px 20px;cursor:pointer;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);}
+.btn-secondary{background:var(--bg2);color:var(--ink2);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--bg3);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#1e5c37;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#922b21;}
+.btn-sm{font-size:10px;padding:5px 12px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,23,20,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal-box{background:#fff;border-radius:var(--r);width:720px;max-width:100%;box-shadow:var(--shadow2);transform:translateY(-16px);transition:transform .2s;margin:auto;}
+.modal-overlay.show .modal-box{transform:translateY(0);}
+.modal-hd{background:var(--ink);border-radius:var(--r) var(--r) 0 0;padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;}
+.modal-hd-title{font-family:'Georgia',serif;font-size:17px;color:#fff;flex:1;}
+.modal-close{background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+.modal-close:hover{color:#fff;}
+.modal-body{padding:1.25rem 1.5rem;}
+.modal-footer{padding:.85rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.6rem;}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.75rem;right:1.75rem;border-radius:var(--r);padding:.9rem 1.25rem;box-shadow:var(--shadow2);font-size:12px;font-weight:500;transform:translateY(120px);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);z-index:1000;max-width:360px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:var(--green);color:#fff;}
+.toast.warn{background:var(--yellow);color:#fff;}
+.toast.error{background:var(--red);color:#fff;}
+.toast-title{font-weight:700;margin-bottom:.15rem;font-size:13px;}
+.toast-body{opacity:.85;font-size:11px;}
+
+/* TIMELINE VIEW */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.tl-date-group{margin-bottom:1.25rem;}
+.tl-date-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;}
+.tl-date-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.tl-item{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.2rem;display:flex;gap:1rem;align-items:flex-start;margin-bottom:.5rem;transition:box-shadow .15s;}
+.tl-item:hover{box-shadow:var(--shadow);}
+.tl-left{display:flex;flex-direction:column;align-items:center;gap:.3rem;flex-shrink:0;width:40px;}
+.tl-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.tl-icon.concluido{background:var(--green2);border:1.5px solid var(--green);}
+.tl-icon.andamento{background:var(--yellow2);border:1.5px solid var(--yellow);}
+.tl-icon.pendente{background:var(--red2);border:1.5px solid var(--red);}
+.tl-icon.cancelado{background:var(--bg2);border:1.5px solid var(--border2);}
+.tl-body{flex:1;min-width:0;}
+.tl-atividade{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:.25rem;}
+.tl-meta{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:10px;color:var(--ink3);}
+.tl-meta-sep{opacity:.4;}
+.tl-obs{font-size:11px;color:var(--ink3);margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);font-style:italic;}
+.tl-actions{display:flex;gap:.4rem;align-items:center;flex-shrink:0;}
+
+/* Progress donut mini */
+.donut-wrap{display:flex;align-items:center;gap:.5rem;}
+.donut-label{font-size:10px;color:var(--ink3);}
+
+/* Banner */
+.mod-banner{background:linear-gradient(135deg,#1A2A4A 0%,var(--blue) 100%);border-radius:var(--r);padding:1.25rem 2rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1.25rem;}
+.ban-icon{width:44px;height:44px;background:rgba(255,255,255,.12);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.ban-txt h2{font-family:'Georgia',serif;font-size:19px;color:#fff;margin-bottom:.2rem;}
+.ban-txt p{font-size:11px;color:rgba(255,255,255,.45);}
+.ban-right{margin-left:auto;display:flex;gap:.6rem;}
+
+/* Charts row */
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;margin-bottom:1.5rem;}
+.chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.2rem;box-shadow:var(--shadow);}
+.chart-card-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.75rem;font-weight:600;}
+.bar-group{display:flex;flex-direction:column;gap:.45rem;}
+.bar-row{display:flex;align-items:center;gap:.6rem;}
+.bar-lbl{font-size:10px;color:var(--ink2);width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;background:var(--bg3);border-radius:3px;height:8px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+.bar-num{font-size:10px;font-family:'Courier New',monospace;color:var(--ink3);width:24px;text-align:right;flex-shrink:0;}
+
+/* Nivel legend */
+.nivel-legend{display:flex;gap:.6rem;margin-bottom:.6rem;}
+.nivel-dot{display:inline-flex;align-items:center;gap:.3rem;font-size:10px;}
+.nd{width:10px;height:10px;border-radius:2px;}
+
+/* Print btn */
+@media print{
+  header,.nav-tabs,.filters,.btn-row,.tl-actions,.hd-right,.modal-overlay,.toast{display:none!important;}
+  .page{display:block!important;padding:0;}
+  body{background:#fff;}
+}
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:1fr 1fr;}
+  .form-grid-3,.form-grid-4{grid-template-columns:1fr 1fr;}
+  .form-grid-2{grid-template-columns:1fr;}
+  .charts-row{grid-template-columns:1fr;}
+  header,.nav-tabs,.page{padding-left:1rem;padding-right:1rem;}
+}
+</style>
+<script>
+(function(){
+  if(navigator.onLine){
+    var l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap';
+    document.head.appendChild(l);
+  }
+})();
+</script>
+<script>
+// Supabase — carregado assincronamente
+window._sbReady = false;
+window._sbUrl = 'https://ueekpnyahlgvolvnuwk.supabase.co';
+window._sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlZWtucG55YWhsZ3ZvbHZudXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyMjAsImV4cCI6MjA5NTUyNzIyMH0.ReeTx_uSQXsfq2oh24bVOwlO5HFs9riCeiapXsgb6to';
+(function(){
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  s.async = true;
+  s.onload = function(){
+    if(window.supabase && window.supabase.createClient){
+      window._sb = window.supabase.createClient(window._sbUrl, window._sbKey);
+      window._sbReady = true;
+      console.log('[diario_sb] Supabase conectado');
+      if(typeof window._onSbReady === 'function') window._onSbReady();
+    }
+  };
+  s.onerror = function(){ console.warn('[diario_sb] Offline — usando localStorage'); };
+  document.head.appendChild(s);
+})();
+</script>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-sq">S</div>
+  <div class="logo-txt">Sidertec <span>Engenharia</span></div>
+  <div class="hd-sep"></div>
+  <div class="hd-sub">Diário de Execução</div>
+  <div class="hd-right">
+    <div class="hd-date" id="hd-date"></div>
+    <button class="hbtn" onclick="backupDados()" title="Salvar backup dos dados em arquivo JSON">💾 Backup</button>
+    <label class="hbtn" style="cursor:pointer;" title="Restaurar dados de um backup JSON">
+      📂 Restaurar
+      <input type="file" accept=".json" style="display:none;" onchange="restaurarDados(this)">
+    </label>
+    <button class="hbtn" onclick="exportarCSV()">⬇ Exportar CSV</button>
+    <button class="hbtn" onclick="window.print()">🖨 Imprimir</button>
+    <button class="hbtn primary" onclick="abrirModalNovo()">+ Nova Atividade</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<div class="nav-tabs">
+  <div class="tab active" onclick="switchTab('diario')">📋 Diário</div>
+  <div class="tab" onclick="switchTab('timeline')">📅 Linha do Tempo</div>
+  <div class="tab" onclick="switchTab('painel')">📊 Painel</div>
+  <div class="tab" onclick="switchTab('responsaveis')">👥 Responsáveis</div>
+</div>
+
+<!-- ═══ DIÁRIO ═══ -->
+<div class="page active" id="page-diario">
+
+  <div class="mod-banner">
+    <div class="ban-icon">📓</div>
+    <div class="ban-txt">
+      <h2>Diário de Execução de Atividades</h2>
+      <p>Registre, acompanhe e controle as atividades da sua equipe em tempo real</p>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi blue">
+      <div class="kpi-label">Total de Atividades</div>
+      <div class="kpi-val" id="kpi-total">0</div>
+      <div class="kpi-sub">registros no diário</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Concluídas</div>
+      <div class="kpi-val" id="kpi-concluidas">0</div>
+      <div class="kpi-sub">finalizadas</div>
+    </div>
+    <div class="kpi yellow">
+      <div class="kpi-label">Em Andamento</div>
+      <div class="kpi-val" id="kpi-andamento">0</div>
+      <div class="kpi-sub">em execução</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Pendentes</div>
+      <div class="kpi-val" id="kpi-pendentes">0</div>
+      <div class="kpi-sub">aguardando início</div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-label">Nível Crítico</div>
+      <div class="kpi-val" id="kpi-critico">0</div>
+      <div class="kpi-sub">prioridade alta</div>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filters">
+    <label>Filtrar:</label>
+    <select id="f-responsavel" onchange="aplicarFiltros()">
+      <option value="">Todos Responsáveis</option>
+    </select>
+    <select id="f-setor" onchange="aplicarFiltros()">
+      <option value="">Todos Setores</option>
+    </select>
+    <select id="f-status" onchange="aplicarFiltros()">
+      <option value="">Todos Status</option>
+      <option value="Concluído">Concluído</option>
+      <option value="Em Andamento">Em Andamento</option>
+      <option value="Pendente">Pendente</option>
+      <option value="Cancelado">Cancelado</option>
+    </select>
+    <select id="f-nivel" onchange="aplicarFiltros()">
+      <option value="">Todos Níveis</option>
+      <option value="1">Nível 1 — Baixo</option>
+      <option value="2">Nível 2 — Médio</option>
+      <option value="3">Nível 3 — Alto</option>
+    </select>
+    <div class="fsep"></div>
+    <label>Período:</label>
+    <select id="f-periodo" onchange="aplicarFiltroPeriodo()">
+      <option value="">Todas as datas</option>
+      <option value="hoje">Hoje</option>
+      <option value="semana">Esta semana</option>
+      <option value="semana-passada">Semana passada</option>
+      <option value="mes">Este mês</option>
+      <option value="atrasados">⚠ Atrasados</option>
+    </select>
+    <div class="fsep"></div>
+    <label>Data:</label>
+    <input type="date" id="f-data-ini" onchange="limparPeriodo();aplicarFiltros()">
+    <span style="font-size:11px;color:var(--ink3);">até</span>
+    <input type="date" id="f-data-fim" onchange="limparPeriodo();aplicarFiltros()">
+    <div class="fsep"></div>
+    <input type="text" id="f-busca" placeholder="Buscar atividade…" oninput="aplicarFiltros()" style="width:160px;">
+    <button class="btn btn-secondary btn-sm" onclick="limparFiltros()">✕ Limpar</button>
+    <span style="margin-left:auto;font-size:10px;color:var(--ink3);" id="f-count"></span>
+  </div>
+  <!-- Pill de atrasados ativo -->
+  <div id="banner-atrasados" style="display:none;background:var(--red2);border:1.5px solid var(--red);border-radius:var(--r2);padding:.5rem 1rem;margin-bottom:.75rem;font-size:11px;color:var(--red);align-items:center;gap:.5rem;">
+    <span style="font-size:14px;">⚠</span>
+    <strong>Filtro ativo: Atrasados</strong> — atividades com prazo vencido e não concluídas.
+    <button onclick="limparFiltros()" style="margin-left:auto;background:var(--red);border:none;color:#fff;border-radius:3px;padding:3px 10px;font-size:10px;cursor:pointer;">✕ Limpar</button>
+  </div>
+
+  <!-- TABELA -->
+  <div class="sec-hd">Registros do Diário</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:36px;">#</th>
+          <th>Data Registro</th>
+          <th>Responsável</th>
+          <th>Atividade</th>
+          <th>Setor</th>
+          <th>Prazo Previsto</th>
+          <th>Conclusão Real</th>
+          <th>Dias</th>
+          <th>Status</th>
+          <th>Nível</th>
+          <th>Obs.</th>
+          <th style="width:90px;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-corpo"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ TIMELINE ═══ -->
+<div class="page" id="page-timeline">
+  <div class="sec-hd">Linha do Tempo de Execução</div>
+  <div id="timeline-container" class="timeline"></div>
+</div>
+
+<!-- ═══ PAINEL ═══ -->
+<div class="page" id="page-painel">
+  <div class="sec-hd">Painel de Controle</div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-card-title">Atividades por Responsável</div>
+      <div class="bar-group" id="chart-responsavel"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Atividades por Setor</div>
+      <div class="bar-group" id="chart-setor"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Distribuição por Status</div>
+      <div class="bar-group" id="chart-status"></div>
+    </div>
+  </div>
+
+  <div class="charts-row" style="grid-template-columns:1fr 1fr;">
+    <div class="chart-card">
+      <div class="chart-card-title">Atividades por Nível de Prioridade</div>
+      <div class="nivel-legend">
+        <div class="nivel-dot"><div class="nd" style="background:var(--green);"></div> Nível 1 — Baixo</div>
+        <div class="nivel-dot"><div class="nd" style="background:var(--yellow);"></div> Nível 2 — Médio</div>
+        <div class="nivel-dot"><div class="nd" style="background:var(--red);"></div> Nível 3 — Alto</div>
+      </div>
+      <div class="bar-group" id="chart-nivel"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Atividades Concluídas vs Pendentes</div>
+      <div id="chart-prog" style="margin-top:.5rem;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RESPONSÁVEIS ═══ -->
+<div class="page" id="page-responsaveis">
+  <div class="mod-banner" style="background:linear-gradient(135deg,#1A3A2A 0%,var(--green) 100%);">
+    <div class="ban-icon">👥</div>
+    <div class="ban-txt">
+      <h2>Cadastro de Responsáveis</h2>
+      <p>Gerencie os membros da equipe que executam as atividades do diário</p>
+    </div>
+    <div class="ban-right">
+      <button class="hbtn primary" onclick="abrirModalResponsavel()">+ Novo Responsável</button>
+    </div>
+  </div>
+
+  <!-- KPIs responsáveis -->
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+    <div class="kpi blue">
+      <div class="kpi-label">Total Cadastrados</div>
+      <div class="kpi-val" id="kpi-resp-total">0</div>
+      <div class="kpi-sub">responsáveis ativos</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Com Atividades</div>
+      <div class="kpi-val" id="kpi-resp-com-ativ">0</div>
+      <div class="kpi-sub">no diário</div>
+    </div>
+    <div class="kpi yellow">
+      <div class="kpi-label">Setores Cobertos</div>
+      <div class="kpi-val" id="kpi-resp-setores">0</div>
+      <div class="kpi-sub">áreas distintas</div>
+    </div>
+  </div>
+
+  <!-- Filtro busca -->
+  <div class="filters">
+    <label>Filtrar:</label>
+    <input type="text" id="f-resp-busca" placeholder="Buscar por nome, cargo ou setor…" oninput="renderResponsaveis()" style="width:240px;">
+    <select id="f-resp-setor" onchange="renderResponsaveis()">
+      <option value="">Todos os Setores</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('f-resp-busca').value='';document.getElementById('f-resp-setor').value='';renderResponsaveis();">✕ Limpar</button>
+    <span style="margin-left:auto;font-size:10px;color:var(--ink3);" id="f-resp-count"></span>
+  </div>
+
+  <!-- Grid cards -->
+  <div class="sec-hd">Equipe Cadastrada</div>
+  <div id="resp-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.85rem;"></div>
+</div>
+
+<!-- ═══ MODAL RESPONSÁVEL ═══ -->
+<div class="modal-overlay" id="modal-resp-overlay">
+  <div class="modal-box" style="width:560px;">
+    <div class="modal-hd" style="background:var(--green);">
+      <div class="modal-hd-title" id="modal-resp-title">Novo Responsável</div>
+      <button class="modal-close" onclick="fecharModalResponsavel()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="field-group">
+          <label class="field-label">Nome Completo *</label>
+          <input type="text" id="mr-nome" class="field-input" placeholder="Nome do responsável" required>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Cargo / Função *</label>
+          <input type="text" id="mr-cargo" class="field-input" placeholder="Ex: Engenheiro Civil" required>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="field-group">
+          <label class="field-label">Setor / Área *</label>
+          <input type="text" id="mr-setor" class="field-input" placeholder="Ex: Engenharia" required list="mr-lista-setores">
+          <datalist id="mr-lista-setores"></datalist>
+        </div>
+        <div class="field-group">
+          <label class="field-label">E-mail</label>
+          <input type="text" id="mr-email" class="field-input" placeholder="email@empresa.com">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="field-group no-mb">
+          <label class="field-label">Telefone / Ramal</label>
+          <input type="text" id="mr-tel" class="field-input" placeholder="(11) 99999-9999">
+        </div>
+        <div class="field-group no-mb">
+          <label class="field-label">Status</label>
+          <select id="mr-status" class="field-input">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModalResponsavel()">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarResponsavel()" id="btn-salvar-resp">Salvar Responsável</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL NOVO / EDITAR ═══ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <div class="modal-hd-title" id="modal-title">Nova Atividade</div>
+      <button class="modal-close" onclick="fecharModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="field-group">
+          <label class="field-label">Data do Registro *</label>
+          <input type="date" id="m-data" class="field-input" required>
+          <span class="field-hint">Data em que a atividade foi registrada</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Responsável pela Atividade *</label>
+          <input type="text" id="m-responsavel" class="field-input" placeholder="Nome do responsável" required list="lista-responsaveis">
+          <datalist id="lista-responsaveis"></datalist>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Atividade *</label>
+        <input type="text" id="m-atividade" class="field-input" placeholder="Descrição da atividade executada ou a executar" required>
+      </div>
+      <div class="form-grid-3">
+        <div class="field-group">
+          <label class="field-label">Setor *</label>
+          <input type="text" id="m-setor" class="field-input" placeholder="Setor / Área" required list="lista-setores">
+          <datalist id="lista-setores"></datalist>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Data de Conclusão *</label>
+          <input type="date" id="m-conclusao" class="field-input" required>
+          <span class="field-hint">Prazo previsto ou data de conclusão real</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Nível de Prioridade *</label>
+          <select id="m-nivel" class="field-input" required>
+            <option value="">Selecionar…</option>
+            <option value="1">Nível 1 — Baixo</option>
+            <option value="2">Nível 2 — Médio</option>
+            <option value="3">Nível 3 — Alto / Crítico</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="field-group no-mb">
+          <label class="field-label">Status</label>
+          <select id="m-status" class="field-input" onchange="toggleConclusaoReal()">
+            <option value="Pendente">Pendente</option>
+            <option value="Em Andamento">Em Andamento</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </div>
+        <div class="field-group no-mb">
+          <label class="field-label">Observações</label>
+          <textarea id="m-obs" class="field-input" placeholder="Informações adicionais, impedimentos, etc." style="min-height:60px;"></textarea>
+        </div>
+      </div>
+      <div class="field-group no-mb" id="campo-conclusao-real" style="display:none;margin-top:.85rem;padding:1rem;background:var(--green2);border:1.5px solid var(--green);border-radius:var(--r2);">
+        <label class="field-label" style="color:var(--green);">✅ Data de Conclusão Real</label>
+        <input type="date" id="m-conclusao-real" class="field-input" style="border-color:var(--green);">
+        <span class="field-hint">Data em que a atividade foi efetivamente concluída</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarAtividade()" id="btn-salvar">Salvar Atividade</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toast-title"></div>
+  <div class="toast-body" id="toast-body"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA STORE (localStorage)
+// ═══════════════════════════════════════════════════════════
+const STORE_KEY = 'sidertec_diario_v1';
+
+function carregar(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function salvar(dados){
+  localStorage.setItem(STORE_KEY, JSON.stringify(dados));
+  // Sync to Supabase if online
+  if(window._sbReady && window._sb){
+    _syncDiarioToSb(dados);
+  }
+}
+
+async function _syncDiarioToSb(dados){
+  // Upsert all records
+  try{
+    // Delete all and reinsert (simpler for small dataset)
+    // Actually just upsert each record
+    for(var i=0;i<dados.length;i++){
+      var r = dados[i];
+      if(!r.id) r.id = Date.now()+'-'+Math.random().toString(36).slice(2);
+      await window._sb.from('diario_execucao').upsert(r, {onConflict:'id'});
+    }
+  }catch(e){ console.warn('[Diário Supabase]',e.message); }
+}
+
+// Carrega do Supabase quando disponível
+window._onSbReady = async function(){
+  try{
+    var res = await window._sb.from('diario_execucao').select('*').order('data',{ascending:false});
+    if(res.error) throw res.error;
+    if(res.data && res.data.length > 0){
+      dados = res.data;
+      localStorage.setItem(STORE_KEY, JSON.stringify(dados));
+      render();
+      console.log('[Diário] '+res.data.length+' registros carregados do Supabase');
+    }
+  }catch(e){ console.warn('[Diário Supabase carregar]',e.message); }
+};
+
+let dados = carregar();
+let editandoId = null;
+let dadosFiltrados = [];
+
+// ═══════════════════════════════════════════════════════════
+// RESPONSÁVEIS — declaração antecipada (usada no init)
+// ═══════════════════════════════════════════════════════════
+const STORE_RESP_KEY = 'sidertec_responsaveis_v1';
+function carregarResponsaveis(){
+  try{ return JSON.parse(localStorage.getItem(STORE_RESP_KEY)) || []; }
+  catch(e){ return []; }
+}
+function salvarResponsaveis(list){
+  localStorage.setItem(STORE_RESP_KEY, JSON.stringify(list));
+}
+let responsaveis = carregarResponsaveis();
+let editandoRespId = null;
+if(responsaveis.length === 0){
+  responsaveis = [
+    {id:1, nome:'Ana Paula', cargo:'Advogada Contratual', setor:'Contratos', email:'ana.paula@sidertec.com.br', tel:'(11) 98001-0001', status:'Ativo'},
+    {id:2, nome:'Carlos Mendes', cargo:'Engenheiro Civil', setor:'Engenharia', email:'c.mendes@sidertec.com.br', tel:'(11) 98001-0002', status:'Ativo'},
+    {id:3, nome:'Fernanda Lima', cargo:'Gestora de Projetos', setor:'Gestão', email:'f.lima@sidertec.com.br', tel:'(11) 98001-0003', status:'Ativo'},
+    {id:4, nome:'Roberto Souza', cargo:'Gerente Comercial', setor:'Comercial', email:'r.souza@sidertec.com.br', tel:'(11) 98001-0004', status:'Ativo'},
+  ];
+  salvarResponsaveis(responsaveis);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+(function init(){
+  // set today
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('m-data').value = hoje;
+  document.getElementById('hd-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+
+  if(dados.length === 0) carregarDadosDemo();
+  render();
+})();
+
+function carregarDadosDemo(){
+  const hoje = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1);
+  const amanha = new Date(hoje); amanha.setDate(hoje.getDate()+1);
+  const semana = new Date(hoje); semana.setDate(hoje.getDate()+5);
+
+  dados = [
+    {id:1, data: fmt(ontem), responsavel:'Ana Paula', atividade:'Revisão do cronograma contratual', setor:'Contratos', conclusao: fmt(hoje), nivel:'2', status:'Concluído', obs:'Atualizado com novos marcos'},
+    {id:2, data: fmt(hoje), responsavel:'Carlos Mendes', atividade:'Vistoria técnica na obra Bloco A', setor:'Engenharia', conclusao: fmt(amanha), nivel:'3', status:'Em Andamento', obs:'Aguardando laudo do fornecedor'},
+    {id:3, data: fmt(hoje), responsavel:'Fernanda Lima', atividade:'Elaboração do relatório mensal', setor:'Gestão', conclusao: fmt(semana), nivel:'1', status:'Pendente', obs:''},
+    {id:4, data: fmt(ontem), responsavel:'Roberto Souza', atividade:'Reunião com cliente sobre escopo', setor:'Comercial', conclusao: fmt(ontem), nivel:'2', status:'Concluído', obs:'Aprovado novo escopo fase 2'},
+    {id:5, data: fmt(hoje), responsavel:'Ana Paula', atividade:'Análise de aditivo contratual', setor:'Contratos', conclusao: fmt(semana), nivel:'3', status:'Em Andamento', obs:'Pendente aprovação jurídica'},
+  ];
+  salvar(dados);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER PRINCIPAL
+// ═══════════════════════════════════════════════════════════
+function render(){
+  atualizarKPIs();
+  atualizarFiltrosSelect();
+  aplicarFiltros();
+  renderTimeline();
+  renderPainel();
+}
+
+function atualizarKPIs(){
+  const total = dados.length;
+  const conc = dados.filter(d=>d.status==='Concluído').length;
+  const and = dados.filter(d=>d.status==='Em Andamento').length;
+  const pend = dados.filter(d=>d.status==='Pendente').length;
+  const crit = dados.filter(d=>d.nivel==='3').length;
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-concluidas').textContent = conc;
+  document.getElementById('kpi-andamento').textContent = and;
+  document.getElementById('kpi-pendentes').textContent = pend;
+  document.getElementById('kpi-critico').textContent = crit;
+}
+
+function atualizarFiltrosSelect(){
+  // merge nomes: from dados + from responsaveis cadastro
+  const nomesResp = responsaveis.filter(r=>r.status==='Ativo').map(r=>r.nome);
+  const resp = [...new Set(dados.map(d=>d.responsavel).concat(nomesResp).filter(Boolean))].sort();
+  const set = [...new Set(dados.map(d=>d.setor).filter(Boolean))].sort();
+  const fr = document.getElementById('f-responsavel');
+  const fs = document.getElementById('f-setor');
+  const curR = fr.value, curS = fs.value;
+  fr.innerHTML = '<option value="">Todos Responsáveis</option>' + resp.map(r=>`<option value="${r}">${r}</option>`).join('');
+  fs.innerHTML = '<option value="">Todos Setores</option>' + set.map(s=>`<option value="${s}">${s}</option>`).join('');
+  fr.value = curR; fs.value = curS;
+
+  // datalist modal atividade
+  document.getElementById('lista-responsaveis').innerHTML = resp.map(r=>`<option value="${r}">`).join('');
+  document.getElementById('lista-setores').innerHTML = set.map(s=>`<option value="${s}">`).join('');
+}
+
+function getInicioFimSemana(offset){
+  // offset=0 → esta semana, offset=-1 → semana passada
+  var hoje = new Date();
+  var diaSemana = hoje.getDay(); // 0=dom
+  var inicioSemana = new Date(hoje);
+  inicioSemana.setDate(hoje.getDate() - diaSemana + (offset * 7));
+  inicioSemana.setHours(0,0,0,0);
+  var fimSemana = new Date(inicioSemana);
+  fimSemana.setDate(inicioSemana.getDate() + 6);
+  var fmt = d => d.toISOString().split('T')[0];
+  return { ini: fmt(inicioSemana), fim: fmt(fimSemana) };
+}
+
+function aplicarFiltroPeriodo(){
+  // Limpa datas manuais ao escolher período
+  var periodo = document.getElementById('f-periodo').value;
+  if(periodo){
+    document.getElementById('f-data-ini').value='';
+    document.getElementById('f-data-fim').value='';
+  }
+  aplicarFiltros();
+}
+
+function limparPeriodo(){
+  document.getElementById('f-periodo').value='';
+}
+
+function aplicarFiltros(){
+  const fR = document.getElementById('f-responsavel').value;
+  const fS = document.getElementById('f-setor').value;
+  const fSt = document.getElementById('f-status').value;
+  const fN = document.getElementById('f-nivel').value;
+  const fB = document.getElementById('f-busca').value.toLowerCase();
+  const fPeriodo = document.getElementById('f-periodo').value;
+  const hoje = new Date().toISOString().split('T')[0];
+
+  // Calcular intervalo de datas com base no período selecionado
+  let fDi = document.getElementById('f-data-ini').value;
+  let fDf = document.getElementById('f-data-fim').value;
+  let filtroAtrasados = false;
+
+  if(fPeriodo === 'hoje'){
+    fDi = hoje; fDf = hoje;
+  } else if(fPeriodo === 'semana'){
+    var s = getInicioFimSemana(0); fDi = s.ini; fDf = s.fim;
+  } else if(fPeriodo === 'semana-passada'){
+    var sp = getInicioFimSemana(-1); fDi = sp.ini; fDf = sp.fim;
+  } else if(fPeriodo === 'mes'){
+    var agora = new Date();
+    fDi = agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0')+'-01';
+    fDf = hoje;
+  } else if(fPeriodo === 'atrasados'){
+    filtroAtrasados = true;
+    fDi = ''; fDf = '';
+  }
+
+  // Banner atrasados
+  var banner = document.getElementById('banner-atrasados');
+  if(filtroAtrasados){
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  dadosFiltrados = dados.filter(d => {
+    if(fR && d.responsavel !== fR) return false;
+    if(fS && d.setor !== fS) return false;
+    if(fSt && d.status !== fSt) return false;
+    if(fN && d.nivel !== fN) return false;
+    if(fDi && d.data < fDi) return false;
+    if(fDf && d.data > fDf) return false;
+    if(fB && !d.atividade.toLowerCase().includes(fB) && !d.responsavel.toLowerCase().includes(fB)) return false;
+    if(filtroAtrasados){
+      // Atrasado: conclusao < hoje, não concluído nem cancelado
+      if(!d.conclusao) return false;
+      if(d.status === 'Concluído' || d.status === 'Cancelado') return false;
+      if(d.conclusao >= hoje) return false;
+    }
+    return true;
+  });
+
+  dadosFiltrados.sort((a,b) => b.data.localeCompare(a.data) || b.id - a.id);
+  var label = filtroAtrasados ? `${dadosFiltrados.length} atrasados` : `${dadosFiltrados.length} de ${dados.length} registros`;
+  document.getElementById('f-count').textContent = label;
+  renderTabela();
+}
+
+function limparFiltros(){
+  document.getElementById('f-responsavel').value='';
+  document.getElementById('f-setor').value='';
+  document.getElementById('f-status').value='';
+  document.getElementById('f-nivel').value='';
+  document.getElementById('f-periodo').value='';
+  document.getElementById('f-data-ini').value='';
+  document.getElementById('f-data-fim').value='';
+  document.getElementById('f-busca').value='';
+  document.getElementById('banner-atrasados').style.display='none';
+  aplicarFiltros();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABELA
+// ═══════════════════════════════════════════════════════════
+function badgeStatus(s){
+  const m = {
+    'Concluído':'badge-concluido',
+    'Em Andamento':'badge-andamento',
+    'Pendente':'badge-pendente',
+    'Cancelado':'badge-cancelado'
+  };
+  return `<span class="badge ${m[s]||'badge-cancelado'}">${s}</span>`;
+}
+
+function badgeNivel(n){
+  const m = {'1':['nivel-1','Nível 1 — Baixo'],'2':['nivel-2','Nível 2 — Médio'],'3':['nivel-3','Nível 3 — Alto']};
+  const [cls, txt] = m[n]||['badge-cancelado','—'];
+  return `<span class="badge ${cls}">${txt}</span>`;
+}
+
+function fmtData(d){
+  if(!d) return '—';
+  const [y,m,dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+
+function diffDias(dataA, dataB){
+  if(!dataA || !dataB) return null;
+  const a = new Date(dataA + 'T00:00:00');
+  const b = new Date(dataB + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+
+function diasDuracaoPrazo(dataInicio, conclusao){
+  const d = diffDias(dataInicio, conclusao);
+  if(d === null) return '';
+  if(d === 0) return 'mesmo dia';
+  return `${d} dia${Math.abs(d)!==1?'s':''} de prazo`;
+}
+
+function badgeDias(d){
+  const hoje = new Date().toISOString().split('T')[0];
+  if(d.conclusaoReal && d.conclusao){
+    const diff = diffDias(d.conclusao, d.conclusaoReal);
+    const diasTotal = diffDias(d.data, d.conclusaoReal);
+    if(diff < 0)
+      return `<div style="text-align:center;"><span style="background:#dcfce7;color:#166534;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;display:inline-block;">⚡ ${Math.abs(diff)}d adiantado</span><div style="font-size:9px;color:var(--ink3);margin-top:2px;">${diasTotal}d no total</div></div>`;
+    if(diff === 0)
+      return `<div style="text-align:center;"><span style="background:#dbeafe;color:#1e40af;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;display:inline-block;">✓ No prazo</span><div style="font-size:9px;color:var(--ink3);margin-top:2px;">${diasTotal}d no total</div></div>`;
+    return `<div style="text-align:center;"><span style="background:#fee2e2;color:#991b1b;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;display:inline-block;">⚠ +${diff}d atraso</span><div style="font-size:9px;color:var(--ink3);margin-top:2px;">${diasTotal}d no total</div></div>`;
+  }
+  if(d.status === 'Cancelado') return `<span style="color:var(--ink3);font-size:10px;">—</span>`;
+  const diasDecorridos = diffDias(d.data, hoje);
+  const diasAtraso = diffDias(d.conclusao, hoje);
+  if(diasAtraso > 0)
+    return `<div style="text-align:center;"><span style="background:#fee2e2;color:#991b1b;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;display:inline-block;">⚠ +${diasAtraso}d atraso</span><div style="font-size:9px;color:var(--ink3);margin-top:2px;">${diasDecorridos}d corridos</div></div>`;
+  const diasRestantes = diffDias(hoje, d.conclusao);
+  if(diasRestantes === 0) return `<span style="background:#fef3c7;color:#92400e;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;">vence hoje</span>`;
+  return `<div style="text-align:center;"><span style="background:var(--bg2);color:var(--ink2);border-radius:3px;font-size:9px;padding:2px 7px;font-weight:600;display:inline-block;">${diasRestantes}d restantes</span><div style="font-size:9px;color:var(--ink3);margin-top:2px;">${diasDecorridos}d corridos</div></div>`;
+}
+
+function renderTabela(){
+  const tbody = document.getElementById('tabela-corpo');
+  if(dadosFiltrados.length === 0){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">Nenhum registro encontrado.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = dadosFiltrados.map((d,i) => `
+    <tr>
+      <td style="font-family:'Courier New',monospace;font-size:10px;color:var(--ink3);">${i+1}</td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;">${fmtData(d.data)}</td>
+      <td style="font-weight:600;">${esc(d.responsavel)}</td>
+      <td style="max-width:220px;">${esc(d.atividade)}</td>
+      <td><span style="background:var(--blue2);color:var(--blue);border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;">${esc(d.setor)}</span></td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;">
+        <div>${fmtData(d.conclusao)}</div>
+        <div style="font-size:9px;color:var(--ink3);">${diasDuracaoPrazo(d.data, d.conclusao)}</div>
+      </td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;">
+        ${d.conclusaoReal ? `<div style="color:var(--green);font-weight:600;">${fmtData(d.conclusaoReal)}</div>` : `<span style="color:var(--ink3);font-size:10px;">—</span>`}
+      </td>
+      <td>${badgeDias(d)}</td>
+      <td>${badgeStatus(d.status)}</td>
+      <td>${badgeNivel(d.nivel)}</td>
+      <td style="max-width:120px;color:var(--ink3);font-size:10px;font-style:italic;">${esc(d.obs||'—')}</td>
+      <td>
+        <div style="display:flex;gap:.3rem;">
+          <button class="btn btn-secondary btn-sm" onclick="editarAtividade(${d.id})" title="Editar">✏</button>
+          <button class="btn btn-danger btn-sm" onclick="excluirAtividade(${d.id})" title="Excluir">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function vencido(d){
+  if(!d.conclusao || d.status === 'Concluído' || d.status === 'Cancelado') return false;
+  return d.conclusao < new Date().toISOString().split('T')[0];
+}
+
+function esc(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TIMELINE
+// ═══════════════════════════════════════════════════════════
+function renderTimeline(){
+  const sorted = [...dados].sort((a,b) => b.data.localeCompare(a.data));
+  const grupos = {};
+  sorted.forEach(d => {
+    if(!grupos[d.data]) grupos[d.data] = [];
+    grupos[d.data].push(d);
+  });
+
+  const icones = {
+    'Concluído':{ icon:'✓', cls:'concluido' },
+    'Em Andamento':{ icon:'⚙', cls:'andamento' },
+    'Pendente':{ icon:'○', cls:'pendente' },
+    'Cancelado':{ icon:'✕', cls:'cancelado' }
+  };
+
+  let html = '';
+  Object.keys(grupos).sort((a,b)=>b.localeCompare(a)).forEach(data => {
+    const label = formatDataLabel(data);
+    html += `<div class="tl-date-group">
+      <div class="tl-date-label">${label}</div>`;
+    grupos[data].forEach(d => {
+      const ic = icones[d.status] || {icon:'○',cls:'pendente'};
+      html += `<div class="tl-item">
+        <div class="tl-left">
+          <div class="tl-icon ${ic.cls}">${ic.icon}</div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-atividade">${esc(d.atividade)}</div>
+          <div class="tl-meta">
+            <span>👤 ${esc(d.responsavel)}</span>
+            <span class="tl-meta-sep">·</span>
+            <span>🏢 ${esc(d.setor)}</span>
+            <span class="tl-meta-sep">·</span>
+            <span>📅 Conclusão: ${fmtData(d.conclusao)}</span>
+            <span class="tl-meta-sep">·</span>
+            ${badgeStatus(d.status)}
+            <span class="tl-meta-sep">·</span>
+            ${badgeNivel(d.nivel)}
+            ${vencido(d)?'<span style="color:var(--red);font-weight:700;font-size:9px;">⚠ VENCIDO</span>':''}
+          </div>
+          ${d.obs ? `<div class="tl-obs">${esc(d.obs)}</div>` : ''}
+        </div>
+        <div class="tl-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editarAtividade(${d.id})">✏</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  if(html === '') html = '<div style="text-align:center;padding:3rem;color:var(--ink3);">Nenhuma atividade registrada.</div>';
+  document.getElementById('timeline-container').innerHTML = html;
+}
+
+function formatDataLabel(d){
+  const hoje = new Date().toISOString().split('T')[0];
+  const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
+  const ontemStr = ontem.toISOString().split('T')[0];
+  if(d === hoje) return '📍 Hoje — ' + fmtData(d);
+  if(d === ontemStr) return '📍 Ontem — ' + fmtData(d);
+  return fmtData(d);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAINEL
+// ═══════════════════════════════════════════════════════════
+function renderPainel(){
+  renderBarChart('chart-responsavel', 'responsavel', 'var(--blue)');
+  renderBarChart('chart-setor', 'setor', 'var(--accent)');
+  renderStatusChart();
+  renderNivelChart();
+  renderProgChart();
+}
+
+function renderBarChart(elId, campo, cor){
+  const contagem = {};
+  dados.forEach(d => { contagem[d[campo]] = (contagem[d[campo]]||0) + 1; });
+  const sorted = Object.entries(contagem).sort((a,b)=>b[1]-a[1]);
+  const max = sorted[0]?.[1] || 1;
+  document.getElementById(elId).innerHTML = sorted.map(([lbl,n]) => `
+    <div class="bar-row">
+      <div class="bar-lbl" title="${esc(lbl)}">${esc(lbl)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(n/max*100).toFixed(0)}%;background:${cor};"></div></div>
+      <div class="bar-num">${n}</div>
+    </div>
+  `).join('') || '<div style="font-size:11px;color:var(--ink3);">Sem dados</div>';
+}
+
+function renderStatusChart(){
+  const st = {
+    'Concluído':{c:'var(--green)',n:0},
+    'Em Andamento':{c:'var(--yellow)',n:0},
+    'Pendente':{c:'var(--red)',n:0},
+    'Cancelado':{c:'var(--ink3)',n:0}
+  };
+  dados.forEach(d=>{ if(st[d.status]) st[d.status].n++; });
+  const max = Math.max(...Object.values(st).map(v=>v.n),1);
+  document.getElementById('chart-status').innerHTML = Object.entries(st).map(([lbl,{c,n}]) => `
+    <div class="bar-row">
+      <div class="bar-lbl">${lbl}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(n/max*100).toFixed(0)}%;background:${c};"></div></div>
+      <div class="bar-num">${n}</div>
+    </div>
+  `).join('');
+}
+
+function renderNivelChart(){
+  const nv = {
+    '1':{lbl:'Nível 1 — Baixo',c:'var(--green)',n:0},
+    '2':{lbl:'Nível 2 — Médio',c:'var(--yellow)',n:0},
+    '3':{lbl:'Nível 3 — Alto',c:'var(--red)',n:0}
+  };
+  dados.forEach(d=>{ if(nv[d.nivel]) nv[d.nivel].n++; });
+  const max = Math.max(...Object.values(nv).map(v=>v.n),1);
+  document.getElementById('chart-nivel').innerHTML = Object.values(nv).map(({lbl,c,n}) => `
+    <div class="bar-row">
+      <div class="bar-lbl">${lbl}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(n/max*100).toFixed(0)}%;background:${c};"></div></div>
+      <div class="bar-num">${n}</div>
+    </div>
+  `).join('');
+}
+
+function renderProgChart(){
+  const total = dados.length;
+  const conc = dados.filter(d=>d.status==='Concluído').length;
+  const pct = total ? Math.round(conc/total*100) : 0;
+  document.getElementById('chart-prog').innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;">
+      <div style="font-family:'Georgia',serif;font-size:36px;color:var(--green);">${pct}%</div>
+      <div style="font-size:12px;color:var(--ink2);">das atividades<br>concluídas</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:6px;height:12px;overflow:hidden;">
+      <div style="height:100%;border-radius:6px;background:var(--green);width:${pct}%;transition:width .5s;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:.5rem;">
+      <span style="font-size:10px;color:var(--green);font-weight:600;">${conc} concluídas</span>
+      <span style="font-size:10px;color:var(--ink3);">${total - conc} restantes</span>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════
+function toggleConclusaoReal(){
+  const status = document.getElementById('m-status').value;
+  document.getElementById('campo-conclusao-real').style.display = status === 'Concluído' ? 'block' : 'none';
+}
+
+function fecharModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function abrirModalNovo(){
+  editandoId = null;
+  document.getElementById('modal-title').textContent = 'Nova Atividade';
+  document.getElementById('btn-salvar').textContent = 'Salvar Atividade';
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('m-data').value = hoje;
+  document.getElementById('m-responsavel').value = '';
+  document.getElementById('m-atividade').value = '';
+  document.getElementById('m-setor').value = '';
+  document.getElementById('m-conclusao').value = '';
+  document.getElementById('m-nivel').value = '';
+  document.getElementById('m-status').value = 'Pendente';
+  document.getElementById('m-obs').value = '';
+  document.getElementById('m-conclusao-real').value = '';
+  document.getElementById('campo-conclusao-real').style.display = 'none';
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('m-responsavel').focus(), 200);
+}
+
+function editarAtividade(id){
+  const d = dados.find(x=>x.id===id);
+  if(!d) return;
+  editandoId = id;
+  document.getElementById('modal-title').textContent = 'Editar Atividade';
+  document.getElementById('btn-salvar').textContent = 'Atualizar';
+  document.getElementById('m-data').value = d.data;
+  document.getElementById('m-responsavel').value = d.responsavel;
+  document.getElementById('m-atividade').value = d.atividade;
+  document.getElementById('m-setor').value = d.setor;
+  document.getElementById('m-conclusao').value = d.conclusao;
+  document.getElementById('m-nivel').value = d.nivel;
+  document.getElementById('m-status').value = d.status;
+  document.getElementById('m-obs').value = d.obs||'';
+  document.getElementById('m-conclusao-real').value = d.conclusaoReal||'';
+  document.getElementById('campo-conclusao-real').style.display = d.status === 'Concluído' ? 'block' : 'none';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function salvarAtividade(){
+  const data = document.getElementById('m-data').value;
+  const responsavel = document.getElementById('m-responsavel').value.trim();
+  const atividade = document.getElementById('m-atividade').value.trim();
+  const setor = document.getElementById('m-setor').value.trim();
+  const conclusao = document.getElementById('m-conclusao').value;
+  const nivel = document.getElementById('m-nivel').value;
+  const status = document.getElementById('m-status').value;
+  const obs = document.getElementById('m-obs').value.trim();
+  const conclusaoReal = document.getElementById('m-conclusao-real').value || '';
+
+  if(!data||!responsavel||!atividade||!setor||!conclusao||!nivel){
+    showToast('warn','Campos obrigatórios','Preencha todos os campos marcados com *.');
+    return;
+  }
+
+  if(editandoId !== null){
+    const idx = dados.findIndex(x=>x.id===editandoId);
+    if(idx > -1){
+      dados[idx] = {id:editandoId, data, responsavel, atividade, setor, conclusao, conclusaoReal, nivel, status, obs};
+      showToast('success','Atualizado!','Atividade atualizada com sucesso.');
+    }
+  } else {
+    const novoId = dados.length > 0 ? Math.max(...dados.map(d=>d.id))+1 : 1;
+    dados.push({id:novoId, data, responsavel, atividade, setor, conclusao, conclusaoReal, nivel, status, obs});
+    showToast('success','Registrado!','Nova atividade adicionada ao diário.');
+  }
+
+  salvar(dados);
+  fecharModal();
+  render();
+}
+
+function excluirAtividade(id){
+  if(!confirm('Confirmar exclusão desta atividade?')) return;
+  dados = dados.filter(d=>d.id!==id);
+  salvar(dados);
+  showToast('warn','Excluído','Atividade removida do diário.');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ═══════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  event.target.classList.add('active');
+  if(tab==='timeline') renderTimeline();
+  if(tab==='painel') renderPainel();
+  if(tab==='responsaveis') renderResponsaveis();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════════════════════════════
+function exportarCSV(){
+  const linhas = [
+    ['ID','Data Registro','Responsável','Atividade','Setor','Prazo Previsto','Dias de Prazo','Conclusão Real','Dias Totais','Variação','Status','Nível','Observações'],
+    ...dados.map(d=>{
+      const diasPrazo = diffDias(d.data, d.conclusao);
+      const diasTotal = d.conclusaoReal ? diffDias(d.data, d.conclusaoReal) : '';
+      const variacao = d.conclusaoReal ? diffDias(d.conclusao, d.conclusaoReal) : '';
+      const variacaoTxt = variacao === '' ? '' : variacao > 0 ? `+${variacao}d atraso` : variacao < 0 ? `${Math.abs(variacao)}d adiantado` : 'No prazo';
+      return [d.id, d.data, d.responsavel, d.atividade, d.setor, d.conclusao, diasPrazo||'', d.conclusaoReal||'', diasTotal, variacaoTxt, d.status, 'Nível '+d.nivel, d.obs||''];
+    })
+  ];
+  const csv = linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'diario_execucao_sidertec.csv'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('success','Exportado!','Arquivo CSV gerado com sucesso.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(tipo, titulo, corpo){
+  const t = document.getElementById('toast');
+  t.className = `toast ${tipo}`;
+  document.getElementById('toast-title').textContent = titulo;
+  document.getElementById('toast-body').textContent = corpo;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESPONSÁVEIS
+function abrirModalResponsavel(id){
+  editandoRespId = id != null ? Number(id) : null;
+  const r = editandoRespId ? responsaveis.find(x=>Number(x.id)===editandoRespId) : null;
+  document.getElementById('modal-resp-title').textContent = r ? 'Editar Responsável' : 'Novo Responsável';
+  document.getElementById('btn-salvar-resp').textContent = r ? 'Atualizar' : 'Salvar Responsável';
+  document.getElementById('mr-nome').value = r ? r.nome : '';
+  document.getElementById('mr-cargo').value = r ? r.cargo : '';
+  document.getElementById('mr-setor').value = r ? r.setor : '';
+  document.getElementById('mr-email').value = r ? r.email||'' : '';
+  document.getElementById('mr-tel').value = r ? r.tel||'' : '';
+  document.getElementById('mr-status').value = r ? r.status : 'Ativo';
+  // populate setor datalist
+  const setores = [...new Set(dados.map(d=>d.setor).concat(responsaveis.map(r=>r.setor)).filter(Boolean))].sort();
+  document.getElementById('mr-lista-setores').innerHTML = setores.map(s=>`<option value="${s}">`).join('');
+  document.getElementById('modal-resp-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('mr-nome').focus(), 200);
+}
+
+function fecharModalResponsavel(){
+  document.getElementById('modal-resp-overlay').classList.remove('show');
+}
+
+function salvarResponsavel(){
+  const nome = document.getElementById('mr-nome').value.trim();
+  const cargo = document.getElementById('mr-cargo').value.trim();
+  const setor = document.getElementById('mr-setor').value.trim();
+  const email = document.getElementById('mr-email').value.trim();
+  const tel = document.getElementById('mr-tel').value.trim();
+  const status = document.getElementById('mr-status').value;
+
+  if(!nome||!cargo||!setor){
+    showToast('warn','Campos obrigatórios','Preencha nome, cargo e setor.');
+    return;
+  }
+
+  if(editandoRespId !== null){
+    const idx = responsaveis.findIndex(x=>x.id===editandoRespId);
+    if(idx > -1){
+      responsaveis[idx] = {id:editandoRespId, nome, cargo, setor, email, tel, status};
+      showToast('success','Atualizado!','Responsável atualizado com sucesso.');
+    }
+  } else {
+    const novoId = responsaveis.length > 0 ? Math.max(...responsaveis.map(r=>r.id))+1 : 1;
+    responsaveis.push({id:novoId, nome, cargo, setor, email, tel, status});
+    showToast('success','Cadastrado!','Novo responsável adicionado.');
+  }
+
+  salvarResponsaveis(responsaveis);
+  fecharModalResponsavel();
+  renderResponsaveis();
+  // atualiza datalist do modal de atividade
+  atualizarFiltrosSelect();
+}
+
+function excluirResponsavel(id){
+  id = Number(id);
+  const r = responsaveis.find(x=>Number(x.id)===id);
+  const emUso = r && dados.some(d=>d.responsavel === r.nome);
+  if(emUso){
+    if(!confirm(`"${r.nome}" possui atividades registradas no diário. Deseja remover mesmo assim?`)) return;
+  } else {
+    if(!confirm('Confirmar exclusão deste responsável?')) return;
+  }
+  responsaveis = responsaveis.filter(x=>Number(x.id)!==id);
+  salvarResponsaveis(responsaveis);
+  showToast('warn','Removido','Responsável excluído do cadastro.');
+  renderResponsaveis();
+}
+
+function renderResponsaveis(){
+  const busca = (document.getElementById('f-resp-busca').value||'').toLowerCase();
+  const filtroSetor = document.getElementById('f-resp-setor').value;
+
+  // populate setor filter
+  const setoresUniq = [...new Set(responsaveis.map(r=>r.setor).filter(Boolean))].sort();
+  const frSel = document.getElementById('f-resp-setor');
+  const curVal = frSel.value;
+  frSel.innerHTML = '<option value="">Todos os Setores</option>' + setoresUniq.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');
+  frSel.value = curVal;
+
+  let lista = responsaveis.filter(r => {
+    if(filtroSetor && r.setor !== filtroSetor) return false;
+    if(busca && !r.nome.toLowerCase().includes(busca) && !r.cargo.toLowerCase().includes(busca) && !(r.setor||'').toLowerCase().includes(busca)) return false;
+    return true;
+  });
+
+  // KPIs
+  document.getElementById('kpi-resp-total').textContent = responsaveis.filter(r=>r.status==='Ativo').length;
+  const nomesComAtiv = new Set(dados.map(d=>d.responsavel));
+  document.getElementById('kpi-resp-com-ativ').textContent = responsaveis.filter(r=>nomesComAtiv.has(r.nome)).length;
+  document.getElementById('kpi-resp-setores').textContent = new Set(responsaveis.map(r=>r.setor).filter(Boolean)).size;
+  document.getElementById('f-resp-count').textContent = `${lista.length} de ${responsaveis.length} cadastros`;
+
+  const grid = document.getElementById('resp-grid');
+  if(lista.length === 0){
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--ink3);font-size:12px;">Nenhum responsável encontrado.</div>`;
+    return;
+  }
+
+  grid.innerHTML = lista.map(r => {
+    const qtdAtiv = dados.filter(d=>d.responsavel===r.nome).length;
+    const conc = dados.filter(d=>d.responsavel===r.nome && d.status==='Concluído').length;
+    const iniciais = r.nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
+    const statusCor = r.status==='Ativo' ? 'var(--green)' : 'var(--ink3)';
+    const statusBg = r.status==='Ativo' ? 'var(--green2)' : 'var(--bg2)';
+    return `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.2rem;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.65rem;">
+      <div style="display:flex;align-items:flex-start;gap:.85rem;">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--blue2);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--blue);flex-shrink:0;">${iniciais}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.nome)}</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:.15rem;">${esc(r.cargo)}</div>
+          <div style="display:flex;gap:.4rem;margin-top:.35rem;align-items:center;flex-wrap:wrap;">
+            <span style="background:var(--blue2);color:var(--blue);border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;">${esc(r.setor)}</span>
+            <span style="background:${statusBg};color:${statusCor};border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;">${r.status}</span>
+          </div>
+        </div>
+      </div>
+      ${r.email ? `<div style="font-size:10px;color:var(--ink3);display:flex;align-items:center;gap:.35rem;">✉ ${esc(r.email)}</div>` : ''}
+      ${r.tel ? `<div style="font-size:10px;color:var(--ink3);display:flex;align-items:center;gap:.35rem;">📞 ${esc(r.tel)}</div>` : ''}
+      <div style="border-top:1px solid var(--border);padding-top:.6rem;display:flex;align-items:center;gap:.5rem;">
+        <div style="flex:1;">
+          <div style="font-size:9px;color:var(--ink3);margin-bottom:.25rem;">Atividades no diário: <strong style="color:var(--ink);">${qtdAtiv}</strong> &nbsp;·&nbsp; Concluídas: <strong style="color:var(--green);">${conc}</strong></div>
+          <div style="background:var(--bg3);border-radius:3px;height:5px;overflow:hidden;">
+            <div style="height:100%;border-radius:3px;background:var(--green);width:${qtdAtiv ? Math.round(conc/qtdAtiv*100) : 0}%;"></div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="abrirModalResponsavel(${r.id})" style="display:flex;align-items:center;gap:.3rem;">✏ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirResponsavel(${r.id})" style="display:flex;align-items:center;gap:.3rem;">🗑 Excluir</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Fechar modal responsável clicando fora
+document.getElementById('modal-resp-overlay').addEventListener('click', function(e){
+  if(e.target === this) fecharModalResponsavel();
+});
+
+document.getElementById('modal-overlay').addEventListener('click', function(e){
+  if(e.target === this) fecharModal();
+});
+
+// Enter no modal
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') fecharModal();
+});
+
+// ── BACKUP / RESTORE ─────────────────────────────────────────────────
+function backupDados(){
+  var dados = {
+    versao: '1.0',
+    exportado_em: new Date().toISOString(),
+    app: 'Sidertec Diário de Execução',
+    diario: carregar(),
+    responsaveis: carregarResponsaveis()
+  };
+  var json = JSON.stringify(dados, null, 2);
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var data = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  a.href = url;
+  a.download = 'sidertec_diario_backup_' + data + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Backup salvo', 'Arquivo JSON baixado com todos os dados.', 'success');
+}
+
+function restaurarDados(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var dados = JSON.parse(e.target.result);
+      if(!dados.diario) throw new Error('Arquivo inválido — sem campo "diario"');
+      var total = dados.diario.length;
+      if(!confirm('Restaurar ' + total + ' registros do backup de ' + (dados.exportado_em ? new Date(dados.exportado_em).toLocaleString('pt-BR') : 'data desconhecida') + '?\n\nAVISO: os dados atuais serão substituídos.')) return;
+      salvar(dados.diario);
+      if(dados.responsaveis) salvarResponsaveis(dados.responsaveis);
+      // Recarrega variável global de dados
+      dados = carregar();
+      render();
+      showToast('✓ Restaurado', total + ' registros carregados com sucesso.', 'success');
+    } catch(err){
+      showToast('Erro', 'Arquivo inválido: ' + err.message, 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// Aviso de localStorage na primeira abertura
+(function(){
+  var jaViu = localStorage.getItem('sidertec_diario_aviso_ls');
+  if(!jaViu){
+    window.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        var div = document.createElement('div');
+        div.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1A1714;color:#fff;border-radius:8px;padding:.85rem 1.25rem;font-size:11px;z-index:999;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,.3);line-height:1.6;';
+        div.innerHTML = "<strong>\u26A0 Dados salvos neste navegador</strong><br>Os dados ficam no armazenamento local deste computador. Para usar em outra conta ou computador, use <b>Backup</b> para exportar e <b>Restaurar</b> para importar.<br><button onclick=\"this.parentElement.remove();localStorage.setItem('sidertec_diario_aviso_ls','1')\" style=\"margin-top:.5rem;background:#C4501A;border:none;color:#fff;border-radius:4px;padding:4px 14px;cursor:pointer;font-size:11px;\">Entendi</button>";
+        document.body.appendChild(div);
+      }, 1500);
+    });
+  }
+})();
+
+
+// ── BACKUP / RESTORE ──────────────────────────────────────────────────
+function backupDados(){
+  var bk = {versao:'1.0',app:'Sidertec Diário',exportado_em:new Date().toISOString(),
+    diario: dados, responsaveis: carregarResponsaveis()};
+  var blob = new Blob([JSON.stringify(bk,null,2)],{type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sidertec_diario_backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';
+  a.click();
+  showToast('Backup salvo', dados.length+' registros exportados.', 'success');
+}
+function restaurarDados(input){
+  var file = input.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var b = JSON.parse(e.target.result);
+      if(!b.diario) throw new Error('Arquivo inválido');
+      if(!confirm('Restaurar '+b.diario.length+' registros? Dados atuais serão substituídos.')) return;
+      salvar(b.diario);
+      if(b.responsaveis) salvarResponsaveis(b.responsaveis);
+      dados = carregar();
+      render();
+      showToast('✓ Restaurado', b.diario.length+' registros carregados.', 'success');
+    }catch(err){ showToast('Erro','Arquivo inválido: '+err.message,'error'); }
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+</script>
+</body>
+</html>
