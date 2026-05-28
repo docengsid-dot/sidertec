@@ -117,8 +117,8 @@ thead th.num{text-align:right;}
 tbody tr{border-bottom:1px solid var(--border);}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:var(--bg);}
-tbody td{padding:8px 12px;color:var(--ink2);}
-tbody td.num{text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+tbody td{padding:4px 7px;color:var(--ink2);}
+tbody td.num{text-align:right;font-family:'Courier New',monospace,monospace;font-size:11px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
 tbody td.equipe{font-weight:500;color:var(--ink);}
 tbody tr.total-row{background:var(--ink);}
 tbody tr.total-row td{color:#fff;font-weight:600;}
@@ -396,15 +396,44 @@ canvas{overflow:visible!important;}
 .cron-semaforo.cinza{background:#94a3b8;}
 
 /* MODAL CRONOGRAMA */
-.cron-modal-overlay{position:fixed;inset:0;background:rgba(26,23,20,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .2s;}
+.cron-modal-overlay{position:fixed;inset:0;background:rgba(26,23,20,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .2s;}
 .cron-modal-overlay.show{opacity:1;pointer-events:all;}
-.cron-modal-box{background:#fff;border-radius:var(--r);width:760px;max-width:100%;box-shadow:var(--shadow2);transform:translateY(-16px);transition:transform .2s;}
+.cron-modal-box{background:#fff;border-radius:var(--r);width:1080px;max-width:100%;box-shadow:var(--shadow2);transform:translateY(-16px);transition:transform .2s;}
 .cron-modal-overlay.show .cron-modal-box{transform:translateY(0);}
 .cron-mhd{background:var(--ink);border-radius:var(--r) var(--r) 0 0;padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;}
 .cron-mhd-title{font-family:'Georgia',serif,serif;font-size:17px;color:#fff;flex:1;}
 .cron-mhd-sub{font-size:16px;color:rgba(255,255,255,.45);}
-.cron-mbody{padding:1.25rem;max-height:80vh;overflow-y:auto;}
+.cron-mbody{padding:1.25rem;max-height:85vh;overflow-y:auto;}
 .cron-mfooter{padding:.9rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.6rem;}
+
+/* ── ETAPA GRID — TABELA DE DESTAQUE ─────────────────────────────── */
+.cron-etapas-table-wrap{overflow-x:auto;border-radius:var(--r);border:2px solid var(--blue);box-shadow:0 4px 18px rgba(26,74,122,.13);margin-bottom:.75rem;}
+.cron-etapas-table{width:100%;border-collapse:collapse;font-size:13px;}
+.cron-etapas-table thead{background:linear-gradient(90deg,var(--ink) 0%,#2a3a5a 100%);}
+.cron-etapas-table thead th{padding:9px 10px;color:#fff;font-weight:600;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;border-right:1px solid rgba(255,255,255,.08);}
+.cron-etapas-table thead th:last-child{border-right:none;}
+.cron-etapas-table thead th.num{text-align:center;}
+.cron-etapas-table tbody tr{border-bottom:1px solid var(--border);}
+.cron-etapas-table tbody tr:last-child{border-bottom:none;}
+.cron-etapas-table tbody tr:hover{background:#f0f4ff;}
+.cron-etapas-table tbody tr.etapa-row-done{background:linear-gradient(90deg,#f0fdf4 0%,#fff 100%);}
+.cron-etapas-table tbody tr.etapa-row-done:hover{background:#dcfce7;}
+.cron-etapas-table tbody tr.etapa-row-late{background:linear-gradient(90deg,#fff7f0 0%,#fff 100%);}
+.cron-etapas-table tbody td{padding:8px 10px;color:var(--ink2);font-size:12px;border-right:1px solid var(--border);}
+.cron-etapas-table tbody td:last-child{border-right:none;}
+.cron-etapas-table .etapa-num{background:var(--ink);color:#fff;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:700;display:inline-block;min-width:22px;text-align:center;}
+.cron-etapas-table .etapa-name{font-weight:600;color:var(--ink);font-size:12px;}
+.cron-etapas-table .date-cell{font-family:'Courier New',monospace;font-size:11px;color:var(--ink2);white-space:nowrap;}
+.cron-etapas-table .date-cell.done{color:var(--green);font-weight:600;}
+.cron-etapas-table .date-cell.late{color:var(--red);font-weight:600;}
+.cron-etapas-table .date-cell.empty{color:var(--ink3);font-style:italic;font-size:10px;}
+.cron-etapa-status-pill{display:inline-flex;align-items:center;gap:4px;border-radius:10px;padding:3px 10px;font-size:10px;font-weight:700;white-space:nowrap;}
+.cron-etapa-status-pill.done{background:#dcfce7;color:#166534;}
+.cron-etapa-status-pill.pend{background:#fef3c7;color:#92400e;}
+.cron-etapa-status-pill.late{background:#fee2e2;color:#991b1b;}
+.cron-etapa-status-pill.na{background:#f1f5f9;color:#64748b;}
+
+/* ── ETAPA GRID LEGACY (keep) ────────────────────── */
 .cron-etapa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
 .cron-etapa-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:.75rem;}
 .cron-etapa-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;}
@@ -592,63 +621,63 @@ canvas{overflow:visible!important;}
 </div>
 
 <!-- ═══════════════ CRONOGRAMA ═══════════════ -->
-<div class="page" id="page-cronograma">
+<div class="page" id="page-cronograma" style="padding-top:.75rem;padding-bottom:.75rem;">
   <!-- Hero -->
-  <div style="background:linear-gradient(135deg,#1A1714 0%,#3A2A1A 100%);border-radius:var(--r);padding:1.5rem 2rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1.25rem;">
-    <div style="width:44px;height:44px;background:rgba(255,255,255,.12);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📋</div>
+  <div style="background:linear-gradient(135deg,#1A1714 0%,#3A2A1A 100%);border-radius:var(--r);padding:.55rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;">
+    <div style="width:28px;height:28px;background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📋</div>
     <div style="flex:1;">
-      <h2 style="font-family:'Georgia',serif,serif;font-size:19px;color:#fff;margin-bottom:.2rem;">Cronograma de Sub-obras</h2>
-      <p style="font-size:16px;color:rgba(255,255,255,.45);">Gestão Previsto × Realizado — Histórico de status e anotações por sub-obra</p>
+      <h2 style="font-family:'Georgia',serif,serif;font-size:14px;color:#fff;margin-bottom:0;line-height:1.2;">Cronograma de Sub-obras</h2>
+      <p style="font-size:10px;color:rgba(255,255,255,.4);margin:0;">Gestão Previsto × Realizado — Histórico de status e anotações por sub-obra</p>
     </div>
-    <div style="display:flex;gap:1.5rem;margin-left:auto;align-items:center;">
-      <div onclick="filtrarCronPorStat('todas')" title="Ver todas as sub-obras" style="text-align:center;cursor:pointer;border-radius:6px;padding:.3rem .6rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
-        <div id="cron-stat-total" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fff;">—</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;">Sub-obras</div>
+    <div style="display:flex;gap:.75rem;margin-left:auto;align-items:center;">
+      <div onclick="filtrarCronPorStat('todas')" title="Ver todas as sub-obras" style="text-align:center;cursor:pointer;border-radius:4px;padding:.15rem .4rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
+        <div id="cron-stat-total" style="font-family:'Georgia',serif,serif;font-size:16px;color:#fff;line-height:1;">—</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;">Sub-obras</div>
       </div>
-      <div onclick="filtrarCronPorStat('andamento')" title="Filtrar: em andamento" style="text-align:center;cursor:pointer;border-radius:6px;padding:.3rem .6rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
-        <div id="cron-stat-andamento" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fff;">—</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;">Em andamento</div>
+      <div onclick="filtrarCronPorStat('andamento')" title="Filtrar: em andamento" style="text-align:center;cursor:pointer;border-radius:4px;padding:.15rem .4rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
+        <div id="cron-stat-andamento" style="font-family:'Georgia',serif,serif;font-size:16px;color:#fff;line-height:1;">—</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;">Em andamento</div>
       </div>
-      <div onclick="filtrarCronPorStat('liberadas')" title="Filtrar: Lib. p/ Fab." style="text-align:center;cursor:pointer;border-radius:6px;padding:.3rem .6rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
-        <div id="cron-stat-liberadas" style="font-family:'Georgia',serif,serif;font-size:22px;color:#C4501A;">—</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;">Lib. p/ Fab.</div>
+      <div onclick="filtrarCronPorStat('liberadas')" title="Filtrar: Lib. p/ Fab." style="text-align:center;cursor:pointer;border-radius:4px;padding:.15rem .4rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
+        <div id="cron-stat-liberadas" style="font-family:'Georgia',serif,serif;font-size:16px;color:#C4501A;line-height:1;">—</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;">Lib. p/ Fab.</div>
       </div>
-      <div onclick="filtrarCronPorStat('hold')" title="Filtrar: aguardando aprovacao" style="text-align:center;cursor:pointer;border-radius:6px;padding:.3rem .6rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
-        <div id="cron-stat-hold" style="font-family:'Georgia',serif,serif;font-size:22px;color:#eab308;">—</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;">Aguardando</div>
+      <div onclick="filtrarCronPorStat('hold')" title="Filtrar: aguardando aprovacao" style="text-align:center;cursor:pointer;border-radius:4px;padding:.15rem .4rem;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">
+        <div id="cron-stat-hold" style="font-family:'Georgia',serif,serif;font-size:16px;color:#eab308;line-height:1;">—</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;">Aguardando</div>
       </div>
-      <div onclick="filtrarCronPorStat('lim-crit')" title="Filtrar: limite fabrica critico" style="text-align:center;background:rgba(196,80,26,.2);border:1px solid rgba(196,80,26,.4);border-radius:8px;padding:.4rem .8rem;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(196,80,26,.38)'" onmouseout="this.style.background='rgba(196,80,26,.2)'">
-        <div id="cron-stat-lim-crit" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fca5a5;">—</div>
-        <div style="font-size:8px;color:rgba(252,165,165,.5);text-transform:uppercase;letter-spacing:.06em;">Lim. Critico</div>
+      <div onclick="filtrarCronPorStat('lim-crit')" title="Filtrar: limite fabrica critico" style="text-align:center;background:rgba(196,80,26,.2);border:1px solid rgba(196,80,26,.4);border-radius:5px;padding:.15rem .5rem;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(196,80,26,.38)'" onmouseout="this.style.background='rgba(196,80,26,.2)'">
+        <div id="cron-stat-lim-crit" style="font-family:'Georgia',serif,serif;font-size:15px;color:#fca5a5;line-height:1;">—</div>
+        <div style="font-size:7px;color:rgba(252,165,165,.5);text-transform:uppercase;letter-spacing:.05em;">Lim. Crítico</div>
       </div>
-      <div style="width:1px;height:36px;background:rgba(255,255,255,.15);"></div>
-      <div onclick="filtrarCronPorStat('atrasadas')" title="Filtrar: atrasadas" style="text-align:center;background:rgba(255,255,255,.1);border-radius:8px;padding:.4rem .8rem;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,.18)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
-        <div id="cron-stat-det-peso" style="font-family:'Georgia',serif,serif;font-size:20px;color:#93c5fd;">—</div>
-        <div style="font-size:8px;color:rgba(147,197,253,.6);text-transform:uppercase;letter-spacing:.06em;">Peso Det. (kg)</div>
+      <div style="width:1px;height:22px;background:rgba(255,255,255,.15);"></div>
+      <div onclick="filtrarCronPorStat('atrasadas')" title="Filtrar: atrasadas" style="text-align:center;background:rgba(255,255,255,.1);border-radius:5px;padding:.15rem .5rem;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,.18)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+        <div id="cron-stat-det-peso" style="font-family:'Georgia',serif,serif;font-size:14px;color:#93c5fd;line-height:1;">—</div>
+        <div style="font-size:7px;color:rgba(147,197,253,.6);text-transform:uppercase;letter-spacing:.05em;">Peso Det. (kg)</div>
       </div>
-      <div style="text-align:center;background:rgba(196,80,26,.2);border:1px solid rgba(196,80,26,.4);border-radius:8px;padding:.4rem .8rem;">
-        <div id="cron-stat-soma" style="font-family:'Georgia',serif,serif;font-size:20px;color:#fca5a5;">—</div>
-        <div style="font-size:8px;color:rgba(252,165,165,.5);text-transform:uppercase;letter-spacing:.06em;">Det−Bas (kg)</div>
+      <div style="text-align:center;background:rgba(196,80,26,.2);border:1px solid rgba(196,80,26,.4);border-radius:5px;padding:.15rem .5rem;">
+        <div id="cron-stat-soma" style="font-family:'Georgia',serif,serif;font-size:14px;color:#fca5a5;line-height:1;">—</div>
+        <div style="font-size:7px;color:rgba(252,165,165,.5);text-transform:uppercase;letter-spacing:.05em;">Det−Bas (kg)</div>
       </div>
     </div>
   </div>
 
   <!-- Import/Export Bar -->
-  <div class="import-export-bar">
-    <span style="font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Importar/Exportar:</span>
-    <label class="ie-btn csv" style="cursor:pointer;" title="Importar CSV">
-      ⬆ Importar CSV
+  <div class="import-export-bar" style="padding:.3rem .65rem;margin-bottom:.4rem;gap:.35rem;">
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Import/Export:</span>
+    <label class="ie-btn csv" style="cursor:pointer;padding:3px 9px;font-size:10px;" title="Importar CSV">
+      ⬆ CSV
       <input type="file" accept=".csv" style="display:none;" onchange="importarCSV(this)">
     </label>
-    <button class="ie-btn" onclick="toggleCsvGuide()" title="Ver colunas aceitas no CSV" style="background:var(--blue2);color:var(--blue);border-color:var(--blue);padding:5px 10px;">📋 Guia CSV</button>
-    <label class="ie-btn xls" style="cursor:pointer;" title="Importar Excel">
-      ⬆ Importar Excel
+    <button class="ie-btn" onclick="toggleCsvGuide()" title="Ver colunas aceitas no CSV" style="background:var(--blue2);color:var(--blue);border-color:var(--blue);padding:3px 8px;font-size:10px;">📋 Guia</button>
+    <label class="ie-btn xls" style="cursor:pointer;padding:3px 9px;font-size:10px;" title="Importar Excel">
+      ⬆ Excel
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarExcel(this)">
     </label>
-    <button class="ie-btn csv" onclick="exportarCSV()">⬇ Exportar CSV</button>
-    <button class="ie-btn xls" onclick="exportarExcel()">⬇ Exportar Excel</button>
+    <button class="ie-btn csv" onclick="exportarCSV()" style="padding:3px 9px;font-size:10px;">⬇ CSV</button>
+    <button class="ie-btn xls" onclick="exportarExcel()" style="padding:3px 9px;font-size:10px;">⬇ Excel</button>
     <div class="fsep"></div>
-    <button class="ie-btn" onclick="abrirRelatorioCron()" style="background:var(--purple2);color:var(--purple);border-color:var(--purple);">📊 Relatório Cronograma</button>
+    <button class="ie-btn" onclick="abrirRelatorioCron()" style="background:var(--purple2);color:var(--purple);border-color:var(--purple);padding:3px 9px;font-size:10px;">📊 Relatório</button>
   </div>
 
   <!-- Guia de colunas CSV -->
@@ -763,31 +792,31 @@ ALTER TABLE medicao_terceiros
   </div>
 
   <!-- Banner filtro rapido ativo -->
-  <div id="cron-stat-filter-banner" style="display:none;background:linear-gradient(90deg,#1A1714,#2d1a0a);border:1px solid rgba(196,80,26,.5);border-radius:var(--r2);padding:.5rem 1rem;margin-bottom:.5rem;align-items:center;gap:.75rem;">
-    <span id="cron-stat-filter-label" style="font-size:16px;font-weight:600;color:var(--accent2);flex:1;"></span>
-    <button onclick="limparFiltrosCron()" style="background:rgba(196,80,26,.25);border:1px solid rgba(196,80,26,.5);border-radius:3px;color:var(--accent2);font-size:16px;padding:3px 10px;cursor:pointer;font-family:var(--font-main);">x Limpar filtro</button>
+  <div id="cron-stat-filter-banner" style="display:none;background:linear-gradient(90deg,#1A1714,#2d1a0a);border:1px solid rgba(196,80,26,.5);border-radius:var(--r2);padding:.25rem .65rem;margin-bottom:.3rem;align-items:center;gap:.5rem;">
+    <span id="cron-stat-filter-label" style="font-size:11px;font-weight:600;color:var(--accent2);flex:1;"></span>
+    <button onclick="limparFiltrosCron()" style="background:rgba(196,80,26,.25);border:1px solid rgba(196,80,26,.5);border-radius:3px;color:var(--accent2);font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);">x Limpar filtro</button>
   </div>
 
   <!-- ALERTA GLOBAL: Limite Fábrica < Planejado Fabricação -->
-  <div id="cron-alerta-limite-fab" style="display:none;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:var(--r2);padding:.55rem 1rem;margin-bottom:.5rem;gap:.65rem;align-items:flex-start;">
-    <div style="display:flex;align-items:center;gap:.6rem;">
-      <span style="font-size:18px;flex-shrink:0;">🚨</span>
+  <div id="cron-alerta-limite-fab" style="display:none;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:var(--r2);padding:.35rem .75rem;margin-bottom:.3rem;gap:.5rem;align-items:flex-start;">
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <span style="font-size:14px;flex-shrink:0;">🚨</span>
       <div style="flex:1;">
-        <div style="font-size:16px;font-weight:700;color:#9f1239;margin-bottom:.25rem;">ALERTA DE PRAZO — Limite Fábrica &lt; Data Planejada para Fabricação</div>
-        <div id="cron-alerta-limite-fab-lista" style="font-size:16px;color:#be123c;"></div>
+        <div style="font-size:11px;font-weight:700;color:#9f1239;margin-bottom:.1rem;">ALERTA DE PRAZO — Limite Fábrica &lt; Data Planejada para Fabricação</div>
+        <div id="cron-alerta-limite-fab-lista" style="font-size:10px;color:#be123c;"></div>
       </div>
-      <button onclick="document.getElementById('cron-alerta-limite-fab').style.display='none'" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:16px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);flex-shrink:0;">x Fechar</button>
+      <button onclick="document.getElementById('cron-alerta-limite-fab').style.display='none'" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);flex-shrink:0;">x</button>
     </div>
   </div>
   <!-- Filtros + botão novo -->
-  <div class="filters" style="position:sticky;top:100px;z-index:100;border-bottom:2px solid var(--border2);">
-    <label>Obra:</label>
-    <select id="cf-obra" onchange="renderCronograma()" style="font-size:16px;"><option value="">Todas</option></select>
+  <div class="filters" style="position:sticky;top:100px;z-index:100;border-bottom:2px solid var(--border2);padding:.3rem .6rem;gap:.35rem;font-size:11px;">
+    <label style="font-size:10px;">Obra:</label>
+    <select id="cf-obra" onchange="renderCronograma()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
     <div class="fsep"></div>
-    <label>Status:</label>
+    <label style="font-size:10px;">Status:</label>
     <!-- Multi-select de status com checkboxes -->
     <div id="cf-status-wrap" style="position:relative;">
-      <div id="cf-status-btn" onclick="toggleStatusDropdown()" style="display:flex;align-items:center;gap:5px;min-width:140px;max-width:260px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:4px 8px;cursor:pointer;font-size:16px;user-select:none;">
+      <div id="cf-status-btn" onclick="toggleStatusDropdown()" style="display:flex;align-items:center;gap:4px;min-width:110px;max-width:210px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:2px 6px;cursor:pointer;font-size:11px;user-select:none;">
         <span id="cf-status-label" style="flex:1;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Todos</span>
         <span style="color:var(--ink3);font-size:9px;">▾</span>
       </div>
@@ -812,97 +841,95 @@ ALTER TABLE medicao_terceiros
       </div>
     </div>
     <!-- Filtro de data por status — aparece quando status único selecionado -->
-    <div id="cf-status-date-wrap" style="display:none;align-items:center;gap:.4rem;flex-wrap:wrap;">
-      <span id="cf-status-date-label" style="font-size:9px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">📅 Data:</span>
-      <input type="date" id="cf-status-data-ini" onchange="renderCronograma()" style="font-size:16px;width:120px;" title="Data inicial">
-      <span style="font-size:16px;color:var(--ink3);">até</span>
-      <input type="date" id="cf-status-data-fim" onchange="renderCronograma()" style="font-size:16px;width:120px;" title="Data final">
+    <div id="cf-status-date-wrap" style="display:none;align-items:center;gap:.3rem;flex-wrap:wrap;">
+      <span id="cf-status-date-label" style="font-size:9px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">📅</span>
+      <input type="date" id="cf-status-data-ini" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Data inicial">
+      <span style="font-size:10px;color:var(--ink3);">até</span>
+      <input type="date" id="cf-status-data-fim" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Data final">
     </div>
     <div class="fsep"></div>
-    <label>Equipe:</label>
-    <select id="cf-equipe" onchange="renderCronograma()" style="font-size:16px;"><option value="">Todas</option></select>
+    <label style="font-size:10px;">Equipe:</label>
+    <select id="cf-equipe" onchange="renderCronograma()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
     <div class="fsep"></div>
-    <label>Busca:</label>
-    <!-- Campo de busca multi-termo com tags visuais -->
-    <div id="cf-busca-wrap" style="display:flex;align-items:center;flex-wrap:wrap;gap:3px;min-width:160px;max-width:320px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:3px 6px;cursor:text;" onclick="document.getElementById('cf-busca-input').focus()">
-      <div id="cf-busca-tags" style="display:flex;flex-wrap:wrap;gap:3px;"></div>
-      <input type="text" id="cf-busca-input" placeholder="TAG, código…" style="border:none;background:transparent;outline:none;font-size:16px;min-width:90px;flex:1;padding:1px 0;font-family:var(--font-main);color:var(--ink);"
+    <label style="font-size:10px;">Busca:</label>
+    <div id="cf-busca-wrap" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;min-width:110px;max-width:220px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:2px 5px;cursor:text;" onclick="document.getElementById('cf-busca-input').focus()">
+      <div id="cf-busca-tags" style="display:flex;flex-wrap:wrap;gap:2px;"></div>
+      <input type="text" id="cf-busca-input" placeholder="TAG, código…" style="border:none;background:transparent;outline:none;font-size:11px;min-width:70px;flex:1;padding:0;font-family:var(--font-main);color:var(--ink);"
         oninput="onBuscaInput(this)"
         onkeydown="onBuscaKeydown(event)">
     </div>
-    <!-- Campo oculto mantém compatibilidade com renderCronograma -->
     <input type="hidden" id="cf-busca" value="">
     <div class="fsep"></div>
-    <label>Prev. de:</label>
-    <input type="date" id="cf-data-ini" onchange="renderCronograma()" style="font-size:16px;width:120px;" title="Filtrar por previsão de entrega a partir de">
-    <label style="margin-left:4px;">até:</label>
-    <input type="date" id="cf-data-fim" onchange="renderCronograma()" style="font-size:16px;width:120px;" title="Filtrar por previsão de entrega até">
+    <label style="font-size:10px;">Prev. de:</label>
+    <input type="date" id="cf-data-ini" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Filtrar por previsão de entrega a partir de">
+    <label style="margin-left:3px;font-size:10px;">até:</label>
+    <input type="date" id="cf-data-fim" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Filtrar por previsão de entrega até">
     <div class="fsep"></div>
-    <label>Atrasos:</label>
-    <select id="cf-atraso" onchange="window._cronStatFilter=null;renderCronograma()" style="font-size:16px;">
+    <label style="font-size:10px;">Atrasos:</label>
+    <select id="cf-atraso" onchange="window._cronStatFilter=null;renderCronograma()" style="font-size:11px;padding:2px 4px;">
       <option value="">Todos</option>
       <option value="atrasado">🔴 Atrasados</option>
       <option value="alerta">🟠 Em alerta</option>
       <option value="ok">🟢 No prazo</option>
     </select>
     <div class="fsep"></div>
-    <label>Ver:</label>
-    <select id="cf-view" onchange="renderCronograma()" style="font-size:16px;">
+    <label style="font-size:10px;">Ver:</label>
+    <select id="cf-view" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;">
       <option value="tabela">Tabela (Matriz)</option>
       <option value="kanban">Kanban</option>
     </select>
     <div class="fsep"></div>
-    <button class="btn btn-primary" onclick="abrirCronModal(null)" style="padding:5px 14px;font-size:16px;">+ Nova Sub-obra</button>
-    <button class="btn" onclick="gerarGridSelecionados()" id="btn-grid-selecionados" style="padding:5px 14px;font-size:16px;background:var(--purple2);color:var(--purple);border:1px solid var(--purple);display:none;" title="Gerar grid apenas com itens selecionados">📊 Grid Selecionados (<span id="sel-count">0</span>)</button>
-    <button class="btn" onclick="exportarCSVSelecionados()" id="btn-csv-selecionados" style="padding:5px 14px;font-size:16px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-weight:700;display:none;" title="Exportar linhas selecionadas como CSV">⬇ CSV Sel. (<span id="csv-sel-count">0</span>)</button>
-    <button class="btn" onclick="exportarPDFSelecionados()" id="btn-pdf-selecionados" style="padding:5px 14px;font-size:16px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700;display:none;" title="Exportar linhas selecionadas como PDF">🖨 PDF Sel. (<span id="pdf-sel-count">0</span>)</button>
-    <button class="btn" onclick="excluirSubobrasSelecionadas()" id="btn-excluir-selecionados" style="padding:5px 14px;font-size:16px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;display:none;" title="Excluir todas as sub-obras selecionadas">🗑 Excluir Selecionadas (<span id="excluir-sel-count">0</span>)</button>
-    <button class="btn" onclick="abrirNovaObraGlobal('cronograma')" style="padding:5px 14px;font-size:16px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">🏗 Nova Obra</button>
-    <button class="btn" onclick="abrirNovaEquipeGlobal('cronograma')" style="padding:5px 14px;font-size:16px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">👥 Nova Equipe</button>
+    <button class="btn btn-primary" onclick="abrirCronModal(null)" style="padding:3px 10px;font-size:11px;">+ Nova Sub-obra</button>
+    <button class="btn" onclick="gerarGridSelecionados()" id="btn-grid-selecionados" style="padding:3px 10px;font-size:11px;background:var(--purple2);color:var(--purple);border:1px solid var(--purple);display:none;">📊 Grid (<span id="sel-count">0</span>)</button>
+    <button class="btn" onclick="exportarCSVSelecionados()" id="btn-csv-selecionados" style="padding:3px 10px;font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-weight:700;display:none;">⬇ CSV (<span id="csv-sel-count">0</span>)</button>
+    <button class="btn" onclick="exportarPDFSelecionados()" id="btn-pdf-selecionados" style="padding:3px 10px;font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700;display:none;">🖨 PDF (<span id="pdf-sel-count">0</span>)</button>
+    <button class="btn" onclick="excluirSubobrasSelecionadas()" id="btn-excluir-selecionados" style="padding:3px 10px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;display:none;">🗑 Excluir (<span id="excluir-sel-count">0</span>)</button>
+    <button class="btn" onclick="abrirNovaObraGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">🏗 Nova Obra</button>
+    <button class="btn" onclick="abrirNovaEquipeGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">👥 Equipe</button>
     <div class="fsep"></div>
-    <label>Lim. Fáb.:</label>
-    <select id="cf-limite-fab" onchange="renderCronograma()" style="font-size:16px;">
+    <label style="font-size:10px;">Lim. Fáb.:</label>
+    <select id="cf-limite-fab" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;">
       <option value="">Todos</option>
       <option value="vencido">⚠ Vencido</option>
-      <option value="urgente">🔴 Na semana (≤7d)</option>
-      <option value="alerta">🟠 Em 15 dias</option>
-      <option value="alerta30">🟡 Em 30 dias</option>
-      <option value="ok">🟢 Em dia (&gt;30d)</option>
+      <option value="urgente">🔴 ≤7d</option>
+      <option value="alerta">🟠 15d</option>
+      <option value="alerta30">🟡 30d</option>
+      <option value="ok">🟢 Em dia</option>
       <option value="sem">— Sem data</option>
     </select>
     <div class="fsep"></div>
-    <label title="Filtrar pelo status da Etapa 11 — Documentos (informativo)">📄 E11 Doc.:</label>
-    <select id="cf-doc11" onchange="renderCronograma()" style="font-size:16px;" title="Etapa 11 — Documentos (informativo)">
+    <label style="font-size:10px;" title="Filtrar pelo status da Etapa 11 — Documentos">📄 E11:</label>
+    <select id="cf-doc11" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;" title="Etapa 11 — Documentos">
       <option value="">Todos</option>
-      <option value="concluido">✅ Concluídos</option>
-      <option value="pendente">⏳ Pendentes</option>
-      <option value="atrasado">🔴 Atrasados</option>
+      <option value="concluido">✅ Conc.</option>
+      <option value="pendente">⏳ Pend.</option>
+      <option value="atrasado">🔴 Atr.</option>
     </select>
-    <button class="btn" onclick="limparFiltrosCron()" style="padding:5px 10px;font-size:16px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;position:sticky;right:0;" title="Limpar todos os filtros e o grid">✕ Limpar</button>
+    <button class="btn" onclick="limparFiltrosCron()" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;position:sticky;right:0;">✕ Limpar</button>
   </div>
 
   <!-- Barra de totais de peso filtrado -->
-  <div id="cron-peso-totais-bar" style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.55rem 1.1rem;margin-bottom:.75rem;">
-    <div style="display:flex;align-items:center;gap:.5rem;">
-      <span style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">⚖ Peso Bás. (filtrado)</span>
-      <span id="cron-tot-basico" style="font-family:'Georgia',serif,serif;font-size:17px;color:var(--green);font-variant-numeric:tabular-nums;">—</span>
+  <div id="cron-peso-totais-bar" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.3rem .75rem;margin-bottom:.4rem;">
+    <div style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);">⚖ Peso Bás. (filtrado)</span>
+      <span id="cron-tot-basico" style="font-family:'Georgia',serif,serif;font-size:13px;color:var(--green);font-variant-numeric:tabular-nums;">—</span>
     </div>
-    <div style="width:1px;height:22px;background:var(--border);"></div>
-    <div style="display:flex;align-items:center;gap:.5rem;">
-      <span style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">📐 Peso Det. (filtrado)</span>
-      <span id="cron-tot-detalhado" style="font-family:'Georgia',serif,serif;font-size:17px;color:var(--blue);font-variant-numeric:tabular-nums;">—</span>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <div style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);">📐 Peso Det. (filtrado)</span>
+      <span id="cron-tot-detalhado" style="font-family:'Georgia',serif,serif;font-size:13px;color:var(--blue);font-variant-numeric:tabular-nums;">—</span>
     </div>
-    <div style="width:1px;height:22px;background:var(--border);"></div>
-    <div style="display:flex;align-items:center;gap:.5rem;">
-      <span style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">🏭 Peso PCP (filtrado)</span>
-      <span id="cron-tot-pcp" style="font-family:'Georgia',serif,serif;font-size:17px;color:var(--orange);font-variant-numeric:tabular-nums;">—</span>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <div style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);">🏭 Peso PCP (filtrado)</span>
+      <span id="cron-tot-pcp" style="font-family:'Georgia',serif,serif;font-size:13px;color:var(--orange);font-variant-numeric:tabular-nums;">—</span>
     </div>
-    <div style="width:1px;height:22px;background:var(--border);"></div>
-    <div style="display:flex;align-items:center;gap:.5rem;">
-      <span style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">△ Diferença</span>
-      <span id="cron-tot-diff" style="font-family:'Georgia',serif,serif;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums;">—</span>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <div style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);">△ Diferença</span>
+      <span id="cron-tot-diff" style="font-family:'Georgia',serif,serif;font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums;">—</span>
     </div>
-    <div style="margin-left:auto;font-size:9px;color:var(--ink3);font-style:italic;">valores conforme filtros ativos</div>
+    <div style="margin-left:auto;font-size:8px;color:var(--ink3);font-style:italic;">valores conforme filtros ativos</div>
   </div>
 
   <!-- Views -->
@@ -1265,8 +1292,8 @@ ALTER TABLE medicao_terceiros
         <div style="font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Fluxo de Etapas — Previsto × Realizado</div>
         <div style="display:flex;gap:.5rem;">
           <button type="button" onclick="toggleEtapas()" id="btn-toggle-etapas"
-            style="background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);border-radius:var(--r2);font-size:16px;font-weight:600;padding:5px 12px;cursor:pointer;">
-            📋 Ver Etapas
+            style="background:var(--blue2);color:var(--blue);border:1px solid var(--blue);border-radius:var(--r2);font-size:16px;font-weight:600;padding:5px 12px;cursor:pointer;">
+            📋 Ocultar Etapas
           </button>
           <button type="button" onclick="abrirRegistroAndamento()"
             style="background:var(--accent);color:#fff;border:none;border-radius:var(--r2);font-size:16px;font-weight:600;padding:5px 14px;cursor:pointer;">
@@ -1281,8 +1308,8 @@ ALTER TABLE medicao_terceiros
       </div>
 
       <!-- Grid dinâmico de etapas -->
-      <div id="etapas-grid" style="display:none;">
-        <div id="etapas-dinamicas-container" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem;"></div>
+      <div id="etapas-grid" style="display:block;">
+        <div id="etapas-dinamicas-container" style="margin-bottom:.75rem;"></div>
       </div><!-- fim etapas-grid -->
 
       <!-- REVISÃO DE PROJETO -->
@@ -2891,56 +2918,156 @@ function _renderSubEtapa(sub,isLast){
   return html;
 }
 
+function _fmtDate(d){
+  if(!d) return '';
+  var p=d.split('-');
+  if(p.length!==3) return d;
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+function _diasBadgeInline(prev,real){
+  if(!prev||!real) return '';
+  var d=Math.round((new Date(real+'T12:00:00')-new Date(prev+'T12:00:00'))/86400000);
+  if(d<0) return '<span style="font-size:9px;font-weight:700;color:#166534;">⏱ '+Math.abs(d)+'d antes</span>';
+  if(d===0) return '<span style="font-size:9px;font-weight:700;color:#1e40af;">⏱ No prazo</span>';
+  return '<span style="font-size:9px;font-weight:700;color:#dc2626;">⚠ '+d+'d atraso</span>';
+}
+
 function renderEtapasDinamicas(){
   var cont=document.getElementById('etapas-dinamicas-container');
   if(!cont) return;
   cont.innerHTML='';
+
+  // ── TABELA PRINCIPAL DE ETAPAS ──────────────────────────────────────
+  var tableWrap = document.createElement('div');
+  tableWrap.className = 'cron-etapas-table-wrap';
+
+  var rows = '';
+  var rowIdx = 0;
+
   ETAPAS_CONFIG.forEach(function(etapa){
-    var st=_etapasState[etapa.key]||{};
-    var conc=st.concluido;
-    var box=document.createElement('div');
-    box.className='cron-etapa-box';
-    box.id='etapa-box-'+etapa.key;
-    box.style.cssText+='padding:0;overflow:hidden;'+(conc?'border-color:#166534;':'');
-    // Header
-    var hdr='<div style="background:'+(conc?'linear-gradient(90deg,#f0fdf4,#dcfce7)':'linear-gradient(90deg,var(--bg2),var(--bg))')+';padding:.55rem .85rem;display:flex;align-items:center;gap:.5rem;">';
-    hdr+='<span style="font-size:13px;font-weight:700;color:'+(conc?'#166534':'var(--ink)')+';flex:1;">'+etapa.num+' '+etapa.label+'</span>';
-    if(conc){
-      hdr+='<span style="background:#dcfce7;color:#166534;border-radius:4px;padding:2px 8px;font-size:9px;font-weight:700;white-space:nowrap;">✅ CONCLUÍDA</span>';
-      hdr+='<button onclick="etapaDesmarcarConcluido(\''+etapa.key+'\')" style="background:none;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;font-size:9px;color:#6b7280;padding:2px 5px;white-space:nowrap;">↩ Desfazer</button>';
-    } else {
-      hdr+='<button onclick="etapaMarcarConcluido(\''+etapa.key+'\')" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 11px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;">✓ Concluir</button>';
-    }
-    hdr+='</div>';
-    // Corpo
-    var temSub=etapa.sub&&etapa.sub.length>0;
-    var body='<div style="padding:.55rem .85rem;'+(temSub?'border-bottom:1px solid #e2e8f0;':'')+'background:'+(conc?'linear-gradient(135deg,#f0fdf4,#fff)':'#fff')+'">';
-    body+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;">';
-    body+='<div class="field-group" style="margin:0;"><label class="field-label">Previsto</label><input type="date" class="field-input" style="font-size:16px;" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)"></div>';
-    body+='<div class="field-group" style="margin:0;"><label class="field-label">Realizado</label><input type="date" class="field-input" style="font-size:16px;" value="'+(st.real||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'real\',this.value)"></div>';
-    body+='<div class="field-group" style="margin:0;"><label class="field-label">Observação</label><input type="text" class="field-input" style="font-size:16px;" value="'+((st.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+etapa.key+'\',\'obs\',this.value)"></div>';
-    body+='</div>'+_diasBadge(st.prev,st.real);
-    // Anexo para etapas 1 e 2
+    var st = _etapasState[etapa.key]||{};
+    var conc = st.concluido;
+    var isLate = !conc && st.prev && new Date(st.prev) < new Date() && !st.real;
+    var trClass = conc ? 'etapa-row-done' : (isLate ? 'etapa-row-late' : '');
+    rowIdx++;
+
+    // Determine date cell classes
+    var prevClass = 'date-cell'+(st.prev?'':' empty');
+    var realClass = 'date-cell'+(st.real?(conc?' done':(isLate?' late':'')):(isLate?' late':' empty'));
+
+    // Anexos inline pill
+    var anexosPill = '';
     if(etapa.extra==='anexo'){
       var anexos = st.anexos||[];
-      body+='<div style="margin-top:.45rem;border-top:1px dashed #e2e8f0;padding-top:.4rem;">';
-      body+='<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">';
-      body+='<label style="display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:3px 10px;cursor:pointer;font-size:16px;color:var(--ink2);">📎 Anexar documento<input type="file" multiple accept=".pdf,.dwg,.dxf,.docx,.xlsx,.zip,.rar,.png,.jpg" style="display:none;" onchange="etapaAnexar(\''+etapa.key+'\',this)"></label>';
-      anexos.forEach(function(a,i){
-        body+='<span style="display:inline-flex;align-items:center;gap:3px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:3px;padding:2px 7px;font-size:9px;">';
-        body+=(a.type&&a.type.includes('pdf')?'📄':a.type&&a.type.includes('image')?'🖼':'📎');
-        body+='<a href="'+(a.url||'#')+'" download="'+a.name+'" style="color:#0e7490;text-decoration:none;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+a.name+'">'+a.name+'</a>';
-        body+='<button onclick="etapaRemoverAnexo(\''+etapa.key+'\','+i+')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:9px;padding:0 1px;">✕</button></span>';
-      });
-      body+='</div></div>';
+      if(anexos.length>0){
+        anexosPill = ' <span style="background:#dbeafe;color:#1e40af;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700;margin-left:4px;">📎 '+anexos.length+'</span>';
+      }
     }
-    body+='</div>';
-    // Sub-etapas
-    var subHtml='';
-    if(temSub) etapa.sub.forEach(function(sub,idx){ subHtml+=_renderSubEtapa(sub,idx===etapa.sub.length-1); });
-    box.innerHTML=hdr+body+subHtml;
-    cont.appendChild(box);
+
+    // Status pill
+    var pillHtml = '';
+    if(conc) pillHtml = '<span class="cron-etapa-status-pill done">✅ Concluída</span>';
+    else if(isLate) pillHtml = '<span class="cron-etapa-status-pill late">⚠ Atrasada</span>';
+    else if(st.real) pillHtml = '<span class="cron-etapa-status-pill pend">🔄 Em andamento</span>';
+    else if(st.prev) pillHtml = '<span class="cron-etapa-status-pill na">📅 Prevista</span>';
+    else pillHtml = '<span class="cron-etapa-status-pill na">— Pendente</span>';
+
+    // Action buttons
+    var actionBtns = conc
+      ? '<button onclick="etapaDesmarcarConcluido(\''+etapa.key+'\')" style="background:none;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;font-size:9px;color:#6b7280;padding:2px 5px;white-space:nowrap;">↩</button>'
+      : '<button onclick="etapaMarcarConcluido(\''+etapa.key+'\')" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;">✓</button>';
+
+    // GRD field for etapa 2 envio_modelo
+    var grdTd = '';
+
+    rows += '<tr class="'+trClass+'" id="etapa-row-'+etapa.key+'">';
+    rows += '<td style="width:28px;text-align:center;"><span class="etapa-num">'+rowIdx+'</span></td>';
+    rows += '<td><span class="etapa-name">'+etapa.num+' '+etapa.label+'</span>'+anexosPill+'</td>';
+    rows += '<td class="num" style="width:110px;">';
+    rows += '<input type="date" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)">';
+    rows += '</td>';
+    rows += '<td class="num" style="width:110px;">';
+    rows += '<input type="date" style="border:1px solid '+(conc?'#86efac':'#d1d5db')+';border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.real||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'real\',this.value)">';
+    rows += '</td>';
+    rows += '<td style="width:90px;text-align:center;">'+_diasBadgeInline(st.prev,st.real)+'</td>';
+    rows += '<td style="width:120px;">'+pillHtml+'</td>';
+    rows += '<td><input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:11px;width:100%;background:'+(conc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+((st.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Observação…" oninput="etapaSet(\''+etapa.key+'\',\'obs\',this.value)"></td>';
+    rows += '<td style="width:44px;text-align:center;">'+actionBtns+'</td>';
+    rows += '</tr>';
+
+    // Sub-etapas como linhas indentadas
+    if(etapa.sub&&etapa.sub.length>0){
+      etapa.sub.forEach(function(sub){
+        var sst = _etapasState[sub.key]||{};
+        var sConc = sst.concluido;
+        var sLate = !sConc && sst.prev && new Date(sst.prev) < new Date() && !sst.real;
+        var sTrClass = sConc ? 'etapa-row-done' : (sLate ? 'etapa-row-late' : '');
+
+        var sPillHtml = '';
+        if(sConc) sPillHtml = '<span class="cron-etapa-status-pill done" style="font-size:9px;padding:1px 6px;">✅</span>';
+        else if(sLate) sPillHtml = '<span class="cron-etapa-status-pill late" style="font-size:9px;padding:1px 6px;">⚠</span>';
+        else if(sst.real) sPillHtml = '<span class="cron-etapa-status-pill pend" style="font-size:9px;padding:1px 6px;">🔄</span>';
+        else sPillHtml = '<span class="cron-etapa-status-pill na" style="font-size:9px;padding:1px 6px;">—</span>';
+
+        var sAction = sConc
+          ? '<button onclick="etapaDesmarcarConcluido(\''+sub.key+'\')" style="background:none;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;font-size:8px;color:#6b7280;padding:1px 4px;">↩</button>'
+          : '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">✓</button>';
+
+        // GRD for rec_modelo
+        var extraInline = '';
+        if(sub.extra==='grd'){
+          extraInline = ' <input type="text" style="border:1px solid #bfdbfe;border-radius:3px;padding:1px 4px;font-size:10px;width:80px;margin-left:4px;" value="'+((sst.grd||'').replace(/"/g,'&quot;'))+'" placeholder="GRD…" oninput="etapaSet(\''+sub.key+'\',\'grd\',this.value)">';
+        }
+        if(sub.extra==='resultado'){
+          var res = sst.resultado||'';
+          ['APR','APR c/com','REJ'].forEach(function(op){
+            var sel = res===op;
+            var bg = sel?(op==='APR'?'#166534':op==='APR c/com'?'#d97706':'#dc2626'):'transparent';
+            extraInline += '<button onclick="etapaSetResultado(\''+sub.key+'\',\''+op+'\')" style="background:'+bg+';color:'+(sel?'#fff':'#374151')+';border:1px solid '+(sel?bg:'#d1d5db')+';border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;margin-left:2px;">'+op+'</button>';
+          });
+        }
+
+        rows += '<tr class="'+sTrClass+'" id="etapa-row-'+sub.key+'" style="background:'+(sConc?'#f0fdf4':sLate?'#fff7f0':'#fafafe')+';">';
+        rows += '<td style="text-align:center;"><span style="color:#94a3b8;font-size:10px;">↳</span></td>';
+        rows += '<td style="padding-left:1.5rem;"><span style="font-size:11px;color:'+(sub.opcional?'#64748b':'var(--ink2)')+';font-style:'+(sub.opcional?'italic':'normal')+';">'+sub.label+extraInline+'</span></td>';
+        rows += '<td class="num"><input type="date" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)"></td>';
+        rows += '<td class="num"><input type="date" style="border:1px solid '+(sConc?'#86efac':'#e5e7eb')+';border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.real||'')+'" onchange="etapaSet(\''+sub.key+'\',\'real\',this.value)"></td>';
+        rows += '<td style="text-align:center;">'+_diasBadgeInline(sst.prev,sst.real)+'</td>';
+        rows += '<td style="text-align:center;">'+sPillHtml+'</td>';
+        rows += '<td><input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:10px;width:100%;background:'+(sConc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+((sst.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></td>';
+        rows += '<td style="text-align:center;">'+sAction+'</td>';
+        rows += '</tr>';
+      });
+    }
+
+    // Anexo row for etapas 1 and 2
+    if(etapa.extra==='anexo'){
+      var anexos = st.anexos||[];
+      var anexoRow = '<tr><td colspan="2" style="padding:.3rem .85rem;background:#f0f9ff;border-top:1px dashed #bae6fd;">';
+      anexoRow += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#0e7490;font-weight:600;">📎 Anexar<input type="file" multiple accept=".pdf,.dwg,.dxf,.docx,.xlsx,.zip,.rar,.png,.jpg" style="display:none;" onchange="etapaAnexar(\''+etapa.key+'\',this)"></label>';
+      if(anexos.length>0){
+        anexos.forEach(function(a,i){
+          anexoRow += '<span style="display:inline-flex;align-items:center;gap:2px;background:#fff;border:1px solid #bae6fd;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:4px;">'+(a.type&&a.type.includes('pdf')?'📄':'📎')+'<a href="'+(a.url||'#')+'" download="'+a.name+'" style="color:#0e7490;text-decoration:none;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+a.name+'</a><button onclick="etapaRemoverAnexo(\''+etapa.key+'\','+i+')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:8px;padding:0 1px;">✕</button></span>';
+        });
+      }
+      anexoRow += '</td><td colspan="6" style="background:#f0f9ff;"></td></tr>';
+      rows += anexoRow;
+    }
   });
+
+  tableWrap.innerHTML = '<table class="cron-etapas-table"><thead><tr>'
+    + '<th style="width:28px;">#</th>'
+    + '<th>Etapa</th>'
+    + '<th class="num" style="width:110px;">📅 Previsto</th>'
+    + '<th class="num" style="width:110px;">✅ Realizado</th>'
+    + '<th class="num" style="width:90px;">⏱ Δ Dias</th>'
+    + '<th style="width:120px;">Status</th>'
+    + '<th>Observação</th>'
+    + '<th style="width:44px;text-align:center;">Ação</th>'
+    + '</tr></thead><tbody>'+rows+'</tbody></table>';
+
+  cont.appendChild(tableWrap);
 
   // ── CONTAGEM DE DIAS ENTRE ETAPAS ─────────────────────────────────
   // Etapas principais com datas reais (na ordem do fluxo)
@@ -3957,7 +4084,7 @@ var _cronSortDir = 'asc';     // 'asc' | 'desc'
 function _thSort(col, label, extraStyle, color){
   const isActive = _cronSortCol === col;
   const cls = isActive ? (_cronSortDir === 'asc' ? 'sort-th asc' : 'sort-th desc') : 'sort-th';
-  const baseStyle = 'padding:6px 8px;font-size:9px;white-space:nowrap;color:'+color+';font-family:var(--font-main);font-weight:500;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;user-select:none;';
+  const baseStyle = 'padding:4px 5px;font-size:9px;white-space:nowrap;color:'+color+';font-family:var(--font-main);font-weight:500;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;user-select:none;';
   return `<th class="${cls}" style="${baseStyle}${extraStyle}" onclick="cronSortBy('${col}')">
     ${label}<span class="sort-icon"></span>
   </th>`;
@@ -4052,10 +4179,10 @@ function cronRenderTabela(subs){
     const grdLine = grd ? `<div style="font-size:7px;color:#1A4A7A;font-family:'Courier New',monospace,monospace;">${grd}</div>` : '';
     const mpLine  = (etapa.key==='lista_resumo_mp'&&mpStatus&&!real) ? `<div style="font-size:7px;font-weight:700;color:${cor};">${mpStatus}</div>` : '';
 
-    return `<td style="background:${bg};cursor:pointer;padding:4px 6px;text-align:center;border:1px solid #e2e8f0;min-width:68px;vertical-align:middle;"
+    return `<td style="background:${bg};cursor:pointer;padding:2px 4px;text-align:center;border:1px solid #e2e8f0;min-width:54px;vertical-align:middle;"
       title="${title}"
       onclick="event.stopPropagation();abrirAndamentoNaEtapaById('${s.id}','${etapa.key}')">
-      <div style="font-size:16px;font-weight:700;color:${cor};">${icone}</div>
+      <div style="font-size:13px;font-weight:700;color:${cor};">${icone}</div>
       ${dataLine}
       ${grdLine}
       ${mpLine}
@@ -4080,75 +4207,72 @@ function cronRenderTabela(subs){
     const pct = s.peso_previsto>0?Math.min(100,Math.round(pesoLib/s.peso_previsto*100)):0;
 
     return `<tr class="cron-row-item" data-id="${s.id}" style="background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':''};">
-      <td style="position:sticky;left:0;background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':'#fff'};z-index:3;border-right:1px solid #e2e8f0;width:32px;padding:3px;text-align:center;">
+      <td style="position:sticky;left:0;background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':'#fff'};z-index:3;border-right:1px solid #e2e8f0;width:28px;padding:2px 3px;text-align:center;">
         <input type="checkbox" class="row-sel-cb" data-id="${s.id}" style="cursor:pointer;accent-color:var(--purple);" onclick="toggleRowSel(event,'${s.id}')">
       </td>
-      <td style="position:sticky;left:32px;background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':'#fff'};z-index:2;border-right:2px solid #e2e8f0;border-left:3px solid ${semSt.dot};min-width:180px;max-width:200px;padding:5px 8px;cursor:pointer;"
+      <td style="position:sticky;left:28px;background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':'#fff'};z-index:2;border-right:2px solid #e2e8f0;border-left:3px solid ${semSt.dot};min-width:150px;max-width:170px;padding:3px 6px;cursor:pointer;"
         onclick="abrirCronModal('${s.id}')">
-        <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:${semSt.dot};flex-shrink:0;" title="${semSt.label}"></div>
-          <span style="font-family:'Courier New',monospace,monospace;font-size:16px;font-weight:700;color:${cfg.color};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.subobra||'—'}</span>
+        <div style="display:flex;align-items:center;gap:3px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:${semSt.dot};flex-shrink:0;" title="${semSt.label}"></div>
+          <span style="font-family:'Courier New',monospace,monospace;font-size:11px;font-weight:700;color:${cfg.color};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.subobra||'—'}</span>
         </div>
-        ${s.descricao?`<div style="font-size:9px;color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.descricao}">${s.descricao}</div>`:''}
-        ${s.area?`<div style="font-size:8px;color:var(--blue);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.area}">📍 ${s.area}</div>`:''}
-        <div style="font-size:8px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(s.obra||'').split(' ').slice(0,2).join(' ')} · ${s.equipe?s.equipe.split('(')[0].trim():'—'}</div>
+        ${s.area?`<div style="font-size:7px;color:var(--blue);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;" title="${s.area}">📍 ${s.area}</div>`:''}
+        <div style="font-size:7px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${(s.obra||'').split(' ').slice(0,2).join(' ')}</div>
       </td>
-      <td style="padding:4px 8px;font-size:9px;white-space:nowrap;border:1px solid #e2e8f0;">
+      <td style="padding:3px 6px;font-size:9px;white-space:nowrap;border:1px solid #e2e8f0;">
         <span class="cron-status-badge" style="background:${cfg.bg};color:${cfg.color};font-size:8px;">${cfg.icon} ${s.status}</span>
       </td>
-      <td style="padding:4px 8px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;" title="${s.equipe||''}">
+      <td style="padding:3px 5px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;" title="${s.equipe||''}">
         ${(()=>{
           if(!s.equipe) return '<span style="color:var(--ink3);font-size:8px;">—</span>';
           const nomeShort = s.equipe.split('(')[0].trim();
           const ini = nomeShort.replace(/[^A-Za-z]/g,'').substring(0,2).toUpperCase();
           const CORES_EQ = ['#C4501A','#1A4A7A','#2A7A4A','#D4A017','#6B21A8','#0e7490','#be185d','#0369a1'];
           const cor = CORES_EQ[Math.abs(nomeShort.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % CORES_EQ.length];
-          return '<div style="display:flex;align-items:center;gap:4px;">'
-            +'<div style="width:18px;height:18px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;">'+ini+'</div>'
+          return '<div style="display:flex;align-items:center;gap:3px;">'
+            +'<div style="width:16px;height:16px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;">'+ini+'</div>'
             +'<span style="font-size:9px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomeShort+'</span>'
             +'</div>';
         })()}
       </td>
-      <td style="padding:4px 6px;font-size:11px;color:#7c3aed;font-family:'Courier New',monospace,monospace;font-weight:800;white-space:nowrap;border:1px solid #e2e8f0;letter-spacing:.02em;">${s.num_proj_basico||'—'}</td>
-      <td style="padding:4px 6px;font-size:8px;color:var(--ink2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #e2e8f0;" title="${(s.descricao||'').replace(/"/g,'&quot;')}">${s.descricao||'—'}</td>
-      <td style="padding:4px 6px;font-size:8px;color:var(--blue);white-space:nowrap;border:1px solid #e2e8f0;">${s.area||'—'}</td>
-      <td style="padding:4px 6px;text-align:center;border:1px solid #e2e8f0;">${(()=>{
+      <td style="padding:3px 5px;font-size:10px;color:#7c3aed;font-family:'Courier New',monospace,monospace;font-weight:800;white-space:nowrap;border:1px solid #e2e8f0;letter-spacing:.02em;">${s.num_proj_basico||'—'}</td>
+      <td style="padding:3px 5px;font-size:9px;color:var(--ink2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #e2e8f0;" title="${(s.descricao||'').replace(/"/g,'&quot;')}">${s.descricao||'—'}</td>
+      <td style="padding:3px 5px;font-size:8px;color:var(--blue);white-space:nowrap;border:1px solid #e2e8f0;">${s.area||'—'}</td>
+      <td style="padding:3px 5px;text-align:center;border:1px solid #e2e8f0;">${(()=>{
         if(!s.data_limite_fab) return '<span class="limite-fab-badge sem">—</span>';
         const fmtLim = new Date(s.data_limite_fab+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-        if(s.real_lib_fab) return '<span class="limite-fab-badge ok">✅ '+fmtLim+'<br>concluido</span>';
+        if(s.real_lib_fab) return '<span class="limite-fab-badge ok" style="font-size:8px;">✅ '+fmtLim+'</span>';
         const lim = new Date(s.data_limite_fab+'T12:00:00');
         const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
         const diff = Math.round((lim - hoje2)/86400000);
-        // Verifica conflito: limite < planejado fab
         let alerteConflito = '';
         if(s.prev_lib_fab && !s.real_lib_fab){
           const dPrevFab = new Date(s.prev_lib_fab+'T12:00:00');
           if(lim < dPrevFab){
             const dc = Math.round((dPrevFab-lim)/86400000);
-            const fmtP = dPrevFab.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-            alerteConflito = '<div style="background:#fda4af;color:#9f1239;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;margin-top:2px;white-space:nowrap;">🚨 Lim.&lt;Plan.Fab '+dc+'d</div>';
+            alerteConflito = '<div style="background:#fda4af;color:#9f1239;border-radius:2px;padding:1px 3px;font-size:7px;font-weight:700;margin-top:1px;white-space:nowrap;">🚨 '+dc+'d</div>';
           }
         }
         let badge = '';
-        if(diff < 0) badge = '<span class="limite-fab-badge urgente">⚠ '+fmtLim+'<br>'+Math.abs(diff)+'d vencido</span>';
-        else if(diff <= 7) badge = '<span class="limite-fab-badge urgente">🔴 '+fmtLim+'<br>'+diff+'d restantes</span>';
-        else if(diff <= 15) badge = '<span class="limite-fab-badge alerta">🟠 '+fmtLim+'<br>'+diff+'d restantes</span>';
-        else if(diff <= 30) badge = '<span class="limite-fab-badge" style="background:#fef9c3;color:#854d0e;">🟡 '+fmtLim+'<br>'+diff+'d restantes</span>';
-        else badge = '<span class="limite-fab-badge ok">🟢 '+fmtLim+'<br>'+diff+'d</span>';
+        if(diff < 0) badge = '<span class="limite-fab-badge urgente" style="font-size:8px;">⚠ '+fmtLim+'</span>';
+        else if(diff <= 7) badge = '<span class="limite-fab-badge urgente" style="font-size:8px;">🔴 '+fmtLim+'</span>';
+        else if(diff <= 15) badge = '<span class="limite-fab-badge alerta" style="font-size:8px;">🟠 '+fmtLim+'</span>';
+        else if(diff <= 30) badge = '<span class="limite-fab-badge" style="background:#fef9c3;color:#854d0e;font-size:8px;">🟡 '+fmtLim+'</span>';
+        else badge = '<span class="limite-fab-badge ok" style="font-size:8px;">🟢 '+fmtLim+'</span>';
         return badge + alerteConflito;
       })()}</td>
-      <td style="padding:4px 8px;text-align:right;font-size:11px;font-family:'Courier New',monospace,monospace;white-space:nowrap;border:1px solid #e2e8f0;">
-        ${s.peso_previsto?`<div style="font-size:11px;font-family:'Courier New',monospace,monospace;font-weight:700;color:var(--ink);">${Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</div>`:''}
-        ${pesoLib?`<div style="color:var(--green);font-weight:700;font-size:11px;font-family:'Courier New',monospace,monospace;">${pesoLib.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} lib.</div>`:''}
-        ${s.peso_previsto>0?`<div style="margin-top:2px;background:#e2e8f0;height:4px;border-radius:2px;width:50px;margin-left:auto;"><div style="width:${pct}%;height:100%;background:${pct>=100?'#166534':'#C4501A'};border-radius:2px;"></div></div>`:''}
+      <td style="padding:3px 6px;text-align:right;font-size:10px;font-family:'Courier New',monospace,monospace;white-space:nowrap;border:1px solid #e2e8f0;">
+        ${s.peso_previsto?`<div style="font-size:10px;font-family:'Courier New',monospace,monospace;font-weight:700;color:var(--ink);">${Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</div>`:''}
+        ${pesoLib?`<div style="color:var(--green);font-weight:700;font-size:10px;font-family:'Courier New',monospace,monospace;">${pesoLib.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} lib.</div>`:''}
+        ${s.peso_previsto>0?`<div style="margin-top:1px;background:#e2e8f0;height:3px;border-radius:2px;width:44px;margin-left:auto;"><div style="width:${pct}%;height:100%;background:${pct>=100?'#166534':'#C4501A'};border-radius:2px;"></div></div>`:''}
       </td>
-      <td style="padding:4px 8px;text-align:right;font-size:11px;font-family:'Courier New',monospace,monospace;white-space:nowrap;border:1px solid #e2e8f0;color:#1A4A7A;font-weight:700;">
+      <td style="padding:3px 6px;text-align:right;font-size:10px;font-family:'Courier New',monospace,monospace;white-space:nowrap;border:1px solid #e2e8f0;color:#1A4A7A;font-weight:700;">
         ${s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}
       </td>
-      <td style="padding:4px 8px;text-align:right;font-size:11px;font-family:'Courier New',monospace,monospace;white-space:nowrap;border:1px solid #e2e8f0;color:#c2410c;font-weight:700;">
+      <td style="padding:3px 6px;text-align:right;font-size:10px;font-family:'Courier New',monospace,monospace;white-space:nowrap;border:1px solid #e2e8f0;color:#c2410c;font-weight:700;">
         ${s.peso_pcp?Number(s.peso_pcp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}
       </td>
-      <td style="padding:3px 6px;text-align:center;border:1px solid #e2e8f0;min-width:72px;">
+      <td style="padding:2px 5px;text-align:center;border:1px solid #e2e8f0;min-width:60px;">
         ${(function(){
           const e1 = s.conc_basico         ? 20 : 0;
           const e2 = s.conc_retorno_modelo ? 25 : 0;
@@ -4157,42 +4281,42 @@ function cronRenderTabela(subs){
           const pct = e1 + e2 + e3 + e4;
           const cor = pct >= 100 ? '#166534' : pct >= 50 ? '#0e7490' : pct > 0 ? '#c2410c' : '#94a3b8';
           const barColor = pct >= 100 ? '#16a34a' : pct >= 50 ? '#0e7490' : pct > 0 ? '#ea580c' : '#e2e8f0';
-          return `<div style="font-size:11px;font-weight:800;color:${cor};font-family:'Courier New',monospace,monospace;">${pct}%</div>
-            <div style="background:#e2e8f0;height:4px;border-radius:2px;margin-top:2px;width:56px;margin-inline:auto;">
+          return `<div style="font-size:10px;font-weight:800;color:${cor};font-family:'Courier New',monospace,monospace;">${pct}%</div>
+            <div style="background:#e2e8f0;height:3px;border-radius:2px;margin-top:1px;width:48px;margin-inline:auto;">
               <div style="width:${pct}%;height:100%;background:${barColor};border-radius:2px;transition:width .3s;"></div>
             </div>
             <div style="font-size:7px;color:#94a3b8;margin-top:1px;">${[e1?'E1':'',e2?'E2':'',e3?'E3':'',e4?'E4':''].filter(Boolean).join('+') || '—'}</div>`;
         })()}
       </td>
       ${ETAPAS_DEF.map(e=>celulaEtapa(s,e)).join('')}
-      <td style="padding:3px 5px;text-align:center;border:1px solid #e2e8f0;">
+      <td style="padding:2px 4px;text-align:center;border:1px solid #e2e8f0;">
         ${s.tem_revisao?`<span style="font-size:8px;font-weight:700;color:#1e40af;" title="${s.num_revisao||''}">🔄${s.num_revisao?' '+s.num_revisao:''}</span>`:'<span style="font-size:9px;color:#ccc;">—</span>'}
       </td>
-      <td style="border:1px solid #e2e8f0;padding:2px 4px;">
+      <td style="border:1px solid #e2e8f0;padding:1px 3px;">
         <button onclick="confirmarExcluirCron('${s.id}')"
-          style="background:none;border:none;cursor:pointer;font-size:16px;opacity:.25;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.25">🗑</button>
+          style="background:none;border:none;cursor:pointer;font-size:14px;opacity:.25;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.25">🗑</button>
       </td>
     </tr>`;
   }).join('');
 
-  el.innerHTML = `<div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 340px);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);">
-    <table style="border-collapse:collapse;font-size:16px;min-width:100%;position:relative;">
+  el.innerHTML = `<div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 215px);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);">
+    <table style="border-collapse:collapse;font-size:11px;min-width:100%;position:relative;">
       <thead style="position:sticky;top:0;z-index:10;">
         <tr style="background:#1A1714;">
-          <th style="position:sticky;top:0;left:0;background:#1A1714;z-index:14;padding:6px 8px;text-align:center;color:#fff;font-size:9px;white-space:nowrap;width:32px;border-right:1px solid #333;" title="Selecionar todos">
+          <th style="position:sticky;top:0;left:0;background:#1A1714;z-index:14;padding:4px 5px;text-align:center;color:#fff;font-size:9px;white-space:nowrap;width:28px;border-right:1px solid #333;" title="Selecionar todos">
             <input type="checkbox" id="sel-all-cb" style="cursor:pointer;accent-color:var(--accent);" onclick="toggleSelectAll(this)" title="Selecionar todos">
           </th>
-          ${_thSort('subobra','Sub-obra / Estrutura','position:sticky;top:0;left:32px;background:#1A1714;z-index:13;min-width:180px;border-right:2px solid #333;','#fff')}
+          ${_thSort('subobra','Sub-obra / Estrutura','position:sticky;top:0;left:28px;background:#1A1714;z-index:13;min-width:150px;border-right:2px solid #333;','#fff')}
           ${_thSort('status','Status','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;','#fff')}
-          ${_thSort('equipe','👥 Equipe Resp.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:110px;','#86efac')}
-          ${_thSort('num_proj_basico','Nº Proj.Básico','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:80px;','#c4b5fd')}
-          ${_thSort('descricao','Descrição','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:60px;','#fde68a')}
-          ${_thSort('area','Área','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:60px;','#a5f3fc')}
-          ${_thSort('data_limite_fab','🏭 Lim. Fab.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:80px;text-align:center;','#fca5a5')}
+          ${_thSort('equipe','👥 Equipe Resp.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:95px;','#86efac')}
+          ${_thSort('num_proj_basico','Nº Proj.Básico','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:70px;','#c4b5fd')}
+          ${_thSort('descricao','Descrição','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:100px;','#fde68a')}
+          ${_thSort('area','Área','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:50px;','#a5f3fc')}
+          ${_thSort('data_limite_fab','🏭 Lim. Fab.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:68px;text-align:center;','#fca5a5')}
           ${_thSort('peso_previsto','Peso Bás.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;text-align:right;','#fff')}
           ${_thSort('peso_detalhado','Peso Det.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;text-align:right;','#93c5fd')}
           ${_thSort('peso_pcp','Peso PCP','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;text-align:right;','#fdba74')}
-          ${_thSort('_avanco','📈 Avanço','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:72px;text-align:center;','#4ade80')}
+          ${_thSort('_avanco','📈 Avanço','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:60px;text-align:center;','#4ade80')}
           ${ETAPAS_DEF.map((e,i)=>{
             const isInfo = e.informativo;
             const thBg = isInfo ? '#0f3030' : '#1A1714';
@@ -4200,13 +4324,13 @@ function cronRenderTabela(subs){
             const infoTag = isInfo ? '<div style="font-size:6px;color:#34d399;font-weight:700;letter-spacing:.05em;">ℹ INFO</div>' : '';
             const isActive = _cronSortCol === e.real;
             const sortCls = isActive ? (_cronSortDir==='asc'?'sort-th asc':'sort-th desc') : 'sort-th';
-            return `<th class="${sortCls}" onclick="cronSortBy('${e.real}')" style="position:sticky;top:0;background:${thBg};z-index:10;padding:5px 4px;text-align:center;color:${thColor};font-size:8px;white-space:nowrap;border:1px solid #333;min-width:68px;${isInfo?';border-top:2px solid #059669;':''}cursor:pointer;user-select:none;">
+            return `<th class="${sortCls}" onclick="cronSortBy('${e.real}')" style="position:sticky;top:0;background:${thBg};z-index:10;padding:3px 3px;text-align:center;color:${thColor};font-size:8px;white-space:nowrap;border:1px solid #333;min-width:54px;${isInfo?';border-top:2px solid #059669;':''}cursor:pointer;user-select:none;">
               <div style="font-weight:700;">${i+1}<span class="sort-icon"></span></div>
               <div style="font-size:7px;opacity:.8;">${e.label}</div>
               ${infoTag}
             </th>`;
           }).join('')}
-          <th style="position:sticky;top:0;background:#1A1714;z-index:10;padding:6px 4px;text-align:center;color:#93c5fd;font-size:8px;white-space:nowrap;border:1px solid #333;min-width:46px;">🔄<div style="font-size:7px;">Rev.</div></th>
+          <th style="position:sticky;top:0;background:#1A1714;z-index:10;padding:4px 3px;text-align:center;color:#93c5fd;font-size:8px;white-space:nowrap;border:1px solid #333;min-width:38px;">🔄<div style="font-size:7px;">Rev.</div></th>
           <th style="position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;"></th>
         </tr>
       </thead>
@@ -4311,7 +4435,18 @@ async function abrirCronModal(id){
     const sv=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!=null)el.value=val;};
     sv('cm-obra',s.obra); sv('cm-subobra',s.subobra); sv('cm-descricao',s.descricao);
     sv('cm-area',s.area);
-    sv('cm-equipe',s.equipe); sv('cm-peso',s.peso_previsto); sv('cm-status',s.status);
+    sv('cm-equipe',s.equipe); sv('cm-peso',s.peso_previsto);
+    // Garante que o status atual existe no select antes de setar
+    (function(){
+      var sel = document.getElementById('cm-status');
+      if(!sel || !s.status) return;
+      if(!Array.from(sel.options).find(function(o){ return o.value === s.status; })){
+        var opt = document.createElement('option');
+        opt.value = s.status; opt.textContent = s.status;
+        sel.appendChild(opt);
+      }
+    })();
+    sv('cm-status',s.status);
     sv('cm-prior',s.prioridade); sv('cm-num-proj-basico',s.num_proj_basico);
     sv('cm-peso-detalhado',s.peso_detalhado);
     sv('cm-peso-pcp',s.peso_pcp);
@@ -4401,10 +4536,15 @@ function renderCronHistorico(hist){
 const LIMITE_FAB_KEY = 'sidertec_limite_fab';
 function salvarLimiteFabLocal(id, valor){
   if(!id) return;
+  // localStorage (cache local)
   const store = JSON.parse(localStorage.getItem(LIMITE_FAB_KEY)||'{}');
   if(valor) store[id] = valor;
   else delete store[id];
   localStorage.setItem(LIMITE_FAB_KEY, JSON.stringify(store));
+  // Supabase (fonte verdadeira)
+  sbClient.from('cronograma_subobras').eq('id',id).update({data_limite_fab: valor||null, atualizado_em: new Date().toISOString()}).select()
+    .then(r=>{ if(r.error) console.warn('[limite_fab SB]',r.error.message); })
+    .catch(e=>console.warn('[limite_fab SB]',e.message));
 }
 function carregarLimiteFabLocal(){
   const store = JSON.parse(localStorage.getItem(LIMITE_FAB_KEY)||'{}');
@@ -4417,10 +4557,15 @@ function carregarLimiteFabLocal(){
 const PESO_DET_KEY = 'sidertec_peso_detalhado';
 function salvarPesoDetLocal(id, valor){
   if(!id) return;
+  // localStorage (cache local)
   const store = JSON.parse(localStorage.getItem(PESO_DET_KEY)||'{}');
   if(valor > 0) store[id] = valor;
   else delete store[id];
   localStorage.setItem(PESO_DET_KEY, JSON.stringify(store));
+  // Supabase (fonte verdadeira)
+  sbClient.from('cronograma_subobras').eq('id',id).update({peso_detalhado: valor||null, atualizado_em: new Date().toISOString()}).select()
+    .then(r=>{ if(r.error) console.warn('[peso_det SB]',r.error.message); })
+    .catch(e=>console.warn('[peso_det SB]',e.message));
 }
 function carregarPesoDetLocal(){
   const store = JSON.parse(localStorage.getItem(PESO_DET_KEY)||'{}');
@@ -4432,10 +4577,15 @@ function carregarPesoDetLocal(){
 const PESO_PCP_KEY = 'sidertec_peso_pcp';
 function salvarPesoPcpLocal(id, valor){
   if(!id) return;
+  // localStorage (cache local)
   const store = JSON.parse(localStorage.getItem(PESO_PCP_KEY)||'{}');
   if(valor > 0) store[id] = valor;
   else delete store[id];
   localStorage.setItem(PESO_PCP_KEY, JSON.stringify(store));
+  // Supabase (fonte verdadeira)
+  sbClient.from('cronograma_subobras').eq('id',id).update({peso_pcp: valor||null, atualizado_em: new Date().toISOString()}).select()
+    .then(r=>{ if(r.error) console.warn('[peso_pcp SB]',r.error.message); })
+    .catch(e=>console.warn('[peso_pcp SB]',e.message));
 }
 function carregarPesoPcpLocal(){
   const store = JSON.parse(localStorage.getItem(PESO_PCP_KEY)||'{}');
@@ -4602,9 +4752,16 @@ async function salvarCronSubobra(){
     }
   }
 
-  // peso_detalhado: persiste em localStorage pois coluna ainda não existe no Supabase
   const pesoDetInput = getCronN('cm-peso-detalhado') || 0;
   const pesoPcpInput = getCronN('cm-peso-pcp') || 0;
+  const limFabInput  = getCronV('cm-data-limite-fab') || null;
+  // Inclui sempre no payload principal (colunas já existem após SQL_COLUNAS_NOVAS.sql)
+  if(pesoDetInput > 0) payload.peso_detalhado = pesoDetInput;
+  else payload.peso_detalhado = null;
+  if(pesoPcpInput > 0) payload.peso_pcp = pesoPcpInput;
+  else payload.peso_pcp = null;
+  if(limFabInput) payload.data_limite_fab = limFabInput;
+  else payload.data_limite_fab = null;
 
   try{
     let savedId = editingCronId;
@@ -4614,15 +4771,17 @@ async function salvarCronSubobra(){
       const idx=allCronSubobras.findIndex(s=>s.id===editingCronId);
       if(idx>=0&&data?.[0]){
         allCronSubobras[idx]=normalizarStatusLegado(data[0]);
-        // mescla peso_detalhado local
+      }
+      // Força peso/limite no array em memória (Supabase pode retornar sem esses campos se coluna nova)
+      if(idx>=0){
         allCronSubobras[idx].peso_detalhado = pesoDetInput || null;
         allCronSubobras[idx].peso_pcp = pesoPcpInput || null;
-        allCronSubobras[idx].data_limite_fab = getCronV('cm-data-limite-fab') || null;
+        allCronSubobras[idx].data_limite_fab = limFabInput || null;
       }
-      // persiste no localStorage keyed pelo id
+      // Persiste no Supabase via funções específicas (dupla garantia)
       salvarPesoDetLocal(editingCronId, pesoDetInput);
       salvarPesoPcpLocal(editingCronId, pesoPcpInput);
-      salvarLimiteFabLocal(editingCronId, getCronV('cm-data-limite-fab'));
+      salvarLimiteFabLocal(editingCronId, limFabInput);
 
       // Registrar mudança de status automaticamente no histórico (paralelo, não bloqueia)
       if(statusAnterior && statusAnterior!==statusNovo){
@@ -4642,10 +4801,10 @@ async function salvarCronSubobra(){
         savedId=data[0].id;
         allCronSubobras[0].peso_detalhado = pesoDetInput || null;
         allCronSubobras[0].peso_pcp = pesoPcpInput || null;
-        allCronSubobras[0].data_limite_fab = getCronV('cm-data-limite-fab') || null;
+        allCronSubobras[0].data_limite_fab = limFabInput || null;
         salvarPesoDetLocal(savedId, pesoDetInput);
         salvarPesoPcpLocal(savedId, pesoPcpInput);
-        salvarLimiteFabLocal(savedId, getCronV('cm-data-limite-fab'));
+        salvarLimiteFabLocal(savedId, limFabInput);
       }
     }
 
@@ -5261,8 +5420,13 @@ async function processarImportacao(rows, tipo){
       // Remove peso_detalhado e data_limite_fab do payload Supabase (gerenciados localmente)
       const pesoDetRow = row.peso_detalhado != null ? Number(row.peso_detalhado) : null;
       const limFabRow  = row.data_limite_fab || null;
-      delete payload.peso_detalhado; delete payload.data_limite_fab;
-      var _ir=_lsGet('cronograma_subobras');_ir=_ir.map(function(r){if(String(r.id)===String(exists.id)){return Object.assign({},r,payload,{atualizado_em:new Date().toISOString()});}return r;});_lsSet('cronograma_subobras',_ir); const error=null;
+      // Inclui peso_detalhado e data_limite_fab no payload (colunas existem no Supabase)
+      if(pesoDetRow != null) payload.peso_detalhado = pesoDetRow;
+      if(limFabRow) payload.data_limite_fab = limFabRow;
+      // Salva no Supabase
+      const {data: _upd, error} = await sbClient.from('cronograma_subobras').eq('id',exists.id).update(payload).select();
+      // Espelha no localStorage
+      var _ir=_lsGet('cronograma_subobras');_ir=_ir.map(function(r){if(String(r.id)===String(exists.id)){return Object.assign({},r,payload,{atualizado_em:new Date().toISOString()});}return r;});_lsSet('cronograma_subobras',_ir);
       if(error){ err++; errMsg=error.message; }
       else {
         ok++;
@@ -5274,8 +5438,17 @@ async function processarImportacao(rows, tipo){
     } else {
       const pesoDetRow = row.peso_detalhado != null ? Number(row.peso_detalhado) : null;
       const limFabRow  = row.data_limite_fab || null;
-      delete payload.peso_detalhado; delete payload.data_limite_fab;
-      const{data,error}=(function(){var _arr=Array.isArray(payload)?payload:[payload];var _ins=_arr.map(function(r){var o=Object.assign({},r);if(!o.id)o.id=_genId();if(!o.criado_em)o.criado_em=new Date().toISOString();o.atualizado_em=new Date().toISOString();return o;});var _rows=_lsGet('cronograma_subobras');_ins.forEach(function(o){_rows.push(o);});_lsSet('cronograma_subobras',_rows);return Promise.resolve({data:_ins,error:null});})();
+      // Inclui no payload (colunas existem no Supabase)
+      if(pesoDetRow != null) payload.peso_detalhado = pesoDetRow;
+      if(limFabRow) payload.data_limite_fab = limFabRow;
+      // Prepara payload com id e timestamps
+      if(!payload.id) payload.id = _genId();
+      if(!payload.criado_em) payload.criado_em = new Date().toISOString();
+      payload.atualizado_em = new Date().toISOString();
+      // Salva no Supabase
+      const{data,error}= await sbClient.from('cronograma_subobras').insert([payload]).select();
+      // Espelha no localStorage
+      if(!error){ var _rows=_lsGet('cronograma_subobras'); _rows.push(payload); _lsSet('cronograma_subobras',_rows); }
       if(error){ err++; errMsg=error.message; }
       else {
         ok++;
@@ -5906,6 +6079,8 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;font-size:8px;">${(s.obra||'').split(' ').slice(0,3).join(' ')}</td>
       <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
       <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
+      <td style="padding:4px 6px;font-size:7.5px;color:#333;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
+      <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.area||'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_basico)}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_envio_modelo)}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_pcte_fab)}</td>
@@ -5964,6 +6139,8 @@ function gerarRelatorioCron(){
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Obra</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Engenharia</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Status</th>
+          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;max-width:200px;">Descrição</th>
+          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Área</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Básico</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Modelo</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Pcte.Fab.</th>
@@ -6273,7 +6450,10 @@ function toggleEtapas(){
   if(!grid) return;
   const open = grid.style.display !== 'none';
   grid.style.display = open ? 'none' : 'block';
-  btn.textContent = open ? '📋 Ver Etapas' : '📋 Ocultar Etapas';
+  if(btn) btn.textContent = open ? '📋 Ver Etapas' : '📋 Ocultar Etapas';
+  if(btn) btn.style.background = open ? '' : 'var(--blue2)';
+  if(btn) btn.style.color = open ? '' : 'var(--blue)';
+  if(btn) btn.style.borderColor = open ? '' : 'var(--blue)';
 }
 
 function renderEtapasResumo(s){
@@ -7860,6 +8040,16 @@ function carregarCustomStatuses(){
     var parts = cs.cor.split(',');
     STATUS_CFG_CRON[cs.nome] = {color: parts[0]||'#475569', bg: parts[1]||'#f1f5f9', icon: cs.icone||'•'};
     if(!STATUS_ORDER.includes(cs.nome)) STATUS_ORDER.push(cs.nome);
+    // Adiciona no select do modal se ainda não estiver
+    ['cm-status','and-etapa'].forEach(function(id){
+      var sel = document.getElementById(id);
+      if(!sel) return;
+      if(!Array.from(sel.options).find(function(o){ return o.value === cs.nome; })){
+        var opt = document.createElement('option');
+        opt.value = cs.nome; opt.textContent = (cs.icone||'')+(cs.icone?' ':'')+cs.nome;
+        sel.appendChild(opt);
+      }
+    });
   });
   _renderCustomStatusList();
 }
