@@ -248,6 +248,7 @@ window._sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
   <div class="hd-right">
     <div class="hd-date" id="hd-date"></div>
     <button class="hbtn" onclick="backupDados()" title="Salvar backup dos dados em arquivo JSON">💾 Backup</button>
+    <button class="hbtn" onclick="migrarLocalParaSupabase()" id="btn-migrar" title="Enviar dados salvos neste navegador para o Supabase" style="background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.5);color:#6ee7b7;">☁ Migrar p/ Supabase</button>
     <label class="hbtn" style="cursor:pointer;" title="Restaurar dados de um backup JSON">
       📂 Restaurar
       <input type="file" accept=".json" style="display:none;" onchange="restaurarDados(this)">
@@ -606,6 +607,7 @@ window._sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 const STORE_KEY = 'sidertec_diario_v1';
 
 function carregar(){
+  // Retorna dados locais só como cache temporário — Supabase vai sobrescrever
   try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
   catch(e){ return []; }
 }
@@ -630,17 +632,16 @@ async function _syncDiarioToSb(dados){
   }catch(e){ console.warn('[Diário Supabase]',e.message); }
 }
 
-// Carrega do Supabase quando disponível
+// Carrega do Supabase SEMPRE que conectado — ignora localStorage
 window._onSbReady = async function(){
   try{
     var res = await window._sb.from('diario_execucao').select('*').order('data',{ascending:false});
     if(res.error) throw res.error;
-    if(res.data && res.data.length > 0){
-      dados = res.data;
-      localStorage.setItem(STORE_KEY, JSON.stringify(dados));
-      render();
-      console.log('[Diário] '+res.data.length+' registros carregados do Supabase');
-    }
+    // Supabase é a fonte verdadeira — substitui qualquer dado local
+    dados = res.data || [];
+    localStorage.setItem(STORE_KEY, JSON.stringify(dados));
+    render();
+    console.log('[Diário] '+dados.length+' registros carregados do Supabase');
   }catch(e){ console.warn('[Diário Supabase carregar]',e.message); }
 };
 
@@ -680,26 +681,11 @@ if(responsaveis.length === 0){
   document.getElementById('m-data').value = hoje;
   document.getElementById('hd-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
 
-  if(dados.length === 0) carregarDadosDemo();
+  // Demo removido — dados vêm do Supabase
   render();
 })();
 
-function carregarDadosDemo(){
-  const hoje = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
-  const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1);
-  const amanha = new Date(hoje); amanha.setDate(hoje.getDate()+1);
-  const semana = new Date(hoje); semana.setDate(hoje.getDate()+5);
-
-  dados = [
-    {id:1, data: fmt(ontem), responsavel:'Ana Paula', atividade:'Revisão do cronograma contratual', setor:'Contratos', conclusao: fmt(hoje), nivel:'2', status:'Concluído', obs:'Atualizado com novos marcos'},
-    {id:2, data: fmt(hoje), responsavel:'Carlos Mendes', atividade:'Vistoria técnica na obra Bloco A', setor:'Engenharia', conclusao: fmt(amanha), nivel:'3', status:'Em Andamento', obs:'Aguardando laudo do fornecedor'},
-    {id:3, data: fmt(hoje), responsavel:'Fernanda Lima', atividade:'Elaboração do relatório mensal', setor:'Gestão', conclusao: fmt(semana), nivel:'1', status:'Pendente', obs:''},
-    {id:4, data: fmt(ontem), responsavel:'Roberto Souza', atividade:'Reunião com cliente sobre escopo', setor:'Comercial', conclusao: fmt(ontem), nivel:'2', status:'Concluído', obs:'Aprovado novo escopo fase 2'},
-    {id:5, data: fmt(hoje), responsavel:'Ana Paula', atividade:'Análise de aditivo contratual', setor:'Contratos', conclusao: fmt(semana), nivel:'3', status:'Em Andamento', obs:'Pendente aprovação jurídica'},
-  ];
-  salvar(dados);
-}
+function carregarDadosDemo(){ /* dados de demo removidos — sistema usa Supabase */ }
 
 // ═══════════════════════════════════════════════════════════
 // RENDER PRINCIPAL
@@ -1383,6 +1369,69 @@ document.addEventListener('keydown', e => {
 });
 
 // ── BACKUP / RESTORE ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// MIGRAÇÃO localStorage → Supabase
+// ═══════════════════════════════════════════════
+async function migrarLocalParaSupabase(){
+  // Lê dados do localStorage
+  var local = [];
+  try { local = JSON.parse(localStorage.getItem('sidertec_diario_v1') || '[]'); } catch(e){}
+  if(!local.length){
+    showToast('Nada a migrar', 'Não há dados no armazenamento local deste navegador.', 'warn');
+    return;
+  }
+
+  if(!confirm('Foram encontrados ' + local.length + ' registros no armazenamento local.\n\nDeseja enviá-los para o Supabase?\n\nRegistros duplicados serão ignorados automaticamente.')){
+    return;
+  }
+
+  // Verificar se Supabase está pronto
+  if(!window._sbReady || !window._sb){
+    showToast('Supabase não conectado', 'Abra o app pelo GitHub Pages para conectar ao Supabase.', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('btn-migrar');
+  if(btn) btn.textContent = '⏳ Migrando...';
+
+  var ok = 0, erros = 0;
+  for(var i = 0; i < local.length; i++){
+    var r = local[i];
+    // Normaliza campos
+    var reg = {
+      id:             r.id ? String(r.id) : Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      data:           r.data || null,
+      responsavel:    r.responsavel || null,
+      atividade:      r.atividade || null,
+      setor:          r.setor || null,
+      conclusao:      r.conclusao || null,
+      conclusao_real: r.conclusaoReal || r.conclusao_real || null,
+      nivel:          String(r.nivel || '1'),
+      status:         r.status || 'Pendente',
+      obs:            r.obs || null,
+      criado_em:      r.criado_em || new Date().toISOString(),
+      atualizado_em:  new Date().toISOString()
+    };
+    try {
+      await window._sb.from('diario_execucao').upsert(reg, {onConflict:'id'});
+      ok++;
+    } catch(e) {
+      console.warn('Erro ao migrar registro', r.id, e);
+      erros++;
+    }
+  }
+
+  if(btn) btn.textContent = '☁ Migrar p/ Supabase';
+
+  if(ok > 0){
+    // Recarrega dados do Supabase
+    await carregarDados();
+    showToast('✅ Migração concluída', ok + ' registros enviados para o Supabase!' + (erros > 0 ? ' (' + erros + ' erros)' : ''), 'success');
+  } else {
+    showToast('Erro na migração', 'Nenhum registro foi migrado. Verifique o console.', 'error');
+  }
+}
+
 function backupDados(){
   var dados = {
     versao: '1.0',
