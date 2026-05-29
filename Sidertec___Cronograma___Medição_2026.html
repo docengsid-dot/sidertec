@@ -4226,30 +4226,38 @@ var _xlColFilters = {}; // {colKey: Set de valores selecionados}
 var _xlOpenDD     = null; // coluna com dropdown aberto
 
 function xlOpenFilter(col, btn){
+  // Fecha qualquer aberto
   if(_xlOpenDD && _xlOpenDD !== col){
     const od = document.getElementById('xl-dd-'+_xlOpenDD);
-    if(od) od.classList.remove('open');
+    if(od){ od.classList.remove('open'); od.style.cssText=''; }
   }
   const dd = document.getElementById('xl-dd-'+col);
   if(!dd) return;
   const isOpen = dd.classList.contains('open');
-  dd.classList.toggle('open', !isOpen);
-  _xlOpenDD = isOpen ? null : col;
   if(!isOpen){
+    // Mover para body e posicionar com fixed
+    if(dd.parentElement !== document.body) document.body.appendChild(dd);
     xlPopulateFilter(col);
-    // Reposicionar como fixed para escapar do overflow do container
+    const r = btn.getBoundingClientRect();
+    dd.style.cssText = 'position:fixed!important;display:flex!important;flex-direction:column;z-index:99999;'+
+      'top:'+(r.bottom+2)+'px;left:'+r.left+'px;right:auto;'+
+      'background:#fff;border:1.5px solid #217346;border-radius:4px;'+
+      'box-shadow:0 6px 20px rgba(0,0,0,.25);min-width:200px;max-height:300px;'+
+      'font-size:11px;color:#1A1714;';
+    // Ajusta se sair da tela
     requestAnimationFrame(function(){
-      const r = btn.getBoundingClientRect();
-      dd.style.position = 'fixed';
-      dd.style.top = (r.bottom + 2) + 'px';
-      dd.style.left = r.left + 'px';
-      dd.style.right = 'auto';
-      // Ajusta se sair da tela
       const dr = dd.getBoundingClientRect();
       if(dr.right > window.innerWidth - 8)
         dd.style.left = Math.max(4, window.innerWidth - dr.width - 8) + 'px';
+      if(dr.bottom > window.innerHeight - 8)
+        dd.style.top = Math.max(4, r.top - dr.height - 2) + 'px';
     });
+  } else {
+    dd.classList.remove('open');
+    dd.style.cssText = '';
   }
+  dd.classList.toggle('open', !isOpen);
+  _xlOpenDD = isOpen ? null : col;
 }
 
 function xlPopulateFilter(col){
@@ -4334,16 +4342,16 @@ function xlToggleVal(col, cb){
 
 function xlOK(col){
   const dd = document.getElementById('xl-dd-'+col);
-  if(dd){ dd.classList.remove('open'); dd.style.position=''; dd.style.top=''; dd.style.left=''; }
+  if(dd){ dd.classList.remove('open'); dd.style.cssText = ''; }
   _xlOpenDD = null;
   xlAplicarFiltros();
 }
 
 function xlAplicarFiltros(){
-  // Atualiza botões de filtro (verde se ativo)
-  Object.keys(_xlColFilters).forEach(col=>{
-    const btn = document.querySelector('[data-xl-filter="'+col+'"]');
-    if(btn) btn.classList.toggle('active', !!_xlColFilters[col]);
+  // Atualiza botões (amarelo = filtro ativo)
+  document.querySelectorAll('[data-xl-filter]').forEach(btn=>{
+    const col = btn.getAttribute('data-xl-filter');
+    btn.classList.toggle('active', !!_xlColFilters[col] && _xlColFilters[col].size > 0);
   });
   renderCronograma();
 }
@@ -4374,9 +4382,14 @@ function xlFiltrarSubs(subs){
 
 // Fechar dropdown ao clicar fora
 document.addEventListener('click', function(e){
-  if(!e.target.closest('.xl-filter-dd') && !e.target.closest('[data-xl-filter]')){
-    document.querySelectorAll('.xl-filter-dd.open').forEach(d=>d.classList.remove('open'));
+  if(!e.target.closest('.xl-filter-dd') && !e.target.closest('[data-xl-filter]') &&
+     !e.target.closest('[data-med-filter]') && !e.target.closest('[data-rev-filter]')){
+    document.querySelectorAll('.xl-filter-dd.open').forEach(function(d){
+      d.classList.remove('open'); d.style.cssText='';
+    });
     _xlOpenDD = null;
+    if(typeof _medXlOpenDD !== 'undefined') _medXlOpenDD = null;
+    if(typeof _revXlOpenDD !== 'undefined') _revXlOpenDD = null;
   }
 });
 
@@ -6212,26 +6225,30 @@ var _medXlOpenDD = null;
 function medXlOpenFilter(col, btn){
   if(_medXlOpenDD && _medXlOpenDD !== col){
     var od = document.getElementById('med-xl-dd-'+_medXlOpenDD);
-    if(od) od.classList.remove('open');
+    if(od){ od.classList.remove('open'); od.style.cssText=''; }
   }
   var dd = document.getElementById('med-xl-dd-'+col);
   if(!dd) return;
   var isOpen = dd.classList.contains('open');
+  if(!isOpen){
+    if(dd.parentElement !== document.body) document.body.appendChild(dd);
+    medXlPopulate(col);
+    var r = btn.getBoundingClientRect();
+    dd.style.cssText = 'position:fixed!important;display:flex!important;flex-direction:column;z-index:99999;'+
+      'top:'+(r.bottom+2)+'px;left:'+r.left+'px;right:auto;'+
+      'background:#fff;border:1.5px solid #0c4a6e;border-radius:4px;'+
+      'box-shadow:0 6px 20px rgba(0,0,0,.25);min-width:200px;max-height:300px;'+
+      'font-size:11px;color:#1A1714;';
+    requestAnimationFrame(function(){
+      var dr = dd.getBoundingClientRect();
+      if(dr.right > window.innerWidth-8) dd.style.left = Math.max(4,window.innerWidth-dr.width-8)+'px';
+      if(dr.bottom > window.innerHeight-8) dd.style.top = Math.max(4,r.top-dr.height-2)+'px';
+    });
+  } else {
+    dd.classList.remove('open'); dd.style.cssText='';
+  }
   dd.classList.toggle('open', !isOpen);
   _medXlOpenDD = isOpen ? null : col;
-  if(!isOpen){
-    medXlPopulate(col);
-    requestAnimationFrame(function(){
-      var r = btn.getBoundingClientRect();
-      dd.style.position = 'fixed';
-      dd.style.top  = (r.bottom + 2) + 'px';
-      dd.style.left = r.left + 'px';
-      dd.style.right = 'auto';
-      var dr = dd.getBoundingClientRect();
-      if(dr.right > window.innerWidth - 8)
-        dd.style.left = Math.max(4, window.innerWidth - dr.width - 8) + 'px';
-    });
-  }
 }
 
 function medXlPopulate(col){
@@ -6287,7 +6304,7 @@ function medXlToggleVal(col, cb){
 
 function medXlOK(col){
   var dd = document.getElementById('med-xl-dd-'+col);
-  if(dd){ dd.classList.remove('open'); dd.style.position=''; dd.style.top=''; dd.style.left=''; }
+  if(dd){ dd.classList.remove('open'); dd.style.cssText=''; }
   _medXlOpenDD = null;
   medXlAplicar();
 }
@@ -6319,25 +6336,29 @@ var _revXlOpenDD = null;
 function revXlOpenFilter(col, btn){
   if(_revXlOpenDD && _revXlOpenDD !== col){
     var od = document.getElementById('rev-xl-dd-'+_revXlOpenDD);
-    if(od) od.classList.remove('open');
+    if(od){ od.classList.remove('open'); od.style.cssText=''; }
   }
   var dd = document.getElementById('rev-xl-dd-'+col); if(!dd) return;
   var isOpen = dd.classList.contains('open');
+  if(!isOpen){
+    if(dd.parentElement !== document.body) document.body.appendChild(dd);
+    revXlPopulate(col);
+    var r = btn.getBoundingClientRect();
+    dd.style.cssText = 'position:fixed!important;display:flex!important;flex-direction:column;z-index:99999;'+
+      'top:'+(r.bottom+2)+'px;left:'+r.left+'px;right:auto;'+
+      'background:#fff;border:1.5px solid #217346;border-radius:4px;'+
+      'box-shadow:0 6px 20px rgba(0,0,0,.25);min-width:200px;max-height:300px;'+
+      'font-size:11px;color:#1A1714;';
+    requestAnimationFrame(function(){
+      var dr = dd.getBoundingClientRect();
+      if(dr.right > window.innerWidth-8) dd.style.left = Math.max(4,window.innerWidth-dr.width-8)+'px';
+      if(dr.bottom > window.innerHeight-8) dd.style.top = Math.max(4,r.top-dr.height-2)+'px';
+    });
+  } else {
+    dd.classList.remove('open'); dd.style.cssText='';
+  }
   dd.classList.toggle('open', !isOpen);
   _revXlOpenDD = isOpen ? null : col;
-  if(!isOpen){
-    revXlPopulate(col);
-    requestAnimationFrame(function(){
-      var r = btn.getBoundingClientRect();
-      dd.style.position = 'fixed';
-      dd.style.top  = (r.bottom + 2) + 'px';
-      dd.style.left = r.left + 'px';
-      dd.style.right = 'auto';
-      var dr = dd.getBoundingClientRect();
-      if(dr.right > window.innerWidth - 8)
-        dd.style.left = Math.max(4, window.innerWidth - dr.width - 8) + 'px';
-    });
-  }
 }
 
 function revXlPopulate(col){
@@ -6381,7 +6402,7 @@ function revXlToggleVal(col, cb){
 
 function revXlOK(col){
   var dd = document.getElementById('rev-xl-dd-'+col);
-  if(dd){ dd.classList.remove('open'); dd.style.position=''; dd.style.top=''; dd.style.left=''; }
+  if(dd){ dd.classList.remove('open'); dd.style.cssText=''; }
   _revXlOpenDD = null;
   renderRevisoes();
 }
