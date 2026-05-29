@@ -7310,26 +7310,23 @@ async function salvarAndamento(){
     // Se etapa com colunas pendentes, avisa mas ainda salva status e histórico
     const etapaPendente = colunasNaoExistem.has(e.prev) || colunasNaoExistem.has(e.real);
 
-    // Roda update e insert no histórico em PARALELO
+    // Salva no Supabase
     const obsText = obs || (real ? `${e.label} realizado em ${new Date(real+'T12:00:00').toLocaleDateString('pt-BR')}` : `Previsão de ${e.label} atualizada`);
-    const [updResult] = await Promise.all([
-      (function(){
-        var _r=_lsGet('cronograma_subobras'),_u=[],_found=false;
-        _r=_r.map(function(x){if(String(x.id)===String(editingCronId)){_found=true;var o=Object.assign({},x,updates);o.atualizado_em=new Date().toISOString();_u.push(o);return o;}return x;});
-        if(!_found){var _mem=allCronSubobras.find(function(x){return x.id===editingCronId;});if(_mem){var _o=Object.assign({},_mem,updates);_r.push(_o);_u.push(_o);}}
-        _lsSet('cronograma_subobras',_r);return Promise.resolve({data:_u,error:null});
-      }()),
-      (function(){var _h2={id:_genId(),criado_em:new Date().toISOString(),
-        subobra_id:editingCronId, autor:autor,
-        status_anterior:statusAnterior, status_novo:novoStatus||statusAnterior,
-        observacao:obsText+(grd?' — GRD: '+grd:'')
-      };var _h2all=_lsGet('cronograma_historico');_h2all.unshift(_h2);_lsSet('cronograma_historico',_h2all);return Promise.resolve({data:[_h2],error:null});})()
-    ]);
-    const {data, error} = updResult;
+    const {data, error} = await sbClient.from('cronograma_subobras')
+      .update(updates).eq('id', editingCronId).select();
     if(error) throw new Error(error.message);
     if(!data || data.length === 0){
-      throw new Error('Registro não encontrado no armazenamento local. ID: ' + editingCronId + '. Os dados precisam ser importados via CSV.');
+      throw new Error('Registro não encontrado. ID: ' + editingCronId);
     }
+    // Histórico no Supabase
+    try{
+      await sbClient.from('cronograma_historico').insert([{
+        id: _genId(), criado_em: new Date().toISOString(),
+        subobra_id: editingCronId, autor: autor,
+        status_anterior: statusAnterior, status_novo: novoStatus||statusAnterior,
+        observacao: obsText+(grd?' — GRD: '+grd:'')
+      }]);
+    }catch(he){ console.warn('Histórico:', he.message); }
 
     // Update local state
     const idx = allCronSubobras.findIndex(x=>x.id===editingCronId);
