@@ -4405,14 +4405,79 @@ function xlFiltrarSubs(subs){
 
 // Fechar dropdown ao clicar fora
 document.addEventListener('click', function(e){
+  // Fechar dropdowns ao clicar fora
   if(!e.target.closest('.xl-filter-dd') && !e.target.closest('[data-xl-filter]') &&
      !e.target.closest('[data-med-filter]') && !e.target.closest('[data-rev-filter]')){
     document.querySelectorAll('.xl-filter-dd.open').forEach(function(d){
       d.classList.remove('open'); d.style.cssText='';
     });
     _xlOpenDD = null;
-    if(typeof _medXlOpenDD !== 'undefined') _medXlOpenDD = null;
-    if(typeof _revXlOpenDD !== 'undefined') _revXlOpenDD = null;
+    _medXlOpenDD = null;
+    _revXlOpenDD = null;
+    return;
+  }
+
+  // ── Delegação: botão OK ──
+  var okBtn = e.target.closest('.xl-filter-footer button.ok');
+  if(okBtn){
+    var dd = okBtn.closest('.xl-filter-dd');
+    if(!dd) return;
+    var id = dd.id; // ex: "xl-dd-subobra" ou "med-xl-dd-data" ou "rev-xl-dd-cliente"
+    var col, type;
+    if(id.startsWith('med-xl-dd-')){ col=id.replace('med-xl-dd-',''); type='med'; }
+    else if(id.startsWith('rev-xl-dd-')){ col=id.replace('rev-xl-dd-',''); type='rev'; }
+    else { col=id.replace('xl-dd-',''); type='cron'; }
+
+    // Coletar checkboxes marcados
+    var allId = (type==='med'?'med-xl-all-':type==='rev'?'rev-xl-all-':'xl-all-')+col;
+    var sel = new Set();
+    dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#'+allId+')').forEach(function(c){
+      if(c.checked) sel.add(c.value);
+    });
+    var tot = dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#'+allId+')').length;
+
+    if(type==='cron'){
+      if(sel.size===0||sel.size===tot) delete _xlColFilters[col];
+      else _xlColFilters[col]=sel;
+      dd.classList.remove('open'); dd.style.cssText='';
+      _xlOpenDD=null;
+      xlAplicarFiltros();
+    } else if(type==='med'){
+      if(sel.size===0||sel.size===tot) delete _medXlFilters[col];
+      else _medXlFilters[col]=sel;
+      dd.classList.remove('open'); dd.style.cssText='';
+      _medXlOpenDD=null;
+      medXlAplicar();
+    } else {
+      if(sel.size===0||sel.size===tot) delete _revXlFilters[col];
+      else _revXlFilters[col]=sel;
+      dd.classList.remove('open'); dd.style.cssText='';
+      _revXlOpenDD=null;
+      renderRevisoes();
+    }
+    e.stopPropagation();
+    return;
+  }
+
+  // ── Delegação: botão Tudo ──
+  var tudoBtn = e.target.closest('.xl-filter-footer button:not(.ok)');
+  if(tudoBtn){
+    var dd = tudoBtn.closest('.xl-filter-dd');
+    if(!dd) return;
+    var id = dd.id;
+    var col, type;
+    if(id.startsWith('med-xl-dd-')){ col=id.replace('med-xl-dd-',''); type='med'; }
+    else if(id.startsWith('rev-xl-dd-')){ col=id.replace('rev-xl-dd-',''); type='rev'; }
+    else { col=id.replace('xl-dd-',''); type='cron'; }
+    dd.querySelectorAll('.xl-filter-list input[type=checkbox]').forEach(function(c){ c.checked=true; });
+    var allId = (type==='med'?'med-xl-all-':type==='rev'?'rev-xl-all-':'xl-all-')+col;
+    var allCb = document.getElementById(allId);
+    if(allCb) allCb.checked=true;
+    if(type==='cron'){ delete _xlColFilters[col]; }
+    else if(type==='med'){ delete _medXlFilters[col]; }
+    else { delete _revXlFilters[col]; }
+    e.stopPropagation();
+    return;
   }
 });
 
