@@ -3321,7 +3321,30 @@ function etapaSet(key,campo,valor){
   if(!_etapasState[key]) _etapasState[key]={};
   _etapasState[key][campo] = valor;
   if(key==="lib_fab" && campo==="prev") atualizarDiasLimiteFab();
-  // Salva imediatamente no localStorage
+
+  // Auto-marcar concluído quando data real é preenchida
+  if(campo === 'real' && valor){
+    if(!_etapasState[key].concluido){
+      _etapasState[key].concluido = true;
+      // Avança status se aplicável
+      var mapa = ETAPA_STATUS_MAP[key];
+      if(mapa && mapa.proximo){
+        var sel = document.getElementById('cm-status');
+        if(sel){
+          var ia = STATUS_ORDER.indexOf(sel.value), ip = STATUS_ORDER.indexOf(mapa.proximo);
+          if(ia < ip){ sel.value = mapa.proximo; }
+        }
+      }
+      setTimeout(renderEtapasDinamicas, 50);
+    }
+  }
+  // Auto-desmarcar concluído quando data real é apagada
+  if(campo === 'real' && !valor){
+    _etapasState[key].concluido = false;
+    setTimeout(renderEtapasDinamicas, 50);
+  }
+
+  // Salva no Supabase
   if(editingCronId){
     var e = (typeof _todasEtapas==='function' ? _todasEtapas() : []).find(function(x){return x.key===key;});
     if(e){
@@ -3330,20 +3353,13 @@ function etapaSet(key,campo,valor){
       if(col){
         var upd = {atualizado_em:new Date().toISOString()};
         upd[col] = valor || null;
-        var rows = _lsGet('cronograma_subobras');
-        var found = false;
-        rows = rows.map(function(r){
-          if(String(r.id)===String(editingCronId)){ found=true; return Object.assign({},r,upd); }
-          return r;
-        });
-        if(!found){
-          // Registro não estava no localStorage — insere a partir de allCronSubobras
-          var mem = allCronSubobras.find(function(x){return x.id===editingCronId;});
-          if(mem) rows.push(Object.assign({},mem,upd));
-        }
-        _lsSet('cronograma_subobras',rows);
+        // Atualiza array em memória
         var i = allCronSubobras.findIndex(function(x){return x.id===editingCronId;});
         if(i>=0) allCronSubobras[i] = Object.assign({},allCronSubobras[i],upd);
+        // Salva no Supabase
+        sbClient.from('cronograma_subobras').update(upd).eq('id',editingCronId).select()
+          .then(function(r){ if(r.error) console.warn('[etapaSet]',r.error.message); })
+          .catch(function(e){ console.warn('[etapaSet]',e.message); });
       }
     }
   }
@@ -6946,6 +6962,21 @@ function gerarRelatorioCron(){
   win.document.close();
 }
 
+
+// ── Copiar/colar data entre campos de etapa ──
+var _dataCopied = null; // data copiada globalmente
+document.addEventListener('keydown', function(e){
+  var el = document.activeElement;
+  if(!el || el.type !== 'date') return;
+  // Ctrl+C ou Cmd+C — copia a data
+  if((e.ctrlKey||e.metaKey) && e.key==='c'){
+    if(el.value){ _dataCopied = el.value; showToast('Data copiada', el.value.split('-').reverse().join('/'), 'success'); }
+  }
+  // Ctrl+V ou Cmd+V — cola a data
+  if((e.ctrlKey||e.metaKey) && e.key==='v'){
+    if(_dataCopied){ el.value = _dataCopied; el.dispatchEvent(new Event('change')); showToast('Data colada', _dataCopied.split('-').reverse().join('/'), 'success'); e.preventDefault(); }
+  }
+});
 
 // ── Expor funções de filtro no window (necessário para onclick em elementos movidos para body) ──
 window.xlOpenFilter   = xlOpenFilter;
