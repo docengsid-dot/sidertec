@@ -4342,7 +4342,21 @@ function xlToggleVal(col, cb){
 
 function xlOK(col){
   const dd = document.getElementById('xl-dd-'+col);
-  if(dd){ dd.classList.remove('open'); dd.style.cssText = ''; }
+  if(dd){
+    // Coletar estado atual dos checkboxes ao clicar OK
+    const selecionados = new Set();
+    dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').forEach(c=>{
+      if(c.checked) selecionados.add(c.value);
+    });
+    const total = dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').length;
+    if(selecionados.size === 0 || selecionados.size === total){
+      delete _xlColFilters[col];
+    } else {
+      _xlColFilters[col] = selecionados;
+    }
+    dd.classList.remove('open');
+    dd.style.cssText = '';
+  }
   _xlOpenDD = null;
   xlAplicarFiltros();
 }
@@ -6304,7 +6318,13 @@ function medXlToggleVal(col, cb){
 
 function medXlOK(col){
   var dd = document.getElementById('med-xl-dd-'+col);
-  if(dd){ dd.classList.remove('open'); dd.style.cssText=''; }
+  if(dd){
+    var sel=new Set();
+    dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#med-xl-all-'+col+')').forEach(function(c){if(c.checked)sel.add(c.value);});
+    var tot=dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#med-xl-all-'+col+')').length;
+    if(sel.size===0||sel.size===tot){delete _medXlFilters[col];}else{_medXlFilters[col]=sel;}
+    dd.classList.remove('open'); dd.style.cssText='';
+  }
   _medXlOpenDD = null;
   medXlAplicar();
 }
@@ -6402,7 +6422,13 @@ function revXlToggleVal(col, cb){
 
 function revXlOK(col){
   var dd = document.getElementById('rev-xl-dd-'+col);
-  if(dd){ dd.classList.remove('open'); dd.style.cssText=''; }
+  if(dd){
+    var sel=new Set();
+    dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#rev-xl-all-'+col+')').forEach(function(c){if(c.checked)sel.add(c.value);});
+    var tot=dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#rev-xl-all-'+col+')').length;
+    if(sel.size===0||sel.size===tot){delete _revXlFilters[col];}else{_revXlFilters[col]=sel;}
+    dd.classList.remove('open'); dd.style.cssText='';
+  }
   _revXlOpenDD = null;
   renderRevisoes();
 }
