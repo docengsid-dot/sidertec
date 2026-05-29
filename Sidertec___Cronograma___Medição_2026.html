@@ -4340,6 +4340,10 @@ function xlToggleVal(col, cb){
   // Não renderiza imediato — aguarda clique em OK
 }
 
+function _dbg(msg){
+  const p=document.getElementById('xl-debug-panel');
+  if(p){p.style.display='block';p.innerHTML+='<div>'+msg+'</div>';}
+}
 function xlOK(col){
   const dd = document.getElementById('xl-dd-'+col);
   if(dd){
@@ -4348,18 +4352,22 @@ function xlOK(col){
       if(c.checked) selecionados.add(c.value);
     });
     const total = dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').length;
-    console.log('[xlOK] col='+col+' selecionados='+selecionados.size+'/'+total, [...selecionados].slice(0,3));
+    _dbg('col='+col+' sel='+selecionados.size+'/'+total);
+    _dbg('vals='+ [...selecionados].slice(0,2).join(','));
     if(selecionados.size === 0 || selecionados.size === total){
       delete _xlColFilters[col];
+      _dbg('→ SEM FILTRO');
     } else {
       _xlColFilters[col] = selecionados;
+      _dbg('→ FILTRO ATIVO: '+selecionados.size+' itens');
     }
-    console.log('[xlOK] _xlColFilters:', Object.keys(_xlColFilters));
     dd.classList.remove('open');
     dd.style.cssText = '';
   }
   _xlOpenDD = null;
+  _dbg('renderCronograma...');
   xlAplicarFiltros();
+  _dbg('DONE. subs visiveis='+document.querySelectorAll('.cron-row-item').length);
 }
 
 function xlAplicarFiltros(){
@@ -5723,7 +5731,7 @@ function importarCSV(input){
       // Campos de data no banco
       const camposData = new Set(['prev_basico','real_basico','prev_envio_detail','real_envio_detail',
         'prev_materia_prima','real_materia_prima','prev_rec_modelo','real_rec_modelo',
-        'prev_envio_modelo','real_envio_modelo',
+        'prev_envio_modelo','real_envio_modelo','prev_resumo_mp','real_resumo_mp',
         'prev_retorno_modelo','real_retorno_modelo','prev_pcte_fab','real_pcte_fab',
         'prev_inspecao_interna','real_inspecao_interna',
         'prev_lib_fab','real_lib_fab','prev_diagramas','real_diagramas']);
