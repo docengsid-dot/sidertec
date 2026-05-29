@@ -105,6 +105,149 @@ header{background:var(--ink);padding:0 2rem;display:flex;align-items:center;gap:
 .sort-th.desc .sort-icon::after { content:'▼'; opacity:1; color:#facc15; }
 .sort-th:not(.asc):not(.desc) .sort-icon::after { content:'⇅'; }
 
+/* ── TABELA ESTILO EXCEL ─────────────────────────────────────── */
+.xl-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 215px);
+  border: 1.5px solid #b0b8c4;
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.10);
+  background: #fff;
+}
+.xl-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  min-width: 100%;
+  position: relative;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.xl-table thead tr { background: #217346; } /* verde Excel */
+.xl-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 0;
+  border: 1px solid #155a32;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: .02em;
+  color: #fff;
+  background: #217346;
+  user-select: none;
+}
+.xl-th-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 4px;
+  gap: 2px;
+  cursor: pointer;
+  min-height: 22px;
+}
+.xl-th-inner:hover { background: rgba(255,255,255,.12); }
+.xl-th-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.xl-sort-icon { font-size: 8px; opacity: .6; flex-shrink: 0; }
+.xl-th-inner.asc  .xl-sort-icon::after { content: '▲'; opacity: 1; color: #fde047; }
+.xl-th-inner.desc .xl-sort-icon::after { content: '▼'; opacity: 1; color: #fde047; }
+.xl-th-inner:not(.asc):not(.desc) .xl-sort-icon::after { content: '⇅'; }
+.xl-filter-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.7);
+  font-size: 9px;
+  cursor: pointer;
+  padding: 0 1px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.xl-filter-btn:hover { color: #fde047; }
+.xl-filter-btn.active { color: #fde047; }
+/* Dropdown de filtro */
+.xl-filter-dd {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 9999;
+  background: #fff;
+  border: 1.5px solid #217346;
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  min-width: 200px;
+  max-height: 300px;
+  display: none;
+  flex-direction: column;
+  font-size: 11px;
+  color: #1A1714;
+}
+.xl-filter-dd.open { display: flex; }
+.xl-filter-dd input[type=text] {
+  margin: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  border: 1px solid #b0b8c4;
+  border-radius: 2px;
+  outline: none;
+}
+.xl-filter-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 80px;
+  padding: 2px 0;
+}
+.xl-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.xl-filter-item:hover { background: #e8f4ea; }
+.xl-filter-item input { cursor: pointer; accent-color: #217346; }
+.xl-filter-footer {
+  display: flex;
+  gap: 4px;
+  padding: 4px 6px;
+  border-top: 1px solid #e2e8f0;
+}
+.xl-filter-footer button {
+  flex: 1;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid #b0b8c4;
+  background: #f1f5f9;
+  font-weight: 600;
+}
+.xl-filter-footer button.ok { background: #217346; color: #fff; border-color: #155a32; }
+/* Linhas */
+.xl-table tbody tr { height: 22px; }
+.xl-table tbody tr:nth-child(even) { background: #f2f9f5; }
+.xl-table tbody tr:nth-child(odd)  { background: #fff; }
+.xl-table tbody tr:hover { background: #d5ead9 !important; }
+.xl-table tbody tr.xl-atrasado { background: #fff2f2 !important; }
+.xl-table tbody tr.xl-atrasado:nth-child(even) { background: #ffe8e8 !important; }
+.xl-table tbody tr.xl-alerta { background: #fffef0 !important; }
+.xl-table tbody td {
+  padding: 2px 4px;
+  border: 1px solid #d4e0d7;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+  vertical-align: middle;
+}
+.xl-table tbody td:hover { overflow: visible; }
+/* Coluna checkbox + subobra fixas */
+.xl-table .xl-cb-col  { position: sticky; left: 0; z-index: 3; background: inherit; width: 24px; padding: 0; text-align: center; border-right: 1px solid #b0b8c4; }
+.xl-table .xl-sub-col { position: sticky; left: 24px; z-index: 2; background: inherit; border-right: 2px solid #b0b8c4; min-width: 140px; max-width: 160px; cursor: pointer; }
+.xl-table thead .xl-cb-col  { background: #217346; z-index: 15; }
+.xl-table thead .xl-sub-col { background: #217346; z-index: 14; }
+
 select,input[type=text],input[type=number],input[type=date]{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);color:var(--ink);font-family:var(--font-main);font-size:16px;padding:5px 8px;outline:none;cursor:pointer;}
 select:focus,input:focus{border-color:var(--accent);}
 .fsep{width:1px;height:18px;background:var(--border);}
@@ -950,9 +1093,9 @@ ALTER TABLE medicao_terceiros
     </div>
     <div style="display:flex;gap:1rem;">
       <div style="text-align:center;"><div id="med-stat-contratos" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fff;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Contratos</div></div>
-      <div style="text-align:center;"><div id="med-stat-valor-total" style="font-family:'Georgia',serif,serif;font-size:22px;color:#67e8f9;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Valor Total</div></div>
-      <div style="text-align:center;"><div id="med-stat-pago" style="font-family:'Georgia',serif,serif;font-size:22px;color:#86efac;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Pago</div></div>
-      <div style="text-align:center;"><div id="med-stat-pendente" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fca5a5;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Pendente</div></div>
+      <div style="text-align:center;"><div id="med-stat-valor-total" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#67e8f9;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Valor Total</div></div>
+      <div style="text-align:center;"><div id="med-stat-pago" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#86efac;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Pago</div></div>
+      <div style="text-align:center;"><div id="med-stat-pendente" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#fca5a5;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Pendente</div></div>
     </div>
   </div>
 
@@ -1568,7 +1711,7 @@ const PACOTES_BASE = [{"obra":"S169","tag_projeto":"CHUMBADORES","tag_cliente":n
 // CONFIGURAÇÃO SUPABASE
 // ═══════════════════════════════════════════════════════════════════════
 const _SB_URL = 'https://aliywjndvgbompousqiv.supabase.co';
-const _SB_KEY = 'sb_publishable_QwlO6gdKvp-EA9Fn-f8uCA_b8Q0wciN';
+const _SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsaXl3am5kdmdib21wb3VzcWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzI1MjUsImV4cCI6MjA5NTA0ODUyNX0.L_7rIzSgwmcP0vlX1P8J7eZtotnjaMEBcj1X3ayUMiQ';
 const _SB_H   = {'Content-Type':'application/json','apikey':_SB_KEY,'Authorization':'Bearer '+_SB_KEY,'Prefer':'return=representation'};
 const _sbUrl  = function(path){ return _SB_URL+'/rest/v1/'+path+(path.includes('?')?'&':'?')+'apikey='+_SB_KEY; };
 
@@ -3759,7 +3902,7 @@ function renderCronograma(){
   const limiteFabF = document.getElementById('cf-limite-fab')?.value||'';
   const doc11F = document.getElementById('cf-doc11')?.value||''; // Filtro Etapa 11 Documentos
 
-  const subs = allCronSubobras.filter(s=>{
+  let subs = allCronSubobras.filter(s=>{
     if(obraF   && s.obra!==obraF) return false;
     // Filtro multi-status
     if(statusFs.length > 0 && !statusFs.includes(s.status)) return false;
@@ -3949,6 +4092,7 @@ function renderCronograma(){
   document.getElementById('cron-kanban-view').style.display = view==='kanban'?'block':'none';
   document.getElementById('cron-tabela-view').style.display = view==='tabela'?'block':'none';
 
+  subs = xlFiltrarSubs(subs);
   if(view==='kanban') cronRenderKanban(subs);
   else cronRenderTabela(subs);
 }
@@ -4077,16 +4221,177 @@ function cronRenderKanban(subs){
 
 // ── MATRIZ ────────────────────────────────────────────────────────────
 // ── ORDENAÇÃO DA TABELA ──────────────────────────────────────────────
+// ── FILTROS DE COLUNA ESTILO EXCEL ─────────────────────────────
+var _xlColFilters = {}; // {colKey: Set de valores selecionados}
+var _xlOpenDD     = null; // coluna com dropdown aberto
+
+function xlOpenFilter(col, btn){
+  if(_xlOpenDD && _xlOpenDD !== col){
+    const od = document.getElementById('xl-dd-'+_xlOpenDD);
+    if(od) od.classList.remove('open');
+  }
+  const dd = document.getElementById('xl-dd-'+col);
+  if(!dd) return;
+  const isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  _xlOpenDD = isOpen ? null : col;
+  if(!isOpen){
+    xlPopulateFilter(col);
+    // Reposicionar como fixed para escapar do overflow do container
+    requestAnimationFrame(function(){
+      const r = btn.getBoundingClientRect();
+      dd.style.position = 'fixed';
+      dd.style.top = (r.bottom + 2) + 'px';
+      dd.style.left = r.left + 'px';
+      dd.style.right = 'auto';
+      // Ajusta se sair da tela
+      const dr = dd.getBoundingClientRect();
+      if(dr.right > window.innerWidth - 8)
+        dd.style.left = Math.max(4, window.innerWidth - dr.width - 8) + 'px';
+    });
+  }
+}
+
+function xlPopulateFilter(col){
+  const dd = document.getElementById('xl-dd-'+col);
+  if(!dd) return;
+  const list = dd.querySelector('.xl-filter-list');
+  if(!list) return;
+
+  // Coleta valores únicos da coluna
+  const vals = new Set();
+  const subs = allCronSubobras || [];
+  subs.forEach(s => {
+    let v = '';
+    if(col==='status')         v=s.status||'';
+    else if(col==='equipe')    v=s.equipe?s.equipe.split('(')[0].trim():'';
+    else if(col==='obra')      v=s.obra||'';
+    else if(col==='area')      v=s.area||'';
+    else if(col==='descricao') v=s.descricao||'';
+    else if(col==='subobra')   v=s.subobra||'';
+    else if(col==='num_proj_basico') v=s.num_proj_basico||'';
+    else if(col==='peso_previsto'){  const p=Number(s.peso_previsto)||0;  v=p>0?Math.round(p).toLocaleString('pt-BR')+' kg':'sem peso'; }
+    else if(col==='peso_detalhado'){ const p=Number(s.peso_detalhado)||0; v=p>0?Math.round(p).toLocaleString('pt-BR')+' kg':'sem peso'; }
+    else if(col==='peso_pcp'){       const p=Number(s.peso_pcp)||0;       v=p>0?Math.round(p).toLocaleString('pt-BR')+' kg':'sem peso'; }
+    else if(col==='data_limite_fab'){ v=s.data_limite_fab?new Date(s.data_limite_fab+'T12:00:00').toLocaleDateString('pt-BR'):'sem data'; }
+    else if(col==='_avanco'){ const pct=(s.conc_basico?20:0)+(s.conc_retorno_modelo?25:0)+(s.conc_pcte_fab?25:0)+(s.conc_lib_fab?30:0); v=pct+'%'; }
+    else v=s[col]||'';
+    vals.add(String(v).trim());
+  });
+
+  const sel = _xlColFilters[col] || null; // null = todos
+  const sorted = [...vals].filter(Boolean).sort();
+  const searchId = 'xl-search-'+col;
+
+  list.innerHTML = [
+    // Opção Tudo
+    `<label class="xl-filter-item">
+      <input type="checkbox" id="xl-all-${col}" ${!sel?'checked':''} onchange="xlToggleAll('${col}',this)">
+      <strong>(Selecionar Tudo)</strong>
+    </label>`,
+    ...sorted.map(v => `<label class="xl-filter-item">
+      <input type="checkbox" value="${v.replace(/"/g,'&quot;')}" ${!sel||sel.has(v)?'checked':''} onchange="xlToggleVal('${col}',this)">
+      <span title="${v}">${v||'(vazio)'}</span>
+    </label>`)
+  ].join('');
+
+  // Busca dentro do dropdown
+  const searchEl = dd.querySelector('input[type=text]');
+  if(searchEl) searchEl.oninput = function(){
+    const q = this.value.toLowerCase();
+    list.querySelectorAll('.xl-filter-item').forEach((el,i)=>{
+      if(i===0){ el.style.display=''; return; } // Selecionar Tudo sempre visível
+      el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+}
+
+function xlToggleAll(col, cb){
+  delete _xlColFilters[col];
+  const dd = document.getElementById('xl-dd-'+col);
+  if(dd) dd.querySelectorAll('.xl-filter-list input[type=checkbox]').forEach(c=>{ c.checked=cb.checked; });
+  xlAplicarFiltros();
+}
+
+function xlToggleVal(col, cb){
+  const dd = document.getElementById('xl-dd-'+col);
+  if(!dd) return;
+  const selecionados = new Set();
+  dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').forEach(c=>{
+    if(c.checked) selecionados.add(c.value);
+  });
+  const total = dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').length;
+  const allCb2 = document.getElementById('xl-all-'+col);
+  if(selecionados.size === 0 || selecionados.size === total){
+    delete _xlColFilters[col];
+    if(allCb2) allCb2.checked = (selecionados.size === total);
+  } else {
+    _xlColFilters[col] = selecionados;
+    if(allCb2) allCb2.checked = false;
+  }
+  // Não renderiza imediato — aguarda clique em OK
+}
+
+function xlOK(col){
+  const dd = document.getElementById('xl-dd-'+col);
+  if(dd){ dd.classList.remove('open'); dd.style.position=''; dd.style.top=''; dd.style.left=''; }
+  _xlOpenDD = null;
+  xlAplicarFiltros();
+}
+
+function xlAplicarFiltros(){
+  // Atualiza botões de filtro (verde se ativo)
+  Object.keys(_xlColFilters).forEach(col=>{
+    const btn = document.querySelector('[data-xl-filter="'+col+'"]');
+    if(btn) btn.classList.toggle('active', !!_xlColFilters[col]);
+  });
+  renderCronograma();
+}
+
+function xlFiltrarSubs(subs){
+  const ativos = Object.entries(_xlColFilters).filter(([,sel]) => sel && sel.size > 0);
+  if(!ativos.length) return subs;
+  return subs.filter(s => {
+    return ativos.every(([col, sel]) => {
+      let v = '';
+      if(col==='status')         v=s.status||'';
+      else if(col==='equipe')    v=s.equipe?s.equipe.split('(')[0].trim():'';
+      else if(col==='obra')      v=s.obra||'';
+      else if(col==='area')      v=s.area||'';
+      else if(col==='descricao') v=s.descricao||'';
+      else if(col==='subobra')   v=s.subobra||'';
+      else if(col==='num_proj_basico') v=s.num_proj_basico||'';
+      else if(col==='peso_previsto'){  const p=Number(s.peso_previsto)||0;  v=p>0?Math.round(p).toLocaleString('pt-BR')+' kg':'sem peso'; }
+      else if(col==='peso_detalhado'){ const p=Number(s.peso_detalhado)||0; v=p>0?Math.round(p).toLocaleString('pt-BR')+' kg':'sem peso'; }
+      else if(col==='peso_pcp'){       const p=Number(s.peso_pcp)||0;       v=p>0?Math.round(p).toLocaleString('pt-BR')+' kg':'sem peso'; }
+      else if(col==='data_limite_fab'){ v=s.data_limite_fab?new Date(s.data_limite_fab+'T12:00:00').toLocaleDateString('pt-BR'):'sem data'; }
+      else if(col==='_avanco'){ const pct=(s.conc_basico?20:0)+(s.conc_retorno_modelo?25:0)+(s.conc_pcte_fab?25:0)+(s.conc_lib_fab?30:0); v=pct+'%'; }
+      else v=s[col]||'';
+      return sel.has(String(v).trim());
+    });
+  });
+}
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.xl-filter-dd') && !e.target.closest('[data-xl-filter]')){
+    document.querySelectorAll('.xl-filter-dd.open').forEach(d=>d.classList.remove('open'));
+    _xlOpenDD = null;
+  }
+});
+
 var _cronSortCol = 'subobra'; // coluna ativa
 var _cronSortDir = 'asc';     // 'asc' | 'desc'
 
 // Gera <th> clicável com ícone de ordenação
 function _thSort(col, label, extraStyle, color){
   const isActive = _cronSortCol === col;
-  const cls = isActive ? (_cronSortDir === 'asc' ? 'sort-th asc' : 'sort-th desc') : 'sort-th';
-  const baseStyle = 'padding:4px 5px;font-size:9px;white-space:nowrap;color:'+color+';font-family:var(--font-main);font-weight:500;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;user-select:none;';
-  return `<th class="${cls}" style="${baseStyle}${extraStyle}" onclick="cronSortBy('${col}')">
-    ${label}<span class="sort-icon"></span>
+  const sortCls = isActive ? (_cronSortDir==='asc'?'asc':'desc') : '';
+  return `<th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;${extraStyle}">
+    <div class="xl-th-inner ${sortCls}" onclick="cronSortBy('${col}')" id="xl-sort-${col}">
+      <span class="xl-th-label" style="color:${color};font-size:9px;">${label}</span>
+      <span class="xl-sort-icon"></span>
+    </div>
   </th>`;
 }
 
@@ -4114,13 +4419,16 @@ function _cronSortArray(arr){
 }
 
 function cronSortBy(col){
-  if(_cronSortCol === col){
-    _cronSortDir = _cronSortDir === 'asc' ? 'desc' : 'asc';
-  } else {
-    _cronSortCol = col;
-    _cronSortDir = 'asc';
-  }
+  if(_cronSortCol===col){ _cronSortDir=_cronSortDir==='asc'?'desc':'asc'; }
+  else { _cronSortCol=col; _cronSortDir='asc'; }
   renderCronograma();
+  setTimeout(function(){
+    document.querySelectorAll('.xl-th-inner').forEach(function(el){
+      el.classList.remove('asc','desc');
+      const c = (el.id||'').replace('xl-sort-','');
+      if(c===col) el.classList.add(_cronSortDir);
+    });
+  },50);
 }
 
 function cronRenderTabela(subs){
@@ -4206,12 +4514,11 @@ function cronRenderTabela(subs){
     ).reduce((acc,l)=>acc+Number(l.peso_kg),0);
     const pct = s.peso_previsto>0?Math.min(100,Math.round(pesoLib/s.peso_previsto*100)):0;
 
-    return `<tr class="cron-row-item" data-id="${s.id}" style="background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':''};">
-      <td style="position:sticky;left:0;background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':'#fff'};z-index:3;border-right:1px solid #e2e8f0;width:28px;padding:2px 3px;text-align:center;">
-        <input type="checkbox" class="row-sel-cb" data-id="${s.id}" style="cursor:pointer;accent-color:var(--purple);" onclick="toggleRowSel(event,'${s.id}')">
+    return `<tr class="cron-row-item xl-row${sem==='atrasado'?' xl-atrasado':sem==='alerta'?' xl-alerta':''}" data-id="${s.id}">
+      <td class="xl-cb-col" style="z-index:3;">
+        <input type="checkbox" class="row-sel-cb" data-id="${s.id}" style="cursor:pointer;accent-color:#217346;margin:0;" onclick="toggleRowSel(event,'${s.id}')">
       </td>
-      <td style="position:sticky;left:28px;background:${sem==='atrasado'?'#fff8f8':sem==='alerta'?'#fffef0':'#fff'};z-index:2;border-right:2px solid #e2e8f0;border-left:3px solid ${semSt.dot};min-width:150px;max-width:170px;padding:3px 6px;cursor:pointer;"
-        onclick="abrirCronModal('${s.id}')">
+      <td class="xl-sub-col" style="border-left:3px solid ${semSt.dot};" onclick="abrirCronModal('${s.id}')">
         <div style="display:flex;align-items:center;gap:3px;">
           <div style="width:6px;height:6px;border-radius:50%;background:${semSt.dot};flex-shrink:0;" title="${semSt.label}"></div>
           <span style="font-family:'Courier New',monospace,monospace;font-size:11px;font-weight:700;color:${cfg.color};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.subobra||'—'}</span>
@@ -4299,24 +4606,148 @@ function cronRenderTabela(subs){
     </tr>`;
   }).join('');
 
-  el.innerHTML = `<div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 215px);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);">
-    <table style="border-collapse:collapse;font-size:11px;min-width:100%;position:relative;">
-      <thead style="position:sticky;top:0;z-index:10;">
-        <tr style="background:#1A1714;">
-          <th style="position:sticky;top:0;left:0;background:#1A1714;z-index:14;padding:4px 5px;text-align:center;color:#fff;font-size:9px;white-space:nowrap;width:28px;border-right:1px solid #333;" title="Selecionar todos">
-            <input type="checkbox" id="sel-all-cb" style="cursor:pointer;accent-color:var(--accent);" onclick="toggleSelectAll(this)" title="Selecionar todos">
+  el.innerHTML = `<div class="xl-table-wrap">
+    <table class="xl-table">
+      <thead>
+        <tr>
+          <th class="xl-cb-col" style="position:sticky;top:0;left:0;z-index:15;background:#217346;width:24px;border:1px solid #155a32;" title="Selecionar todos">
+            <input type="checkbox" id="sel-all-cb" style="cursor:pointer;accent-color:#fde047;margin:0;" onclick="toggleSelectAll(this)">
           </th>
-          ${_thSort('subobra','Sub-obra / Estrutura','position:sticky;top:0;left:28px;background:#1A1714;z-index:13;min-width:150px;border-right:2px solid #333;','#fff')}
-          ${_thSort('status','Status','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;','#fff')}
-          ${_thSort('equipe','👥 Equipe Resp.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:95px;','#86efac')}
-          ${_thSort('num_proj_basico','Nº Proj.Básico','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:70px;','#c4b5fd')}
-          ${_thSort('descricao','Descrição','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:100px;','#fde68a')}
-          ${_thSort('area','Área','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:50px;','#a5f3fc')}
-          ${_thSort('data_limite_fab','🏭 Lim. Fab.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:68px;text-align:center;','#fca5a5')}
-          ${_thSort('peso_previsto','Peso Bás.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;text-align:right;','#fff')}
-          ${_thSort('peso_detalhado','Peso Det.','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;text-align:right;','#93c5fd')}
-          ${_thSort('peso_pcp','Peso PCP','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;text-align:right;','#fdba74')}
-          ${_thSort('_avanco','📈 Avanço','position:sticky;top:0;background:#1A1714;z-index:10;border:1px solid #333;min-width:60px;text-align:center;','#4ade80')}
+          <th class="xl-sub-col" style="position:sticky;top:0;left:24px;z-index:14;background:#217346;min-width:140px;border:1px solid #155a32;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('subobra')" id="xl-sort-subobra">
+                <span class="xl-th-label">Sub-obra / Estrutura</span>
+                <span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="subobra" onclick="event.stopPropagation();xlOpenFilter('subobra',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-subobra">
+                <input type="text" placeholder="Buscar...">
+                <div class="xl-filter-list"></div>
+                <div class="xl-filter-footer">
+                  <button onclick="xlToggleAll('subobra',{checked:true})">Tudo</button>
+                  <button class="ok" onclick="xlOK('subobra')">OK</button>
+                </div>
+              </div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('status')" id="xl-sort-status">
+                <span class="xl-th-label">Status</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="status" onclick="event.stopPropagation();xlOpenFilter('status',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-status"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('status',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('status')">OK</button></div></div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:90px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('equipe')" id="xl-sort-equipe">
+                <span class="xl-th-label">Equipe</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="equipe" onclick="event.stopPropagation();xlOpenFilter('equipe',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-equipe"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('equipe',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('equipe')">OK</button></div></div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:70px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('num_proj_basico')" id="xl-sort-num_proj_basico">
+                <span class="xl-th-label">Nº Proj.</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="num_proj_basico" onclick="event.stopPropagation();xlOpenFilter('num_proj_basico',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-num_proj_basico"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('num_proj_basico',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('num_proj_basico')">OK</button></div></div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:120px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('descricao')" id="xl-sort-descricao">
+                <span class="xl-th-label">Descrição</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="descricao" onclick="event.stopPropagation();xlOpenFilter('descricao',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-descricao"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('descricao',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('descricao')">OK</button></div></div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:60px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('area')" id="xl-sort-area">
+                <span class="xl-th-label">Área</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="area" onclick="event.stopPropagation();xlOpenFilter('area',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-area"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('area',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('area')">OK</button></div></div>
+            </div>
+          </th>
+<th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:65px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" id="xl-sort-data_limite_fab">
+                <span class="xl-th-label" style="cursor:pointer;" onclick="cronSortBy('data_limite_fab')">Lim.Fab.</span>
+                <span class="xl-sort-icon" style="cursor:pointer;" onclick="cronSortBy('data_limite_fab')"></span>
+                <button class="xl-filter-btn" data-xl-filter="data_limite_fab" onclick="event.stopPropagation();xlOpenFilter('data_limite_fab',this)" title="Filtrar">▾</button>
+              </div>
+              <div class="xl-filter-dd" id="xl-dd-data_limite_fab">
+                <input type="text" placeholder="Buscar...">
+                <div class="xl-filter-list"></div>
+                <div class="xl-filter-footer">
+                  <button onclick="xlToggleAll('data_limite_fab',{checked:true})">Tudo</button>
+                  <button class="ok" onclick="xlOK('data_limite_fab')">OK</button>
+                </div>
+              </div>
+            </div>
+          </th>
+<th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:80px;text-align:right;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" id="xl-sort-peso_previsto">
+                <span class="xl-th-label" style="cursor:pointer;text-align:right;" onclick="cronSortBy('peso_previsto')">Peso Bás.</span>
+                <span class="xl-sort-icon" style="cursor:pointer;" onclick="cronSortBy('peso_previsto')"></span>
+                <button class="xl-filter-btn" data-xl-filter="peso_previsto" onclick="event.stopPropagation();xlOpenFilter('peso_previsto',this)" title="Filtrar">▾</button>
+              </div>
+              <div class="xl-filter-dd" id="xl-dd-peso_previsto">
+                <input type="text" placeholder="Buscar...">
+                <div class="xl-filter-list"></div>
+                <div class="xl-filter-footer">
+                  <button onclick="xlToggleAll('peso_previsto',{checked:true})">Tudo</button>
+                  <button class="ok" onclick="xlOK('peso_previsto')">OK</button>
+                </div>
+              </div>
+            </div>
+          </th>
+<th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:80px;text-align:right;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" id="xl-sort-peso_detalhado">
+                <span class="xl-th-label" style="cursor:pointer;text-align:right;" onclick="cronSortBy('peso_detalhado')">Peso Det.</span>
+                <span class="xl-sort-icon" style="cursor:pointer;" onclick="cronSortBy('peso_detalhado')"></span>
+                <button class="xl-filter-btn" data-xl-filter="peso_detalhado" onclick="event.stopPropagation();xlOpenFilter('peso_detalhado',this)" title="Filtrar">▾</button>
+              </div>
+              <div class="xl-filter-dd" id="xl-dd-peso_detalhado">
+                <input type="text" placeholder="Buscar...">
+                <div class="xl-filter-list"></div>
+                <div class="xl-filter-footer">
+                  <button onclick="xlToggleAll('peso_detalhado',{checked:true})">Tudo</button>
+                  <button class="ok" onclick="xlOK('peso_detalhado')">OK</button>
+                </div>
+              </div>
+            </div>
+          </th>
+<th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:75px;text-align:right;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" id="xl-sort-peso_pcp">
+                <span class="xl-th-label" style="cursor:pointer;text-align:right;" onclick="cronSortBy('peso_pcp')">Peso PCP</span>
+                <span class="xl-sort-icon" style="cursor:pointer;" onclick="cronSortBy('peso_pcp')"></span>
+                <button class="xl-filter-btn" data-xl-filter="peso_pcp" onclick="event.stopPropagation();xlOpenFilter('peso_pcp',this)" title="Filtrar">▾</button>
+              </div>
+              <div class="xl-filter-dd" id="xl-dd-peso_pcp">
+                <input type="text" placeholder="Buscar...">
+                <div class="xl-filter-list"></div>
+                <div class="xl-filter-footer">
+                  <button onclick="xlToggleAll('peso_pcp',{checked:true})">Tudo</button>
+                  <button class="ok" onclick="xlOK('peso_pcp')">OK</button>
+                </div>
+              </div>
+            </div>
+          </th>
+<th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:55px;text-align:center;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" id="xl-sort-_avanco">
+                <span class="xl-th-label" style="cursor:pointer;text-align:center;" onclick="cronSortBy('_avanco')">Avanço</span>
+                <span class="xl-sort-icon" style="cursor:pointer;" onclick="cronSortBy('_avanco')"></span>
+                <button class="xl-filter-btn" data-xl-filter="_avanco" onclick="event.stopPropagation();xlOpenFilter('_avanco',this)" title="Filtrar">▾</button>
+              </div>
+              <div class="xl-filter-dd" id="xl-dd-_avanco">
+                <input type="text" placeholder="Buscar...">
+                <div class="xl-filter-list"></div>
+                <div class="xl-filter-footer">
+                  <button onclick="xlToggleAll('_avanco',{checked:true})">Tudo</button>
+                  <button class="ok" onclick="xlOK('_avanco')">OK</button>
+                </div>
+              </div>
+            </div>
+          </th>
           ${ETAPAS_DEF.map((e,i)=>{
             const isInfo = e.informativo;
             const thBg = isInfo ? '#0f3030' : '#1A1714';
@@ -5774,6 +6205,188 @@ function _atualizarRcronStatusLabel(){
   else { lbl.textContent=_rcronStatusSelecionados.length+' status selecionados'; lbl.style.color='var(--accent)'; }
 }
 
+// ── FILTROS EXCEL — MEDIÇÃO ────────────────────────────────────
+var _medXlFilters = {};
+var _medXlOpenDD = null;
+
+function medXlOpenFilter(col, btn){
+  if(_medXlOpenDD && _medXlOpenDD !== col){
+    var od = document.getElementById('med-xl-dd-'+_medXlOpenDD);
+    if(od) od.classList.remove('open');
+  }
+  var dd = document.getElementById('med-xl-dd-'+col);
+  if(!dd) return;
+  var isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  _medXlOpenDD = isOpen ? null : col;
+  if(!isOpen){
+    medXlPopulate(col);
+    requestAnimationFrame(function(){
+      var r = btn.getBoundingClientRect();
+      dd.style.position = 'fixed';
+      dd.style.top  = (r.bottom + 2) + 'px';
+      dd.style.left = r.left + 'px';
+      dd.style.right = 'auto';
+      var dr = dd.getBoundingClientRect();
+      if(dr.right > window.innerWidth - 8)
+        dd.style.left = Math.max(4, window.innerWidth - dr.width - 8) + 'px';
+    });
+  }
+}
+
+function medXlPopulate(col){
+  var dd = document.getElementById('med-xl-dd-'+col);
+  if(!dd) return;
+  var list = dd.querySelector('.xl-filter-list');
+  if(!list) return;
+  var vals = new Set();
+  (allMedicoes||[]).forEach(function(m){
+    var v = '';
+    if(col === 'data')             v = m.data ? m.data.split('-').reverse().join('/') : 'sem data';
+    else if(col === 'equipe')      v = (m.equipe||'').split('(')[0].trim() || 'sem equipe';
+    else if(col === 'obra')        v = m.obra || 'sem obra';
+    else if(col === 'status_contrato') v = m.status_contrato || 'ATIVO';
+    else if(col === 'bm')          v = m.bm || 'sem BM';
+    else if(col === 'nf')          v = m.nf || 'sem NF';
+    else { var p = Number(m[col])||0; v = p > 0 ? p.toLocaleString('pt-BR') : 'sem valor'; }
+    vals.add(String(v).trim());
+  });
+  var sel = _medXlFilters[col] || null;
+  var sorted = Array.from(vals).filter(Boolean).sort();
+  var allChk = (!sel) ? 'checked' : '';
+  list.innerHTML = sorted.reduce(function(h, v){
+    var c = (!sel || sel.has(v)) ? 'checked' : '';
+    return h + '<label class="xl-filter-item"><input type="checkbox" value="' + v.replace(/"/g,'&quot;') + '" ' + c + ' onchange="medXlToggleVal(\'' + col + '\',this)"><span>' + v + '</span></label>';
+  }, '<label class="xl-filter-item"><input type="checkbox" id="med-xl-all-' + col + '" ' + allChk + ' onchange="medXlToggleAll(\'' + col + '\',this)"><strong>(Selecionar Tudo)</strong></label>');
+  var se = dd.querySelector('input[type=text]');
+  if(se) se.oninput = function(){
+    var q = this.value.toLowerCase();
+    list.querySelectorAll('.xl-filter-item').forEach(function(el,i){
+      if(i===0){el.style.display='';return;}
+      el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+}
+
+function medXlToggleAll(col, cb){
+  delete _medXlFilters[col];
+  var dd = document.getElementById('med-xl-dd-'+col);
+  if(dd) dd.querySelectorAll('.xl-filter-list input').forEach(function(c){ c.checked = cb.checked; });
+  medXlAplicar();
+}
+
+function medXlToggleVal(col, cb){
+  var dd = document.getElementById('med-xl-dd-'+col); if(!dd) return;
+  var sel = new Set();
+  dd.querySelectorAll('.xl-filter-list input:not(#med-xl-all-'+col+')').forEach(function(c){ if(c.checked) sel.add(c.value); });
+  var tot = dd.querySelectorAll('.xl-filter-list input:not(#med-xl-all-'+col+')').length;
+  if(sel.size === 0 || sel.size === tot) delete _medXlFilters[col];
+  else _medXlFilters[col] = sel;
+  // Não renderiza aqui — espera o OK
+}
+
+function medXlOK(col){
+  var dd = document.getElementById('med-xl-dd-'+col);
+  if(dd){ dd.classList.remove('open'); dd.style.position=''; dd.style.top=''; dd.style.left=''; }
+  _medXlOpenDD = null;
+  medXlAplicar();
+}
+
+function medXlAplicar(){ renderMedicoes(); }
+
+function medXlFiltrar(lista){
+  var ativos = Object.entries(_medXlFilters).filter(function(e){ return e[1] && e[1].size > 0; });
+  if(!ativos.length) return lista;
+  return lista.filter(function(m){
+    return ativos.every(function(e){
+      var col = e[0], sel = e[1], v = '';
+      if(col==='data')             v = m.data ? m.data.split('-').reverse().join('/') : 'sem data';
+      else if(col==='equipe')      v = (m.equipe||'').split('(')[0].trim() || 'sem equipe';
+      else if(col==='obra')        v = m.obra || 'sem obra';
+      else if(col==='status_contrato') v = m.status_contrato || 'ATIVO';
+      else if(col==='bm')          v = m.bm || 'sem BM';
+      else if(col==='nf')          v = m.nf || 'sem NF';
+      else { var p = Number(m[col])||0; v = p > 0 ? p.toLocaleString('pt-BR') : 'sem valor'; }
+      return sel.has(String(v).trim());
+    });
+  });
+}
+
+// ── FILTROS EXCEL — REVISÕES ───────────────────────────────────
+var _revXlFilters = {};
+var _revXlOpenDD = null;
+
+function revXlOpenFilter(col, btn){
+  if(_revXlOpenDD && _revXlOpenDD !== col){
+    var od = document.getElementById('rev-xl-dd-'+_revXlOpenDD);
+    if(od) od.classList.remove('open');
+  }
+  var dd = document.getElementById('rev-xl-dd-'+col); if(!dd) return;
+  var isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  _revXlOpenDD = isOpen ? null : col;
+  if(!isOpen){
+    revXlPopulate(col);
+    requestAnimationFrame(function(){
+      var r = btn.getBoundingClientRect();
+      dd.style.position = 'fixed';
+      dd.style.top  = (r.bottom + 2) + 'px';
+      dd.style.left = r.left + 'px';
+      dd.style.right = 'auto';
+      var dr = dd.getBoundingClientRect();
+      if(dr.right > window.innerWidth - 8)
+        dd.style.left = Math.max(4, window.innerWidth - dr.width - 8) + 'px';
+    });
+  }
+}
+
+function revXlPopulate(col){
+  var dd = document.getElementById('rev-xl-dd-'+col); if(!dd) return;
+  var list = dd.querySelector('.xl-filter-list'); if(!list) return;
+  var vals = new Set();
+  (_revisoes||[]).forEach(function(r){ vals.add(String(r[col]||'sem valor').trim()); });
+  var sel = _revXlFilters[col] || null;
+  var sorted = Array.from(vals).filter(Boolean).sort();
+  var allChk = (!sel) ? 'checked' : '';
+  list.innerHTML = sorted.reduce(function(h, v){
+    var c = (!sel || sel.has(v)) ? 'checked' : '';
+    return h + '<label class="xl-filter-item"><input type="checkbox" value="' + v.replace(/"/g,'&quot;') + '" ' + c + ' onchange="revXlToggleVal(\'' + col + '\',this)"><span>' + v + '</span></label>';
+  }, '<label class="xl-filter-item"><input type="checkbox" id="rev-xl-all-' + col + '" ' + allChk + ' onchange="revXlToggleAll(\'' + col + '\',this)"><strong>(Selecionar Tudo)</strong></label>');
+  var se = dd.querySelector('input[type=text]');
+  if(se) se.oninput = function(){
+    var q = this.value.toLowerCase();
+    list.querySelectorAll('.xl-filter-item').forEach(function(el,i){
+      if(i===0){el.style.display='';return;}
+      el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+}
+
+function revXlToggleAll(col, cb){
+  delete _revXlFilters[col];
+  var dd = document.getElementById('rev-xl-dd-'+col);
+  if(dd) dd.querySelectorAll('.xl-filter-list input').forEach(function(c){ c.checked = cb.checked; });
+  renderRevisoes();
+}
+
+function revXlToggleVal(col, cb){
+  var dd = document.getElementById('rev-xl-dd-'+col); if(!dd) return;
+  var sel = new Set();
+  dd.querySelectorAll('.xl-filter-list input:not(#rev-xl-all-'+col+')').forEach(function(c){ if(c.checked) sel.add(c.value); });
+  var tot = dd.querySelectorAll('.xl-filter-list input:not(#rev-xl-all-'+col+')').length;
+  if(sel.size === 0 || sel.size === tot) delete _revXlFilters[col];
+  else _revXlFilters[col] = sel;
+  // Não renderiza aqui — espera o OK
+}
+
+function revXlOK(col){
+  var dd = document.getElementById('rev-xl-dd-'+col);
+  if(dd){ dd.classList.remove('open'); dd.style.position=''; dd.style.top=''; dd.style.left=''; }
+  _revXlOpenDD = null;
+  renderRevisoes();
+}
+
+
 function fecharModalImprimir(){
   document.getElementById('modal-imprimir').classList.remove('show');
 }
@@ -6658,13 +7271,14 @@ function renderMedicao(){
   const statusF = document.getElementById('mf-status')?.value||'';
   const q       = (document.getElementById('mf-busca')?.value||'').toLowerCase();
 
-  const lista = allMedicoes.filter(m=>{
+  let lista = allMedicoes.filter(m=>{
     if(eqF    && m.equipe!==eqF) return false;
     if(obraF  && m.obra!==obraF) return false;
     if(statusF && (m.status_contrato||'ATIVO')!==statusF) return false;
     if(q && !(m.num_ps||'').toLowerCase().includes(q) && !(m.equipe||'').toLowerCase().includes(q) && !(m.obra||'').toLowerCase().includes(q)) return false;
     return true;
-  });
+  })
+  lista = medXlFiltrar(lista);;
 
   // KPIs
   const totalValor  = lista.reduce((s,m)=>s+(Number(m.valor_total)||0),0);
@@ -6677,9 +7291,9 @@ function renderMedicao(){
   },0);
   const totalPend = totalValor - totalPago;
   document.getElementById('med-stat-contratos').textContent = lista.length;
-  document.getElementById('med-stat-valor-total').textContent = (totalValor/1000).toLocaleString('pt-BR',{minimumFractionDigits:1})+'k';
-  document.getElementById('med-stat-pago').textContent = (totalPago/1000).toLocaleString('pt-BR',{minimumFractionDigits:1})+'k';
-  document.getElementById('med-stat-pendente').textContent = (totalPend/1000).toLocaleString('pt-BR',{minimumFractionDigits:1})+'k';
+  document.getElementById('med-stat-valor-total').textContent = totalValor>0?fmtBRL(totalValor):'R$ 0,00';
+  document.getElementById('med-stat-pago').textContent       = totalPago>0 ?fmtBRL(totalPago) :'R$ 0,00';
+  document.getElementById('med-stat-pendente').textContent   = totalPend>0 ?fmtBRL(totalPend) :'R$ 0,00';
 
   const el = document.getElementById('med-lista');
   if(!lista.length){
@@ -6695,26 +7309,9 @@ function renderMedicao(){
     return `<span style="background:${cfg.bg};color:${cfg.cor};border-radius:3px;padding:2px 7px;font-size:8px;font-weight:700;white-space:nowrap;">${cfg.ic} ${pct}% · ${fmtBRL(v)}</span>`;
   }
 
-  el.innerHTML = `<div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);">
-    <table style="width:100%;border-collapse:collapse;font-size:16px;">
-      <thead style="background:#0c4a6e;">
-        <tr>
-          <th style="padding:8px 10px;color:#fff;font-size:9px;text-align:left;white-space:nowrap;">Data</th>
-          <th style="padding:8px 10px;color:#fff;font-size:9px;text-align:left;white-space:nowrap;">Engenharia</th>
-          <th style="padding:8px 10px;color:#fff;font-size:9px;text-align:left;white-space:nowrap;">Obra</th>
-          <th style="padding:8px 10px;color:#fff;font-size:9px;text-align:right;white-space:nowrap;">Peso Prev. (kg)</th>
-          <th style="padding:8px 10px;color:#93c5fd;font-size:9px;text-align:right;white-space:nowrap;">Peso Det. (kg)</th>
-          <th style="padding:8px 10px;color:#fff;font-size:9px;text-align:right;white-space:nowrap;">R$/kg</th>
-          <th style="padding:8px 10px;color:#86efac;font-size:9px;text-align:right;white-space:nowrap;">Valor Total</th>
-          <th style="padding:8px 10px;color:#fef08a;font-size:9px;text-align:center;white-space:nowrap;">BM</th>
-          <th style="padding:8px 10px;color:#fcd34d;font-size:9px;text-align:center;white-space:nowrap;">NF</th>
-          <th style="padding:8px 10px;color:#fff;font-size:9px;text-align:center;white-space:nowrap;">Status</th>
-          <th style="padding:8px 10px;color:#93c5fd;font-size:9px;text-align:center;white-space:nowrap;">🏷 TAGs</th>
-          <th style="padding:8px 4px;"></th>
-        </tr>
-      </thead>
+  el.innerHTML = `<div class="xl-table-wrap" style="max-height:calc(100vh - 250px);"><table class="xl-table"><thead><tr><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Data</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('data',this)" data-med-filter="data">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-data"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('data',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('data')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:100px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Engenharia</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('equipe',this)" data-med-filter="equipe">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-equipe"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('equipe',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('equipe')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:90px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Obra</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('obra',this)" data-med-filter="obra">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-obra"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('obra',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('obra')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Peso Prev.</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('peso_previsto',this)" data-med-filter="peso_previsto">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-peso_previsto"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('peso_previsto',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('peso_previsto')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Peso Det.</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('peso_detalhado',this)" data-med-filter="peso_detalhado">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-peso_detalhado"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('peso_detalhado',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('peso_detalhado')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:65px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">R$/kg</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('valor_kg',this)" data-med-filter="valor_kg">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-valor_kg"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('valor_kg',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('valor_kg')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:95px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Valor Total</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('valor_total',this)" data-med-filter="valor_total">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-valor_total"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('valor_total',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('valor_total')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:60px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">BM</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('bm',this)" data-med-filter="bm">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-bm"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('bm',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('bm')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:60px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">NF</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('nf',this)" data-med-filter="nf">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-nf"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('nf',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('nf')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:70px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Status</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('status_contrato',this)" data-med-filter="status_contrato">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-status_contrato"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('status_contrato',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('status_contrato')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;padding:3px 6px;color:#93c5fd;font-size:9px;">🏷 TAGs</th><th style="background:#0c4a6e;border:1px solid #0a3d5c;width:50px;"></th></tr></thead>
       <tbody>
-        ${lista.map(m=>{
+        ${lista.map((m,idx)=>{
           const vt = Number(m.valor_total)||0;
           const statusC = (m.status_contrato||'ATIVO')==='ATIVO'
             ? '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ATIVO</span>'
@@ -6738,37 +7335,35 @@ function renderMedicao(){
 
           const fmtPeso = v => v>0 ? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
 
-          return `<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:8px 10px;font-family:'Courier New',monospace,monospace;font-size:16px;font-weight:600;color:#0e7490;white-space:nowrap;">${dataFmt}</td>
-            <td style="padding:8px 10px;font-size:16px;font-weight:500;">${(m.equipe||'—').split('(')[0].trim()}</td>
-            <td style="padding:8px 10px;font-size:16px;color:var(--blue);font-family:'Courier New',monospace,monospace;">${(m.obra||'—').split(' ').slice(0,2).join(' ')}</td>
-            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;">
-              ${fmtPeso(sumPesoPrev)}
-              ${sumPesoPrev>0&&m.peso_previsto&&Math.abs(sumPesoPrev-Number(m.peso_previsto))>1?`<div style="font-size:7px;color:#94a3b8;">(contrato: ${fmtPeso(Number(m.peso_previsto))})</div>`:''}
-            </td>
-            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;color:#1d4ed8;font-weight:600;">
-              ${fmtPeso(sumPesoDet)}
-              ${sumPesoDet>0&&m.peso_detalhado&&Math.abs(sumPesoDet-Number(m.peso_detalhado))>1?`<div style="font-size:7px;color:#94a3b8;">(contrato: ${fmtPeso(Number(m.peso_detalhado))})</div>`:''}
-            </td>
-            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;">R$ ${Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-            <td style="padding:8px 10px;text-align:right;font-family:'Courier New',monospace,monospace;font-size:16px;font-weight:700;color:#166534;">${fmtBRL(vt)}</td>
-            <td style="padding:8px 10px;text-align:center;font-family:'Courier New',monospace,monospace;font-size:16px;">${m.bm?`<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;">${m.bm}</span>`:'—'}</td>
-            <td style="padding:8px 10px;text-align:center;font-family:'Courier New',monospace,monospace;font-size:16px;">${m.nf?`<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;">${m.nf}</span>`:'—'}</td>
-            <td style="padding:8px 10px;text-align:center;">${statusC}</td>
-            <td style="padding:6px 8px;text-align:center;max-width:180px;">
+          const xtd='padding:2px 4px;border:1px solid #d4e0d7;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;';
+          const xtdr=xtd+'text-align:right;font-family:Courier New,monospace;';
+          const xtdc=xtd+'text-align:center;';
+          const rowBg=idx%2===0?'#f2f9f5':'#fff';
+          return `<tr style="background:${rowBg};height:22px;">
+            <td style="${xtd}font-weight:600;color:#0e7490;font-family:Courier New,monospace;">${dataFmt}</td>
+            <td style="${xtd}">${(m.equipe||'—').split('(')[0].trim()}</td>
+            <td style="${xtd}color:#1d4ed8;">${(m.obra||'—').split(' ').slice(0,3).join(' ')}</td>
+            <td style="${xtdr}">${fmtPeso(sumPesoPrev)}</td>
+            <td style="${xtdr}color:#1d4ed8;font-weight:600;">${fmtPeso(sumPesoDet)}</td>
+            <td style="${xtdr}">R$ ${Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="${xtdr}font-weight:700;color:#166534;">${fmtBRL(vt)}</td>
+            <td style="${xtdc}">${m.bm?`<span style="background:#fef3c7;color:#92400e;border-radius:2px;padding:1px 5px;font-size:8px;font-weight:700;">${m.bm}</span>`:'—'}</td>
+            <td style="${xtdc}">${m.nf?`<span style="background:#dbeafe;color:#1e40af;border-radius:2px;padding:1px 5px;font-size:8px;font-weight:700;">${m.nf}</span>`:'—'}</td>
+            <td style="${xtdc}">${statusC}</td>
+            <td style="${xtdc}max-width:150px;">
               ${(()=>{
                 if(!tagEntradas.length) return '<span style="color:#94a3b8;font-size:9px;">—</span>';
-                const n = tagEntradas.length;
-                const names = tagSubs.slice(0,2).map(s=>s.subobra).filter(Boolean);
-                const resto = n - names.length;
-                const badge = `<span style="background:#dbeafe;color:#1e40af;border-radius:4px;padding:2px 9px;font-size:9px;font-weight:700;cursor:pointer;" title="${tagSubs.map(s=>s.subobra).join(', ')}">${n} TAG${n!==1?'s':''}</span>`;
-                const nameChips = names.map(t=>`<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:3px;padding:1px 5px;font-size:7px;font-family:'Courier New',monospace;font-weight:700;margin:1px;">${t}</span>`).join('') + (resto>0?`<span style="font-size:7px;color:#64748b;margin-left:2px;">+${resto}</span>`:'');
-                return badge + '<br>' + nameChips + '<div style="margin-top:2px;">' + statusTagsHtml + '</div>';
+                const n=tagEntradas.length;
+                const nms=tagSubs.slice(0,2).map(s=>s.subobra).filter(Boolean);
+                const rst=n-nms.length;
+                const badge=`<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;" title="${tagSubs.map(s=>s.subobra).join(', ')}">${n} TAG${n!==1?'s':''}</span>`;
+                const chips=nms.map(t=>`<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:2px;padding:0 4px;font-size:7px;font-weight:700;margin:1px;">${t}</span>`).join('')+(rst>0?`<span style="font-size:7px;color:#64748b;">+${rst}</span>`:'');
+                return badge+'<br>'+chips;
               })()}
             </td>
-            <td style="padding:4px 6px;text-align:center;">
-              <button onclick="abrirModalMedicao('${m.id}')" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:.5;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5" title="Editar">✏️</button>
-              <button onclick="excluirMedicao('${m.id}')" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:.25;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.25" title="Excluir">🗑</button>
+            <td style="${xtdc}white-space:nowrap;">
+              <button onclick="abrirModalMedicao('${m.id}')" style="background:#e0f2fe;border:none;border-radius:2px;cursor:pointer;font-size:10px;padding:1px 5px;color:#0369a1;" title="Editar">✏</button>
+              <button onclick="excluirMedicao('${m.id}')" style="background:#fee2e2;border:none;border-radius:2px;cursor:pointer;font-size:10px;padding:1px 5px;color:#dc2626;" title="Excluir">✕</button>
             </td>
           </tr>`;
         }).join('')}
@@ -8336,23 +8931,11 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <!-- Table -->
-  <div class="tbl-wrap" id="rev-tbl-wrap">
-    <table id="rev-table">
+  <div class="xl-table-wrap" id="rev-tbl-wrap" style="max-height:calc(100vh - 280px);">
+    <table class="xl-table" id="rev-table">
       <thead>
         <tr>
-          <th>Cliente</th>
-          <th>Data RP</th>
-          <th>Descr.</th>
-          <th class="num">Valor RP</th>
-          <th>TAG Sidertec</th>
-          <th>Motivo</th>
-          <th>Engenharia</th>
-          <th colspan="2" style="background:#1e3a5f;text-align:center;">Engenharia Sidertec</th>
-          <th colspan="3" style="background:#1a3a1a;text-align:center;">Lib. para Fabricação</th>
-          <th colspan="2" style="background:#3b1f00;text-align:center;">Aprovação Cliente</th>
-          <th>Faturado?</th>
-          <th>OBS</th>
-          <th style="width:60px;"></th>
+<th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Cliente</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('cliente',this)" data-rev-filter="cliente">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-cliente"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('cliente',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('cliente')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Data RP</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('data_rp',this)" data-rev-filter="data_rp">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-data_rp"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('data_rp',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('data_rp')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;min-width:130px;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Descrição</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('descr',this)" data-rev-filter="descr">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-descr"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('descr',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('descr')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;min-width:90px;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Valor RP</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('valor_rp',this)" data-rev-filter="valor_rp">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-valor_rp"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('valor_rp',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('valor_rp')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;min-width:95px;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">TAG</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('tag',this)" data-rev-filter="tag">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-tag"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('tag',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('tag')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;min-width:100px;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Motivo</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('motivo',this)" data-rev-filter="motivo">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-motivo"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('motivo',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('motivo')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Engenharia</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('eng',this)" data-rev-filter="eng">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-eng"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('eng',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('eng')">OK</button></div></div></th><th colspan="2" style="background:#1e3a5f;text-align:center;font-size:9px;color:#fff;padding:3px 4px;border:1px solid #132d4a;">Eng. Sidertec</th><th colspan="3" style="background:#1a3a1a;text-align:center;font-size:9px;color:#fff;padding:3px 4px;border:1px solid #102510;">Lib. Fabricação</th><th colspan="2" style="background:#3b1f00;text-align:center;font-size:9px;color:#fff;padding:3px 4px;border:1px solid #2a1500;">Aprov. Cliente</th><th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Faturado?</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;flex-shrink:0;" onclick="event.stopPropagation();revXlOpenFilter('faturado',this)" data-rev-filter="faturado">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-faturado"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('faturado',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('faturado')">OK</button></div></div></th><th style="background:#217346;border:1px solid #155a32;padding:3px 6px;font-size:9px;color:#fff;font-weight:600;">OBS</th><th style="background:#217346;border:1px solid #155a32;width:50px;"></th>
         </tr>
         <tr style="background:#2a2520;">
           <th></th><th></th><th></th><th></th><th></th><th></th><th></th>
@@ -8482,7 +9065,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
 /* ═══ REVISÕES ════════════════════════════════════════════════════ */
-#rev-table thead tr:first-child th { background: var(--ink); color:#fff; font-size:16px; text-transform:uppercase; letter-spacing:.05em; }
+#rev-table thead tr:first-child th { background:#217346;color:#fff;font-size:9px;font-weight:600;padding:0;border:1px solid #155a32; }
 #rev-table thead tr:nth-child(2) th { background:#2a2520; color:rgba(255,255,255,.6); font-size:9px; padding:4px 12px; }
 #rev-table tbody td { vertical-align:middle; }
 .rev-badge { display:inline-flex;align-items:center;border-radius:3px;font-size:9px;padding:2px 7px;font-weight:700;white-space:nowrap; }
