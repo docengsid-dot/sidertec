@@ -4343,17 +4343,18 @@ function xlToggleVal(col, cb){
 function xlOK(col){
   const dd = document.getElementById('xl-dd-'+col);
   if(dd){
-    // Coletar estado atual dos checkboxes ao clicar OK
     const selecionados = new Set();
     dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').forEach(c=>{
       if(c.checked) selecionados.add(c.value);
     });
     const total = dd.querySelectorAll('.xl-filter-list input[type=checkbox]:not(#xl-all-'+col+')').length;
+    console.log('[xlOK] col='+col+' selecionados='+selecionados.size+'/'+total, [...selecionados].slice(0,3));
     if(selecionados.size === 0 || selecionados.size === total){
       delete _xlColFilters[col];
     } else {
       _xlColFilters[col] = selecionados;
     }
+    console.log('[xlOK] _xlColFilters:', Object.keys(_xlColFilters));
     dd.classList.remove('open');
     dd.style.cssText = '';
   }
@@ -5857,8 +5858,10 @@ async function processarImportacao(rows, tipo){
   const camposValidos = new Set([...camposBase]);
   // Campos locais (não vão ao Supabase)
   camposValidos.add('peso_detalhado'); camposValidos.add('data_limite_fab');
-  // Opcionais confirmados
-  ['area','num_proj_basico','prev_rec_modelo','real_rec_modelo','obs_rec_modelo',
+  // area e num_proj_basico são sempre válidos
+  camposValidos.add('area'); camposValidos.add('num_proj_basico');
+  // Outros opcionais
+  ['prev_rec_modelo','real_rec_modelo','obs_rec_modelo',
    'prev_resumo_mp','real_resumo_mp','obs_resumo_mp','status_resumo_mp',
    'prev_inspecao_interna','real_inspecao_interna','obs_inspecao_interna',
   ].forEach(function(c){ if(_opt.has(c)) camposValidos.add(c); });
