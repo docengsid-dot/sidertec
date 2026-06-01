@@ -925,6 +925,7 @@ canvas{overflow:visible!important;}
   <div class="tab cron-tab" onclick="showPage('cronograma',this)">📋 Cronograma</div>
   <div class="tab" onclick="showPage('medicao',this);renderMedicao();" style="color:#0e7490;font-weight:600;">📐 Medição</div>
   <div class="tab" onclick="showPage('revisoes',this);renderRevisoes();" style="color:#7c3aed;font-weight:600;">🔄 Revisões</div>
+  <div class="tab" onclick="showPage('libfab',this);renderLibFab();" style="color:#166534;font-weight:600;">🏭 Lib. Fabricação</div>
 </div>
 
 <!-- DASHBOARD -->
@@ -8178,6 +8179,7 @@ function showPage(id, el){
   if(id === 'dashboard')  buildDashboardCM();
   if(id === 'cronograma') renderCronograma();
   if(id === 'medicao')    renderMedicao();
+  if(id === 'libfab')     renderLibFab();
 }
 
 // ─── OVERRIDE recarregarTudo ──────────────────────────────────────────
@@ -8191,6 +8193,7 @@ async function recarregarTudo(){
     if(id === 'dashboard')  buildDashboardCM();
     if(id === 'cronograma') renderCronograma();
     if(id === 'medicao')    renderMedicao();
+    if(id === 'libfab')     renderLibFab();
   } catch(e){ showToast('Erro', e.message, 'error'); }
   hideLoading();
   showToast('Atualizado','Dados recarregados.','success');
@@ -8537,6 +8540,7 @@ async function initCM(){
     allLancamentos = await dbFetch('liberacoes');
     showLoading('Carregando cronograma…');
     await carregarCronograma();
+    if(typeof _lfOnDadosCarregados==='function') _lfOnDadosCarregados();
     showLoading('Carregando medições…');
     await carregarMedicoes();
     buildDashboardCM();
@@ -8707,6 +8711,41 @@ window.addEventListener('DOMContentLoaded', function(){
   initCM().then(function(){ _cancelarTimerLoading(); }).catch(function(){ _cancelarTimerLoading(); });
 });
 </script>
+<!-- ═══ LIB. FABRICAÇÃO ═══ -->
+<div class="page" id="page-libfab" style="padding:.75rem 1.5rem;">
+  <div style="background:linear-gradient(135deg,#052e16 0%,#14532d 100%);border-radius:var(--r);padding:.55rem 1rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.75rem;">
+    <div style="width:28px;height:28px;background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">🏭</div>
+    <div style="flex:1;"><h2 style="font-family:'Georgia',serif;font-size:14px;color:#fff;margin:0;line-height:1.2;">Liberação para Fabricação</h2><p style="font-size:10px;color:rgba(255,255,255,.4);margin:0;">Atrasados + do mês + sem previsão — filtro mensal para planejamento da fábrica</p></div>
+    <div style="margin-left:auto;"><button onclick="exportarLibFabCSV()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:3px;color:rgba(255,255,255,.8);font-size:10px;padding:4px 10px;cursor:pointer;font-family:var(--font-main);">⬇ CSV</button></div>
+  </div>
+  <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.45rem .75rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:sticky;top:100px;z-index:100;">
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600;">Mês:</span>
+    <select id="lf-mes" onchange="renderLibFab()" style="font-size:11px;padding:3px 6px;"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
+    <select id="lf-ano" onchange="renderLibFab()" style="font-size:11px;padding:3px 6px;"><option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option></select>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-weight:600;">Incluir:</span>
+    <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;"><input type="checkbox" id="lf-chk-atrasado" checked onchange="renderLibFab()" style="accent-color:var(--red);"><span style="color:var(--red);font-weight:700;">Atrasados</span></label>
+    <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;"><input type="checkbox" id="lf-chk-mes" checked onchange="renderLibFab()" style="accent-color:var(--blue);"><span style="color:var(--blue);font-weight:700;">Do Mês</span></label>
+    <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;"><input type="checkbox" id="lf-chk-sem" checked onchange="renderLibFab()" style="accent-color:var(--ink3);"><span style="color:var(--ink3);font-weight:700;">Sem Previsão</span></label>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;"><input type="checkbox" id="lf-chk-hold" checked onchange="renderLibFab()"><span>Excluir HOLD</span></label>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;color:var(--ink3);font-weight:600;">Busca:</span>
+    <input type="text" id="lf-busca" placeholder="TAG, descrição…" oninput="renderLibFab()" style="font-size:11px;padding:3px 6px;width:150px;">
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <button onclick="limparLibFab()" style="background:var(--red2);color:var(--red);border:1px solid #fca5a5;border-radius:3px;font-size:10px;padding:3px 8px;cursor:pointer;font-weight:700;font-family:var(--font-main);">✕ Limpar</button>
+  </div>
+  <div id="lf-proj-tabs" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:0 .5rem;display:flex;gap:0;overflow-x:auto;margin-bottom:.6rem;"></div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.7rem;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.65rem .85rem;border-left:3px solid var(--red);"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.2rem;">⚠ Atrasados</div><div id="lf-s-atrasado" style="font-family:'Georgia',serif;font-size:22px;color:var(--ink);line-height:1;margin-bottom:.1rem;">—</div><div id="lf-s-atrasado-kg" style="font-size:9px;color:var(--ink3);">—</div></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.65rem .85rem;border-left:3px solid var(--orange);"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.2rem;">📅 Do Mês</div><div id="lf-s-mes" style="font-family:'Georgia',serif;font-size:22px;color:var(--ink);line-height:1;margin-bottom:.1rem;">—</div><div id="lf-s-mes-kg" style="font-size:9px;color:var(--ink3);">—</div></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.65rem .85rem;border-left:3px solid var(--ink3);"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.2rem;">🔲 Sem Previsão</div><div id="lf-s-sem" style="font-family:'Georgia',serif;font-size:22px;color:var(--ink);line-height:1;margin-bottom:.1rem;">—</div><div id="lf-s-sem-kg" style="font-size:9px;color:var(--ink3);">—</div></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.65rem .85rem;border-left:3px solid var(--blue);"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.2rem;">📋 Total a Liberar</div><div id="lf-s-total" style="font-family:'Georgia',serif;font-size:22px;color:var(--ink);line-height:1;margin-bottom:.1rem;">—</div><div id="lf-s-total-kg" style="font-size:9px;color:var(--ink3);">—</div></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.65rem .85rem;border-left:3px solid var(--green);"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.2rem;">✅ Liberados (Mês)</div><div id="lf-s-liberado" style="font-family:'Georgia',serif;font-size:22px;color:var(--ink);line-height:1;margin-bottom:.1rem;">—</div><div id="lf-s-liberado-kg" style="font-size:9px;color:var(--ink3);">—</div></div>
+  </div>
+  <div id="lf-content"></div>
+</div>
+
 <!-- ═══ PÁGINA RELATÓRIO (para impressão) ═══ -->
 <div id="page-relatorio" style="display:none;"></div>
 
@@ -9737,5 +9776,197 @@ function exportarRevisoesCSV(){
 }
 </script>
 
+<style>
+.lf-ptab{padding:7px 13px;font-size:10px;font-weight:600;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-main);}
+.lf-ptab:hover{color:var(--ink2);}
+.lf-ptab.lf-ptab-active{color:var(--green);border-bottom-color:var(--green);}
+.lf-sec-hd{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;margin-top:.9rem;}
+.lf-sec-hd::after{content:'';flex:1;height:1px;background:var(--border);}
+.lf-tbl-wrap{overflow-x:auto;border:1.5px solid #b0b8c4;border-radius:0 0 3px 3px;background:#fff;margin-bottom:.85rem;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.lf-tbl{border-collapse:collapse;font-size:10px;min-width:100%;font-family:'Segoe UI',Arial,sans-serif;}
+.lf-tbl thead tr{background:#14532d;}
+.lf-tbl thead th{position:sticky;top:0;z-index:5;padding:4px 6px;color:#fff;font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border:1px solid rgba(255,255,255,.1);}
+.lf-tbl tbody tr{cursor:pointer;}
+.lf-tbl tbody tr:nth-child(even){background:#f0fdf4;}
+.lf-tbl tbody tr:nth-child(odd){background:#fff;}
+.lf-tbl tbody tr:hover{background:#bbf7d0 !important;}
+.lf-tbl tbody tr.lf-row-atrasado{background:#fff5f5 !important;}
+.lf-tbl tbody tr.lf-row-atrasado:nth-child(even){background:#ffecec !important;}
+.lf-tbl tbody tr.lf-row-atrasado:hover{background:#fecaca !important;}
+.lf-tbl tbody tr.lf-row-sem{background:#fafafa !important;}
+.lf-tbl tbody td{padding:3px 6px;font-size:10px;border:1px solid #e2e8f0;vertical-align:middle;white-space:nowrap;}
+.lf-tbl tfoot tr{background:#1A1714;}
+.lf-tbl tfoot td{padding:4px 6px;color:#fff;font-size:9px;font-weight:700;border:1px solid rgba(255,255,255,.08);}
+.lf-grp-hd{background:linear-gradient(90deg,#052e16,#14532d);color:#fff;padding:.3rem .7rem;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;justify-content:space-between;border-radius:3px 3px 0 0;}
+</style>
+<script>
+// ── LIB. FABRICAÇÃO ──────────────────────────────────────────────────
+var _lfObraAtiva = '';
+
+// Chamado após carregarCronograma() no initCM
+function _lfOnDadosCarregados(){
+  var hoje = new Date();
+  var sm = document.getElementById('lf-mes');
+  var sa = document.getElementById('lf-ano');
+  if(sm && !sm._lfi){ sm.value = String(hoje.getMonth()+1); sm._lfi=true; }
+  if(sa && !sa._lfi){ sa.value = String(hoje.getFullYear()); sa._lfi=true; }
+  var pag = document.getElementById('page-libfab');
+  if(pag && pag.classList.contains('active')) renderLibFab();
+}
+
+function lfSelecionarObra(el, obra){
+  document.querySelectorAll('.lf-ptab').forEach(function(t){ t.classList.remove('lf-ptab-active'); });
+  el.classList.add('lf-ptab-active');
+  _lfObraAtiva = obra;
+  renderLibFab();
+}
+
+function _lfCategoria(s, ano, mes){
+  if(s.real_lib_fab) return 'liberado';
+  var p1 = new Date(ano, mes-1, 1); p1.setHours(0,0,0,0);
+  var p2 = new Date(ano, mes,   0); p2.setHours(23,59,59,999);
+  if(!s.prev_lib_fab) return 'sem';
+  var prev = new Date(s.prev_lib_fab+'T12:00:00');
+  if(prev < p1) return 'atrasado';
+  if(prev <= p2) return 'mes';
+  return 'futuro';
+}
+function _lfFmtKg(v){ var n=Number(v); if((!v&&v!==0)||isNaN(n)||n===0) return '—'; return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg'; }
+function _lfFmtD(d){ return d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'—'; }
+function _lfStSt(status){
+  var m={'AG. PROJ. BÁSICO':{bg:'#f1f5f9',c:'#475569',i:'📝'},'AG. MODELO PARA APROV.':{bg:'#fff7ed',c:'#c2410c',i:'⏳'},'MODELO EM APROV.':{bg:'#fef9c3',c:'#92400e',i:'👁'},'EMISSÃO PCTE FAB.':{bg:'#dbeafe',c:'#1d4ed8',i:'📦'},'INSP. INTERNA':{bg:'#ede9fe',c:'#6d28d9',i:'🔍'},'LIB. FABRICAÇÃO':{bg:'#dcfce7',c:'#166534',i:'🔩'},'EM COTAÇÃO ENG.':{bg:'#fce7f3',c:'#be185d',i:'💰'},'AG. DOCUMENTOS':{bg:'#f0fdf4',c:'#15803d',i:'📄'},'HOLD':{bg:'#fee2e2',c:'#991b1b',i:'⏸'}};
+  return m[status]||{bg:'#f1f5f9',c:'#475569',i:'•'};
+}
+
+function _lfBuildAbas(fonte){
+  var obras=[]; fonte.forEach(function(s){if(s.obra&&obras.indexOf(s.obra)<0)obras.push(s.obra);}); obras.sort();
+  var tabs=document.getElementById('lf-proj-tabs'); if(!tabs) return;
+  var cur=tabs.querySelectorAll('.lf-ptab').length;
+  if(cur===obras.length+1){ tabs.querySelectorAll('.lf-ptab').forEach(function(t){t.classList.toggle('lf-ptab-active',(t.getAttribute('data-obra')||'')===_lfObraAtiva);}); return; }
+  tabs.innerHTML='';
+  var da=document.createElement('div'); da.className='lf-ptab'+(_lfObraAtiva===''?' lf-ptab-active':''); da.setAttribute('data-obra',''); da.onclick=function(){lfSelecionarObra(this,'');}; da.innerHTML='🌐 Todas as Obras <span style="font-size:8px;opacity:.55;">('+fonte.length+')</span>'; tabs.appendChild(da);
+  obras.forEach(function(o){ var cnt=fonte.filter(function(s){return s.obra===o;}).length; var d=document.createElement('div'); d.className='lf-ptab'+(_lfObraAtiva===o?' lf-ptab-active':''); d.setAttribute('data-obra',o); d.onclick=function(){lfSelecionarObra(this,o);}; d.innerHTML=o.split(' ').slice(0,3).join(' ')+' <span style="font-size:8px;opacity:.55;">('+cnt+')</span>'; tabs.appendChild(d); });
+}
+
+function renderLibFab(){
+  var fonte=(typeof allCronSubobras!=='undefined')?allCronSubobras:[];
+  var ct=document.getElementById('lf-content');
+  if(!fonte||!fonte.length){ if(ct) ct.innerHTML='<div style="padding:2rem;text-align:center;color:var(--ink3);background:#fff;border:1px solid var(--border);border-radius:var(--r);">⏳ Aguardando dados do Cronograma…</div>'; return; }
+
+  var mes=parseInt(document.getElementById('lf-mes')?document.getElementById('lf-mes').value:new Date().getMonth()+1);
+  var ano=parseInt(document.getElementById('lf-ano')?document.getElementById('lf-ano').value:new Date().getFullYear());
+  var iA=document.getElementById('lf-chk-atrasado')?document.getElementById('lf-chk-atrasado').checked:true;
+  var iM=document.getElementById('lf-chk-mes')?document.getElementById('lf-chk-mes').checked:true;
+  var iS=document.getElementById('lf-chk-sem')?document.getElementById('lf-chk-sem').checked:true;
+  var xH=document.getElementById('lf-chk-hold')?document.getElementById('lf-chk-hold').checked:true;
+  var bq=(document.getElementById('lf-busca')?document.getElementById('lf-busca').value:'').trim().toLowerCase();
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  _lfBuildAbas(fonte);
+  var subs=fonte.slice();
+  if(_lfObraAtiva) subs=subs.filter(function(s){return s.obra===_lfObraAtiva;});
+  if(xH) subs=subs.filter(function(s){return s.status!=='HOLD';});
+  if(bq) subs=subs.filter(function(s){return [(s.subobra||''),(s.descricao||''),(s.obra||''),(s.area||''),(s.equipe||'')].join(' ').toLowerCase().includes(bq);});
+
+  var G={atrasado:[],mes:[],sem:[],liberado:[]};
+  subs.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(G[c])G[c].push(s);});
+  function tP(a){return a.reduce(function(x,r){return x+Number(r.peso_previsto||0);},0);}
+  function sc(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  sc('lf-s-atrasado',G.atrasado.length); sc('lf-s-atrasado-kg',_lfFmtKg(tP(G.atrasado)));
+  sc('lf-s-mes',G.mes.length);           sc('lf-s-mes-kg',_lfFmtKg(tP(G.mes)));
+  sc('lf-s-sem',G.sem.length);           sc('lf-s-sem-kg',_lfFmtKg(tP(G.sem)));
+  var pL=(iA?G.atrasado:[]).concat(iM?G.mes:[]).concat(iS?G.sem:[]);
+  sc('lf-s-total',pL.length);            sc('lf-s-total-kg',_lfFmtKg(tP(pL)));
+  var libM=G.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;});
+  sc('lf-s-liberado',libM.length);       sc('lf-s-liberado-kg',_lfFmtKg(tP(libM)));
+
+  var html='';
+  if(iA&&G.atrasado.length) html+=_lfSecao('atrasado',G.atrasado,'⚠ Atrasados de Meses Anteriores','Prev. Lib. Fab. anterior a '+MN[mes-1]+'/'+ano+' — não liberadas','#fee2e2','#991b1b',mes,ano,hoje);
+  if(iM&&G.mes.length)       html+=_lfSecao('mes',G.mes,'📅 Previsão para '+MN[mes-1]+'/'+ano,'Sub-obras com Lib. Fabricação prevista para este mês','#dbeafe','#1e40af',mes,ano,hoje);
+  if(iS&&G.sem.length)       html+=_lfSecao('sem',G.sem,'🔲 Sem Previsão de Liberação','Sub-obras não liberadas sem data de previsão definida','#f1f5f9','#475569',mes,ano,hoje);
+  if(libM.length)            html+=_lfSecao('liberado',libM,'✅ Já Liberados em '+MN[mes-1]+'/'+ano,'Liberação real confirmada neste mês','#dcfce7','#166534',mes,ano,hoje);
+  if(!html) html='<div style="padding:2rem;text-align:center;color:var(--ink3);background:#fff;border:1px solid var(--border);border-radius:var(--r);">Nenhuma sub-obra encontrada com os filtros atuais.</div>';
+  if(ct) ct.innerHTML=html;
+}
+
+function _lfSecao(tipo,subs,titulo,descr,bgC,txC,mes,ano,hoje){
+  var tPS=subs.reduce(function(a,r){return a+Number(r.peso_previsto||0);},0);
+  var obras=[]; subs.forEach(function(s){var o=s.obra||'(Sem Obra)';if(obras.indexOf(o)<0)obras.push(o);}); obras.sort();
+  var vG=!_lfObraAtiva;
+  var p1=new Date(ano,mes-1,1); p1.setHours(0,0,0,0);
+  var h='<div class="lf-sec-hd"><span style="font-family:\'Georgia\',serif;font-size:13px;color:'+txC+';">'+titulo+'</span>';
+  h+='<span style="background:'+bgC+';color:'+txC+';border:1px solid '+txC+';border-radius:10px;font-size:9px;font-weight:700;padding:1px 7px;">'+subs.length+'</span>';
+  if(tPS>0) h+='<span style="font-size:9px;color:var(--ink3);font-weight:700;">'+_lfFmtKg(tPS)+'</span>';
+  h+='<span style="font-size:9px;color:var(--ink3);font-style:italic;">'+descr+'</span></div>';
+  obras.forEach(function(obra){
+    var rows=subs.filter(function(s){return (s.obra||'(Sem Obra)')===obra;});
+    var pP=rows.reduce(function(a,r){return a+Number(r.peso_previsto||0);},0);
+    if(vG) h+='<div class="lf-grp-hd"><span style="color:#86efac;">🏗 '+obra+'</span><span style="font-family:\'Courier New\',monospace;font-size:9px;color:rgba(255,255,255,.5);">'+rows.length+' sub-obras'+(pP>0?' · '+_lfFmtKg(pP):'')+' </span></div>';
+    h+='<div class="lf-tbl-wrap"><table class="lf-tbl"><thead><tr>';
+    h+='<th style="min-width:130px;">TAG Sub-obra</th><th>Descrição</th><th>Status</th><th>Equipe</th><th>Prev. Lib. Fab.</th><th>Real Lib. Fab.</th>';
+    if(tipo==='atrasado') h+='<th>Atraso</th>';
+    h+='<th>Lim. Fábrica</th><th style="text-align:right;">Peso (kg)</th><th>Nº Proj. Básico</th><th>Área</th></tr></thead><tbody>';
+    rows.forEach(function(s){
+      var rC=tipo==='atrasado'?'lf-row-atrasado':tipo==='sem'?'lf-row-sem':'';
+      var st=_lfStSt(s.status);
+      var dA='';
+      if(tipo==='atrasado'&&s.prev_lib_fab){var pv=new Date(s.prev_lib_fab+'T12:00:00');var df=Math.round((p1-pv)/86400000);if(df>0)dA='<span style="background:#fee2e2;color:#991b1b;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">+'+df+'d</span>';}
+      var lH='—';
+      if(s.data_limite_fab){var lm=new Date(s.data_limite_fab+'T12:00:00');var dl=Math.round((lm-hoje)/86400000);var fL=lm.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});if(s.real_lib_fab)lH='<span style="background:#dcfce7;color:#166534;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">✅ '+fL+'</span>';else if(dl<0)lH='<span style="background:#fee2e2;color:#991b1b;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">⚠ '+fL+'</span>';else if(dl<=7)lH='<span style="background:#fee2e2;color:#991b1b;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">🔴 '+fL+'</span>';else if(dl<=15)lH='<span style="background:#fef3c7;color:#92400e;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">🟠 '+fL+'</span>';else lH='<span style="background:#dcfce7;color:#166534;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">🟢 '+fL+'</span>';}
+      var pvH='—';
+      if(s.prev_lib_fab){var pv2=new Date(s.prev_lib_fab+'T12:00:00');pvH='<span style="font-family:\'Courier New\',monospace;font-size:9px;font-weight:700;color:'+(pv2<p1?'var(--red)':'var(--ink2)')+';">'+_lfFmtD(s.prev_lib_fab)+'</span>';}
+      var bC=tipo==='atrasado'?'var(--red)':tipo==='mes'?'var(--blue)':tipo==='liberado'?'var(--green)':'var(--ink3)';
+      h+='<tr class="'+rC+'" onclick="abrirCronModal(\''+s.id+'\')">';
+      h+='<td style="border-left:3px solid '+bC+';"><span style="font-family:\'Courier New\',monospace;font-size:10px;font-weight:700;color:var(--blue);">'+(s.subobra||'—')+'</span></td>';
+      h+='<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="'+(s.descricao||'').replace(/"/g,'&quot;')+'">'+(s.descricao||'—')+'</td>';
+      h+='<td><span style="background:'+st.bg+';color:'+st.c+';border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">'+st.i+' '+(s.status||'—')+'</span></td>';
+      h+='<td style="font-size:9px;max-width:110px;overflow:hidden;text-overflow:ellipsis;">'+(s.equipe?s.equipe.split('(')[0].trim():'—')+'</td>';
+      h+='<td>'+pvH+'</td><td><span style="font-family:\'Courier New\',monospace;font-size:9px;color:var(--green);font-weight:700;">'+(s.real_lib_fab?_lfFmtD(s.real_lib_fab):'—')+'</span></td>';
+      if(tipo==='atrasado') h+='<td>'+dA+'</td>';
+      h+='<td>'+lH+'</td>';
+      h+='<td style="text-align:right;font-family:\'Courier New\',monospace;font-size:9px;">'+(s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
+      h+='<td style="font-family:\'Courier New\',monospace;font-size:9px;font-weight:700;color:#7c3aed;">'+(s.num_proj_basico||'—')+'</td>';
+      h+='<td style="font-size:9px;color:var(--blue);">'+(s.area||'—')+'</td></tr>';
+    });
+    var cs=4+(tipo==='atrasado'?1:0);
+    h+='</tbody><tfoot><tr><td colspan="'+cs+'" style="color:#fff;">TOTAL'+(vG?' — '+obra:'')+' ('+rows.length+')</td><td></td><td></td><td></td>';
+    if(tipo==='atrasado') h+='<td></td>';
+    h+='<td style="text-align:right;font-family:\'Courier New\',monospace;color:var(--accent2);">'+_lfFmtKg(pP)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
+  });
+  return h;
+}
+
+function limparLibFab(){
+  var hj=new Date();
+  var sm=document.getElementById('lf-mes'); if(sm)sm.value=String(hj.getMonth()+1);
+  var sa=document.getElementById('lf-ano'); if(sa)sa.value=String(hj.getFullYear());
+  ['lf-chk-atrasado','lf-chk-mes','lf-chk-sem','lf-chk-hold'].forEach(function(id){var e=document.getElementById(id);if(e)e.checked=true;});
+  var b=document.getElementById('lf-busca'); if(b)b.value='';
+  _lfObraAtiva=''; renderLibFab();
+}
+
+function exportarLibFabCSV(){
+  var mes=parseInt((document.getElementById('lf-mes')||{}).value||new Date().getMonth()+1);
+  var ano=parseInt((document.getElementById('lf-ano')||{}).value||new Date().getFullYear());
+  var xH=(document.getElementById('lf-chk-hold')||{}).checked!==false;
+  var iA=(document.getElementById('lf-chk-atrasado')||{}).checked!==false;
+  var iM=(document.getElementById('lf-chk-mes')||{}).checked!==false;
+  var iS=(document.getElementById('lf-chk-sem')||{}).checked!==false;
+  var bq=((document.getElementById('lf-busca')||{}).value||'').trim().toLowerCase();
+  var fonte=(typeof allCronSubobras!=='undefined'?allCronSubobras:[]).slice();
+  if(_lfObraAtiva)fonte=fonte.filter(function(s){return s.obra===_lfObraAtiva;});
+  if(xH)fonte=fonte.filter(function(s){return s.status!=='HOLD';});
+  if(bq)fonte=fonte.filter(function(s){return [(s.subobra||''),(s.descricao||''),(s.obra||'')].join(' ').toLowerCase().includes(bq);});
+  var MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var cM={atrasado:'Atrasado',mes:'Do Mês',sem:'Sem Previsão',liberado:'Liberado'};
+  var para=fonte.filter(function(s){var c=_lfCategoria(s,ano,mes);return(c==='atrasado'&&iA)||(c==='mes'&&iM)||(c==='sem'&&iS);});
+  var hds=['TAG Sub-obra','Obra','Descrição','Área','Equipe','Status','Nº Proj. Básico','Prev. Lib. Fab.','Real Lib. Fab.','Data Limite Fáb.','Peso Prev. (kg)','Categoria'];
+  var rows=para.map(function(s){return[s.subobra||'',s.obra||'',s.descricao||'',s.area||'',s.equipe||'',s.status||'',s.num_proj_basico||'',s.prev_lib_fab||'',s.real_lib_fab||'',s.data_limite_fab||'',s.peso_previsto||'',cM[_lfCategoria(s,ano,mes)]||''].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');});
+  var csv='\uFEFF'+hds.map(function(h){return'"'+h+'"';}).join(',')+'\n'+rows.join('\n');
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='Sidertec_LibFab_'+MN[mes-1]+'_'+ano+'.csv'; a.click();
+  if(typeof showToast==='function') showToast('✓ CSV Exportado',para.length+' sub-obras','success');
+}
+</script>
 </body>
 </html>
