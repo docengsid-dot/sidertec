@@ -8733,6 +8733,40 @@ window.addEventListener('DOMContentLoaded', function(){
     <span style="font-size:9px;color:var(--ink3);font-weight:600;">Busca:</span>
     <input type="text" id="lf-busca" placeholder="TAG, descrição…" oninput="renderLibFab()" style="font-size:11px;padding:3px 6px;width:150px;">
     <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600;">Status:</span>
+    <div id="lf-status-wrap" style="position:relative;">
+      <div id="lf-status-btn" onclick="toggleLfStatusDropdown()" style="display:flex;align-items:center;gap:4px;min-width:120px;max-width:200px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:2px 6px;cursor:pointer;font-size:11px;user-select:none;">
+        <span id="lf-status-label" style="flex:1;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Todos</span>
+        <span style="color:var(--ink3);font-size:9px;">▾</span>
+      </div>
+      <div id="lf-status-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:500;background:#fff;border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow2);min-width:230px;padding:.4rem 0;">
+        <div style="padding:.2rem .65rem .35rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;">Filtrar por Status</span>
+          <span onclick="limparLfStatus()" style="font-size:9px;color:var(--accent);cursor:pointer;font-weight:600;">Limpar</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="AG. PROJ. BÁSICO" onchange="onLfStatusChange(this)" style="accent-color:#1e40af;"> AG. Proj. Básico</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="AG. MODELO PARA APROV." onchange="onLfStatusChange(this)" style="accent-color:#0f766e;"> AG. Modelo p/ Aprov.</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="MODELO EM APROV." onchange="onLfStatusChange(this)" style="accent-color:#c2410c;"> Modelo em Aprov.</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="EMISSÃO PCTE FAB." onchange="onLfStatusChange(this)" style="accent-color:#7c3aed;"> Emissão Pcte Fab.</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="INSP. INTERNA" onchange="onLfStatusChange(this)" style="accent-color:#0e7490;"> Inspeção Interna</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="LIB. FABRICAÇÃO" onchange="onLfStatusChange(this)" style="accent-color:#166534;"> 🔩 Lib. Fabricação</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="EM COTAÇÃO ENG." onchange="onLfStatusChange(this)" style="accent-color:#92400e;"> Em Cotação Eng.</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="AG. DOCUMENTOS" onchange="onLfStatusChange(this)" style="accent-color:#0f172a;"> Ag. Documentos</label>
+        <label style="display:flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"><input type="checkbox" value="HOLD" onchange="onLfStatusChange(this)" style="accent-color:#991b1b;"> ⏸ Hold</label>
+      </div>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600;">Prev. Lib.:</span>
+    <input type="date" id="lf-data-ini" oninput="renderLibFab()" style="font-size:11px;padding:2px 5px;width:108px;border:1px solid var(--border2);border-radius:var(--r2);" title="Prev. Lib. Fab. — data inicial">
+    <span style="font-size:10px;color:var(--ink3);">até</span>
+    <input type="date" id="lf-data-fim" oninput="renderLibFab()" style="font-size:11px;padding:2px 5px;width:108px;border:1px solid var(--border2);border-radius:var(--r2);" title="Prev. Lib. Fab. — data final">
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600;">Real Lib.:</span>
+    <input type="date" id="lf-real-ini" oninput="renderLibFab()" style="font-size:11px;padding:2px 5px;width:108px;border:1px solid var(--border2);border-radius:var(--r2);" title="Real Lib. Fab. — data inicial">
+    <span style="font-size:10px;color:var(--ink3);">até</span>
+    <input type="date" id="lf-real-fim" oninput="renderLibFab()" style="font-size:11px;padding:2px 5px;width:108px;border:1px solid var(--border2);border-radius:var(--r2);" title="Real Lib. Fab. — data final">
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <button onclick="gerarRelatorioLibFab()" style="background:linear-gradient(135deg,#1e3a5f,#1a4a7a);color:#fff;border:1px solid #1a4a7a;border-radius:3px;font-size:10px;padding:3px 10px;cursor:pointer;font-weight:700;font-family:var(--font-main);">📄 Relatório</button>
     <button onclick="limparLibFab()" style="background:var(--red2);color:var(--red);border:1px solid #fca5a5;border-radius:3px;font-size:10px;padding:3px 8px;cursor:pointer;font-weight:700;font-family:var(--font-main);">✕ Limpar</button>
   </div>
   <div id="lf-proj-tabs" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:0 .5rem;display:flex;gap:0;overflow-x:auto;margin-bottom:.6rem;"></div>
@@ -9802,6 +9836,7 @@ function exportarRevisoesCSV(){
 <script>
 // ── LIB. FABRICAÇÃO ──────────────────────────────────────────────────
 var _lfObraAtiva = '';
+var _lfStatusSelecionados = []; // filtro por status no modal Lib. Fab.
 
 // Chamado após carregarCronograma() no initCM
 function _lfOnDadosCarregados(){
@@ -9868,6 +9903,32 @@ function renderLibFab(){
   if(_lfObraAtiva) subs=subs.filter(function(s){return s.obra===_lfObraAtiva;});
   if(xH) subs=subs.filter(function(s){return s.status!=='HOLD';});
   if(bq) subs=subs.filter(function(s){return [(s.subobra||''),(s.descricao||''),(s.obra||''),(s.area||''),(s.equipe||'')].join(' ').toLowerCase().includes(bq);});
+  if(_lfStatusSelecionados.length>0) subs=subs.filter(function(s){return _lfStatusSelecionados.indexOf(s.status||'')>=0;});
+
+  // Filtro por data prev_lib_fab
+  var dIni=document.getElementById('lf-data-ini')?document.getElementById('lf-data-ini').value:'';
+  var dFim=document.getElementById('lf-data-fim')?document.getElementById('lf-data-fim').value:'';
+  if(dIni||dFim){
+    subs=subs.filter(function(s){
+      if(!s.prev_lib_fab) return false;
+      var d=s.prev_lib_fab;
+      if(dIni&&d<dIni) return false;
+      if(dFim&&d>dFim) return false;
+      return true;
+    });
+  }
+  // Filtro por data real_lib_fab
+  var rIni=document.getElementById('lf-real-ini')?document.getElementById('lf-real-ini').value:'';
+  var rFim=document.getElementById('lf-real-fim')?document.getElementById('lf-real-fim').value:'';
+  if(rIni||rFim){
+    subs=subs.filter(function(s){
+      if(!s.real_lib_fab) return false;
+      var d=s.real_lib_fab;
+      if(rIni&&d<rIni) return false;
+      if(rFim&&d>rFim) return false;
+      return true;
+    });
+  }
 
   var G={atrasado:[],mes:[],sem:[],liberado:[]};
   subs.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(G[c])G[c].push(s);});
@@ -9943,7 +10004,239 @@ function limparLibFab(){
   var sa=document.getElementById('lf-ano'); if(sa)sa.value=String(hj.getFullYear());
   ['lf-chk-atrasado','lf-chk-mes','lf-chk-sem','lf-chk-hold'].forEach(function(id){var e=document.getElementById(id);if(e)e.checked=true;});
   var b=document.getElementById('lf-busca'); if(b)b.value='';
+  // Limpar filtro de status
+  _lfStatusSelecionados=[];
+  document.querySelectorAll('#lf-status-dropdown input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  var lbl=document.getElementById('lf-status-label'); if(lbl) lbl.textContent='Todos';
+  // Limpar filtros de data
+  ['lf-data-ini','lf-data-fim','lf-real-ini','lf-real-fim'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   _lfObraAtiva=''; renderLibFab();
+}
+
+// ── STATUS DROPDOWN Lib. Fab. ─────────────────────────────────────────
+function toggleLfStatusDropdown(){
+  var dd=document.getElementById('lf-status-dropdown');
+  if(!dd) return;
+  var open=dd.style.display!=='none';
+  dd.style.display=open?'none':'block';
+  if(!open){
+    setTimeout(function(){
+      document.addEventListener('click',_fecharLfStatusDDOutside,{once:true});
+    },10);
+  }
+}
+function _fecharLfStatusDDOutside(e){
+  var wrap=document.getElementById('lf-status-wrap');
+  if(wrap&&!wrap.contains(e.target)){
+    var dd=document.getElementById('lf-status-dropdown');
+    if(dd) dd.style.display='none';
+  }
+}
+function onLfStatusChange(cb){
+  if(cb.checked){
+    if(_lfStatusSelecionados.indexOf(cb.value)<0) _lfStatusSelecionados.push(cb.value);
+  } else {
+    _lfStatusSelecionados=_lfStatusSelecionados.filter(function(v){return v!==cb.value;});
+  }
+  var lbl=document.getElementById('lf-status-label');
+  if(lbl){
+    if(_lfStatusSelecionados.length===0) lbl.textContent='Todos';
+    else if(_lfStatusSelecionados.length===1) lbl.textContent=_lfStatusSelecionados[0];
+    else lbl.textContent=_lfStatusSelecionados.length+' selecionados';
+  }
+  // Fechar dropdown após seleção
+  var dd=document.getElementById('lf-status-dropdown');
+  if(dd) dd.style.display='none';
+  renderLibFab();
+}
+function limparLfStatus(){
+  _lfStatusSelecionados=[];
+  document.querySelectorAll('#lf-status-dropdown input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  var lbl=document.getElementById('lf-status-label'); if(lbl) lbl.textContent='Todos';
+  renderLibFab();
+}
+
+// ── RELATÓRIO Lib. Fab. ───────────────────────────────────────────────
+function gerarRelatorioLibFab(){
+  var fonte=(typeof allCronSubobras!=='undefined')?allCronSubobras.slice():[];
+  var mes=parseInt((document.getElementById('lf-mes')||{}).value||new Date().getMonth()+1);
+  var ano=parseInt((document.getElementById('lf-ano')||{}).value||new Date().getFullYear());
+  var xH=(document.getElementById('lf-chk-hold')||{}).checked!==false;
+  var iA=(document.getElementById('lf-chk-atrasado')||{}).checked!==false;
+  var iM=(document.getElementById('lf-chk-mes')||{}).checked!==false;
+  var iS=(document.getElementById('lf-chk-sem')||{}).checked!==false;
+  var bq=((document.getElementById('lf-busca')||{}).value||'').trim().toLowerCase();
+  var MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  if(_lfObraAtiva) fonte=fonte.filter(function(s){return s.obra===_lfObraAtiva;});
+  if(xH) fonte=fonte.filter(function(s){return s.status!=='HOLD';});
+  if(bq) fonte=fonte.filter(function(s){return [(s.subobra||''),(s.descricao||''),(s.obra||''),(s.area||''),(s.equipe||'')].join(' ').toLowerCase().includes(bq);});
+  if(_lfStatusSelecionados.length>0) fonte=fonte.filter(function(s){return _lfStatusSelecionados.indexOf(s.status||'')>=0;});
+  var _rdIni=(document.getElementById('lf-data-ini')||{}).value||'';
+  var _rdFim=(document.getElementById('lf-data-fim')||{}).value||'';
+  if(_rdIni||_rdFim)fonte=fonte.filter(function(s){if(!s.prev_lib_fab)return false;if(_rdIni&&s.prev_lib_fab<_rdIni)return false;if(_rdFim&&s.prev_lib_fab>_rdFim)return false;return true;});
+  var _rrIni=(document.getElementById('lf-real-ini')||{}).value||'';
+  var _rrFim=(document.getElementById('lf-real-fim')||{}).value||'';
+  if(_rrIni||_rrFim)fonte=fonte.filter(function(s){if(!s.real_lib_fab)return false;if(_rrIni&&s.real_lib_fab<_rrIni)return false;if(_rrFim&&s.real_lib_fab>_rrFim)return false;return true;});
+
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var p1=new Date(ano,mes-1,1); p1.setHours(0,0,0,0);
+  var p2=new Date(ano,mes,0); p2.setHours(23,59,59,999);
+
+  // Separar por categoria
+  var grupos={atrasado:[],mes:[],sem:[],liberado:[]};
+  fonte.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(grupos[c])grupos[c].push(s);});
+
+  var linhas=[];
+  if(iA) linhas=linhas.concat(grupos.atrasado.map(function(s){return Object.assign({},s,{_cat:'atrasado'});}));
+  if(iM) linhas=linhas.concat(grupos.mes.map(function(s){return Object.assign({},s,{_cat:'mes'});}));
+  if(iS) linhas=linhas.concat(grupos.sem.map(function(s){return Object.assign({},s,{_cat:'sem'});}));
+  linhas=linhas.concat(grupos.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;}).map(function(s){return Object.assign({},s,{_cat:'liberado'});}));
+
+  // calcular atraso
+  function calcAtraso(s){
+    if(!s.prev_lib_fab) return '';
+    var pv=new Date(s.prev_lib_fab+'T12:00:00');
+    var df=Math.round((p1-pv)/86400000);
+    return df>0?'+'+df+'d':'';
+  }
+  // formatar limite fab
+  function fmtLimite(s){
+    if(!s.data_limite_fab) return '—';
+    var lm=new Date(s.data_limite_fab+'T12:00:00');
+    var dl=Math.round((lm-hoje)/86400000);
+    var fL=lm.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    if(s.real_lib_fab) return '✅ '+fL;
+    if(dl<0) return '⚠ '+fL;
+    if(dl<=7) return '🔴 '+fL;
+    if(dl<=15) return '🟠 '+fL;
+    return '🟢 '+fL;
+  }
+
+  var pesoTotal=linhas.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0);
+  var dataRel=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var horaRel=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  // Montar colunas
+  var catLabel={'atrasado':'⚠ Atrasado','mes':'📅 Do Mês','sem':'🔲 Sem Prev.','liberado':'✅ Liberado'};
+  var catColor={'atrasado':'#991b1b','mes':'#1e40af','sem':'#475569','liberado':'#166534'};
+  var catBg={'atrasado':'#fee2e2','mes':'#dbeafe','sem':'#f1f5f9','liberado':'#dcfce7'};
+
+  // Agrupar por obra
+  var obras=[]; linhas.forEach(function(s){var o=s.obra||'(Sem Obra)';if(obras.indexOf(o)<0)obras.push(o);}); obras.sort();
+
+  var tRows='';
+  var alt=false;
+  obras.forEach(function(obra){
+    var gr=linhas.filter(function(s){return (s.obra||'(Sem Obra)')===obra;});
+    var pO=gr.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0);
+    tRows+='<tr><td colspan="11" style="background:#1e293b;color:#86efac;font-size:8px;font-weight:700;padding:3px 6px;border:none;">🏗 '+obra+' <span style="opacity:.6;font-weight:400;">('+gr.length+' sub-obras'+( pO>0?' · '+_lfFmtKg(pO):'')+')</span></td></tr>';
+    gr.forEach(function(s){
+      var bg=alt?'#f9fafb':'#fff'; alt=!alt;
+      var cat=catLabel[s._cat]||'';
+      var catC=catColor[s._cat]||'#475569';
+      var catB=catBg[s._cat]||'#f1f5f9';
+      var atraso=s._cat==='atrasado'?calcAtraso(s):'';
+      tRows+='<tr style="background:'+bg+';">';
+      tRows+='<td style="font-family:Courier New,monospace;font-weight:700;color:#1d4ed8;font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.subobra||'—')+'</td>';
+      tRows+='<td style="font-size:8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.descricao||'—')+'</td>';
+      tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;"><span style="background:'+catB+';color:'+catC+';border-radius:3px;padding:1px 4px;font-weight:700;">'+cat+'</span></td>';
+      tRows+='<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;"><span style="background:'+(_lfStSt(s.status).bg||'#f1f5f9')+';color:'+(_lfStSt(s.status).c||'#475569')+';border-radius:3px;padding:1px 4px;font-size:7px;font-weight:700;">'+(_lfStSt(s.status).i||'•')+' '+(s.status||'—')+'</span></td>';
+      tRows+='<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.equipe?s.equipe.split('(')[0].trim():'—')+'</td>';
+      tRows+='<td style="font-family:Courier New,monospace;font-size:8px;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.prev_lib_fab?_lfFmtD(s.prev_lib_fab):'—')+'</td>';
+      tRows+='<td style="font-family:Courier New,monospace;font-size:8px;color:#166534;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.real_lib_fab?_lfFmtD(s.real_lib_fab):'—')+'</td>';
+      tRows+='<td style="font-size:7px;color:#991b1b;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+atraso+'</td>';
+      tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+fmtLimite(s)+'</td>';
+      tRows+='<td style="font-family:Courier New,monospace;font-size:8px;text-align:right;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
+      tRows+='<td style="font-family:Courier New,monospace;font-size:7px;color:#7c3aed;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.num_proj_basico||'—')+'</td>';
+      tRows+='</tr>';
+    });
+  });
+
+  var filtroDesc='';
+  if(_lfStatusSelecionados.length>0) filtroDesc+=' | Status: '+_lfStatusSelecionados.join(', ');
+  if(_lfObraAtiva) filtroDesc+=' | Obra: '+_lfObraAtiva;
+  if(bq) filtroDesc+=' | Busca: "'+bq+'"';
+  if(_rdIni||_rdFim) filtroDesc+=' | Prev. Lib.: '+(_rdIni?_lfFmtD(_rdIni):'início')+' → '+(_rdFim?_lfFmtD(_rdFim):'fim');
+  if(_rrIni||_rrFim) filtroDesc+=' | Real Lib.: '+(_rrIni?_lfFmtD(_rrIni):'início')+' → '+(_rrFim?_lfFmtD(_rrFim):'fim');
+
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório Lib. Fabricação — '+MN[mes-1]+'/'+ano+'</title>';
+  html+='<style>';
+  html+='@page{size:A3 landscape;margin:12mm 10mm;}';
+  html+='body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;margin:0;padding:0;}';
+  html+='.rel-header{display:grid;grid-template-columns:100px 1fr 140px;border:2px solid #000;margin-bottom:0;}';
+  html+='.rel-logo-cell{border-right:2px solid #000;padding:6px;display:flex;align-items:center;justify-content:center;background:#1A1714;}';
+  html+='.rel-logo-sq{width:36px;height:36px;background:#C4501A;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:14px;color:#fff;font-weight:700;}';
+  html+='.rel-title-cell{border-right:2px solid #000;padding:6px 10px;text-align:center;}';
+  html+='.rel-title-main{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:4px;}';
+  html+='.rel-title-sub{font-size:9px;color:#555;}';
+  html+='.rel-meta-cell{padding:6px;}';
+  html+='.rel-meta-row{display:flex;justify-content:space-between;font-size:8px;border-bottom:1px solid #eee;padding:2px 0;}';
+  html+='.rel-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0;}';
+  html+='.rel-kpi{border:1px solid #ccc;padding:5px 8px;text-align:center;}';
+  html+='.rel-kpi-label{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#555;}';
+  html+='.rel-kpi-val{font-size:16px;font-weight:700;font-family:Georgia,serif;}';
+  html+='.rel-kpi-sub{font-size:7px;color:#666;}';
+  html+='table{width:100%;border-collapse:collapse;}';
+  html+='thead th{background:#1A1714;color:#fff;padding:4px 5px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}';
+  html+='thead th.num{text-align:right;}';
+  html+='.rel-footer{font-size:7px;color:#555;text-align:center;border-top:1px solid #ccc;padding-top:4px;margin-top:8px;}';
+  html+='@media print{.no-print{display:none;}body{padding:0;}}';
+  html+='</style></head><body>';
+
+  // Botão imprimir
+  html+='<div class="no-print" style="background:#1A1714;padding:8px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+  html+='<span style="color:#fff;font-size:12px;font-weight:700;">📄 Relatório Lib. Fabricação — '+MN[mes-1]+'/'+ano+'</span>';
+  html+='<button onclick="window.print()" style="background:#C4501A;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">🖨 Imprimir / PDF</button>';
+  html+='<button onclick="window.close()" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:5px 12px;font-size:11px;cursor:pointer;">✕ Fechar</button>';
+  html+='</div>';
+
+  // Cabeçalho do relatório
+  html+='<div class="rel-header">';
+  html+='<div class="rel-logo-cell"><div class="rel-logo-sq">S</div></div>';
+  html+='<div class="rel-title-cell">';
+  html+='<div class="rel-title-main">Sidertec — Liberação para Fabricação</div>';
+  html+='<div class="rel-title-sub">Relatório mensal de sub-obras pendentes e liberadas'+filtroDesc+'</div>';
+  html+='</div>';
+  html+='<div class="rel-meta-cell">';
+  html+='<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Mês/Ano</span><span>'+MN[mes-1]+'/'+ano+'</span></div>';
+  html+='<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Data</span><span>'+dataRel+'</span></div>';
+  html+='<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Hora</span><span>'+horaRel+'</span></div>';
+  html+='<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Obra</span><span>'+(_lfObraAtiva||'Todas')+'</span></div>';
+  html+='</div></div>';
+
+  // KPIs
+  html+='<div class="rel-kpis">';
+  html+='<div class="rel-kpi"><div class="rel-kpi-label">⚠ Atrasados</div><div class="rel-kpi-val" style="color:#991b1b;">'+grupos.atrasado.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(grupos.atrasado.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0))+'</div></div>';
+  html+='<div class="rel-kpi"><div class="rel-kpi-label">📅 Do Mês</div><div class="rel-kpi-val" style="color:#1e40af;">'+grupos.mes.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(grupos.mes.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0))+'</div></div>';
+  html+='<div class="rel-kpi"><div class="rel-kpi-label">🔲 Sem Previsão</div><div class="rel-kpi-val" style="color:#475569;">'+grupos.sem.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(grupos.sem.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0))+'</div></div>';
+  html+='<div class="rel-kpi"><div class="rel-kpi-label">📋 Total Listado</div><div class="rel-kpi-val" style="color:#1A1714;">'+linhas.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(pesoTotal)+'</div></div>';
+  html+='<div class="rel-kpi"><div class="rel-kpi-label">✅ Liberados</div><div class="rel-kpi-val" style="color:#166534;">'+grupos.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;}).length+'</div><div class="rel-kpi-sub">do mês</div></div>';
+  html+='</div>';
+
+  // Tabela
+  html+='<table><thead><tr>';
+  html+='<th style="min-width:100px;">TAG Sub-obra</th>';
+  html+='<th style="min-width:140px;">Descrição</th>';
+  html+='<th>Categoria</th>';
+  html+='<th>Status</th>';
+  html+='<th>Equipe</th>';
+  html+='<th>Prev. Lib. Fab.</th>';
+  html+='<th>Real Lib. Fab.</th>';
+  html+='<th>Atraso</th>';
+  html+='<th>Lim. Fábrica</th>';
+  html+='<th class="num">Peso (kg)</th>';
+  html+='<th>Nº Proj. Básico</th>';
+  html+='</tr></thead><tbody>';
+  html+=tRows;
+  html+='</tbody><tfoot><tr><td colspan="9" style="background:#1A1714;color:#fff;font-size:8px;font-weight:700;padding:4px 6px;">TOTAL GERAL ('+linhas.length+' sub-obras)</td><td style="background:#1A1714;color:#C4501A;font-family:Courier New,monospace;font-size:8px;font-weight:700;padding:4px 6px;text-align:right;">'+_lfFmtKg(pesoTotal)+'</td><td style="background:#1A1714;"></td></tr></tfoot></table>';
+
+  html+='<div class="rel-footer">Sidertec — Cronograma & Medição 2026 · Gerado em '+dataRel+' às '+horaRel+'</div>';
+  html+='</body></html>';
+
+  var w=window.open('','_blank','width=1200,height=800');
+  if(w){ w.document.write(html); w.document.close(); }
+  else if(typeof showToast==='function') showToast('Bloqueado','Permita pop-ups para este site.','error');
 }
 
 function exportarLibFabCSV(){
@@ -9958,6 +10251,13 @@ function exportarLibFabCSV(){
   if(_lfObraAtiva)fonte=fonte.filter(function(s){return s.obra===_lfObraAtiva;});
   if(xH)fonte=fonte.filter(function(s){return s.status!=='HOLD';});
   if(bq)fonte=fonte.filter(function(s){return [(s.subobra||''),(s.descricao||''),(s.obra||'')].join(' ').toLowerCase().includes(bq);});
+  if(_lfStatusSelecionados.length>0)fonte=fonte.filter(function(s){return _lfStatusSelecionados.indexOf(s.status||'')>=0;});
+  var _dIni=(document.getElementById('lf-data-ini')||{}).value||'';
+  var _dFim=(document.getElementById('lf-data-fim')||{}).value||'';
+  if(_dIni||_dFim)fonte=fonte.filter(function(s){if(!s.prev_lib_fab)return false;if(_dIni&&s.prev_lib_fab<_dIni)return false;if(_dFim&&s.prev_lib_fab>_dFim)return false;return true;});
+  var _rIni=(document.getElementById('lf-real-ini')||{}).value||'';
+  var _rFim=(document.getElementById('lf-real-fim')||{}).value||'';
+  if(_rIni||_rFim)fonte=fonte.filter(function(s){if(!s.real_lib_fab)return false;if(_rIni&&s.real_lib_fab<_rIni)return false;if(_rFim&&s.real_lib_fab>_rFim)return false;return true;});
   var MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   var cM={atrasado:'Atrasado',mes:'Do Mês',sem:'Sem Previsão',liberado:'Liberado'};
   var para=fonte.filter(function(s){var c=_lfCategoria(s,ano,mes);return(c==='atrasado'&&iA)||(c==='mes'&&iM)||(c==='sem'&&iS);});
