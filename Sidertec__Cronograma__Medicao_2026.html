@@ -1340,22 +1340,44 @@ ALTER TABLE medicao_terceiros
 </div>
 
 <!-- MODAL NOVA/EDITAR PROPOSTA DE SERVIÇO -->
+<style>
+/* ── MODAL MEDIÇÃO — COMPACTO ─────────────────────────────────────── */
+#modal-medicao .cron-modal-box          { width:780px; max-height:94vh; }
+#modal-medicao .cron-mhd               { padding:.5rem 1rem; }
+#modal-medicao .cron-mhd-title         { font-size:13px; }
+#modal-medicao .cron-mhd-sub           { font-size:10px; }
+#modal-medicao .cron-mbody             { padding:.65rem .9rem; max-height:calc(94vh - 90px); }
+#modal-medicao .cron-mfooter           { padding:.5rem .9rem; }
+#modal-medicao .field-group            { gap:.15rem; margin-bottom:0; }
+#modal-medicao .field-label            { font-size:9px; letter-spacing:.05em; }
+#modal-medicao .field-input            { font-size:11px; padding:4px 7px; }
+#modal-medicao select.field-input      { font-size:11px; padding:3px 6px; }
+#modal-medicao input[type=date].field-input { font-size:11px; padding:3px 6px; }
+#modal-medicao .med-row                { display:grid; gap:.45rem; margin-bottom:.45rem; }
+#modal-medicao #med-valor-total-preview{ font-size:12px; padding:4px 8px; min-height:28px; }
+#modal-medicao #med-modal-totais       { font-size:10px; margin-top:.15rem; }
+#modal-medicao .btn                    { font-size:11px; padding:5px 14px; }
+/* TAG list compacta */
+#modal-medicao #med-tags-lista         { max-height:210px; padding:.35rem .55rem; }
+#modal-medicao #med-tags-resumo        { padding:.35rem .65rem; font-size:9px; }
+</style>
+
 <div class="cron-modal-overlay" id="modal-medicao" onclick="fecharModalMedicao(event)">
-  <div class="cron-modal-box" style="width:820px;max-height:92vh;" onclick="event.stopPropagation()">
+  <div class="cron-modal-box" onclick="event.stopPropagation()">
     <div class="cron-mhd" style="background:linear-gradient(135deg,#0c4a6e,#0e7490);">
       <div style="flex:1;">
         <div class="cron-mhd-title">📐 <span id="med-modal-title">Nova Medição</span></div>
         <div class="cron-mhd-sub" id="med-modal-sub"></div>
       </div>
-      <button onclick="fecharModalMedicao()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;">✕</button>
+      <button onclick="fecharModalMedicao()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px;">✕</button>
     </div>
-    <div class="cron-mbody" style="padding:1.25rem;overflow-y:auto;max-height:calc(92vh - 120px);">
+    <div class="cron-mbody" style="overflow-y:auto;">
 
-      <!-- Linha 1: Data / Engenharia / Obra -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
+      <!-- Linha 1: Data / Engenharia / Obra / Status em uma linha só -->
+      <div class="med-row" style="grid-template-columns:120px 1fr 1fr 100px;">
         <div class="field-group">
           <label class="field-label">📅 Data *</label>
-          <input type="date" class="field-input" id="med-data" style="font-size:16px;">
+          <input type="date" class="field-input" id="med-data">
         </div>
         <div class="field-group">
           <label class="field-label">👥 Engenharia / Equipe *</label>
@@ -1364,30 +1386,6 @@ ALTER TABLE medicao_terceiros
         <div class="field-group">
           <label class="field-label">🏗 Obra *</label>
           <select class="field-input" id="med-obra" onchange="renderMedTags()"><option value="">— Selecione —</option></select>
-        </div>
-      </div>
-
-      <!-- Linha 2: Pesos -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
-        <div class="field-group">
-          <label class="field-label">⚖ Peso Previsto (kg)</label>
-          <input type="number" class="field-input" id="med-peso-previsto" placeholder="Ex: 12500" step="0.01" min="0" oninput="recalcularMedicao()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">📐 Peso Detalhado (kg)</label>
-          <input type="number" class="field-input" id="med-peso-detalhado" placeholder="Ex: 12800" step="0.01" min="0" oninput="recalcularMedicao()">
-        </div>
-      </div>
-
-      <!-- Linha 3: Valor por kg / Valor Total / Status -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
-        <div class="field-group">
-          <label class="field-label">💰 Valor por kg (R$) *</label>
-          <input type="number" class="field-input" id="med-valor-kg" placeholder="Ex: 4,50" step="0.01" min="0" oninput="recalcularMedicao();renderMedTags();">
-        </div>
-        <div class="field-group">
-          <label class="field-label">💵 Valor Total (R$)</label>
-          <div id="med-valor-total-preview" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:8px 10px;font-size:14px;font-weight:700;color:var(--green);min-height:38px;display:flex;align-items:center;">—</div>
         </div>
         <div class="field-group">
           <label class="field-label">Status</label>
@@ -1398,54 +1396,91 @@ ALTER TABLE medicao_terceiros
         </div>
       </div>
 
-      <!-- Linha 4: PS / BM / NF -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
+      <!-- Linha 2: Pesos + Valor/kg + Valor Total -->
+      <div class="med-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
         <div class="field-group">
-          <label class="field-label">📄 Nº PS (Pedido de Serviço) *</label>
-          <input type="text" class="field-input" id="med-num-ps" placeholder="Ex: PS-001/2026" style="font-size:16px;">
+          <label class="field-label">⚖ Peso Previsto (kg)</label>
+          <input type="number" class="field-input" id="med-peso-previsto" placeholder="12500" step="0.01" min="0" oninput="recalcularMedicao()">
         </div>
         <div class="field-group">
-          <label class="field-label">📋 Nº BM (Boletim de Medição)</label>
-          <input type="text" class="field-input" id="med-bm" placeholder="Ex: BM-01/2026" style="font-size:16px;">
+          <label class="field-label">📐 Peso Detalhado (kg)</label>
+          <input type="number" class="field-input" id="med-peso-detalhado" placeholder="12800" step="0.01" min="0" oninput="recalcularMedicao()">
         </div>
         <div class="field-group">
-          <label class="field-label">🧾 Nº NF (Nota Fiscal)</label>
-          <input type="text" class="field-input" id="med-nf" placeholder="Ex: NF 00123" style="font-size:16px;">
+          <label class="field-label">💰 Valor por kg (R$) *</label>
+          <input type="number" class="field-input" id="med-valor-kg" placeholder="4,50" step="0.01" min="0" oninput="recalcularMedicao();renderMedTags();">
+        </div>
+        <div class="field-group">
+          <label class="field-label">💵 Valor Total (R$)</label>
+          <div id="med-valor-total-preview" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);font-weight:700;color:var(--green);display:flex;align-items:center;">—</div>
         </div>
       </div>
 
-      <!-- Linha 5: Observações -->
-      <div class="field-group" style="margin-bottom:.75rem;">
-        <label class="field-label">📝 Observações</label>
-        <input type="text" class="field-input" id="med-obs-contrato" placeholder="Descrição, escopo ou anotações…">
+      <!-- Linha 3: PS / BM / NF / Obs numa linha -->
+      <div class="med-row" style="grid-template-columns:1fr 1fr 1fr 1.4fr;">
+        <div class="field-group">
+          <label class="field-label">📄 Nº PS *</label>
+          <input type="text" class="field-input" id="med-num-ps" placeholder="PS-001/2026">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📋 Nº BM</label>
+          <input type="text" class="field-input" id="med-bm" placeholder="BM-01/2026">
+        </div>
+        <div class="field-group">
+          <label class="field-label">🧾 Nº NF</label>
+          <input type="text" class="field-input" id="med-nf" placeholder="NF 00123">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📝 Observações</label>
+          <input type="text" class="field-input" id="med-obs-contrato" placeholder="Descrição, escopo ou anotações…">
+        </div>
       </div>
 
       <!-- TAGs pagas nesta medição -->
-      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.75rem;">
-        <div style="background:#0c4a6e;padding:.5rem .85rem;display:flex;align-items:center;gap:.75rem;">
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.4rem;">
+        <div style="background:#0c4a6e;padding:.35rem .7rem;display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;">🏷 TAGs incluídas nesta medição</span>
           <span id="med-tags-count" style="background:rgba(255,255,255,.15);color:#fff;border-radius:10px;font-size:9px;padding:1px 8px;font-weight:700;">0 selecionadas</span>
-          <div style="margin-left:auto;display:flex;gap:.4rem;align-items:center;">
+          <div style="margin-left:auto;display:flex;gap:.35rem;align-items:center;">
             <input type="text" id="med-tags-busca" placeholder="Buscar TAG…"
-              style="border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);border-radius:4px;padding:3px 8px;font-size:11px;color:#fff;outline:none;width:130px;"
-              oninput="renderMedTags()" placeholder="Buscar TAG…">
-            <button onclick="medTagsSelectAll(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">✓ Todos</button>
-            <button onclick="medTagsSelectAll(false)" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">✕ Limpar</button>
+              style="border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);border-radius:4px;padding:2px 7px;font-size:10px;color:#fff;outline:none;width:120px;"
+              oninput="renderMedTags()">
+            <button onclick="medTagsSelectAll(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;">✓ Todos</button>
+            <button onclick="medTagsSelectAll(false)" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;">✕ Limpar</button>
+            <button id="btn-apenas-selecionadas" onclick="toggleApenasSelMedTags()" style="background:rgba(255,200,0,.18);border:1px solid rgba(255,200,0,.35);color:#fde68a;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;transition:all .15s;" title="Mostrar apenas TAGs já selecionadas">☑ Só selecionadas</button>
           </div>
         </div>
-        <div id="med-tags-lista" style="max-height:260px;overflow-y:auto;padding:.5rem .75rem;background:#f8fafc;">
+        <div id="med-tags-lista" style="overflow-y:auto;background:#f8fafc;">
           <span style="font-size:11px;color:var(--ink3);font-style:italic;">Selecione uma Obra para ver as TAGs disponíveis.</span>
         </div>
-        <div id="med-tags-resumo" style="display:none;padding:.5rem .85rem;background:#f0fdf4;border-top:1px solid #bbf7d0;"></div>
+        <div id="med-tags-resumo" style="display:none;background:#f0fdf4;border-top:1px solid #bbf7d0;"></div>
       </div>
 
       <!-- Preview total -->
-      <div id="med-modal-totais" style="font-size:16px;color:var(--ink3);margin-top:.25rem;"></div>
+      <div id="med-modal-totais" style="color:var(--ink3);margin-top:.1rem;"></div>
+
+      <!-- Anexos da medição -->
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:.45rem;">
+        <div style="background:#1e3a5f;padding:.3rem .7rem;display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;">📎 Documentos anexados</span>
+          <span id="med-anexos-count" style="background:rgba(255,255,255,.15);color:#fff;border-radius:10px;font-size:9px;padding:1px 7px;font-weight:700;">0 arquivos</span>
+          <label style="margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:4px;">
+            + Adicionar arquivo
+            <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.dwg,.dxf" style="display:none;" onchange="medAdicionarAnexo(this)">
+          </label>
+        </div>
+        <div id="med-anexos-lista" style="padding:.4rem .6rem;background:#f8fafc;min-height:32px;display:flex;flex-wrap:wrap;gap:.3rem;align-items:flex-start;">
+          <span style="font-size:10px;color:var(--ink3);font-style:italic;padding:2px 0;">Nenhum documento anexado.</span>
+        </div>
+        <div style="padding:.25rem .6rem;background:#f0f4ff;border-top:1px solid #e2e8f0;font-size:8px;color:#64748b;">
+          💡 PDF, Word, Excel, DWG, imagens · Os arquivos são salvos junto com a medição no Supabase.
+        </div>
+      </div>
 
     </div><!-- fim cron-mbody -->
     <div class="cron-mfooter">
-      <div style="font-size:16px;color:var(--ink3);"></div>
-      <div style="display:flex;gap:.6rem;">
+      <div style="font-size:10px;color:var(--ink3);"></div>
+      <div style="display:flex;gap:.5rem;">
         <button class="btn btn-secondary" onclick="fecharModalMedicao()">Cancelar</button>
         <button class="btn btn-primary" id="btn-salvar-medicao" onclick="salvarMedicao()" style="background:#0e7490;">💾 Salvar Medição</button>
       </div>
@@ -7736,6 +7771,8 @@ function renderMedicao(){
             </td>
             <td style="${xtdc}white-space:nowrap;">
               <button onclick="abrirModalMedicao('${m.id}')" style="background:#e0f2fe;border:none;border-radius:2px;cursor:pointer;font-size:10px;padding:1px 5px;color:#0369a1;" title="Editar">✏</button>
+              <button onclick="imprimirMedicao('${m.id}')" style="background:#dcfce7;border:none;border-radius:2px;cursor:pointer;font-size:10px;padding:1px 5px;color:#166534;" title="Imprimir relatório">🖨</button>
+              ${(()=>{try{const ax=JSON.parse(m.anexos_med||'null');if(ax&&ax.length>0){const n=ax.length;return '<span title="'+n+' anexo(s)" style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;cursor:pointer;" onclick="abrirModalMedicao(this)" data-id="${m.id}">📎'+n+'</span>';};}catch(e){}return '';})()}
               <button onclick="excluirMedicao('${m.id}')" style="background:#fee2e2;border:none;border-radius:2px;cursor:pointer;font-size:10px;padding:1px 5px;color:#dc2626;" title="Excluir">✕</button>
             </td>
           </tr>`;
@@ -7745,6 +7782,149 @@ function renderMedicao(){
   </div>`;
 }
 
+function imprimirMedicao(id){
+  const m = allMedicoes.find(x=>x.id===id);
+  if(!m) return;
+
+  // Resolve TAGs
+  var tagEntradas = [];
+  try{ tagEntradas = JSON.parse(m.subobras_ids||'[]'); }catch(e){}
+  const MED_ETAPAS_LABEL = {modelo:'Modelo p/ Aprovação (40%)', pacote:'Pacote de Fabricação (40%)', diagrama:'Diagrama de Montagem (20%)'};
+  var sumPesoB = 0, sumPesoD = 0, sumPesoMed = 0, sumVal = 0;
+  const tagRows = tagEntradas.map(function(entry){
+    const s = (allCronSubobras||[]).find(function(x){ return String(x.id)===String(entry.id); });
+    if(!s) return '';
+    const etapas = (entry.etapas||[]).map(function(e){ return MED_ETAPAS_LABEL[e]||e; }).join(' + ') || '—';
+    const pct = entry.pct||0;
+    const pesoB = Number(s.peso_previsto)||0;
+    const pesoD = Number(s.peso_detalhado)||0;
+    const pm = entry.peso_med>0 ? Number(entry.peso_med) : 0;
+    const pesoRef = pm>0 ? pm : (pesoD>0?pesoD:pesoB);
+    const val = pesoRef>0 && m.valor_kg>0 ? (pesoRef * m.valor_kg * pct/100) : 0;
+    sumPesoB   += pesoB;
+    sumPesoD   += pesoD;
+    sumPesoMed += pesoRef;
+    sumVal     += val;
+    const fmtKg = function(v){ return v>0?v.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—'; };
+    const medBg = pm>0 ? 'background:#fffbeb;color:#b45309;' : 'color:#1a1714;';
+    const sRCfg = {
+      'LIB. FABRICAÇÃO': {bg:'#bbf7d0',color:'#166534',icon:'🔩'},
+      'INSP. INTERNA'  : {bg:'#cffafe',color:'#0e7490',icon:'🔍'},
+      'EMISSÃO PCTE FAB.': {bg:'#ede9fe',color:'#7c3aed',icon:'📦'},
+      'MODELO EM APROV.': {bg:'#ffedd5',color:'#c2410c',icon:'📨'},
+      'AG. MODELO PARA APROV.': {bg:'#ccfbf1',color:'#0f766e',icon:'📐'},
+      'AG. PROJ. BÁSICO': {bg:'#dbeafe',color:'#1e40af',icon:'📥'},
+      'HOLD': {bg:'#fee2e2',color:'#991b1b',icon:'⏸'},
+      'EM COTAÇÃO ENG.': {bg:'#fef3c7',color:'#92400e',icon:'💰'},
+    }[s.status] || {bg:'#f1f5f9',color:'#475569',icon:'•'};
+    const statusCellRel = '<span style="background:'+sRCfg.bg+';color:'+sRCfg.color+';border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;white-space:nowrap;">'+sRCfg.icon+' '+(s.status||'—')+'</span>';
+    return '<tr>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-family:monospace;font-weight:700;color:#1d4ed8;">'+s.subobra+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;">'+( s.descricao||'—')+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;">'+statusCellRel+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#166534;">'+fmtKg(pesoB)+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#1d4ed8;">'+fmtKg(pesoD)+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;'+medBg+'">'+fmtKg(pesoRef)+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-size:10px;">'+etapas+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-weight:700;color:#475569;">'+pct+'%</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;font-weight:700;color:#166534;">'+(val>0?'R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'</td>'+
+    '</tr>';
+  }).join('');
+
+  // Linha de totais
+  const fmtKg2 = function(v){ return v>0?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'; };
+  const diffBD = sumPesoD - sumPesoB;
+  const diffMB = sumPesoMed - sumPesoB;
+  const fmtDiff = function(v){ return (v>=0?'+':'')+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg'; };
+  const tagFooter = tagEntradas.length ? '<tfoot><tr style="background:#0c4a6e;font-weight:700;color:#fff;">'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:11px;" colspan="3">TOTAL ('+tagEntradas.length+' TAGs)</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#a7f3d0;">'+fmtKg2(sumPesoB)+'</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#bfdbfe;">'+fmtKg2(sumPesoD)+'</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#fde68a;">'+fmtKg2(sumPesoMed)+'</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:9px;color:#e0f2fe;" colspan="2">'+
+      (sumPesoD>0&&sumPesoB>0?'Δ Det−Bás: '+fmtDiff(diffBD)+'  ':'')+
+      (sumPesoMed>0&&sumPesoB>0&&Math.abs(diffMB)>0.01?'Δ Med−Bás: '+fmtDiff(diffMB):'')+'</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#a7f3d0;font-size:13px;">'+(sumVal>0?'R$ '+sumVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'</td>'+
+  '</tr></tfoot>' : '';
+
+  const dataFmt = m.data ? m.data.split('-').reverse().join('/') : '—';
+  const vt = Number(m.valor_total)||0;
+
+  // Anexos
+  var anexosHtml = '';
+  try{
+    const axs = JSON.parse(m.anexos_med||'null');
+    if(axs&&axs.length){
+      anexosHtml = '<div style="margin-top:16px;"><strong style="font-size:12px;color:#475569;">📎 Documentos Anexados ('+axs.length+')</strong><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'+
+        axs.map(function(a){ return '<a href="'+a.url+'" download="'+a.name+'" style="background:#dbeafe;color:#1e40af;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;text-decoration:none;">📎 '+a.name+'</a>'; }).join('')+
+      '</div></div>';
+    }
+  }catch(e){}
+
+  const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'+
+    '<title>Medição — '+m.num_ps+'</title>'+
+    '<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:24px;color:#1a1714;max-width:900px;margin:0 auto;}'+
+    'table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#0c4a6e;color:#fff;padding:7px 8px;text-align:left;border:1px solid #0a3d5c;}'+
+    'tr:nth-child(even){background:#f8fafc;}@media print{.no-print{display:none;}}</style></head><body>'+
+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0c4a6e;">'+
+      '<div><h1 style="margin:0;font-size:18px;color:#0c4a6e;">📐 Medição de Terceiros</h1>'+
+      '<p style="margin:3px 0 0;font-size:12px;color:#64748b;">Sidertec Estruturas Metálicas · Gestão de Projetos 2026</p></div>'+
+      '<button class="no-print" onclick="window.print()" style="background:#0c4a6e;color:#fff;border:none;border-radius:5px;padding:7px 18px;font-size:12px;cursor:pointer;font-weight:700;">🖨 Imprimir</button>'+
+    '</div>'+
+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Data</div><div style="font-size:15px;font-weight:700;color:#0c4a6e;">'+dataFmt+'</div></div>'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Engenharia / Equipe</div><div style="font-size:13px;font-weight:700;color:#1a1714;">'+( m.equipe||'—')+'</div></div>'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Obra</div><div style="font-size:13px;font-weight:700;color:#1d4ed8;">'+(m.obra||'—')+'</div></div>'+
+      '<div style="background:#f0fdf4;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº PS</div><div style="font-size:14px;font-weight:800;font-family:monospace;color:#0c4a6e;">'+(m.num_ps||'—')+'</div></div>'+
+      '<div style="background:#fef3c7;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº BM</div><div style="font-size:13px;font-weight:700;">'+(m.bm||'—')+'</div></div>'+
+      '<div style="background:#fef3c7;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº NF</div><div style="font-size:13px;font-weight:700;">'+(m.nf||'—')+'</div></div>'+
+    '</div>'+
+
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">'+
+      '<div style="background:#0c4a6e;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;">Valor/kg</div><div style="font-size:16px;font-weight:800;color:#fff;font-family:monospace;">R$ '+(Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))+'</div></div>'+
+      '<div style="background:#065f46;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;">Valor Total</div><div style="font-size:16px;font-weight:800;color:#fff;font-family:monospace;">'+(vt>0?'R$ '+vt.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—')+'</div></div>'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:#64748b;text-transform:uppercase;">Peso Previsto (geral)</div><div style="font-size:14px;font-weight:700;font-family:monospace;">'+(m.peso_previsto?Number(m.peso_previsto).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
+      '<div style="background:#eff6ff;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:#64748b;text-transform:uppercase;">Peso Detalhado (geral)</div><div style="font-size:14px;font-weight:700;color:#1d4ed8;font-family:monospace;">'+(m.peso_detalhado?Number(m.peso_detalhado).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
+    '</div>'+
+    (tagEntradas.length?
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px;">'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso Básico (TAGs)</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:#166534;">'+(sumPesoB>0?sumPesoB.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso Detalhado (TAGs)</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:#1d4ed8;">'+(sumPesoD>0?sumPesoD.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso na Medição (TAGs)</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:#b45309;">'+(sumPesoMed>0?sumPesoMed.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">Δ Medição − Básico</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:'+(diffMB>0?'#c2410c':diffMB<0?'#166534':'#94a3b8')+';">'+(sumPesoB>0&&sumPesoMed>0?(diffMB>=0?'+':'')+diffMB.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
+      '</div>':'<div style="margin-bottom:16px;"></div>'
+    )+
+
+    (m.obs_contrato?'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#78350f;"><strong>Observações:</strong> '+m.obs_contrato+'</div>':'')+
+
+    '<h3 style="font-size:13px;color:#0c4a6e;margin:0 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">TAGs incluídas nesta medição</h3>'+
+    (tagRows?
+      '<table><thead><tr>'+
+        '<th>TAG</th><th>Descrição</th><th>Status</th>'+
+        '<th style="text-align:right;background:#065f46;">⚖ Peso Básico</th>'+
+        '<th style="text-align:right;background:#1e3a5f;">📐 Peso Detalhado</th>'+
+        '<th style="text-align:right;background:#78350f;">📏 Peso na Medição</th>'+
+        '<th style="text-align:center;">Etapas</th>'+
+        '<th style="text-align:center;">%</th>'+
+        '<th style="text-align:right;">Valor</th>'+
+      '</tr></thead><tbody>'+tagRows+'</tbody>'+tagFooter+'</table>'
+      :'<p style="font-size:12px;color:#94a3b8;">Nenhuma TAG vinculada.</p>')+
+
+    anexosHtml+
+
+    '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;">'+
+      '<span>Gerado em: '+new Date().toLocaleString('pt-BR')+'</span>'+
+      '<span>Status: '+(m.status_contrato||'ATIVO')+'</span>'+
+    '</div>'+
+  '</body></html>';
+
+  const w = window.open('','_blank','width=960,height=800');
+  w.document.write(html);
+  w.document.close();
+}
+
 function limparFiltrosMedicao(){
   ['mf-equipe','mf-obra','mf-status'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const b=document.getElementById('mf-busca'); if(b) b.value='';
@@ -7752,16 +7932,17 @@ function limparFiltrosMedicao(){
 }
 
 function _calcTotalTags(){
-  // Soma o valor real de cada TAG selecionada (considerando peso_med e etapa/%)
   const vkg = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
   if(!vkg || !_medTagsMap.size) return 0;
   let total = 0;
-  _medTagsMap.forEach(({etapa,pct,peso_med},id)=>{
+  _medTagsMap.forEach((entry,id)=>{
+    const pct = _medPct(entry);
+    if(!pct) return;
     const s = (allCronSubobras||[]).find(x=>String(x.id)===id);
     if(!s) return;
     const pesoD = Number(s.peso_detalhado)||0;
     const pesoB = Number(s.peso_previsto)||0;
-    const pmVal = peso_med ? Number(peso_med) : 0;
+    const pmVal = entry.peso_med ? Number(entry.peso_med) : 0;
     const pesoRef = pmVal>0 ? pmVal : (pesoD>0?pesoD:pesoB);
     if(pesoRef>0) total += vkg * pesoRef * (pct/100);
   });
@@ -7785,17 +7966,49 @@ function recalcularMedicao(){
     el.style.color = total > 0 ? 'var(--green)' : 'var(--ink3)';
   }
 
+  // Calcular somas de pesos das TAGs selecionadas
+  const subs = allCronSubobras||[];
+  let sumPesoB = 0, sumPesoD = 0, sumPesoMed = 0;
+  [..._medTagsMap.entries()].forEach(([id, entry])=>{
+    const s = subs.find(x=>String(x.id)===id);
+    if(!s) return;
+    const pct = _medPct(entry);
+    if(!pct) return;
+    const pb = Number(s.peso_previsto)||0;
+    const pd = Number(s.peso_detalhado)||0;
+    const pm = entry.peso_med ? Number(entry.peso_med) : 0;
+    const pr = pm>0 ? pm : (pd>0?pd:pb);
+    sumPesoB   += pb;
+    sumPesoD   += pd;
+    sumPesoMed += pr;
+  });
+
   const el2 = document.getElementById('med-modal-totais');
-  if(el2 && total > 0){
+  if(el2){
+    const fmtKg = v => v>0 ? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+    const diffBD = sumPesoD - sumPesoB;
+    const diffMB = sumPesoMed - sumPesoB;
+    const fmtD = v => (v>=0?'+':'')+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg';
+    const diffColor = v => v>0?'#c2410c':v<0?'#166534':'#94a3b8';
     const label = totalTags > 0
       ? `(soma das ${_medTagsMap.size} TAG${_medTagsMap.size!==1?'s':''})`
       : pesoDet > 0 ? '(usando Peso Detalhado)' : '(usando Peso Previsto)';
-    el2.innerHTML = `<span style="font-size:11px;color:var(--ink3);">
-      Total = <b style="color:var(--green);">${fmtBRL(total)}</b>
-      <span style="margin-left:.4rem;color:var(--blue);">${label}</span>
-    </span>`;
-  } else if(el2){
-    el2.textContent = '';
+    const pesoInfo = (sumPesoB>0||sumPesoD>0||sumPesoMed>0) ? `
+      <span style="display:inline-flex;gap:.5rem;align-items:center;margin-left:.6rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:2px 8px;">
+        <span style="font-size:9px;color:#166534;font-weight:700;">⚖ Bás: <b>${fmtKg(sumPesoB)}</b></span>
+        <span style="font-size:9px;color:#1d4ed8;font-weight:700;">📐 Det: <b>${fmtKg(sumPesoD)}</b></span>
+        <span style="font-size:9px;color:#b45309;font-weight:700;">📏 Med: <b>${fmtKg(sumPesoMed)}</b></span>
+        ${sumPesoD>0&&sumPesoB>0?`<span style="font-size:8px;color:${diffColor(diffBD)}">Δ Det−Bás: ${fmtD(diffBD)}</span>`:''}
+        ${sumPesoMed>0&&sumPesoB>0&&Math.abs(diffMB)>0.01?`<span style="font-size:8px;color:${diffColor(diffMB)}">Δ Med−Bás: ${fmtD(diffMB)}</span>`:''}
+      </span>` : '';
+    if(total > 0){
+      el2.innerHTML = `<span style="font-size:11px;color:var(--ink3);">
+        Total = <b style="color:var(--green);">${fmtBRL(total)}</b>
+        <span style="margin-left:.4rem;color:var(--blue);">${label}</span>
+      </span>${pesoInfo}`;
+    } else {
+      el2.innerHTML = pesoInfo || '';
+    }
   }
 }
 
@@ -7835,15 +8048,41 @@ function renderAnexosMed(parcela){
 }
 
 // ── TAGS DA MEDIÇÃO ─────────────────────────────────────────────────
-// ── TAGS DA MEDIÇÃO ─────────────────────────────────────────────────
-// _medTagsMap: Map<id, {etapa:'modelo'|'pacote'|'diagrama', pct:40|40|20}>
+// _medTagsMap: Map<id, {etapas:Set<'modelo'|'pacote'|'diagrama'>, pct:number, peso_med?:number}>
+// pct é calculado dinamicamente: soma dos pct de cada etapa marcada
 var _medTagsMap = new Map();
+var _medApenasSelected = false; // filtro "Só selecionadas"
 
 const MED_ETAPAS = [
-  {key:'modelo',   label:'Modelo p/ Aprovação', pct:40, cor:'#0e7490',  bg:'#cffafe', icon:'🔷'},
-  {key:'pacote',   label:'Pacote de Fabricação', pct:40, cor:'#7c3aed',  bg:'#ede9fe', icon:'📦'},
-  {key:'diagrama', label:'Diagrama de Montagem', pct:20, cor:'#166534',  bg:'#dcfce7', icon:'📐'},
+  {key:'modelo',   label:'Modelo p/ Aprovação', pct:40, cor:'#0e7490', bg:'#cffafe', icon:'🔷'},
+  {key:'pacote',   label:'Pacote de Fabricação', pct:40, cor:'#7c3aed', bg:'#ede9fe', icon:'📦'},
+  {key:'diagrama', label:'Diagrama de Montagem', pct:20, cor:'#166534', bg:'#dcfce7', icon:'📐'},
 ];
+
+// Retorna o pct total de uma entrada do mapa
+function _medPct(entry){
+  if(!entry||!entry.etapas||!entry.etapas.size) return 0;
+  return MED_ETAPAS.filter(e=>entry.etapas.has(e.key)).reduce((a,e)=>a+e.pct,0);
+}
+
+// Retorna label resumido das etapas selecionadas
+function _medEtapasLabel(entry){
+  if(!entry||!entry.etapas||!entry.etapas.size) return '—';
+  const selecionadas = MED_ETAPAS.filter(e=>entry.etapas.has(e.key));
+  if(selecionadas.length===MED_ETAPAS.length) return '⭐ 100% — Todas as Etapas';
+  return selecionadas.map(e=>e.icon+' '+e.label+' '+e.pct+'%').join(' + ');
+}
+
+function toggleApenasSelMedTags(){
+  _medApenasSelected = !_medApenasSelected;
+  const btn = document.getElementById('btn-apenas-selecionadas');
+  if(btn){
+    btn.style.background = _medApenasSelected ? 'rgba(255,200,0,.45)' : 'rgba(255,200,0,.18)';
+    btn.style.color = _medApenasSelected ? '#fff' : '#fde68a';
+    btn.style.fontWeight = '700';
+  }
+  renderMedTags();
+}
 
 function renderMedTags(){
   const obra  = document.getElementById('med-obra')?.value;
@@ -7858,13 +8097,23 @@ function renderMedTags(){
     return;
   }
 
-  const subs = (allCronSubobras||[]).filter(s =>
+  let subs = (allCronSubobras||[]).filter(s =>
     s.obra === obra &&
     (!busca || (s.subobra||'').toLowerCase().includes(busca) || (s.descricao||'').toLowerCase().includes(busca))
   );
 
+  // Filtro "Só selecionadas"
+  if(_medApenasSelected){
+    subs = subs.filter(s => _medTagsMap.has(String(s.id)));
+    if(!subs.length && _medTagsMap.size > 0){
+      // Mostrar selecionadas mesmo que sejam de outra obra (busca)
+      const allSubs = (allCronSubobras||[]);
+      subs = [..._medTagsMap.keys()].map(id=>allSubs.find(s=>String(s.id)===id)).filter(Boolean);
+    }
+  }
+
   if(!subs.length){
-    lista.innerHTML = '<span style="font-size:11px;color:var(--ink3);font-style:italic;padding:.5rem;">Nenhuma TAG encontrada para esta obra.</span>';
+    lista.innerHTML = `<span style="font-size:11px;color:var(--ink3);font-style:italic;padding:.5rem;">${_medApenasSelected ? 'Nenhuma TAG selecionada ainda.' : 'Nenhuma TAG encontrada para esta obra.'}</span>`;
     if(count) count.textContent = _medTagsMap.size + ' selecionada' + (_medTagsMap.size!==1?'s':'');
     return;
   }
@@ -7897,45 +8146,65 @@ function renderMedTags(){
       // Painel expandido quando selecionado
       let panel = '';
       if(sel){
-        const etapaAtual = entry.etapa;
-        const btns = MED_ETAPAS.map(e=>{
-          const ativo = etapaAtual===e.key;
-          // Calcula valor desta etapa para esta TAG
-          const pesoRef = pesoD>0?pesoD:pesoB;
-          const valorEt = vkg>0&&pesoRef>0 ? (vkg*pesoRef*(e.pct/100)) : 0;
-          return `<button onclick="event.stopPropagation();medTagSetEtapa('${s.id}','${e.key}')"
-            style="display:flex;align-items:center;gap:.35rem;border:2px solid ${ativo?e.cor:'#e2e8f0'};
-            background:${ativo?e.bg:'#fff'};color:${ativo?e.cor:'#64748b'};border-radius:6px;
-            padding:5px 10px;cursor:pointer;font-size:10px;font-weight:${ativo?'800':'500'};
-            transition:all .15s;white-space:nowrap;">
+        const etapasSet  = entry.etapas || new Set();
+        const pesoMedAtual = entry.peso_med || '';
+        const pesoRef = pesoMedAtual>0 ? Number(pesoMedAtual) : (pesoD>0?pesoD:pesoB);
+        const pctTotal = _medPct(entry);
+
+        // Checkboxes de etapa — seleção múltipla independente
+        const chks = MED_ETAPAS.map(e=>{
+          const marcada  = etapasSet.has(e.key);
+          const valorEt  = vkg>0&&pesoRef>0 ? (vkg*pesoRef*(e.pct/100)) : 0;
+          return `<label onclick="event.stopPropagation()"
+            style="display:inline-flex;align-items:center;gap:.3rem;
+            border:2px solid ${marcada?e.cor:'#e2e8f0'};
+            background:${marcada?e.bg:'#fff'};
+            border-radius:5px;padding:3px 8px;cursor:pointer;
+            font-size:9px;font-weight:${marcada?'800':'500'};
+            color:${marcada?e.cor:'#64748b'};transition:all .15s;white-space:nowrap;user-select:none;">
+            <input type="checkbox" ${marcada?'checked':''}
+              onchange="event.stopPropagation();medTagToggleEtapa('${s.id}','${e.key}',this.checked)"
+              style="accent-color:${e.cor};cursor:pointer;width:12px;height:12px;">
             ${e.icon} ${e.label}
-            <span style="background:${ativo?e.cor:'#e2e8f0'};color:${ativo?'#fff':'#64748b'};
-              border-radius:10px;padding:1px 7px;font-size:9px;font-weight:700;">${e.pct}%</span>
-            ${valorEt>0?`<span style="font-size:9px;color:${ativo?e.cor:'#94a3b8'};font-family:'Courier New',monospace;">
-              R$ ${valorEt.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-            </span>`:''}
-          </button>`;
+            <span style="background:${marcada?e.cor:'#e2e8f0'};color:${marcada?'#fff':'#94a3b8'};
+              border-radius:8px;padding:0 5px;font-size:8px;font-weight:700;">${e.pct}%</span>
+            ${marcada&&valorEt>0?`<span style="font-size:8px;color:${e.cor};font-family:'Courier New',monospace;">R$${valorEt.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`:''}
+          </label>`;
         }).join('');
 
-        const pesoRef = pesoD>0?pesoD:pesoB;
-        const valorTotal = etapaAtual ? (()=>{
-          const et = MED_ETAPAS.find(e=>e.key===etapaAtual);
-          return et && vkg>0&&pesoRef>0 ? vkg*pesoRef*(et.pct/100) : 0;
-        })() : 0;
+        // Total desta TAG
+        const valorTotal = vkg>0&&pesoRef>0&&pctTotal>0 ? vkg*pesoRef*(pctTotal/100) : 0;
+        const pesoMedLabel = pesoMedAtual>0
+          ? `<span style="color:#b45309;font-weight:700;font-size:8px;">⚠ peso medido: ${Number(pesoMedAtual).toLocaleString('pt-BR',{maximumFractionDigits:2})} kg</span>`
+          : `<span style="color:#94a3b8;font-size:8px;">ref: ${pesoD>0?'det.':'bás.'} ${pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:0})} kg</span>`;
 
         panel = `
-          <div style="margin-top:.4rem;padding:.5rem .6rem;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;">
-            <div style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;margin-bottom:.4rem;letter-spacing:.05em;">Etapa paga nesta medição:</div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">${btns}</div>
-            ${valorTotal>0?`<div style="margin-top:.4rem;font-size:10px;color:#166534;font-weight:700;font-family:'Courier New',monospace;">
-              💵 Valor desta TAG: R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-              <span style="font-size:9px;color:#64748b;font-weight:400;margin-left:.4rem;">(${pesoD>0?'peso det.':'peso bás.'} × R$ ${vkg.toFixed(2)}/kg × ${MED_ETAPAS.find(e=>e.key===etapaAtual)?.pct||0}%)</span>
-            </div>`:''}
+          <div id="med-panel-${s.id}" style="margin-top:.3rem;padding:.35rem .5rem;background:#f8fafc;border-radius:5px;border:1px solid #e2e8f0;">
+            <div style="font-size:8px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:.3rem;letter-spacing:.05em;">
+              Etapas pagas nesta medição — marque uma ou mais:
+            </div>
+            <div style="display:flex;gap:.3rem;flex-wrap:wrap;">${chks}</div>
+            <div style="margin-top:.35rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
+              <label style="font-size:8px;color:#475569;font-weight:700;text-transform:uppercase;white-space:nowrap;">⚖ Peso medido (kg):</label>
+              <input type="number" min="0" step="0.01"
+                placeholder="${pesoRef>0?pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' (auto)':'0,00'}"
+                value="${pesoMedAtual||''}"
+                oninput="event.stopPropagation();medTagSetPesoMed('${s.id}',this.value)"
+                onclick="event.stopPropagation()"
+                style="width:110px;font-size:10px;padding:2px 6px;border:1px solid ${pesoMedAtual>0?'#d97706':'#cbd5e1'};border-radius:3px;
+                background:${pesoMedAtual>0?'#fffbeb':'#fff'};color:#1a1714;font-family:'Courier New',monospace;">
+              ${pesoMedAtual>0?`<button onclick="event.stopPropagation();medTagSetPesoMed('${s.id}','')"
+                style="background:#fee2e2;border:none;border-radius:2px;padding:1px 5px;font-size:8px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>`:''}
+              ${pesoMedLabel}
+              <span id="med-valor-tag-${s.id}" style="margin-left:auto;font-size:9px;font-weight:700;font-family:'Courier New',monospace;color:${valorTotal>0?'#166534':'#94a3b8'};">
+                ${valorTotal>0?`💵 R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}<span style="font-size:8px;color:#94a3b8;font-weight:400;margin-left:3px;">(${pctTotal}% total)</span>`:'Selecione etapas acima'}
+              </span>
+            </div>
           </div>`;
       }
 
       return `<div style="background:${sel?'#eff6ff':'#fff'};border:1.5px solid ${sel?'#3b82f6':'#e2e8f0'};
-        border-radius:8px;padding:.5rem .75rem;transition:all .15s;">
+        border-radius:6px;padding:.35rem .6rem;transition:all .15s;">
         ${header}${panel}
       </div>`;
     }).join('') + '</div>';
@@ -7949,24 +8218,94 @@ function medTagToggle(id){
   if(_medTagsMap.has(sid)){
     _medTagsMap.delete(sid);
   } else {
-    _medTagsMap.set(sid, {etapa:'modelo', pct:40});
+    // Inicia sem nenhuma etapa marcada — usuário escolhe
+    _medTagsMap.set(sid, {etapas: new Set(), pct:0, peso_med:null});
   }
   renderMedTags();
 }
 
-function medTagSetEtapa(id, etapaKey){
+// Toggle de uma etapa individual (checkbox)
+function medTagToggleEtapa(id, etapaKey, checked){
   const sid = String(id);
-  const et  = MED_ETAPAS.find(e=>e.key===etapaKey);
-  if(!et) return;
-  _medTagsMap.set(sid, {etapa:et.key, pct:et.pct});
-  renderMedTags();
+  const prev = _medTagsMap.get(sid);
+  if(!prev) return;
+  if(!prev.etapas) prev.etapas = new Set();
+  if(checked) prev.etapas.add(etapaKey);
+  else        prev.etapas.delete(etapaKey);
+  prev.pct = _medPct(prev);
+  _medTagsMap.set(sid, prev);
+  // Atualiza só os valores sem re-renderizar tudo (evita perda de foco)
+  _atualizarPainelTag(sid);
+  atualizarResumoMedTags();
+}
+
+// Atualiza apenas o span de valor da TAG sem re-renderizar toda a lista
+function _atualizarPainelTag(sid){
+  const entry = _medTagsMap.get(sid);
+  if(!entry) return;
+  const s = (allCronSubobras||[]).find(x=>String(x.id)===sid);
+  if(!s) return;
+  const vkg = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
+  const pesoD = Number(s.peso_detalhado)||0;
+  const pesoB = Number(s.peso_previsto)||0;
+  const pmVal = entry.peso_med ? Number(entry.peso_med) : 0;
+  const pesoRef = pmVal>0 ? pmVal : (pesoD>0?pesoD:pesoB);
+  const pctTotal = _medPct(entry);
+  const valorTotal = vkg>0&&pesoRef>0&&pctTotal>0 ? vkg*pesoRef*(pctTotal/100) : 0;
+  // Atualiza label de valor
+  const valEl = document.getElementById('med-valor-tag-'+sid);
+  if(valEl){
+    valEl.style.color = valorTotal>0 ? '#166534' : '#94a3b8';
+    valEl.innerHTML = valorTotal>0
+      ? `💵 R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}<span style="font-size:8px;color:#94a3b8;font-weight:400;margin-left:3px;">(${pctTotal}% total)</span>`
+      : 'Selecione etapas acima';
+  }
+  // Atualiza borda/cor do painel
+  const panelEl = document.getElementById('med-panel-'+sid);
+  if(panelEl) panelEl.style.borderColor = pctTotal>0 ? '#93c5fd' : '#e2e8f0';
+}
+
+// Atualiza apenas o span de valor da TAG sem re-renderizar toda a lista
+function _atualizarPainelTag(sid){
+  const entry = _medTagsMap.get(sid);
+  if(!entry) return;
+  const s = (allCronSubobras||[]).find(x=>String(x.id)===sid);
+  if(!s) return;
+  const vkg = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
+  const pesoD = Number(s.peso_detalhado)||0;
+  const pesoB = Number(s.peso_previsto)||0;
+  const pmVal = entry.peso_med ? Number(entry.peso_med) : 0;
+  const pesoRef = pmVal>0 ? pmVal : (pesoD>0?pesoD:pesoB);
+  const pctTotal = _medPct(entry);
+  const valorTotal = vkg>0&&pesoRef>0&&pctTotal>0 ? vkg*pesoRef*(pctTotal/100) : 0;
+  const valEl = document.getElementById('med-valor-tag-'+sid);
+  if(valEl){
+    valEl.style.color = valorTotal>0 ? '#166534' : '#94a3b8';
+    valEl.innerHTML = valorTotal>0
+      ? `💵 R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}<span style="font-size:8px;color:#94a3b8;font-weight:400;margin-left:3px;">(${pctTotal}% total)</span>`
+      : 'Selecione etapas acima';
+  }
+  const panelEl = document.getElementById('med-panel-'+sid);
+  if(panelEl) panelEl.style.borderColor = pctTotal>0 ? '#93c5fd' : '#e2e8f0';
+}
+
+function medTagSetPesoMed(id, val){
+  const sid = String(id);
+  const prev = _medTagsMap.get(sid);
+  if(!prev) return;
+  const n = parseFloat(val);
+  prev.peso_med = (!val || isNaN(n) || n<=0) ? null : n;
+  _medTagsMap.set(sid, prev);
+  // Re-render com pequeno delay para não perder foco durante digitação
+  clearTimeout(window._pesoMedTimer);
+  window._pesoMedTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
 }
 
 function medTagsSelectAll(sel){
   const obra = document.getElementById('med-obra')?.value;
   if(!obra) return;
   const subs = (allCronSubobras||[]).filter(s=>s.obra===obra);
-  if(sel) subs.forEach(s=>{ if(!_medTagsMap.has(String(s.id))) _medTagsMap.set(String(s.id),{etapa:'modelo',pct:40}); });
+  if(sel) subs.forEach(s=>{ if(!_medTagsMap.has(String(s.id))) _medTagsMap.set(String(s.id),{etapas:new Set(),pct:0,peso_med:null}); });
   else    _medTagsMap.clear();
   renderMedTags();
 }
@@ -7976,35 +8315,96 @@ function atualizarResumoMedTags(){
   const el  = document.getElementById('med-tags-resumo');
   if(!el||!_medTagsMap.size) { if(el) el.style.display='none'; return; }
   const subs = allCronSubobras||[];
-  let total = 0;
-  const linhas = [..._medTagsMap.entries()].map(([id,{etapa,pct}])=>{
-    const s   = subs.find(x=>String(x.id)===id);
-    if(!s) return '';
-    const pesoRef = (Number(s.peso_detalhado)||0)>0 ? Number(s.peso_detalhado) : Number(s.peso_previsto)||0;
-    const val = vkg>0&&pesoRef>0 ? vkg*pesoRef*(pct/100) : 0;
-    total += val;
-    const et = MED_ETAPAS.find(e=>e.key===etapa);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f1f5f9;font-size:10px;">
-      <span style="font-family:'Courier New',monospace;font-weight:700;color:#1d4ed8;">${s.subobra}</span>
-      <span style="background:${et?.bg||'#f1f5f9'};color:${et?.cor||'#64748b'};border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;">${et?.icon||''} ${et?.label||etapa} ${pct}%</span>
-      <span style="font-family:'Courier New',monospace;font-weight:700;color:#166534;">${val>0?'R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</span>
-    </div>`;
+  const tagData = [..._medTagsMap.entries()].map(([id, entry])=>{
+    const s      = subs.find(x=>String(x.id)===id);
+    if(!s) return null;
+    const pct    = _medPct(entry);
+    if(!pct) return null;
+    const pesoD  = Number(s.peso_detalhado)||0;
+    const pesoB  = Number(s.peso_previsto)||0;
+    const pmVal  = entry.peso_med ? Number(entry.peso_med) : 0;
+    const pesoRef = pmVal>0 ? pmVal : (pesoD>0?pesoD:pesoB);
+    const val    = vkg>0&&pesoRef>0 ? vkg*pesoRef*(pct/100) : 0;
+    const label  = _medEtapasLabel(entry);
+    const sCfg = (typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[s.status])||{color:'#475569',bg:'#f1f5f9',icon:'•'};
+    const statusBadge = `<span style="background:${sCfg.bg};color:${sCfg.color};border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">${sCfg.icon} ${s.status||'—'}</span>`;
+    return {subobra: s.subobra, label, pesoB, pesoD, pmVal, pesoRef, val, statusBadge};
+  }).filter(Boolean);
+
+  // Acumular totais e montar linhas HTML
+  let totalVal = 0, totalPesoB = 0, totalPesoD = 0, totalPesoRef = 0;
+  const linhas = tagData.map(d => {
+    totalVal     += d.val;
+    totalPesoB   += d.pesoB;
+    totalPesoD   += d.pesoD;
+    totalPesoRef += d.pesoRef;
+    const fmtKg = v => v > 0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' kg' : '—';
+    const pmLabel = d.pmVal > 0
+      ? `<span style="font-size:8px;background:#fffbeb;color:#b45309;border-radius:3px;padding:1px 4px;font-weight:700;">${fmtKg(d.pmVal)}</span>`
+      : `<span style="font-size:8px;color:#94a3b8;">${fmtKg(d.pesoRef)}</span>`;
+    return `<tr style="border-bottom:1px solid #f1f5f9;font-size:9.5px;">
+      <td style="padding:3px 5px;font-family:'Courier New',monospace;font-weight:700;color:#1d4ed8;">${d.subobra}</td>
+      <td style="padding:3px 5px;">${d.statusBadge}</td>
+      <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;color:#166534;">${d.pesoB>0?d.pesoB.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—'}</td>
+      <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;color:#1d4ed8;">${d.pesoD>0?d.pesoD.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—'}</td>
+      <td style="padding:3px 5px;text-align:right;">${pmLabel}</td>
+      <td style="padding:3px 5px;background:#f1f5f9;border-radius:3px;font-size:8px;font-weight:600;color:#475569;white-space:nowrap;">${d.label}</td>
+      <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;font-weight:700;color:#166534;">${d.val>0?'R$ '+d.val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+    </tr>`;
   }).join('');
-  el.style.display='block';
+
+  const diffBD = totalPesoD - totalPesoB;
+  const diffMB = totalPesoRef - totalPesoB;
+  const diffStyle = v => v > 0 ? 'color:#c2410c;font-weight:700;' : v < 0 ? 'color:#166534;font-weight:700;' : 'color:#94a3b8;';
+  const fmtDiff = v => (v >= 0 ? '+' : '') + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' kg';
+
+  el.style.display = 'block';
   el.innerHTML = `
     <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#0e7490;margin-bottom:.3rem;letter-spacing:.05em;">📋 Resumo das TAGs selecionadas</div>
-    ${linhas}
-    ${total>0?`<div style="display:flex;justify-content:space-between;padding-top:.35rem;margin-top:.2rem;border-top:2px solid #0e7490;">
-      <span style="font-size:10px;font-weight:700;color:#0e7490;">TOTAL DAS TAGS</span>
-      <span style="font-family:'Courier New',monospace;font-size:12px;font-weight:800;color:#166534;">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-    </div>`:''}`;
-  // Atualiza preview do valor total no modal
+    ${tagData.length ? `
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:9px;">
+      <thead>
+        <tr style="background:#e0f2fe;font-size:8px;text-transform:uppercase;letter-spacing:.03em;">
+          <th style="padding:3px 5px;text-align:left;color:#0e7490;">TAG</th>
+          <th style="padding:3px 5px;text-align:left;color:#475569;">Status</th>
+          <th style="padding:3px 5px;text-align:right;color:#166534;">⚖ Peso Básico</th>
+          <th style="padding:3px 5px;text-align:right;color:#1d4ed8;">📐 Peso Detalhado</th>
+          <th style="padding:3px 5px;text-align:right;color:#b45309;">📏 Peso na Medição</th>
+          <th style="padding:3px 5px;text-align:left;color:#475569;">Etapas</th>
+          <th style="padding:3px 5px;text-align:right;color:#166534;">Valor</th>
+        </tr>
+      </thead>
+      <tbody>${linhas}</tbody>
+      <tfoot>
+        <tr style="background:#0e7490;font-weight:700;font-size:9px;">
+          <td style="padding:4px 5px;color:#fff;font-size:9px;">TOTAL (${tagData.length} TAGs)</td>
+          <td style="padding:4px 5px;color:#94a3b8;font-size:8px;">—</td>
+          <td style="padding:4px 5px;text-align:right;font-family:'Courier New',monospace;color:#a7f3d0;">${totalPesoB>0?totalPesoB.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
+          <td style="padding:4px 5px;text-align:right;font-family:'Courier New',monospace;color:#bfdbfe;">${totalPesoD>0?totalPesoD.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
+          <td style="padding:4px 5px;text-align:right;font-family:'Courier New',monospace;color:#fde68a;">${totalPesoRef>0?totalPesoRef.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
+          <td style="padding:4px 5px;color:#e0f2fe;font-size:8px;">
+            ${totalPesoD>0&&totalPesoB>0?`<span style="${diffStyle(diffBD)}">Det−Bás: ${fmtDiff(diffBD)}</span>`:''} 
+            ${totalPesoRef>0&&totalPesoB>0?`<span style="${diffStyle(diffMB)};margin-left:6px;">Med−Bás: ${fmtDiff(diffMB)}</span>`:''}
+          </td>
+          <td style="padding:4px 5px;text-align:right;font-family:'Courier New',monospace;color:#a7f3d0;font-size:11px;">${totalVal>0?'R$ '+totalVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+    ` : '<div style="font-size:9px;color:#94a3b8;font-style:italic;">Nenhuma etapa marcada ainda.</div>'}
+  `;
   if(typeof recalcularMedicao==='function') recalcularMedicao();
 }
 
 function getMedTagsIds(){
-  // Salva como JSON: [{id, etapa, pct}, ...]
-  const arr = [..._medTagsMap.entries()].map(([id,{etapa,pct}])=>({id,etapa,pct}));
+  // Salva como JSON: [{id, etapas:[], pct, peso_med?}, ...]
+  const arr = [..._medTagsMap.entries()].map(([id,entry])=>({
+    id,
+    etapas: [...(entry.etapas||new Set())],
+    pct: _medPct(entry),
+    ...(entry.peso_med ? {peso_med: entry.peso_med} : {})
+  }));
   return arr.length ? JSON.stringify(arr) : '';
 }
 
@@ -8012,19 +8412,105 @@ function carregarMedTagsSalvas(raw){
   _medTagsMap = new Map();
   if(!raw) return;
   try{
-    // Tenta novo formato JSON
     const arr = JSON.parse(raw);
-    if(Array.isArray(arr)) arr.forEach(({id,etapa,pct})=>_medTagsMap.set(String(id),{etapa:etapa||'modelo',pct:pct||40}));
+    if(Array.isArray(arr)) arr.forEach(item=>{
+      const id = String(item.id||item);
+      // Novo formato: etapas é array
+      if(item.etapas && Array.isArray(item.etapas)){
+        const etapas = new Set(item.etapas);
+        _medTagsMap.set(id, {etapas, pct:_medPct({etapas}), peso_med:item.peso_med||null});
+      } else {
+        // Formato legado: etapa era string única
+        const etapaStr = item.etapa||'modelo';
+        // 'todos' vira as 3 etapas
+        const etapas = etapaStr==='todos'
+          ? new Set(['modelo','pacote','diagrama'])
+          : new Set([etapaStr]);
+        _medTagsMap.set(id, {etapas, pct:_medPct({etapas}), peso_med:item.peso_med||null});
+      }
+    });
   } catch(e){
-    // Compatibilidade: formato antigo era IDs separados por vírgula
-    raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(id=>_medTagsMap.set(id,{etapa:'modelo',pct:40}));
+    raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(id=>
+      _medTagsMap.set(id, {etapas:new Set(), pct:0, peso_med:null})
+    );
   }
+}
+
+// ── ANEXOS DA MEDIÇÃO ─────────────────────────────────────────────
+var _medAnexos = []; // [{name, size, type, url(base64)}]
+
+function medAdicionarAnexo(input){
+  const MAX_MB = 5;
+  Array.from(input.files).forEach(file=>{
+    if(file.size > MAX_MB*1024*1024){
+      showToast('Arquivo muito grande', file.name+' excede '+MAX_MB+'MB.', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e=>{
+      _medAnexos.push({name:file.name, size:file.size, type:file.type, url:e.target.result});
+      _medRenderAnexos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function _medRenderAnexos(){
+  const lista  = document.getElementById('med-anexos-lista');
+  const count  = document.getElementById('med-anexos-count');
+  if(!lista) return;
+  if(!_medAnexos.length){
+    lista.innerHTML = '<span style="font-size:10px;color:var(--ink3);font-style:italic;padding:2px 0;">Nenhum documento anexado.</span>';
+    if(count) count.textContent = '0 arquivos';
+    return;
+  }
+  if(count) count.textContent = _medAnexos.length + ' arquivo' + (_medAnexos.length!==1?'s':'');
+  lista.innerHTML = _medAnexos.map(function(a,i){
+    var icon = a.type.includes('pdf') ? '📄' : a.type.includes('image') ? '🖼' : (a.name.match(/\.dwg|\.dxf/i) ? '📐' : (a.name.match(/\.xl/i) ? '📊' : (a.name.match(/\.doc/i) ? '📝' : '📎')));
+    var kb = a.size > 1024*1024 ? (a.size/1024/1024).toFixed(1)+'MB' : Math.round(a.size/1024)+'KB';
+    return '<div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #e2e8f0;border-radius:5px;padding:3px 8px;font-size:10px;max-width:220px;">'+
+      '<span style="flex-shrink:0;">'+icon+'</span>'+
+      '<a href="'+a.url+'" download="'+a.name+'" style="color:#1d4ed8;text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;" title="'+a.name+'">'+a.name+'</a>'+
+      '<span style="color:#94a3b8;font-size:8px;flex-shrink:0;">'+kb+'</span>'+
+      '<button onclick="_medRemoverAnexo('+i+')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:12px;padding:0;flex-shrink:0;line-height:1;" title="Remover">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function _medRemoverAnexo(idx){
+  _medAnexos.splice(idx, 1);
+  _medRenderAnexos();
+}
+
+function _medAnexosToJson(){
+  if(!_medAnexos.length) return null;
+  // Salva metadados + base64 como JSON
+  return JSON.stringify(_medAnexos.map(a=>({name:a.name, size:a.size, type:a.type, url:a.url})));
+}
+
+function _medCarregarAnexos(raw){
+  _medAnexos = [];
+  if(!raw) return;
+  try{
+    const arr = JSON.parse(raw);
+    if(Array.isArray(arr)) _medAnexos = arr;
+  } catch(e){}
+  _medRenderAnexos();
 }
 
 function abrirModalMedicao(id){
   editingMedicaoId = id;
   _anexosMed = {1:[],2:[],3:[]};
   [1,2,3].forEach(n=>renderAnexosMed(n));
+  _medAnexos = [];
+  _medRenderAnexos();
+  _medAnexos = [];
+  _medRenderAnexos();
+  // Reset filtro "só selecionadas"
+  _medApenasSelected = false;
+  const btnSel = document.getElementById('btn-apenas-selecionadas');
+  if(btnSel){ btnSel.style.background='rgba(255,200,0,.18)'; btnSel.style.color='#fde68a'; }
 
   // Popular selects de equipe e obra com dados reais
   const eqSel = document.getElementById('med-equipe');
@@ -8062,6 +8548,7 @@ function abrirModalMedicao(id){
     sv('med-obs-contrato', m.obs_contrato);
     sv('med-status-contrato', m.status_contrato||'ATIVO');
     carregarMedTagsSalvas(m.subobras_ids||'');
+    _medCarregarAnexos(m.anexos_med||'');
     setTimeout(()=>{ renderMedTags(); recalcularMedicao(); }, 50);
   } else {
     document.getElementById('med-modal-title').textContent = 'Nova Medição';
@@ -8108,6 +8595,7 @@ async function salvarMedicao(){
     obs_contrato:    gv('med-obs-contrato'),
     status_contrato: gv('med-status-contrato')||'ATIVO',
     subobras_ids:    getMedTagsIds() || null,
+    anexos_med:      _medAnexosToJson() || null,
     atualizado_em:   new Date().toISOString()
   };
 
@@ -8146,9 +8634,13 @@ CREATE TABLE IF NOT EXISTS medicao_terceiros (
   nf text,
   obs_contrato text,
   status_contrato text DEFAULT 'ATIVO',
+  anexos_med text,
   criado_em timestamptz DEFAULT now(),
   atualizado_em timestamptz DEFAULT now()
-);`);
+);
+
+-- Se a tabela já existe, adicione a coluna:
+ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS anexos_med text;`);
     }
   }finally{
     btn.disabled=false; btn.textContent='💾 Salvar Medição';
@@ -10268,5 +10760,7 @@ function exportarLibFabCSV(){
   if(typeof showToast==='function') showToast('✓ CSV Exportado',para.length+' sub-obras','success');
 }
 </script>
+
+
 </body>
 </html>
