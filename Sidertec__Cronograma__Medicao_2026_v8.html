@@ -1935,15 +1935,7 @@ ALTER TABLE medicao_terceiros
                 <span style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;">Selecionar Status</span>
                 <span onclick="rcronStatusLimpar()" style="font-size:9px;color:var(--accent);cursor:pointer;font-weight:600;">Limpar</span>
               </div>
-              <label class="ms-item"><input type="checkbox" value="AG. PROJ. BÁSICO"       onchange="onRcronStatusChange(this)"> AG. Proj. Básico</label>
-              <label class="ms-item"><input type="checkbox" value="AG. MODELO PARA APROV." onchange="onRcronStatusChange(this)"> AG. Modelo p/ Aprov.</label>
-              <label class="ms-item"><input type="checkbox" value="MODELO EM APROV."       onchange="onRcronStatusChange(this)"> Modelo em Aprov.</label>
-              <label class="ms-item"><input type="checkbox" value="EMISSÃO PCTE FAB."      onchange="onRcronStatusChange(this)"> Emissão Pcte Fab.</label>
-              <label class="ms-item"><input type="checkbox" value="INSP. INTERNA"          onchange="onRcronStatusChange(this)"> Inspeção Interna</label>
-              <label class="ms-item"><input type="checkbox" value="LIB. FABRICAÇÃO"        onchange="onRcronStatusChange(this)"> 🔩 Lib. Fabricação</label>
-              <label class="ms-item"><input type="checkbox" value="EM COTAÇÃO ENG."        onchange="onRcronStatusChange(this)"> Em Cotação Eng.</label>
-              <label class="ms-item"><input type="checkbox" value="AG. DOCUMENTOS"         onchange="onRcronStatusChange(this)"> Ag. Documentos</label>
-              <label class="ms-item"><input type="checkbox" value="HOLD"                   onchange="onRcronStatusChange(this)"> ⏸ Hold</label>
+              <div id="rcron-status-list" style="max-height:220px;overflow-y:auto;"></div>
             </div>
           </div>
           <select id="rcron-status" style="display:none;"><option value="">Todos</option></select>
@@ -1959,7 +1951,8 @@ ALTER TABLE medicao_terceiros
         <div class="field-group" style="grid-column:1/-1;">
           <label class="field-label">📄 Etapa 11 — Diagramas de Montagem</label>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;padding:.4rem 0;">
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rcron-doc11" value="" checked> Todas</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rcron-doc11" value="nao_incluir" checked> 🚫 Não incluir</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rcron-doc11" value=""> 📋 Todas</label>
             <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rcron-doc11" value="concluido"> ✅ Concluídas</label>
             <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rcron-doc11" value="pendente"> ⏳ Pendentes (no prazo)</label>
             <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rcron-doc11" value="atrasado"> 🔴 Em Atraso</label>
@@ -7066,6 +7059,23 @@ function abrirRelatorioCron(){
   const reSel = document.getElementById('rcron-eng');
   if(roSel) roSel.innerHTML = '<option value="">Todas</option>'+obras.map(o=>`<option>${o}</option>`).join('');
   if(reSel) reSel.innerHTML = '<option value="">Todas</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
+
+  // Populate status list dynamically from allCronSubobras (includes custom statuses)
+  const statusList = document.getElementById('rcron-status-list');
+  if(statusList){
+    const todosStatus = [...new Set(allCronSubobras.map(s=>s.status).filter(Boolean))].sort();
+    const cfg = (typeof STATUS_CFG_CRON !== 'undefined') ? STATUS_CFG_CRON : {};
+    statusList.innerHTML = todosStatus.map(function(st){
+      const c = cfg[st] || {icon:'•', color:'#475569'};
+      const checked = _rcronStatusSelecionados.includes(st) ? ' checked' : '';
+      return '<label class="ms-item" style="display:flex;align-items:center;gap:.4rem;">'
+        + '<input type="checkbox" value="'+st+'" onchange="onRcronStatusChange(this)"'+checked+'>'
+        + '<span style="color:'+c.color+';font-size:9px;font-weight:700;">'+c.icon+'</span>'
+        + ' <span style="font-size:11px;">'+st+'</span>'
+        + '</label>';
+    }).join('');
+  }
+
   document.getElementById('modal-rel-cron').classList.add('show');
 }
 function fecharRelatorioCron(e){
@@ -7240,7 +7250,8 @@ function gerarRelatorioCron(){
   const prevF  = document.getElementById('rcron-prev-de').value;
   const prevAF = document.getElementById('rcron-prev-ate').value;
   const doc11Checked = document.querySelector('input[name="rcron-doc11"]:checked');
-  const doc11F = doc11Checked ? doc11Checked.value : '';
+  const doc11Raw = doc11Checked ? doc11Checked.value : 'nao_incluir';
+  const doc11F = doc11Raw === 'nao_incluir' ? null : doc11Raw;
   const hoje   = new Date().toLocaleDateString('pt-BR');
 
   let subs = allCronSubobras.filter(s=>{
