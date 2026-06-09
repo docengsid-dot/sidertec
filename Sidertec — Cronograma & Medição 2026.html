@@ -869,6 +869,44 @@ canvas{overflow:visible!important;}
   margin: 0;
 }
 
+/* ══ DATE HISTORY POPOVER ══════════════════════════════════════════ */
+.dt-hist-wrap { position:relative; display:inline-flex; align-items:center; width:100%; gap:3px; }
+.dt-hist-wrap input[type=date] { flex:1; min-width:0; }
+.dt-hist-btn {
+  background:none; border:none; cursor:pointer; font-size:13px; padding:0 2px;
+  color:#94a3b8; transition:color .15s; flex-shrink:0; line-height:1;
+}
+.dt-hist-btn:hover { color:#7c3aed; }
+.dt-hist-btn.has-hist { color:#7c3aed; }
+.dt-hist-popover {
+  display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:9999;
+  background:#fff; border:1px solid #e2e8f0; border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.14); min-width:260px; max-width:320px;
+  font-family:var(--font-main);
+}
+.dt-hist-popover.open { display:block; }
+.dt-hist-pop-hd {
+  background:linear-gradient(135deg,#3b0764,#7c3aed);
+  border-radius:8px 8px 0 0; padding:.4rem .7rem;
+  font-size:10px; font-weight:700; color:#fff; letter-spacing:.05em;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.dt-hist-pop-body { padding:.5rem .65rem; max-height:220px; overflow-y:auto; }
+.dt-hist-empty { font-size:10px; color:#94a3b8; font-style:italic; padding:.25rem 0; }
+.dt-hist-row {
+  display:grid; grid-template-columns:16px 1fr auto; align-items:start; gap:.4rem;
+  padding:.3rem .4rem; border-radius:5px; margin-bottom:3px;
+  background:#faf5ff; border:1px solid #ede9fe; font-size:10px;
+}
+.dt-h-idx {
+  background:#7c3aed; color:#fff; border-radius:50%;
+  width:16px; height:16px; display:flex; align-items:center; justify-content:center;
+  font-size:8px; font-weight:700; flex-shrink:0; margin-top:1px;
+}
+.dt-h-info { display:flex; flex-direction:column; gap:1px; }
+.dt-h-de { color:#94a3b8; font-size:9px; text-decoration:line-through; }
+.dt-h-para { color:#3b0764; font-weight:700; font-size:11px; }
+.dt-h-ts { color:#cbd5e1; font-size:8px; }
 </style>
 <!-- offline -->
 <script>
@@ -1774,9 +1812,21 @@ ALTER TABLE medicao_terceiros
         </div>
         <div style="background:linear-gradient(135deg,#C4501A 0%,#E8763A 100%);border-radius:var(--r);padding:.6rem 1rem;min-width:240px;">
           <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.7);margin-bottom:.3rem;">🏭 Data Limite — Liberação p/ Fábrica</div>
-          <input type="date" class="field-input" id="cm-data-limite-fab"
-            style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:13px;font-weight:700;width:100%;"
-            oninput="atualizarDiasLimiteFab()">
+          <div class="dt-hist-wrap" id="cm-data-limite-fab-wrap">
+            <input type="date" class="field-input" id="cm-data-limite-fab"
+              style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:13px;font-weight:700;width:100%;"
+              oninput="_dhRegisterLimFab(this.value);atualizarDiasLimiteFab()">
+            <button type="button" class="dt-hist-btn" id="btn-hist-lim-fab"
+              title="Histórico de reprogramações"
+              onclick="dtHistToggle(this,'__lim_fab__','prev','Limite Fab.')">🕓</button>
+            <div class="dt-hist-popover">
+              <div class="dt-hist-pop-hd"><span>🕓 Histórico</span>
+                <button type="button" onclick="this.closest('.dt-hist-popover').classList.remove('open')"
+                  style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;padding:0;">✕</button>
+              </div>
+              <div class="dt-hist-pop-body"></div>
+            </div>
+          </div>
           <div id="cm-dias-limite-fab" style="font-size:16px;color:rgba(255,255,255,.8);margin-top:.25rem;font-weight:600;"></div>
         </div>
       </div>
@@ -3335,6 +3385,147 @@ const ETAPAS_CONFIG = [
 // Estado em memória
 let _etapasState = {};
 
+// ══ HISTÓRICO DE DATAS ════════════════════════════════════════════════
+// _dtHist[subobra_id][campo_key] = [{de, para, ts}]
+let _dtHist = {};
+let _dtHistSubobraId = null; // ID da subobra sendo editada
+
+function _dhKey(key, campo){ return key+'__'+campo; }
+
+function _dhLoad(subobraId){
+  _dtHistSubobraId = subobraId || ('__new__'+Date.now());
+  try{
+    var saved = JSON.parse(localStorage.getItem('dtHist_'+_dtHistSubobraId)||'{}');
+    _dtHist = saved;
+  } catch(e){ _dtHist = {}; }
+}
+
+function _dhSave(){
+  if(!_dtHistSubobraId) return;
+  try{ localStorage.setItem('dtHist_'+_dtHistSubobraId, JSON.stringify(_dtHist)); } catch(e){}
+}
+
+function _dhRegister(key, campo, valorAntigo, valorNovo){
+  if(!valorAntigo || valorAntigo === valorNovo) return; // sem mudança ou sem valor anterior
+  var k = _dhKey(key, campo);
+  if(!_dtHist[k]) _dtHist[k] = [];
+  _dtHist[k].push({ de: valorAntigo, para: valorNovo, ts: new Date().toISOString() });
+  _dhSave();
+}
+
+function _dhGet(key, campo){
+  return _dtHist[_dhKey(key, campo)] || [];
+}
+
+function _dhFmtDate(iso){
+  if(!iso) return '—';
+  try{
+    var p = iso.split('-');
+    return p[2]+'/'+p[1]+'/'+p[0];
+  } catch(e){ return iso; }
+}
+
+function _dhFmtTs(iso){
+  if(!iso) return '';
+  try{
+    var d = new Date(iso);
+    return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  } catch(e){ return iso; }
+}
+
+// Abre/fecha popover de histórico de uma data
+function dtHistToggle(btnEl, key, campo, labelEtapa){
+  // Fecha todos os outros abertos
+  document.querySelectorAll('.dt-hist-popover.open').forEach(function(p){
+    if(!btnEl.parentElement.contains(p)) p.classList.remove('open');
+  });
+  var pop = btnEl.parentElement.querySelector('.dt-hist-popover');
+  if(!pop) return;
+  if(pop.classList.contains('open')){ pop.classList.remove('open'); return; }
+
+  var hist = _dhGet(key, campo);
+  var campoLabel = campo==='prev' ? 'Previsto' : 'Realizado';
+  pop.querySelector('.dt-hist-pop-hd span').textContent =
+    '🕓 Histórico — '+labelEtapa+' ('+campoLabel+')';
+
+  var body = pop.querySelector('.dt-hist-pop-body');
+  if(!hist.length){
+    body.innerHTML = '<div class="dt-hist-empty">Nenhuma reprogramação registrada.</div>';
+  } else {
+    body.innerHTML = hist.slice().reverse().map(function(h,i){
+      return '<div class="dt-hist-row">'
+        +'<div class="dt-h-idx">'+(hist.length-i)+'</div>'
+        +'<div class="dt-h-info">'
+          +'<span class="dt-h-de">'+_dhFmtDate(h.de)+'</span>'
+          +'<span style="font-size:9px;color:#94a3b8;">↓ alterado para</span>'
+          +'<span class="dt-h-para">'+_dhFmtDate(h.para)+'</span>'
+        +'</div>'
+        +'<div class="dt-h-ts">'+_dhFmtTs(h.ts)+'</div>'
+        +'</div>';
+    }).join('');
+  }
+  pop.classList.add('open');
+}
+
+// Fecha popover ao clicar fora
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.dt-hist-wrap')){
+    document.querySelectorAll('.dt-hist-popover.open').forEach(function(p){ p.classList.remove('open'); });
+  }
+});
+
+// Registra alteração na data limite de fábrica
+function _dhRegisterLimFab(novoValor){
+  var el = document.getElementById('cm-data-limite-fab');
+  var anterior = el ? el._prevHistValue : null;
+  if(anterior && anterior !== novoValor){
+    _dhRegister('__lim_fab__','prev', anterior, novoValor);
+    _updateHistBtn(document.getElementById('btn-hist-lim-fab'), '__lim_fab__', 'prev');
+  }
+  if(el) el._prevHistValue = novoValor;
+}
+
+// Atualiza aparência do botão 🕓 (roxo = tem histórico)
+function _updateHistBtn(btn, key, campo){
+  if(!btn) return;
+  var hist = _dhGet(key, campo);
+  if(hist.length){ btn.classList.add('has-hist'); btn.title = hist.length+' reprogramação(ões)'; }
+  else { btn.classList.remove('has-hist'); btn.title = 'Sem reprogramações'; }
+}
+
+// Atualiza todos os botões após renderEtapasDinamicas
+function _updateAllHistBtns(){
+  // Botões dentro do etapas-dinamicas-container (gerados via innerHTML, precisamos re-bind)
+  document.querySelectorAll('#etapas-dinamicas-container .dt-hist-btn').forEach(function(btn){
+    var m = (btn.getAttribute('onclick')||'').match(/dtHistToggle\(this,'([^']+)','([^']+)'/);
+    if(m) _updateHistBtn(btn, m[1], m[2]);
+  });
+  // Botão limite fab
+  var bf = document.getElementById('btn-hist-lim-fab');
+  if(bf) _updateHistBtn(bf,'__lim_fab__','prev');
+}
+
+// Gera o HTML do wrapper com botão 🕓 e popover para um input date
+function _dtHistWrap(inputHtml, key, campo, labelEtapa){
+  var hist = _dhGet(key, campo);
+  var btnClass = 'dt-hist-btn'+(hist.length ? ' has-hist' : '');
+  var btnTitle = hist.length ? hist.length+' reprogramação(ões)' : 'Sem reprogramações';
+  return '<div class="dt-hist-wrap">'
+    + inputHtml
+    + '<button type="button" class="'+btnClass+'" title="'+btnTitle+'" '
+    +   'onclick="dtHistToggle(this,\''+key+'\',\''+campo+'\',\''+labelEtapa.replace(/'/g,"\\'")+'\')">'
+    +   '🕓</button>'
+    + '<div class="dt-hist-popover">'
+    +   '<div class="dt-hist-pop-hd"><span>🕓 Histórico</span>'
+    +     '<button type="button" onclick="this.closest(\'.dt-hist-popover\').classList.remove(\'open\')" '
+    +       'style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;padding:0;">✕</button>'
+    +   '</div>'
+    +   '<div class="dt-hist-pop-body"></div>'
+    + '</div>'
+    + '</div>';
+}
+
+
 function _todasEtapas(){
   var lista=[];
   ETAPAS_CONFIG.forEach(function(e){ lista.push(e); (e.sub||[]).forEach(function(s){lista.push(s);}); });
@@ -3482,10 +3673,12 @@ function renderEtapasDinamicas(){
     rows += '<td style="width:28px;text-align:center;"><span class="etapa-num">'+rowIdx+'</span></td>';
     rows += '<td><span class="etapa-name">'+etapa.num+' '+etapa.label+'</span>'+anexosPill+'</td>';
     rows += '<td class="num" style="width:110px;">';
-    rows += '<input type="date" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)">';
+    var _prevInput = '<input type="date" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)">';
+    rows += _dtHistWrap(_prevInput, etapa.key, 'prev', etapa.label);
     rows += '</td>';
     rows += '<td class="num" style="width:110px;">';
-    rows += '<input type="date" style="border:1px solid '+(conc?'#86efac':'#d1d5db')+';border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.real||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'real\',this.value)">';
+    var _realInput = '<input type="date" style="border:1px solid '+(conc?'#86efac':'#d1d5db')+';border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.real||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'real\',this.value)">';
+    rows += _dtHistWrap(_realInput, etapa.key, 'real', etapa.label);
     rows += '</td>';
     rows += '<td style="width:90px;text-align:center;">'+_diasBadgeInline(st.prev,st.real)+'</td>';
     rows += '<td style="width:120px;">'+pillHtml+'</td>';
@@ -3528,8 +3721,10 @@ function renderEtapasDinamicas(){
         rows += '<tr class="'+sTrClass+'" id="etapa-row-'+sub.key+'" style="background:'+(sConc?'#f0fdf4':sLate?'#fff7f0':'#fafafe')+';">';
         rows += '<td style="text-align:center;"><span style="color:#94a3b8;font-size:10px;">↳</span></td>';
         rows += '<td style="padding-left:1.5rem;"><span style="font-size:11px;color:'+(sub.opcional?'#64748b':'var(--ink2)')+';font-style:'+(sub.opcional?'italic':'normal')+';">'+sub.label+extraInline+'</span></td>';
-        rows += '<td class="num"><input type="date" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)"></td>';
-        rows += '<td class="num"><input type="date" style="border:1px solid '+(sConc?'#86efac':'#e5e7eb')+';border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.real||'')+'" onchange="etapaSet(\''+sub.key+'\',\'real\',this.value)"></td>';
+        var _sPrevInput = '<input type="date" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)">';
+        rows += '<td class="num">' + _dtHistWrap(_sPrevInput, sub.key, 'prev', sub.label) + '</td>';
+        var _sRealInput = '<input type="date" style="border:1px solid '+(sConc?'#86efac':'#e5e7eb')+';border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.real||'')+'" onchange="etapaSet(\''+sub.key+'\',\'real\',this.value)">';
+        rows += '<td class="num">' + _dtHistWrap(_sRealInput, sub.key, 'real', sub.label) + '</td>';
         rows += '<td style="text-align:center;">'+_diasBadgeInline(sst.prev,sst.real)+'</td>';
         rows += '<td style="text-align:center;">'+sPillHtml+'</td>';
         rows += '<td><input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:10px;width:100%;background:'+(sConc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+((sst.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></td>';
@@ -3669,10 +3864,20 @@ function renderEtapasDinamicas(){
 
   diasSummary.innerHTML = sh + rows;
   cont.appendChild(diasSummary);
+
+  // Atualiza botões 🕓 com estado do histórico
+  setTimeout(_updateAllHistBtns, 0);
 }
 
 function etapaSet(key,campo,valor){
   if(!_etapasState[key]) _etapasState[key]={};
+
+  // Registrar histórico quando campo for data (prev ou real)
+  if((campo==='prev' || campo==='real') && valor){
+    var anterior = _etapasState[key][campo] || null;
+    _dhRegister(key, campo, anterior, valor);
+  }
+
   _etapasState[key][campo] = valor;
   if(key==="lib_fab" && campo==="prev") atualizarDiasLimiteFab();
 
@@ -5275,6 +5480,8 @@ async function abrirAndamentoNaEtapaById(subobraId, etapaKey){
 // ── MODAL ABRIR/FECHAR ────────────────────────────────────────────────
 async function abrirCronModal(id){
   editingCronId = id;
+  // Carregar histórico de datas para esta subobra
+  _dhLoad(id || null);
   // Garante que allCronSubobras está sincronizado com localStorage antes de abrir o modal
   if(id){
     var _lsRows = _lsGet('cronograma_subobras');
@@ -5353,6 +5560,9 @@ async function abrirCronModal(id){
     sv('cm-peso-detalhado',s.peso_detalhado);
     sv('cm-peso-pcp',s.peso_pcp);
     sv('cm-data-limite-fab',s.data_limite_fab);
+    // Guardar valor atual como referência para histórico
+    var _elfab = document.getElementById('cm-data-limite-fab');
+    if(_elfab) _elfab._prevHistValue = s.data_limite_fab || '';
     atualizarDiasLimiteFab();
     sv('cm-prev-basico',s.prev_basico); sv('cm-real-basico',s.real_basico); sv('cm-obs-basico',s.obs_basico);
     sv('cm-prev-envio-detail',s.prev_envio_detail); sv('cm-real-envio-detail',s.real_envio_detail); sv('cm-obs-envio-detail',s.obs_envio_detail);
@@ -5403,6 +5613,8 @@ async function abrirCronModal(id){
   }
 
   modal.classList.add('show');
+  // Atualizar botões 🕓 após modal abrir completamente
+  setTimeout(_updateAllHistBtns, 120);
   // Recalculate dias after loading values
   setTimeout(calcTodosOsDias, 50);
 }
