@@ -964,6 +964,8 @@ canvas{overflow:visible!important;}
   <div class="tab" onclick="showPage('medicao',this);renderMedicao();" style="color:#0e7490;font-weight:600;">📐 Medição</div>
   <div class="tab" onclick="showPage('revisoes',this);renderRevisoes();" style="color:#7c3aed;font-weight:600;">🔄 Revisões</div>
   <div class="tab" onclick="showPage('libfab',this);renderLibFab();" style="color:#166534;font-weight:600;">🏭 Lib. Fabricação</div>
+  <div class="tab" onclick="showPage('dcts',this);renderDCTS();" style="color:#b45309;font-weight:600;">📁 DCTS</div>
+  <div class="tab" onclick="showPage('diario',this);renderDiario();" style="color:#be185d;font-weight:600;">📅 Diário</div>
 </div>
 
 <!-- DASHBOARD -->
@@ -12789,6 +12791,1109 @@ async function excluirMedicao(id){
 
 // Carregar medições junto com o cronograma no init
 
+</script>
+
+<!-- ═══════════════ PÁGINA DCTS ═══════════════ -->
+<div class="page" id="page-dcts">
+  <div style="background:linear-gradient(135deg,#78350f 0%,#b45309 100%);border-radius:var(--r);padding:1.25rem 2rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1.25rem;">
+    <div style="width:44px;height:44px;background:rgba(255,255,255,.15);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📁</div>
+    <div style="flex:1;">
+      <h2 style="font-family:'Georgia',serif,serif;font-size:19px;color:#fff;margin-bottom:.2rem;">DCTS — Documentação Técnica por Sub-obra</h2>
+      <p style="font-size:13px;color:rgba(255,255,255,.55);">Controle de documentação por Obra · Projeto · Sub-obra</p>
+    </div>
+    <button class="hbtn" onclick="abrirModalDCTS(null)" style="background:#b45309;border-color:#b45309;font-size:13px;padding:6px 16px;">+ Novo Registro</button>
+    <button class="hbtn" onclick="exportarDCTSCSV()" style="font-size:13px;padding:6px 14px;">⬇ CSV</button>
+    <button class="hbtn" onclick="gerarRelatorioDCTS()" style="background:#7c3aed;border-color:#7c3aed;font-size:13px;padding:6px 14px;">📊 Relatório</button>
+  </div>
+
+  <!-- Filtros DCTS -->
+  <div class="filters" style="margin-bottom:.85rem;gap:.5rem;">
+    <label style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;">Obra:</label>
+    <select id="dcts-f-obra" onchange="renderDCTS()" style="font-size:11px;padding:3px 6px;"><option value="">Todas</option></select>
+    <div class="fsep"></div>
+    <label style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;">Sub-obra / TAG:</label>
+    <input type="text" id="dcts-f-tag" placeholder="Ex: SS053" style="width:120px;font-size:11px;padding:3px 6px;" oninput="renderDCTS()">
+    <div class="fsep"></div>
+    <label style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;">Equipe:</label>
+    <select id="dcts-f-equipe" onchange="renderDCTS()" style="font-size:11px;padding:3px 6px;"><option value="">Todas</option></select>
+    <div class="fsep"></div>
+    <label style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;">Status Doc:</label>
+    <select id="dcts-f-status" onchange="renderDCTS()" style="font-size:11px;padding:3px 6px;">
+      <option value="">Todos</option>
+      <option value="ok">✅ Completo</option>
+      <option value="parcial">⚠️ Parcial</option>
+      <option value="pendente">❌ Pendente</option>
+    </select>
+    <button class="btn" onclick="limparFiltrosDCTS()" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">✕ Limpar</button>
+  </div>
+
+  <!-- KPIs DCTS -->
+  <div id="dcts-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:1rem;"></div>
+
+  <!-- Tabela DCTS -->
+  <div id="dcts-lista"></div>
+</div>
+
+<!-- ═══════════════ PÁGINA DIÁRIO ═══════════════ -->
+<div class="page" id="page-diario">
+  <div style="background:linear-gradient(135deg,#831843 0%,#be185d 100%);border-radius:var(--r);padding:1.25rem 2rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1.25rem;">
+    <div style="width:44px;height:44px;background:rgba(255,255,255,.15);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📅</div>
+    <div style="flex:1;">
+      <h2 style="font-family:'Georgia',serif,serif;font-size:19px;color:#fff;margin-bottom:.2rem;">Diário de Obras</h2>
+      <p style="font-size:13px;color:rgba(255,255,255,.55);">Tudo que está programado para hoje baseado no Cronograma</p>
+    </div>
+    <div style="text-align:right;">
+      <div id="diario-data-label" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fce7f3;"></div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);">Data de referência</div>
+    </div>
+  </div>
+
+  <!-- Seleção de data -->
+  <div style="display:flex;align-items:center;gap:.75rem;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.6rem 1rem;margin-bottom:1rem;">
+    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">📅 Data:</span>
+    <input type="date" id="diario-data-input" style="font-size:13px;padding:4px 8px;" onchange="renderDiario()">
+    <button onclick="diarioHoje()" style="background:#be185d;color:#fff;border:none;border-radius:var(--r2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">Hoje</button>
+    <button onclick="diarioOntem()" style="background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);border-radius:var(--r2);padding:5px 12px;font-size:11px;cursor:pointer;font-family:var(--font-main);">‹ Ontem</button>
+    <button onclick="diarioAmanha()" style="background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);border-radius:var(--r2);padding:5px 12px;font-size:11px;cursor:pointer;font-family:var(--font-main);">Amanhã ›</button>
+    <div style="margin-left:auto;font-size:11px;color:var(--ink3);" id="diario-resumo-label"></div>
+    <button onclick="gerarRelatorioDiario()" style="background:#7c3aed;color:#fff;border:none;border-radius:var(--r2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">📊 Relatório</button>
+  </div>
+
+  <!-- KPIs do dia -->
+  <div id="diario-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:1rem;"></div>
+
+  <!-- Blocos de entregas do dia -->
+  <div id="diario-conteudo"></div>
+</div>
+
+<!-- ═══════════════ MODAL DCTS ═══════════════ -->
+<div class="cron-modal-overlay" id="modal-dcts" onclick="fecharModalDCTS(event)">
+  <div class="cron-modal-box" style="width:820px;" onclick="event.stopPropagation()">
+    <div class="cron-mhd" style="background:linear-gradient(90deg,#78350f,#b45309);">
+      <div class="cron-mhd-title" id="dcts-modal-title">📁 Nova Documentação</div>
+      <button onclick="fecharModalDCTS()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;margin-left:auto;">✕</button>
+    </div>
+    <div class="cron-mbody" style="max-height:82vh;overflow-y:auto;">
+
+      <!-- Linha 1: Obra + Sub-obra + Projeto -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem;">
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Obra *</label>
+          <select id="dcts-obra" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+            <option value="">Selecione…</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Sub-obra / TAG *</label>
+          <input type="text" id="dcts-subobra" placeholder="Ex: SS053-A" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Nº Projeto</label>
+          <input type="text" id="dcts-num-projeto" placeholder="Ex: P2026-053" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+        </div>
+      </div>
+
+      <!-- Linha 2: Equipe + Template + Método aprovação -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem;">
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Equipe Responsável</label>
+          <select id="dcts-equipe" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+            <option value="">Selecione…</option>
+            <option>PROJETO INTERNO (NOVO)</option>
+            <option>TECHSTEEL (GABRIELA)</option>
+            <option>AXIOS (MARCELO/MATHEUS)</option>
+            <option>METALMAX (GABRIEL)</option>
+            <option>FR PROJETOS (FRED)</option>
+            <option>FABIO MIESSA</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Template</label>
+          <select id="dcts-template" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+            <option value="">Selecione…</option>
+            <option value="sidertec">📋 Sidertec (padrão)</option>
+            <option value="cliente">🏢 Cliente</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Método de Aprovação</label>
+          <select id="dcts-metodo-aprovacao" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+            <option value="">Selecione…</option>
+            <option value="3d">🧊 3D</option>
+            <option value="3d_dm">🧊🔧 3D + DM</option>
+            <option value="3d_dm_df">🧊🔧📏 3D + DM + DF</option>
+            <option value="sem_aprovacao">— Sem Aprovação</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Linha 3: Trâmite de Documentos -->
+      <div style="display:grid;grid-template-columns:1fr;gap:.6rem;margin-bottom:.8rem;">
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Trâmite de Documentos</label>
+          <select id="dcts-tramite" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);">
+            <option value="">Selecione…</option>
+            <option value="transmittal">📤 Transmittal (carta de transmissão)</option>
+            <option value="email">📧 E-mail direto</option>
+            <option value="portal_cliente">🌐 Portal do Cliente</option>
+            <option value="sistema_interno">🔒 Sistema Interno</option>
+            <option value="correio">📮 Correio / Físico</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Separador PIT -->
+      <div style="background:linear-gradient(90deg,#1e3a5f,#1A4A7A);border-radius:var(--r2);padding:.4rem .8rem;margin-bottom:.5rem;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#93c5fd;">📑 PIT — Plano de Inspeção e Testes</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.75rem;padding:.6rem;background:#eff6ff;border-radius:var(--r2);border:1px solid #bfdbfe;">
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#1e40af;">Data Emissão PIT</label>
+          <input type="date" id="dcts-pit-emitido" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#1e40af;">Data Aprovação PIT</label>
+          <input type="date" id="dcts-pit-aprovado" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#1e40af;">Status PIT</label>
+          <select id="dcts-pit-status" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+            <option value="">Pendente</option>
+            <option value="emitido">📄 Emitido</option>
+            <option value="aprovado">✅ Aprovado</option>
+            <option value="reprovado">❌ Reprovado</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#1e40af;">Rev. PIT</label>
+          <input type="text" id="dcts-pit-rev" placeholder="Ex: Rev.0" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+        </div>
+      </div>
+
+      <!-- Separador ART -->
+      <div style="background:linear-gradient(90deg,#14532d,#166534);border-radius:var(--r2);padding:.4rem .8rem;margin-bottom:.5rem;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#86efac;">🔐 ART — Anotação de Responsabilidade Técnica</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.75rem;padding:.6rem;background:#f0fdf4;border-radius:var(--r2);border:1px solid #bbf7d0;">
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#166534;">Data Emissão ART</label>
+          <input type="date" id="dcts-art-emitida" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bbf7d0;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#166534;">Data Aprovação ART</label>
+          <input type="date" id="dcts-art-aprovada" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bbf7d0;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#166534;">Data Assinatura ART</label>
+          <input type="date" id="dcts-art-assinada" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bbf7d0;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+        </div>
+        <div class="field-group">
+          <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#166534;">Status ART</label>
+          <select id="dcts-art-status" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #bbf7d0;border-radius:var(--r2);background:#fff;color:var(--ink);font-family:var(--font-main);">
+            <option value="">Pendente</option>
+            <option value="emitida">📄 Emitida</option>
+            <option value="aprovada">✅ Aprovada</option>
+            <option value="assinada">✍️ Assinada</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Separador Documentos Técnicos -->
+      <div style="background:linear-gradient(90deg,#581c87,#6B21A8);border-radius:var(--r2);padding:.4rem .8rem;margin-bottom:.5rem;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#e9d5ff;">📐 Documentos Técnicos</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem;padding:.6rem;background:#faf5ff;border-radius:var(--r2);border:1px solid #e9d5ff;">
+        <!-- Modelo 3D -->
+        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:var(--r2);padding:.5rem;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B21A8;margin-bottom:.35rem;">🧊 Modelo 3D</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Emissão</label><input type="date" id="dcts-modelo3d-emitido" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Aprovação</label><input type="date" id="dcts-modelo3d-aprovado" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div style="grid-column:1/-1;"><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Status</label>
+              <select id="dcts-modelo3d-status" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);">
+                <option value="">Pendente</option><option value="emitido">Emitido</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- Diagrama de Montagem -->
+        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:var(--r2);padding:.5rem;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B21A8;margin-bottom:.35rem;">🔧 Diagrama de Montagem</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Emissão</label><input type="date" id="dcts-diagrama-emitido" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Aprovação</label><input type="date" id="dcts-diagrama-aprovado" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div style="grid-column:1/-1;"><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Status</label>
+              <select id="dcts-diagrama-status" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);">
+                <option value="">Pendente</option><option value="emitido">Emitido</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- Desenho de Fabricação -->
+        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:var(--r2);padding:.5rem;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B21A8;margin-bottom:.35rem;">📏 Desenho de Fabricação</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Emissão</label><input type="date" id="dcts-desenhofab-emitido" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Aprovação</label><input type="date" id="dcts-desenhofab-aprovado" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div style="grid-column:1/-1;"><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Status</label>
+              <select id="dcts-desenhofab-status" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);">
+                <option value="">Pendente</option><option value="emitido">Emitido</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- Data Book -->
+        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:var(--r2);padding:.5rem;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B21A8;margin-bottom:.35rem;">📚 Data Book</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Emissão</label><input type="date" id="dcts-databook-emitido" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Entrega</label><input type="date" id="dcts-databook-entregue" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);"></div>
+            <div style="grid-column:1/-1;"><label style="display:block;font-size:8px;color:var(--ink3);margin-bottom:1px;">Status</label>
+              <select id="dcts-databook-status" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:2px;font-family:var(--font-main);">
+                <option value="">Pendente</option><option value="emitido">Emitido</option><option value="entregue">Entregue</option><option value="aceito">Aceito</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Observações -->
+      <div class="field-group">
+        <label class="field-label" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Observações</label>
+        <textarea id="dcts-obs" rows="2" placeholder="Observações adicionais sobre a documentação…" style="width:100%;font-size:11px;padding:4px 7px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg);color:var(--ink);font-family:var(--font-main);resize:vertical;"></textarea>
+      </div>
+
+    </div>
+    <div class="cron-mfooter" style="justify-content:space-between;">
+      <button class="btn btn-secondary" id="btn-excluir-dcts" onclick="excluirDCTS()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑 Excluir</button>
+      <div style="display:flex;gap:.5rem;margin-left:auto;">
+        <button class="btn btn-secondary" onclick="fecharModalDCTS()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-salvar-dcts" onclick="salvarDCTS()" style="background:#b45309;">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ═══ DCTS & DIÁRIO ══════════════════════════════════════════ */
+.dcts-row-badge { display:inline-flex;align-items:center;gap:2px;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700; }
+.dcts-row-badge.ok    { background:#dcfce7;color:#166534; }
+.dcts-row-badge.parcial { background:#fef3c7;color:#92400e; }
+.dcts-row-badge.pendente { background:#fee2e2;color:#991b1b; }
+.dcts-row-badge.na    { background:#f1f5f9;color:#64748b; }
+
+.diario-bloco { background:#fff;border:1px solid var(--border);border-radius:var(--r);margin-bottom:.75rem;overflow:hidden; }
+.diario-bloco-hd { padding:.5rem .85rem;display:flex;align-items:center;gap:.5rem; }
+.diario-bloco-hd .diario-bloco-title { font-size:12px;font-weight:700;color:#fff;flex:1; }
+.diario-bloco-hd .diario-bloco-count { font-size:11px;color:rgba(255,255,255,.7);background:rgba(255,255,255,.15);border-radius:3px;padding:1px 7px; }
+.diario-item { border-bottom:1px solid var(--border);padding:.5rem .85rem;display:flex;align-items:flex-start;gap:.7rem; }
+.diario-item:last-child { border-bottom:none; }
+.diario-item-icon { font-size:16px;flex-shrink:0;margin-top:1px; }
+.diario-item-body { flex:1; }
+.diario-item-tag { font-family:'Courier New',monospace;font-size:11px;font-weight:700;color:var(--ink); }
+.diario-item-obra { font-size:10px;color:var(--ink3); }
+.diario-item-etapa { font-size:11px;color:var(--ink2);margin-top:1px; }
+.diario-item-meta { font-size:9px;color:var(--ink3);margin-top:2px; }
+.diario-item-status { flex-shrink:0; }
+.diario-empty { text-align:center;padding:2.5rem 1rem;color:var(--ink3);font-size:13px; }
+</style>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  DCTS — Documentação Técnica por Sub-obra
+// ══════════════════════════════════════════════════════════════
+
+var allDCTS = [];
+var editingDCTSId = null;
+var _DCTS_LS_KEY = 'sidertec_dcts_v1';
+
+function _dcts_lsGet(){ try{ return JSON.parse(localStorage.getItem(_DCTS_LS_KEY)||'[]'); }catch(e){return[];} }
+function _dcts_lsSet(data){ try{ localStorage.setItem(_DCTS_LS_KEY, JSON.stringify(data)); }catch(e){} }
+
+function carregarDCTS(){
+  allDCTS = _dcts_lsGet();
+  // Tenta carregar do Supabase se disponível
+  if(typeof sbClient !== 'undefined'){
+    sbClient.from('dcts_documentacao').order('criado_em',{ascending:false}).limit(2000).select()
+      .then(function(r){
+        if(r.data && r.data.length > 0){
+          allDCTS = r.data;
+          _dcts_lsSet(allDCTS);
+          if(document.getElementById('page-dcts') && document.getElementById('page-dcts').classList.contains('active')) renderDCTS();
+        }
+      }).catch(function(){ /* sem tabela no Supabase, usa localStorage */ });
+  }
+}
+
+function renderDCTS(){
+  _popularFiltrosDCTS();
+  var obra = (document.getElementById('dcts-f-obra')||{}).value||'';
+  var tag  = ((document.getElementById('dcts-f-tag')||{}).value||'').trim().toLowerCase();
+  var equipe = (document.getElementById('dcts-f-equipe')||{}).value||'';
+  var statusF = (document.getElementById('dcts-f-status')||{}).value||'';
+
+  var dados = allDCTS.filter(function(d){
+    if(obra && d.obra !== obra) return false;
+    if(tag && !(d.subobra||'').toLowerCase().includes(tag)) return false;
+    if(equipe && d.equipe !== equipe) return false;
+    if(statusF){
+      var st = _dcts_calcStatus(d);
+      if(st !== statusF) return false;
+    }
+    return true;
+  });
+
+  // Ordenar por Obra (A→Z) depois Sub-obra (A→Z)
+  dados.sort(function(a,b){
+    var oA=(a.obra||'').toUpperCase(), oB=(b.obra||'').toUpperCase();
+    if(oA < oB) return -1; if(oA > oB) return 1;
+    var sA=(a.subobra||'').toUpperCase(), sB=(b.subobra||'').toUpperCase();
+    return sA < sB ? -1 : sA > sB ? 1 : 0;
+  });
+
+  // KPIs
+  var total = dados.length;
+  var ok = dados.filter(function(d){return _dcts_calcStatus(d)==='ok';}).length;
+  var parcial = dados.filter(function(d){return _dcts_calcStatus(d)==='parcial';}).length;
+  var pendente = dados.filter(function(d){return _dcts_calcStatus(d)==='pendente';}).length;
+  var semART = dados.filter(function(d){return !d.art_assinada;}).length;
+
+  var kpiEl = document.getElementById('dcts-kpis');
+  if(kpiEl) kpiEl.innerHTML = [
+    _dkpi('Total', total, '#1A1714', '📁'),
+    _dkpi('Completo', ok, '#166534', '✅'),
+    _dkpi('Parcial', parcial, '#92400e', '⚠️'),
+    _dkpi('Pendente', pendente, '#991b1b', '❌'),
+    _dkpi('Sem ART', semART, '#6B21A8', '🔐'),
+  ].join('');
+
+  // Tabela
+  var lista = document.getElementById('dcts-lista');
+  if(!lista) return;
+  if(dados.length === 0){
+    lista.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--ink3);font-size:13px;">Nenhum registro encontrado.<br><br><button onclick="abrirModalDCTS(null)" style="background:#b45309;color:#fff;border:none;border-radius:var(--r2);padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-main);">+ Novo Registro DCTS</button></div>';
+    return;
+  }
+
+  var html = '<div class="xl-table-wrap" style="max-height:calc(100vh - 320px);"><table class="xl-table"><thead><tr>'
+    + '<th style="width:28px;"></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Obra</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">TAG / Sub-obra</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Nº Projeto</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Equipe</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Template</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Método Aprov.</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">PIT</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">ART</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Modelo 3D</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Diagrama</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Des. Fab.</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Data Book</span></div></th>'
+    + '<th><div class="xl-th-inner"><span class="xl-th-label">Status Geral</span></div></th>'
+    + '</tr></thead><tbody>';
+
+  dados.forEach(function(d){
+    var st = _dcts_calcStatus(d);
+    var stBadge = st === 'ok' ? '<span class="dcts-row-badge ok">✅ Completo</span>'
+      : st === 'parcial' ? '<span class="dcts-row-badge parcial">⚠️ Parcial</span>'
+      : '<span class="dcts-row-badge pendente">❌ Pendente</span>';
+
+    html += '<tr style="cursor:pointer;" onclick="abrirModalDCTS(\''+d.id+'\')">'
+      + '<td style="text-align:center;padding:2px;"><button onclick="event.stopPropagation();abrirModalDCTS(\''+d.id+'\')" style="background:none;border:none;cursor:pointer;font-size:12px;" title="Editar">✏️</button></td>'
+      + '<td style="font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;font-weight:600;">'+_esc(d.obra||'—')+'</td>'
+      + '<td style="font-family:\'Courier New\',monospace;font-weight:700;font-size:10px;">'+_esc(d.subobra||'—')+'</td>'
+      + '<td style="font-size:10px;">'+_esc(d.num_projeto||'—')+'</td>'
+      + '<td style="font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;">'+_esc(d.equipe||'—')+'</td>'
+      + '<td style="font-size:10px;">'+_dcts_templateBadge(d.template)+'</td>'
+      + '<td style="font-size:10px;">'+_esc(d.metodo_aprovacao||'—')+'</td>'
+      + '<td>'+_dcts_docBadge(d.pit_status)+'</td>'
+      + '<td>'+_dcts_artBadge(d.art_status)+'</td>'
+      + '<td>'+_dcts_docBadge(d.modelo3d_status)+'</td>'
+      + '<td>'+_dcts_docBadge(d.diagrama_status)+'</td>'
+      + '<td>'+_dcts_docBadge(d.desenhofab_status)+'</td>'
+      + '<td>'+_dcts_docBadge(d.databook_status)+'</td>'
+      + '<td>'+stBadge+'</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  lista.innerHTML = html;
+}
+
+function _dkpi(label, val, color, icon){
+  return '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.7rem .9rem;position:relative;overflow:hidden;">'
+    + '<div style="position:absolute;top:0;left:0;width:3px;height:100%;background:'+color+';"></div>'
+    + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:.2rem;">'+icon+' '+label+'</div>'
+    + '<div style="font-family:\'Georgia\',serif;font-size:22px;color:var(--ink);line-height:1;">'+val+'</div>'
+    + '</div>';
+}
+
+function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function _dcts_docBadge(st){
+  if(!st || st === '') return '<span style="font-size:9px;color:#94a3b8;">—</span>';
+  var map = { emitido:'📄 Emit.', aprovado:'✅ Aprov.', reprovado:'❌ Rep.', assinada:'✍️ Ass.', entregue:'📦 Entregue', aceito:'✅ Aceito' };
+  var cls = (st==='aprovado'||st==='assinada'||st==='aceito'||st==='entregue') ? 'ok' : st==='emitido' ? 'parcial' : 'pendente';
+  return '<span class="dcts-row-badge '+cls+'">'+(map[st]||st)+'</span>';
+}
+
+function _dcts_artBadge(st){
+  if(!st) return '<span style="font-size:9px;color:#94a3b8;">—</span>';
+  if(st==='assinada') return '<span class="dcts-row-badge ok">✍️ Ass.</span>';
+  if(st==='aprovada') return '<span class="dcts-row-badge parcial">✅ Aprov.</span>';
+  if(st==='emitida')  return '<span class="dcts-row-badge na">📄 Emit.</span>';
+  return '<span class="dcts-row-badge pendente">❌ Pend.</span>';
+}
+
+function _dcts_templateBadge(t){
+  if(t==='sidertec') return '<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;">📋 Sidertec</span>';
+  if(t==='cliente')  return '<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;">🏢 Cliente</span>';
+  return '<span style="font-size:9px;color:#94a3b8;">—</span>';
+}
+
+function _dcts_calcStatus(d){
+  var docs = [d.pit_status, d.art_status, d.modelo3d_status, d.diagrama_status, d.desenhofab_status, d.databook_status];
+  var ok = ['aprovado','assinada','entregue','aceito'];
+  var totalDocs = docs.filter(function(x){ return x && x !== ''; }).length;
+  if(totalDocs === 0) return 'pendente';
+  var doneCount = docs.filter(function(x){ return ok.includes(x); }).length;
+  if(doneCount === 6) return 'ok';
+  if(doneCount > 0 || totalDocs > 0) return 'parcial';
+  return 'pendente';
+}
+
+function _popularFiltrosDCTS(){
+  var obras = [...new Set(allDCTS.map(function(d){return d.obra||'';}).filter(Boolean))].sort();
+  var equipes = [...new Set(allDCTS.map(function(d){return d.equipe||'';}).filter(Boolean))].sort();
+  // Também inclui obras do cronograma
+  if(typeof allCronSubobras !== 'undefined'){
+    var obrasC = [...new Set(allCronSubobras.map(function(s){return s.obra||'';}).filter(Boolean))];
+    obrasC.forEach(function(o){ if(!obras.includes(o)) obras.push(o); });
+    obras.sort();
+    var equipsC = [...new Set(allCronSubobras.map(function(s){return s.equipe||'';}).filter(Boolean))];
+    equipsC.forEach(function(e){ if(!equipes.includes(e)) equipes.push(e); });
+    equipes.sort();
+  }
+  var obrasSel = (document.getElementById('dcts-f-obra')||{}).value||'';
+  var eqSel = (document.getElementById('dcts-f-equipe')||{}).value||'';
+  var obraEl = document.getElementById('dcts-f-obra');
+  if(obraEl){ obraEl.innerHTML = '<option value="">Todas</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'"'+(o===obrasSel?' selected':'')+'>'+_esc(o)+'</option>';}).join(''); }
+  var eqEl = document.getElementById('dcts-f-equipe');
+  if(eqEl){ eqEl.innerHTML = '<option value="">Todas</option>'+equipes.map(function(e){return '<option value="'+_esc(e)+'"'+(e===eqSel?' selected':'')+'>'+_esc(e)+'</option>';}).join(''); }
+  // Popular select do modal
+  var dObra = document.getElementById('dcts-obra');
+  if(dObra && dObra.options.length <= 1){
+    dObra.innerHTML = '<option value="">Selecione…</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'">'+_esc(o)+'</option>';}).join('');
+  }
+}
+
+function limparFiltrosDCTS(){
+  var ids = ['dcts-f-obra','dcts-f-tag','dcts-f-equipe','dcts-f-status'];
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  renderDCTS();
+}
+
+function abrirModalDCTS(id){
+  _popularFiltrosDCTS();
+  editingDCTSId = id || null;
+  var modal = document.getElementById('modal-dcts');
+  var titulo = document.getElementById('dcts-modal-title');
+  var btnExc = document.getElementById('btn-excluir-dcts');
+  var d = id ? allDCTS.find(function(x){return x.id===id;}) : null;
+
+  if(titulo) titulo.textContent = id ? '✏️ Editar Documentação' : '📁 Nova Documentação';
+  if(btnExc) btnExc.style.display = id ? 'inline-flex' : 'none';
+
+  var fields = {
+    'dcts-obra': d ? d.obra||'' : '',
+    'dcts-subobra': d ? d.subobra||'' : '',
+    'dcts-num-projeto': d ? d.num_projeto||'' : '',
+    'dcts-equipe': d ? d.equipe||'' : '',
+    'dcts-template': d ? d.template||'' : '',
+    'dcts-metodo-aprovacao': d ? d.metodo_aprovacao||'' : '',
+    'dcts-tramite': d ? d.tramite||'' : '',
+    'dcts-pit-emitido': d ? d.pit_emitido||'' : '',
+    'dcts-pit-aprovado': d ? d.pit_aprovado||'' : '',
+    'dcts-pit-status': d ? d.pit_status||'' : '',
+    'dcts-pit-rev': d ? d.pit_rev||'' : '',
+    'dcts-art-emitida': d ? d.art_emitida||'' : '',
+    'dcts-art-aprovada': d ? d.art_aprovada||'' : '',
+    'dcts-art-assinada': d ? d.art_assinada||'' : '',
+    'dcts-art-status': d ? d.art_status||'' : '',
+    'dcts-modelo3d-emitido': d ? d.modelo3d_emitido||'' : '',
+    'dcts-modelo3d-aprovado': d ? d.modelo3d_aprovado||'' : '',
+    'dcts-modelo3d-status': d ? d.modelo3d_status||'' : '',
+    'dcts-diagrama-emitido': d ? d.diagrama_emitido||'' : '',
+    'dcts-diagrama-aprovado': d ? d.diagrama_aprovado||'' : '',
+    'dcts-diagrama-status': d ? d.diagrama_status||'' : '',
+    'dcts-desenhofab-emitido': d ? d.desenhofab_emitido||'' : '',
+    'dcts-desenhofab-aprovado': d ? d.desenhofab_aprovado||'' : '',
+    'dcts-desenhofab-status': d ? d.desenhofab_status||'' : '',
+    'dcts-databook-emitido': d ? d.databook_emitido||'' : '',
+    'dcts-databook-entregue': d ? d.databook_entregue||'' : '',
+    'dcts-databook-status': d ? d.databook_status||'' : '',
+    'dcts-obs': d ? d.obs||'' : '',
+  };
+
+  Object.keys(fields).forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.value = fields[id];
+  });
+
+  if(modal) modal.classList.add('show');
+}
+
+function fecharModalDCTS(e){
+  if(!e || e.target.id === 'modal-dcts')
+    document.getElementById('modal-dcts').classList.remove('show');
+}
+
+function salvarDCTS(){
+  var obra = (document.getElementById('dcts-obra')||{}).value||'';
+  var subobra = ((document.getElementById('dcts-subobra')||{}).value||'').trim();
+  if(!obra){ if(typeof showToast==='function') showToast('Campo obrigatório','Selecione a Obra.','error'); return; }
+  if(!subobra){ if(typeof showToast==='function') showToast('Campo obrigatório','Informe a Sub-obra/TAG.','error'); return; }
+
+  var gv = function(id){ return (document.getElementById(id)||{}).value||''; };
+  var payload = {
+    obra: obra, subobra: subobra,
+    num_projeto: gv('dcts-num-projeto'),
+    equipe: gv('dcts-equipe'),
+    template: gv('dcts-template'),
+    metodo_aprovacao: gv('dcts-metodo-aprovacao'),
+    tramite: gv('dcts-tramite'),
+    pit_emitido: gv('dcts-pit-emitido')||null,
+    pit_aprovado: gv('dcts-pit-aprovado')||null,
+    pit_status: gv('dcts-pit-status'),
+    pit_rev: gv('dcts-pit-rev'),
+    art_emitida: gv('dcts-art-emitida')||null,
+    art_aprovada: gv('dcts-art-aprovada')||null,
+    art_assinada: gv('dcts-art-assinada')||null,
+    art_status: gv('dcts-art-status'),
+    modelo3d_emitido: gv('dcts-modelo3d-emitido')||null,
+    modelo3d_aprovado: gv('dcts-modelo3d-aprovado')||null,
+    modelo3d_status: gv('dcts-modelo3d-status'),
+    diagrama_emitido: gv('dcts-diagrama-emitido')||null,
+    diagrama_aprovado: gv('dcts-diagrama-aprovado')||null,
+    diagrama_status: gv('dcts-diagrama-status'),
+    desenhofab_emitido: gv('dcts-desenhofab-emitido')||null,
+    desenhofab_aprovado: gv('dcts-desenhofab-aprovado')||null,
+    desenhofab_status: gv('dcts-desenhofab-status'),
+    databook_emitido: gv('dcts-databook-emitido')||null,
+    databook_entregue: gv('dcts-databook-entregue')||null,
+    databook_status: gv('dcts-databook-status'),
+    obs: gv('dcts-obs'),
+    atualizado_em: new Date().toISOString(),
+  };
+
+  if(editingDCTSId){
+    var idx = allDCTS.findIndex(function(x){return x.id===editingDCTSId;});
+    if(idx >= 0) allDCTS[idx] = Object.assign({}, allDCTS[idx], payload);
+  } else {
+    payload.id = 'dcts_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+    payload.criado_em = new Date().toISOString();
+    allDCTS.unshift(payload);
+  }
+  _dcts_lsSet(allDCTS);
+  // Tenta salvar no Supabase
+  if(typeof sbClient !== 'undefined'){
+    var spPayload = Object.assign({}, payload);
+    if(editingDCTSId){
+      sbClient.from('dcts_documentacao').eq('id', editingDCTSId).update(spPayload).select()
+        .catch(function(){});
+    } else {
+      sbClient.from('dcts_documentacao').insert([spPayload]).select().catch(function(){});
+    }
+  }
+  fecharModalDCTS();
+  renderDCTS();
+  if(typeof showToast === 'function') showToast('✓ Salvo', 'Registro DCTS salvo.', 'success');
+}
+
+function excluirDCTS(){
+  if(!editingDCTSId) return;
+  if(!confirm('Excluir este registro DCTS? Esta ação não pode ser desfeita.')) return;
+  allDCTS = allDCTS.filter(function(x){return x.id !== editingDCTSId;});
+  _dcts_lsSet(allDCTS);
+  if(typeof sbClient !== 'undefined')
+    sbClient.from('dcts_documentacao').eq('id', editingDCTSId).delete().select().catch(function(){});
+  fecharModalDCTS();
+  renderDCTS();
+  if(typeof showToast === 'function') showToast('Excluído', 'Registro removido.', 'warn');
+}
+
+function exportarDCTSCSV(){
+  var headers = ['ID','Obra','Sub-obra','Nº Projeto','Equipe','Template','Método Aprov.','Trâmite','PIT Emitido','PIT Aprovado','PIT Status','ART Emitida','ART Aprovada','ART Assinada','ART Status','Modelo3D Emitido','Modelo3D Aprovado','Modelo3D Status','Diagrama Emitido','Diagrama Aprovado','Diagrama Status','DesenhFab Emitido','DesenhFab Aprovado','DesenhFab Status','DataBook Emitido','DataBook Entregue','DataBook Status','Obs'];
+  var rows = allDCTS.map(function(d){ return [d.id,d.obra,d.subobra,d.num_projeto,d.equipe,d.template,d.metodo_aprovacao,d.tramite,d.pit_emitido,d.pit_aprovado,d.pit_status,d.art_emitida,d.art_aprovada,d.art_assinada,d.art_status,d.modelo3d_emitido,d.modelo3d_aprovado,d.modelo3d_status,d.diagrama_emitido,d.diagrama_aprovado,d.diagrama_status,d.desenhofab_emitido,d.desenhofab_aprovado,d.desenhofab_status,d.databook_emitido,d.databook_entregue,d.databook_status,d.obs].map(function(v){ return '"'+(v||'').toString().replace(/"/g,'""')+'"'; }); });
+  var csv = [headers.join(';')].concat(rows.map(function(r){return r.join(';');})).join('\n');
+  var blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='DCTS_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DIÁRIO — Agenda do Dia baseada no Cronograma
+// ══════════════════════════════════════════════════════════════
+
+function diarioHoje(){
+  var hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('diario-data-input').value = hoje;
+  renderDiario();
+}
+function diarioOntem(){
+  var d = new Date(document.getElementById('diario-data-input').value||new Date());
+  d.setDate(d.getDate()-1);
+  document.getElementById('diario-data-input').value = d.toISOString().split('T')[0];
+  renderDiario();
+}
+function diarioAmanha(){
+  var d = new Date(document.getElementById('diario-data-input').value||new Date());
+  d.setDate(d.getDate()+1);
+  document.getElementById('diario-data-input').value = d.toISOString().split('T')[0];
+  renderDiario();
+}
+
+function renderDiario(){
+  var dataEl = document.getElementById('diario-data-input');
+  if(!dataEl) return;
+  if(!dataEl.value) diarioHoje();
+  var dataRef = dataEl.value; // YYYY-MM-DD
+
+  // Atualiza label de data
+  var labelEl = document.getElementById('diario-data-label');
+  if(labelEl){
+    var partes = dataRef.split('-');
+    var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    labelEl.textContent = parseInt(partes[2]) + ' ' + meses[parseInt(partes[1])-1] + '. ' + partes[0];
+  }
+
+  var subobras = typeof allCronSubobras !== 'undefined' ? allCronSubobras : [];
+
+  // Mapeamento de etapas para verificar
+  var ETAPAS_DIARIO = [
+    { key:'basico',           prevCol:'prev_basico',           realCol:'real_basico',           nome:'Proj. Básico',              icon:'📥', cor:'#1e40af', bg:'#dbeafe' },
+    { key:'envio_detail',     prevCol:'prev_envio_detail',     realCol:'real_envio_detail',      nome:'Envio Detalhamento',        icon:'📤', cor:'#0f766e', bg:'#ccfbf1' },
+    { key:'materia_prima',    prevCol:'prev_materia_prima',    realCol:'real_materia_prima',     nome:'Matéria Prima',             icon:'🏭', cor:'#92400e', bg:'#fef3c7' },
+    { key:'rec_modelo',       prevCol:'prev_rec_modelo',       realCol:'real_rec_modelo',        nome:'Recebimento Modelo',        icon:'📐', cor:'#0e7490', bg:'#cffafe' },
+    { key:'envio_modelo',     prevCol:'prev_envio_modelo',     realCol:'real_envio_modelo',      nome:'Envio Modelo p/ Aprov.',    icon:'📨', cor:'#6d28d9', bg:'#ede9fe' },
+    { key:'resumo_mp',        prevCol:'prev_resumo_mp',        realCol:'real_resumo_mp',         nome:'Resumo MP',                 icon:'📊', cor:'#b45309', bg:'#fef3c7' },
+    { key:'retorno_modelo',   prevCol:'prev_retorno_modelo',   realCol:'real_retorno_modelo',    nome:'Retorno Modelo (Aprovado)', icon:'✅', cor:'#166534', bg:'#dcfce7' },
+    { key:'pcte_fab',         prevCol:'prev_pcte_fab',         realCol:'real_pcte_fab',          nome:'Emissão Pcte Fabricação',   icon:'📦', cor:'#7c3aed', bg:'#ede9fe' },
+    { key:'inspecao_interna', prevCol:'prev_inspecao_interna', realCol:'real_inspecao_interna',  nome:'Inspeção Interna',          icon:'🔍', cor:'#0c4a6e', bg:'#e0f2fe' },
+    { key:'lib_fab',          prevCol:'prev_lib_fab',          realCol:'real_lib_fab',           nome:'Lib. Fabricação',           icon:'🔩', cor:'#14532d', bg:'#dcfce7' },
+    { key:'diagramas',        prevCol:'prev_diagramas',        realCol:'real_diagramas',         nome:'Diagramas / Documentos',    icon:'📄', cor:'#1e3a5f', bg:'#e0f2fe' },
+    { key:'desenhos_fab',     prevCol:'prev_desenhos_fab',     realCol:'real_desenhos_fab',      nome:'Desenhos de Fabricação',    icon:'📏', cor:'#581c87', bg:'#f3e8ff' },
+    { key:'diagrama_mont',    prevCol:'prev_diagrama_mont',    realCol:'real_diagrama_mont',     nome:'Diagrama de Montagem',      icon:'🔧', cor:'#78350f', bg:'#fef3c7' },
+  ];
+
+  // Coleta itens que têm data prevista = dataRef e não têm data real
+  var itensNoDia = [];
+  var itensConcluidos = [];
+  var itensAtrasados = [];
+
+  subobras.forEach(function(s){
+    ETAPAS_DIARIO.forEach(function(e){
+      var prev = s[e.prevCol];
+      var real = s[e.realCol];
+      if(!prev) return;
+      if(prev === dataRef && !real){
+        itensNoDia.push({ subobra: s, etapa: e, tipo: 'previsto' });
+      } else if(prev === dataRef && real){
+        itensConcluidos.push({ subobra: s, etapa: e, tipo: 'concluido' });
+      } else if(prev < dataRef && !real){
+        // Atrasado: estava previsto para antes de hoje e não foi concluído
+        itensAtrasados.push({ subobra: s, etapa: e, tipo: 'atrasado', diasAtraso: Math.round((new Date(dataRef) - new Date(prev)) / 86400000) });
+      }
+    });
+    // Verifica data limite de fábrica
+    var dlf = s.data_limite_fab;
+    if(dlf === dataRef){
+      itensNoDia.push({ subobra: s, etapa: { nome:'⚠️ PRAZO LIMITE FÁBRICA', icon:'🚨', cor:'#991b1b', bg:'#fee2e2', key:'limite_fab' }, tipo: 'limite' });
+    }
+  });
+
+  // KPIs do dia
+  var kpiEl = document.getElementById('diario-kpis');
+  if(kpiEl) kpiEl.innerHTML = [
+    _dkpi('Entregas Previstas', itensNoDia.filter(function(x){return x.tipo==='previsto';}).length, '#1e40af', '📋'),
+    _dkpi('Concluídas Hoje', itensConcluidos.length, '#166534', '✅'),
+    _dkpi('Em Atraso', itensAtrasados.length, '#991b1b', '🔴'),
+    _dkpi('Prazos Fábrica', itensNoDia.filter(function(x){return x.tipo==='limite';}).length, '#92400e', '🏭'),
+    _dkpi('Sub-obras Afetadas', new Set(itensNoDia.concat(itensConcluidos).map(function(x){return x.subobra.id;})).size, '#6B21A8', '🏗️'),
+  ].join('');
+
+  // Resumo
+  var resumoEl = document.getElementById('diario-resumo-label');
+  if(resumoEl) resumoEl.textContent = itensNoDia.length + ' a fazer · ' + itensConcluidos.length + ' concluídos · ' + itensAtrasados.length + ' atrasados';
+
+  var conteudo = document.getElementById('diario-conteudo');
+  if(!conteudo) return;
+  var html = '';
+
+  // Bloco 1: Entregas previstas para o dia
+  html += _diarioBloco(
+    '📋 Entregas Previstas para Hoje',
+    itensNoDia.filter(function(x){return x.tipo==='previsto'||x.tipo==='limite';}),
+    '#1e3a5f',
+    'Nenhuma entrega prevista para esta data.',
+    false
+  );
+
+  // Bloco 2: Itens atrasados
+  if(itensAtrasados.length > 0){
+    html += _diarioBloco(
+      '🔴 Atrasados (Previstos Anteriores Não Concluídos)',
+      itensAtrasados,
+      '#991b1b',
+      '',
+      true
+    );
+  }
+
+  // Bloco 3: Concluídos na data
+  if(itensConcluidos.length > 0){
+    html += _diarioBloco(
+      '✅ Concluídos nesta Data',
+      itensConcluidos,
+      '#166534',
+      '',
+      false
+    );
+  }
+
+  conteudo.innerHTML = html || '<div class="diario-empty">🎉 Nenhum evento encontrado para esta data.<br><small style="color:var(--ink3);">Verifique se há sub-obras carregadas no Cronograma.</small></div>';
+}
+
+function _diarioBloco(titulo, itens, corHd, textoVazio, isAtraso){
+  var html = '<div class="diario-bloco">'
+    + '<div class="diario-bloco-hd" style="background:'+corHd+';">'
+    + '<span class="diario-bloco-title">'+titulo+'</span>'
+    + '<span class="diario-bloco-count">'+itens.length+'</span>'
+    + '</div>';
+
+  if(itens.length === 0){
+    html += '<div class="diario-empty" style="padding:1.25rem;">'+textoVazio+'</div>';
+  } else {
+    itens.forEach(function(item){
+      var s = item.subobra;
+      var e = item.etapa;
+      var metaExtra = '';
+      if(isAtraso && item.diasAtraso) metaExtra = ' · <span style="color:#dc2626;font-weight:700;">'+item.diasAtraso+' dia(s) de atraso</span>';
+      var prevDate = s[e.prevCol] ? '<span style="font-family:\'Courier New\',monospace;">'+_fmtDateBr(s[e.prevCol])+'</span>' : '';
+
+      html += '<div class="diario-item">'
+        + '<div class="diario-item-icon">'+e.icon+'</div>'
+        + '<div class="diario-item-body">'
+        + '<div style="display:flex;align-items:center;gap:.4rem;">'
+        + '<span class="diario-item-tag">'+_esc(s.subobra||'—')+'</span>'
+        + '<span class="diario-item-obra">'+_esc(s.obra||'—')+'</span>'
+        + '</div>'
+        + '<div class="diario-item-etapa"><span style="background:'+e.bg+';color:'+e.cor+';border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;">'+e.nome+'</span></div>'
+        + '<div class="diario-item-meta">Equipe: <strong>'+_esc(s.equipe||'—')+'</strong> · Prev: '+prevDate+metaExtra+'</div>'
+        + (s.peso_detalhado ? '<div class="diario-item-meta">Peso Det.: '+Number(s.peso_detalhado).toLocaleString('pt-BR')+'kg</div>' : '')
+        + '</div>'
+        + '<div class="diario-item-status">'
+        + '<span style="font-size:10px;color:var(--ink3);">'+_esc(s.status||'—')+'</span>'
+        + '</div>'
+        + '</div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+function _fmtDateBr(d){
+  if(!d) return '—';
+  var p = d.split('-');
+  if(p.length===3) return p[2]+'/'+p[1]+'/'+p[0];
+  return d;
+}
+
+// Inicializa DCTS ao abrir a aba e carrega ao iniciar
+document.addEventListener('DOMContentLoaded', function(){
+  carregarDCTS();
+  // Inicializa o Diário com a data de hoje
+  setTimeout(function(){
+    var inp = document.getElementById('diario-data-input');
+    if(inp && !inp.value) inp.value = new Date().toISOString().split('T')[0];
+  }, 300);
+});
+
+// ══════════════════════════════════════════════════════════════
+//  RELATÓRIO DCTS
+// ══════════════════════════════════════════════════════════════
+function gerarRelatorioDCTS(){
+  var obra   = (document.getElementById('dcts-f-obra')   ||{}).value||'';
+  var tag    = ((document.getElementById('dcts-f-tag')   ||{}).value||'').trim().toLowerCase();
+  var equipe = (document.getElementById('dcts-f-equipe') ||{}).value||'';
+  var statusF= (document.getElementById('dcts-f-status') ||{}).value||'';
+
+  var dados = allDCTS.filter(function(d){
+    if(obra   && d.obra   !== obra)   return false;
+    if(tag    && !(d.subobra||'').toLowerCase().includes(tag)) return false;
+    if(equipe && d.equipe !== equipe) return false;
+    if(statusF){ var st=_dcts_calcStatus(d); if(st!==statusF) return false; }
+    return true;
+  });
+
+  // Ordenar por Obra → Sub-obra
+  dados.sort(function(a,b){
+    var oA=(a.obra||'').toUpperCase(), oB=(b.obra||'').toUpperCase();
+    if(oA<oB) return -1; if(oA>oB) return 1;
+    var sA=(a.subobra||'').toUpperCase(), sB=(b.subobra||'').toUpperCase();
+    return sA<sB?-1:sA>sB?1:0;
+  });
+
+  var dataRel = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var horaRel = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  var total   = dados.length;
+  var ok      = dados.filter(function(d){return _dcts_calcStatus(d)==='ok';}).length;
+  var parcial = dados.filter(function(d){return _dcts_calcStatus(d)==='parcial';}).length;
+  var pendente= dados.filter(function(d){return _dcts_calcStatus(d)==='pendente';}).length;
+  var semART  = dados.filter(function(d){return !d.art_assinada;}).length;
+
+  function fD(v){ if(!v) return '—'; var p=v.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v; }
+  function stBadge(v, map){
+    if(!v) return '<span style="color:#94a3b8;">—</span>';
+    var ok2=['aprovado','assinada','entregue','aceito'];
+    var clr=ok2.includes(v)?'#166534':v==='emitida'||v==='emitido'?'#92400e':'#64748b';
+    var bg2=ok2.includes(v)?'#dcfce7':v==='emitida'||v==='emitido'?'#fef3c7':'#f1f5f9';
+    return '<span style="background:'+bg2+';color:'+clr+';border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">'+(map[v]||v)+'</span>';
+  }
+  var MAP_PIT ={emitido:'Emitido',aprovado:'Aprovado',reprovado:'Reprov.'};
+  var MAP_ART ={emitida:'Emitida',aprovada:'Aprovada',assinada:'Assinada'};
+  var MAP_DOC ={emitido:'Emitido',aprovado:'Aprovado',reprovado:'Reprov.',entregue:'Entregue',aceito:'Aceito'};
+  var MAP_TPL ={sidertec:'Sidertec',cliente:'Cliente'};
+  var MAP_MET ={'3d':'3D','3d_dm':'3D+DM','3d_dm_df':'3D+DM+DF','sem_aprovacao':'Sem Aprov.'};
+
+  var tRows='';
+  var alt=false;
+  dados.forEach(function(d){
+    var bg=alt?'#f9fafb':'#fff'; alt=!alt;
+    var gst=_dcts_calcStatus(d);
+    var gstBg=gst==='ok'?'#dcfce7':gst==='parcial'?'#fef3c7':'#fee2e2';
+    var gstC =gst==='ok'?'#166534':gst==='parcial'?'#92400e':'#991b1b';
+    var gstL =gst==='ok'?'✅ Completo':gst==='parcial'?'⚠️ Parcial':'❌ Pendente';
+    tRows+='<tr style="background:'+bg+';">';
+    tRows+='<td style="font-size:8px;max-width:120px;overflow:hidden;text-overflow:ellipsis;border:1px solid #e2e8f0;padding:3px 5px;font-weight:600;">'+(d.obra||'—')+'</td>';
+    tRows+='<td style="font-family:Courier New,monospace;font-weight:700;font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;color:#1d4ed8;">'+(d.subobra||'—')+'</td>';
+    tRows+='<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(d.num_projeto||'—')+'</td>';
+    tRows+='<td style="font-size:7px;max-width:100px;overflow:hidden;text-overflow:ellipsis;border:1px solid #e2e8f0;padding:3px 5px;">'+(d.equipe?d.equipe.split('(')[0].trim():'—')+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+(MAP_TPL[d.template]||'—')+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+(MAP_MET[d.metodo_aprovacao]||d.metodo_aprovacao||'—')+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+stBadge(d.pit_status,MAP_PIT)+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+stBadge(d.art_status,MAP_ART)+'<br><span style="font-size:6px;color:#94a3b8;">Ass: '+fD(d.art_assinada)+'</span></td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+stBadge(d.modelo3d_status,MAP_DOC)+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+stBadge(d.diagrama_status,MAP_DOC)+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+stBadge(d.desenhofab_status,MAP_DOC)+'</td>';
+    tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+stBadge(d.databook_status,MAP_DOC)+'</td>';
+    tRows+='<td style="border:1px solid #e2e8f0;padding:3px 5px;"><span style="background:'+gstBg+';color:'+gstC+';border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">'+gstL+'</span></td>';
+    tRows+='</tr>';
+  });
+
+  var filtroTexto = [];
+  if(obra)    filtroTexto.push('Obra: '+obra);
+  if(tag)     filtroTexto.push('TAG: '+tag);
+  if(equipe)  filtroTexto.push('Equipe: '+equipe);
+  if(statusF) filtroTexto.push('Status: '+statusF);
+  var filtroDesc = filtroTexto.length ? filtroTexto.join(' · ') : 'Todos os registros';
+
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">';
+  html+='<title>Relatório DCTS — Sidertec</title>';
+  html+='<style>@page{size:A3 landscape;margin:10mm 8mm;}body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;margin:0;padding:0;}';
+  html+='.rel-header{display:grid;grid-template-columns:90px 1fr 150px;border:2px solid #000;margin-bottom:6px;}';
+  html+='.logo-cell{border-right:2px solid #000;padding:6px;display:flex;align-items:center;justify-content:center;background:#1A1714;}';
+  html+='.logo-sq{width:36px;height:36px;background:#b45309;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:14px;color:#fff;font-weight:700;}';
+  html+='.title-cell{border-right:2px solid #000;padding:6px 10px;text-align:center;}';
+  html+='.title-main{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #ccc;padding-bottom:3px;margin-bottom:3px;}';
+  html+='.title-sub{font-size:9px;color:#555;}';
+  html+='.meta-cell{padding:6px;}';
+  html+='.meta-row{display:flex;justify-content:space-between;font-size:8px;border-bottom:1px solid #eee;padding:2px 0;}';
+  html+='.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0;}';
+  html+='.kpi{border:1px solid #ccc;padding:4px 6px;text-align:center;}';
+  html+='.kpi-lbl{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#555;}';
+  html+='.kpi-val{font-size:16px;font-weight:700;font-family:Georgia,serif;}';
+  html+='table{width:100%;border-collapse:collapse;}';
+  html+='thead th{background:#78350f;color:#fff;padding:4px 5px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}';
+  html+='.rel-footer{font-size:7px;color:#555;text-align:center;border-top:1px solid #ccc;padding-top:4px;margin-top:8px;}';
+  html+='@media print{.no-print{display:none;}body{padding:0;}}';
+  html+='</style></head><body>';
+
+  html+='<div class="no-print" style="background:#1A1714;padding:8px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+  html+='<span style="color:#fff;font-size:12px;font-weight:700;">📁 Relatório DCTS — Sidertec</span>';
+  html+='<button onclick="window.print()" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">🖨 Imprimir / PDF</button>';
+  html+='<button onclick="window.close()" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:5px 12px;font-size:11px;cursor:pointer;">✕ Fechar</button>';
+  html+='</div>';
+
+  html+='<div class="rel-header">';
+  html+='<div class="logo-cell"><div class="logo-sq">SE</div></div>';
+  html+='<div class="title-cell">';
+  html+='<div class="title-main">Sidertec — DCTS — Documentação Técnica por Sub-obra</div>';
+  html+='<div class="title-sub">'+filtroDesc+'</div>';
+  html+='</div>';
+  html+='<div class="meta-cell">';
+  html+='<div class="meta-row"><span style="font-weight:700;">DATA</span><span>'+dataRel+'</span></div>';
+  html+='<div class="meta-row"><span style="font-weight:700;">HORA</span><span>'+horaRel+'</span></div>';
+  html+='<div class="meta-row"><span style="font-weight:700;">REGISTROS</span><span>'+total+'</span></div>';
+  html+='</div></div>';
+
+  html+='<div class="kpis">';
+  html+='<div class="kpi"><div class="kpi-lbl">📁 Total</div><div class="kpi-val">'+total+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">✅ Completo</div><div class="kpi-val" style="color:#166534;">'+ok+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">⚠️ Parcial</div><div class="kpi-val" style="color:#92400e;">'+parcial+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">❌ Pendente</div><div class="kpi-val" style="color:#991b1b;">'+pendente+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">🔐 Sem ART</div><div class="kpi-val" style="color:#6B21A8;">'+semART+'</div></div>';
+  html+='</div>';
+
+  html+='<table><thead><tr>';
+  ['Obra','TAG / Sub-obra','Nº Projeto','Equipe','Template','Mét. Aprov.','PIT','ART','Modelo 3D','Diagrama Mont.','Des. Fabricação','Data Book','Status Geral']
+    .forEach(function(h){ html+='<th>'+h+'</th>'; });
+  html+='</tr></thead><tbody>';
+  html+=tRows||'<tr><td colspan="13" style="text-align:center;padding:16px;color:#94a3b8;">Nenhum registro</td></tr>';
+  html+='</tbody></table>';
+
+  html+='<div class="rel-footer">Sidertec Estruturas Metálicas · DCTS · Gerado em '+dataRel+' às '+horaRel+' · '+total+' registro(s)</div>';
+  html+='</body></html>';
+
+  var w=window.open('','_blank','width=1200,height=800');
+  if(w){ w.document.write(html); w.document.close(); }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RELATÓRIO DIÁRIO
+// ══════════════════════════════════════════════════════════════
+function gerarRelatorioDiario(){
+  var dataEl = document.getElementById('diario-data-input');
+  if(!dataEl || !dataEl.value) return;
+  var dataRef = dataEl.value;
+  var partes  = dataRef.split('-');
+  var meses   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var dataLabel = partes[2]+' de '+meses[parseInt(partes[1])-1]+' de '+partes[0];
+  var dataRel = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var horaRel = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  var subobras = typeof allCronSubobras !== 'undefined' ? allCronSubobras : [];
+  var ETAPAS_DIARIO = [
+    { key:'basico',           prevCol:'prev_basico',           realCol:'real_basico',           nome:'Proj. Básico'              },
+    { key:'envio_detail',     prevCol:'prev_envio_detail',     realCol:'real_envio_detail',      nome:'Envio Detalhamento'        },
+    { key:'materia_prima',    prevCol:'prev_materia_prima',    realCol:'real_materia_prima',     nome:'Matéria Prima'             },
+    { key:'rec_modelo',       prevCol:'prev_rec_modelo',       realCol:'real_rec_modelo',        nome:'Recebimento Modelo'        },
+    { key:'envio_modelo',     prevCol:'prev_envio_modelo',     realCol:'real_envio_modelo',      nome:'Envio Modelo p/ Aprov.'    },
+    { key:'resumo_mp',        prevCol:'prev_resumo_mp',        realCol:'real_resumo_mp',         nome:'Resumo MP'                 },
+    { key:'retorno_modelo',   prevCol:'prev_retorno_modelo',   realCol:'real_retorno_modelo',    nome:'Retorno Modelo Aprovado'   },
+    { key:'pcte_fab',         prevCol:'prev_pcte_fab',         realCol:'real_pcte_fab',          nome:'Emissão Pcte Fabricação'   },
+    { key:'inspecao_interna', prevCol:'prev_inspecao_interna', realCol:'real_inspecao_interna',  nome:'Inspeção Interna'          },
+    { key:'lib_fab',          prevCol:'prev_lib_fab',          realCol:'real_lib_fab',           nome:'Lib. Fabricação'           },
+    { key:'diagramas',        prevCol:'prev_diagramas',        realCol:'real_diagramas',         nome:'Diagramas / Documentos'    },
+    { key:'desenhos_fab',     prevCol:'prev_desenhos_fab',     realCol:'real_desenhos_fab',      nome:'Desenhos de Fabricação'    },
+    { key:'diagrama_mont',    prevCol:'prev_diagrama_mont',    realCol:'real_diagrama_mont',     nome:'Diagrama de Montagem'      },
+  ];
+
+  var itensNoDia=[], itensConcluidos=[], itensAtrasados=[];
+  subobras.forEach(function(s){
+    ETAPAS_DIARIO.forEach(function(e){
+      var prev=s[e.prevCol], real=s[e.realCol];
+      if(!prev) return;
+      if(prev===dataRef && !real)  itensNoDia.push({s:s,e:e,tipo:'previsto'});
+      else if(prev===dataRef&&real) itensConcluidos.push({s:s,e:e,tipo:'concluido'});
+      else if(prev<dataRef&&!real){ var dias=Math.round((new Date(dataRef)-new Date(prev))/86400000); itensAtrasados.push({s:s,e:e,tipo:'atrasado',dias:dias}); }
+    });
+    if(s.data_limite_fab===dataRef) itensNoDia.push({s:s,e:{nome:'⚠️ PRAZO LIMITE FÁBRICA',key:'limite_fab'},tipo:'limite'});
+  });
+
+  function fD(v){ if(!v) return '—'; var p=v.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v; }
+  function tRow(item, cor, extra){
+    var s=item.s, e=item.e;
+    return '<tr>'
+      +'<td style="font-family:Courier New,monospace;font-weight:700;font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;color:#1d4ed8;">'+(s.subobra||'—')+'</td>'
+      +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.obra||'—')+'</td>'
+      +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.equipe?s.equipe.split('(')[0].trim():'—')+'</td>'
+      +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;"><span style="background:'+cor+'20;color:'+cor+';border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">'+e.nome+'</span></td>'
+      +'<td style="font-family:Courier New,monospace;font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+fD(s[e.prevCol])+'</td>'
+      +'<td style="font-family:Courier New,monospace;font-size:8px;color:#166534;border:1px solid #e2e8f0;padding:3px 5px;">'+fD(s[e.realCol])+'</td>'
+      +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.status||'—')+'</td>'
+      +'<td style="font-family:Courier New,monospace;font-size:8px;text-align:right;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>'
+      +(extra||'')
+      +'</tr>';
+  }
+
+  function blocoTabela(titulo, itens, cor, thExtra){
+    if(itens.length===0) return '';
+    var rows=itens.map(function(item){ return tRow(item,cor,thExtra?'<td style="font-size:8px;color:#dc2626;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+(item.dias?item.dias+'d':'')+'</td>':''); }).join('');
+    var cols=['TAG','Obra','Equipe','Etapa','Prev.','Real','Status','Peso Det.'];
+    if(thExtra) cols.push('Atraso');
+    return '<div style="margin-bottom:10px;">'
+      +'<div style="background:'+cor+';color:#fff;padding:4px 8px;font-size:9px;font-weight:700;border-radius:3px 3px 0 0;">'+titulo+' ('+itens.length+')</div>'
+      +'<table><thead><tr>'+cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead>'
+      +'<tbody>'+rows+'</tbody></table></div>';
+  }
+
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">';
+  html+='<title>Diário de Obras — '+dataLabel+' — Sidertec</title>';
+  html+='<style>@page{size:A3 landscape;margin:10mm 8mm;}body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;margin:0;padding:0;}';
+  html+='.rel-header{display:grid;grid-template-columns:90px 1fr 160px;border:2px solid #000;margin-bottom:8px;}';
+  html+='.logo-cell{border-right:2px solid #000;padding:6px;display:flex;align-items:center;justify-content:center;background:#1A1714;}';
+  html+='.logo-sq{width:36px;height:36px;background:#be185d;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:14px;color:#fff;font-weight:700;}';
+  html+='.title-cell{border-right:2px solid #000;padding:6px 10px;text-align:center;}';
+  html+='.title-main{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #ccc;padding-bottom:3px;margin-bottom:3px;}';
+  html+='.title-sub{font-size:10px;color:#555;}';
+  html+='.meta-cell{padding:6px;}';
+  html+='.meta-row{display:flex;justify-content:space-between;font-size:8px;border-bottom:1px solid #eee;padding:2px 0;}';
+  html+='.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0;}';
+  html+='.kpi{border:1px solid #ccc;padding:4px 6px;text-align:center;}';
+  html+='.kpi-lbl{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#555;}';
+  html+='.kpi-val{font-size:16px;font-weight:700;font-family:Georgia,serif;}';
+  html+='table{width:100%;border-collapse:collapse;margin-bottom:0;}';
+  html+='thead th{background:#1e3a5f;color:#fff;padding:4px 5px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}';
+  html+='.rel-footer{font-size:7px;color:#555;text-align:center;border-top:1px solid #ccc;padding-top:4px;margin-top:8px;}';
+  html+='@media print{.no-print{display:none;}body{padding:0;}}';
+  html+='</style></head><body>';
+
+  html+='<div class="no-print" style="background:#1A1714;padding:8px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+  html+='<span style="color:#fff;font-size:12px;font-weight:700;">📅 Diário de Obras — '+dataLabel+'</span>';
+  html+='<button onclick="window.print()" style="background:#be185d;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">🖨 Imprimir / PDF</button>';
+  html+='<button onclick="window.close()" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:5px 12px;font-size:11px;cursor:pointer;">✕ Fechar</button>';
+  html+='</div>';
+
+  html+='<div class="rel-header">';
+  html+='<div class="logo-cell"><div class="logo-sq">SE</div></div>';
+  html+='<div class="title-cell">';
+  html+='<div class="title-main">Sidertec — Diário de Obras</div>';
+  html+='<div class="title-sub">Referência: '+dataLabel+'</div>';
+  html+='</div>';
+  html+='<div class="meta-cell">';
+  html+='<div class="meta-row"><span style="font-weight:700;">DATA REF.</span><span>'+fD(dataRef)+'</span></div>';
+  html+='<div class="meta-row"><span style="font-weight:700;">GERADO EM</span><span>'+dataRel+' '+horaRel+'</span></div>';
+  html+='<div class="meta-row"><span style="font-weight:700;">PREVISTAS</span><span>'+itensNoDia.length+'</span></div>';
+  html+='<div class="meta-row"><span style="font-weight:700;">ATRASADAS</span><span style="color:#991b1b;font-weight:700;">'+itensAtrasados.length+'</span></div>';
+  html+='</div></div>';
+
+  html+='<div class="kpis">';
+  html+='<div class="kpi"><div class="kpi-lbl">📋 Previstas</div><div class="kpi-val" style="color:#1e40af;">'+itensNoDia.filter(function(x){return x.tipo==='previsto';}).length+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">✅ Concluídas</div><div class="kpi-val" style="color:#166534;">'+itensConcluidos.length+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">🔴 Atrasadas</div><div class="kpi-val" style="color:#991b1b;">'+itensAtrasados.length+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">🏭 Praz. Fábrica</div><div class="kpi-val" style="color:#92400e;">'+itensNoDia.filter(function(x){return x.tipo==='limite';}).length+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-lbl">🏗 Sub-obras</div><div class="kpi-val" style="color:#6B21A8;">'+new Set(itensNoDia.concat(itensConcluidos).map(function(x){return x.s.id;})).size+'</div></div>';
+  html+='</div>';
+
+  html += blocoTabela('📋 Entregas Previstas para '+fD(dataRef),
+    itensNoDia.filter(function(x){return x.tipo==='previsto'||x.tipo==='limite';}), '#1e3a5f', false);
+  html += blocoTabela('🔴 Itens Atrasados (previstos antes de '+fD(dataRef)+' e não concluídos)',
+    itensAtrasados, '#991b1b', true);
+  html += blocoTabela('✅ Concluídos em '+fD(dataRef), itensConcluidos, '#166534', false);
+
+  if(itensNoDia.length===0 && itensAtrasados.length===0 && itensConcluidos.length===0){
+    html+='<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">Nenhum evento encontrado para '+dataLabel+'</div>';
+  }
+
+  html+='<div class="rel-footer">Sidertec Estruturas Metálicas · Diário de Obras · Gerado em '+dataRel+' às '+horaRel+'</div>';
+  html+='</body></html>';
+
+  var w=window.open('','_blank','width=1200,height=800');
+  if(w){ w.document.write(html); w.document.close(); }
+}
 </script>
 </body>
 </html>
