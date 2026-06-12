@@ -2892,6 +2892,7 @@ function saveBasico() {
     toast('Projeto básico cadastrado.');
   }
 
+  saveToStorage();
   closeM('m-basico');
   refreshAll();
 }
@@ -3032,6 +3033,7 @@ function saveDet() {
     toast('Documento adicionado.');
   }
 
+  saveToStorage();
   closeM('m-det');
   detPage = 1;
   refreshAll();
@@ -3041,15 +3043,15 @@ function saveDet() {
    DELETES
 ═════════════════════════════════════════ */
 function delBasico(id) {
-  
   DB.basicos = DB.basicos.filter(b => b.id !== id);
+  saveToStorage();
   toast('Projeto básico removido.');
   refreshAll();
 }
 function delDet(id) {
-  
   DB.detalhados = DB.detalhados.filter(d => d.id !== id);
   detPage = 1;
+  saveToStorage();
   toast('Documento removido.');
   refreshAll();
 }
@@ -3057,6 +3059,14 @@ function delDet(id) {
 /* ════════════════════════════════════════
    REFRESH ALL
 ═════════════════════════════════════════ */
+function saveToStorage() {
+  try {
+    localStorage.setItem('controle_docs_v1', JSON.stringify({
+      obras: DB.obras, basicos: DB.basicos, detalhados: DB.detalhados, _ids: DB._ids
+    }));
+  } catch(e) { console.warn('localStorage write failed:', e); }
+}
+
 function refreshAll() {
   buildObraSelect();
   populateBasObraFilter();
