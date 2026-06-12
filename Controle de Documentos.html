@@ -1917,8 +1917,9 @@ function xlFilter(tbl, field, btn) {
   document.querySelectorAll('.col-filter-panel').forEach(p => p.remove());
 
   /* Gather unique values — for basico TAG column use subTag */
+  const obraFiltId = document.getElementById('f-bas-obra')?.value;
   const dataset = tbl === 'bas'
-    ? DB.basicos.filter(b => b.obraId === curObra)
+    ? (obraFiltId ? DB.basicos.filter(b => b.obraId === obraFiltId) : DB.basicos)
     : DB.detalhados.filter(d => d.obraId === curObra);
 
   const getVal = (r, f) => {
@@ -3844,22 +3845,89 @@ function exportBackup() {
   toast('Backup exportado.');
 }
 
+async function sbSyncAll() {
+  showLoading('Sincronizando com Supabase…');
+  try {
+    /* 1. Limpar tabelas (ordem inversa de FK) */
+    try { await sbDelete('detalhados', 'id=gte.1'); } catch(e) {}
+    try { await sbDelete('basicos',    'id=gte.1'); } catch(e) {}
+    try { await sbDelete('subobras',   'id=gte.1'); } catch(e) {}
+    for (const o of DB.obras) {
+      try { await sbDelete('obras', `id=eq.${o.id}`); } catch(e) {}
+    }
+    /* 2. Inserir obras + sub-obras */
+    for (const o of DB.obras) {
+      try {
+        await sbPost('obras', { id: o.id, tag: o.tag, cliente: o.cliente||'',
+          descricao: o.desc, responsavel: o.resp||'',
+          status: o.status||'Em andamento', data_inicio: o.data||null });
+      } catch(e) {}
+      if (o.subobras && o.subobras.length > 0) {
+        try {
+          await sbPost('subobras', o.subobras.map(s => ({
+            obra_id: o.id, tag: s.tag, descricao: s.desc,
+            num_cliente: s.cli||'', responsavel: s.resp||''
+          })));
+        } catch(e) {}
+      }
+    }
+    /* 3. Inserir básicos em lotes de 50 */
+    const basRows = DB.basicos.map(b => ({
+      obra_id: b.obraId, sub_tag: b.subTag || b.sub, num_cliente: b.cli||'',
+      titulo: b.titulo, status: b.status||'LD', projetista: b.proj||'',
+      area: b.area||'', modelo_3d: b.m3d||'2D', diagramas: b.diag||'2D',
+      peso_kg: b.peso||null, detalhamento: b.det||'', rev_atual: b.rev||'REV.0',
+      data_reg: b.data||new Date().toISOString().slice(0,10),
+      revisoes: JSON.stringify(b.revisoes||[])
+    }));
+    for (let i = 0; i < basRows.length; i += 50) {
+      await sbPost('basicos', basRows.slice(i, i+50));
+      document.getElementById('sb-loading-msg').textContent =
+        `Sincronizando básicos… ${Math.min(i+50, basRows.length)}/${basRows.length}`;
+    }
+    /* 4. Inserir detalhados em lotes de 50 */
+    const detRows = DB.detalhados.map(d => ({
+      obra_id: d.obraId, sub_tag: d.sub, num_sidertec: d.num,
+      num_cliente: d.cli||'', tipo: d.tipo, descricao: d.desc||'', peca: d.peca||'',
+      peso_kg: d.peso||null, rev_atual: d.rev||'', status_geral: d.statusGeral||'',
+      eng_resp: d.engResp||'', lib_fab: d.libfab||'Pendente',
+      lib_fab_data: d.libfabData||null, envio_cli: d.envio||'Pendente',
+      envio_data: d.envioData||null, envio_rev: d.envioRev||'', envio_grd: d.envioGRD||'',
+      data_reg: d.data||new Date().toISOString().slice(0,10),
+      revisoes: JSON.stringify(d.revisoes||[])
+    }));
+    for (let i = 0; i < detRows.length; i += 50) {
+      await sbPost('detalhados', detRows.slice(i, i+50));
+    }
+    hideLoading();
+    toast('✅ Backup sincronizado! Recarregando dados…');
+    setTimeout(() => loadFromSupabase(), 800);
+  } catch(err) {
+    hideLoading();
+    console.error('Sync error:', err);
+    toast('⚠ Erro na sincronização: ' + err.message);
+  }
+}
+
 function importBackup(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const d = JSON.parse(e.target.result);
       if (!d.obras || !d.basicos || !d.detalhados) throw new Error('Arquivo de backup inválido.');
-      
       DB.obras      = d.obras;
       DB.basicos    = d.basicos;
       DB.detalhados = d.detalhados;
       DB._ids       = d._ids || { obra: 200, bas: 200, det: 200 };
       saveToStorage();
       refreshAll();
-      toast('Backup restaurado com sucesso.');
+      if (location.protocol !== 'file:') {
+        await sbSyncAll();
+      } else {
+        toast('Backup restaurado com sucesso.');
+      }
     } catch(err) {
       toast('Erro ao importar backup: ' + err.message);
     }
