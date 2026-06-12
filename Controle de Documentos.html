@@ -1344,12 +1344,12 @@ function onObraChange() {
 function populateSubs() {
   /* filter bar: sub-obras da obra selecionada no filtro (ou curObra se nenhuma) */
   const fObraEl = document.getElementById('f-bas-obra');
-  const fObraId = fObraEl ? fObraEl.value || curObra : curObra;
+  const fObraId = fObraEl ? fObraEl.value : '';
   const fSubEl  = document.getElementById('f-bas-sub');
   if (fSubEl) {
     const prev = fSubEl.value;
     fSubEl.innerHTML = '<option value="">Todas as sub-obras</option>';
-    getSubs(fObraId).forEach(s => {
+    if (fObraId) getSubs(fObraId).forEach(s => {
       const op = document.createElement('option');
       op.value = s.tag; op.textContent = `${s.tag} – ${s.desc}`;
       fSubEl.appendChild(op);
@@ -1387,10 +1387,10 @@ function populateBasObraFilter() {
 
 /* when obra filter changes in basico pane, reload sub filter */
 function onBasObraChange() {
-  const obraId = document.getElementById('f-bas-obra').value || curObra;
+  const obraId = document.getElementById('f-bas-obra').value;
   const subEl  = document.getElementById('f-bas-sub');
   subEl.innerHTML = '<option value="">Todas as sub-obras</option>';
-  getSubs(obraId).forEach(s => {
+  if (obraId) getSubs(obraId).forEach(s => {
     const op = document.createElement('option');
     op.value = s.tag; op.textContent = `${s.tag} – ${s.desc}`;
     subEl.appendChild(op);
@@ -2065,7 +2065,6 @@ function renderBasico() {
 
   let rows = DB.basicos.filter(b => {
     if (obraId && b.obraId !== obraId) return false;
-    if (!obraId && b.obraId !== curObra) return false;
     /* Filter by displayed TAG (subTag), fallback to sub */
     const displayTag = b.subTag || b.sub;
     if (sub && displayTag !== sub) return false;
@@ -2078,7 +2077,7 @@ function renderBasico() {
   rows = applyXlFilters(rows, 'bas');
   updateFilterBtnStates('bas');
 
-  const scope = obraId ? DB.basicos.filter(b => b.obraId === obraId) : DB.basicos.filter(b => b.obraId === curObra);
+  const scope = obraId ? DB.basicos.filter(b => b.obraId === obraId) : DB.basicos;
   const totalPeso = rows.reduce((s, b) => s + (b.peso || 0), 0);
   const scopePeso = scope.reduce((s, b) => s + (b.peso || 0), 0);
   document.getElementById('bas-info').innerHTML =
@@ -2472,11 +2471,12 @@ function editBasico(id) {
   document.getElementById('bas-status').value = b.status || 'LD';
   document.getElementById('bas-3d').value     = b.m3d    || '2D';
   document.getElementById('bas-diag').value   = b.diag   || '2D';
+  document.getElementById('bas-csv-result').innerHTML = '';
+  populateBasModalObra(b.obraId, b.subTag || (b.sub.includes('|') ? b.sub.split('|')[0] : b.sub));
+  /* Re-show form after populateBasModalObra resets it */
   document.getElementById('bas-form-body').style.display = '';
   document.getElementById('bas-empty-hint').style.display = 'none';
   document.getElementById('bas-save-btn').style.display = '';
-  document.getElementById('bas-csv-result').innerHTML = '';
-  populateBasModalObra(b.obraId, b.subTag || (b.sub.includes('|') ? b.sub.split('|')[0] : b.sub));
   initBasRevRows(b.revisoes || []);
   openM('m-basico');
 }
