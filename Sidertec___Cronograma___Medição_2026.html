@@ -965,6 +965,7 @@ canvas{overflow:visible!important;}
   <div class="tab" onclick="showPage('revisoes',this);renderRevisoes();" style="color:#7c3aed;font-weight:600;">🔄 Revisões</div>
   <div class="tab" onclick="showPage('libfab',this);renderLibFab();" style="color:#166534;font-weight:600;">🏭 Lib. Fabricação</div>
   <div class="tab" onclick="showPage('dcts',this);renderDCTS();" style="color:#b45309;font-weight:600;">📁 DCTS</div>
+  <div class="tab" onclick="abrirModalCotacaoEng()" style="color:#7c3aed;font-weight:600;">&#128201; Cotacao Eng.</div>
   <div class="tab" onclick="showPage('diario',this);renderDiario();" style="color:#be185d;font-weight:600;">📅 Diário</div>
 </div>
 
@@ -1295,6 +1296,11 @@ ALTER TABLE medicao_terceiros
       <option value="pendente">⏳ Pend.</option>
       <option value="atrasado">🔴 Atr.</option>
     </select>
+    <div class="fsep"></div>
+    <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;white-space:nowrap;" title="Lib. Fabricacao sem Peso PCP">
+      <input type="checkbox" id="cf-sem-peso-pcp" onchange="renderCronograma()" style="accent-color:var(--orange);">
+      <span style="color:var(--orange);font-weight:700;">Lib.Fab. s/ PCP</span>
+    </label>
     <button class="btn" onclick="limparFiltrosCron()" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;position:sticky;right:0;">✕ Limpar</button>
   </div>
 
@@ -1787,10 +1793,16 @@ ALTER TABLE medicao_terceiros
           <input type="number" class="field-input" id="cm-peso-pcp" placeholder="0,00" min="0" step="0.01">
           <span class="field-hint" style="color:var(--orange);">Peso utilizado pelo PCP</span>
         </div>
-        <div class="field-group" style="align-self:end;">
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.5rem .75rem;font-size:16px;">
-            <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;margin-bottom:.2rem;">Comparativo kg</div>
-            <span id="cm-peso-comparativo" style="font-weight:700;color:var(--ink);">—</span>
+        <div class="field-group" style="align-self:end;grid-column:span 2;">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.5rem .75rem;font-size:11px;display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-start;">
+            <div style="flex:1;min-width:150px;">
+              <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;margin-bottom:.2rem;">Basico x Detalhado</div>
+              <span id="cm-peso-comparativo" style="font-weight:700;color:var(--ink);font-size:11px;">—</span>
+            </div>
+            <div style="flex:1;min-width:150px;border-left:2px solid var(--border);padding-left:.65rem;">
+              <div style="font-size:9px;color:var(--orange);text-transform:uppercase;margin-bottom:.2rem;font-weight:700;">Basico x PCP</div>
+              <span id="cm-diff-basico-pcp" style="font-weight:700;font-size:12px;color:var(--ink);">—</span>
+            </div>
           </div>
         </div>
       </div>
@@ -4562,6 +4574,11 @@ function renderCronograma(){
       if(atrasoF === 'alerta'   && sem !== 'alerta')   return false;
       if(atrasoF === 'ok'       && sem !== 'ok')        return false;
     }
+    // Filtro: Lib. Fabricacao SEM Peso PCP
+    if(document.getElementById('cf-sem-peso-pcp')?.checked){
+      if(s.status !== 'LIB. FABRICAÇÃO') return false;
+      if(s.peso_pcp && Number(s.peso_pcp) > 0) return false;
+    }
     // Filtro por data de ocorrência do status selecionado
     if(statusF && (statusDataIni || statusDataFim)){
       const cfg = (typeof STATUS_DATA_CAMPO !== 'undefined') ? STATUS_DATA_CAMPO[statusF] : null;
@@ -4688,6 +4705,7 @@ function cronPopularFiltros(){
 
 function limparFiltrosCron(){
   ['cf-obra','cf-equipe','cf-atraso','cf-limite-fab','cf-doc11'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const _sppc=document.getElementById('cf-sem-peso-pcp'); if(_sppc) _sppc.checked=false;
   ['cf-data-ini','cf-data-fim','cf-status-data-ini','cf-status-data-fim'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   // Limpar multi-status
   if(typeof limparStatusMulti === 'function') limparStatusMulti();
@@ -6297,20 +6315,29 @@ function toggleCsvGuide(){
 
 // ── COMPARATIVO PESO ──────────────────────────────────────────────────
 function atualizarComparativoPeso(){
-  const basico    = parseFloat(document.getElementById('cm-peso')?.value)||0;
-  const detalhado = parseFloat(document.getElementById('cm-peso-detalhado')?.value)||0;
-  const el = document.getElementById('cm-peso-comparativo');
-  if(!el) return;
-  if(!basico && !detalhado){ el.textContent='—'; return; }
-  if(basico && detalhado){
-    const diff = detalhado - basico;
-    const pct  = basico > 0 ? ((diff/basico)*100).toFixed(1) : '—';
-    const cor  = diff > 0 ? 'var(--accent)' : diff < 0 ? 'var(--blue)' : 'var(--green)';
-    el.innerHTML = `Bás: <b>${basico.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}kg</b> · Det: <b>${detalhado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}kg</b> · <span style="color:${cor};font-weight:700;">${diff>=0?'+':''}${diff.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}kg (${pct}%)</span>`;
-  } else if(basico){
-    el.textContent = `Básico: ${basico.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}kg`;
-  } else {
-    el.textContent = `Detalhado: ${detalhado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}kg`;
+  const basico=parseFloat(document.getElementById('cm-peso')?.value)||0;
+  const detalhado=parseFloat(document.getElementById('cm-peso-detalhado')?.value)||0;
+  const pcp=parseFloat(document.getElementById('cm-peso-pcp')?.value)||0;
+  const fmt=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const el=document.getElementById('cm-peso-comparativo');
+  if(el){
+    if(!basico&&!detalhado){el.textContent='—';}
+    else if(basico&&detalhado){
+      const diff=detalhado-basico;const pct=basico>0?((diff/basico)*100).toFixed(1):'—';
+      const cor=diff>0?'var(--accent)':diff<0?'var(--blue)':'var(--green)';
+      el.innerHTML=`Bás: <b>${fmt(basico)}kg</b> · Det: <b>${fmt(detalhado)}kg</b> · <span style="color:${cor};font-weight:700;">${diff>=0?'+':''}${fmt(diff)}kg (${pct}%)</span>`;
+    }else if(basico){el.textContent=`Básico: ${fmt(basico)}kg`;}
+    else{el.textContent=`Detalhado: ${fmt(detalhado)}kg`;}
+  }
+  const el2=document.getElementById('cm-diff-basico-pcp');
+  if(el2){
+    if(!basico&&!pcp){el2.textContent='—';}
+    else if(basico&&pcp){
+      const diff=pcp-basico;const pct=basico>0?((diff/basico)*100).toFixed(1):'—';
+      const cor=diff>0?'var(--accent)':diff<0?'#2563eb':'var(--green)';
+      el2.innerHTML=`Bás: <b>${fmt(basico)}kg</b> · PCP: <b>${fmt(pcp)}kg</b><br><span style="color:${cor};font-weight:700;font-size:13px;">${diff>=0?'+':''}${fmt(diff)}kg (${pct}%)</span>`;
+    }else if(basico){el2.innerHTML=`Básico: <b>${fmt(basico)}kg</b><br><span style="color:var(--ink3);font-size:10px;">PCP não informado</span>`;}
+    else{el2.innerHTML=`PCP: <b>${fmt(pcp)}kg</b><br><span style="color:var(--ink3);font-size:10px;">Básico não informado</span>`;}
   }
 }
 // Wire up comparativo listeners after modal opens (using event delegation)
@@ -10288,6 +10315,29 @@ window.addEventListener('DOMContentLoaded', function(){
       </div>
     </div>
     <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--green);font-weight:700;">Lib. Real (de/ate):</span>
+    <select id="lf-real-mes-ini" onchange="renderLibFab()" style="font-size:11px;padding:2px 5px;border:1px solid var(--border2);border-radius:var(--r2);">
+      <option value="">Mes</option><option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+      <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+      <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+      <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+    </select>
+    <select id="lf-real-ano-ini" onchange="renderLibFab()" style="font-size:11px;padding:2px 5px;border:1px solid var(--border2);border-radius:var(--r2);">
+      <option value="">Ano</option><option value="2024">2024</option><option value="2025">2025</option>
+      <option value="2026" selected>2026</option><option value="2027">2027</option>
+    </select>
+    <span style="font-size:10px;color:var(--ink3);">ate</span>
+    <select id="lf-real-mes-fim" onchange="renderLibFab()" style="font-size:11px;padding:2px 5px;border:1px solid var(--border2);border-radius:var(--r2);">
+      <option value="">Mes</option><option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+      <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+      <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+      <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+    </select>
+    <select id="lf-real-ano-fim" onchange="renderLibFab()" style="font-size:11px;padding:2px 5px;border:1px solid var(--border2);border-radius:var(--r2);">
+      <option value="">Ano</option><option value="2024">2024</option><option value="2025">2025</option>
+      <option value="2026" selected>2026</option><option value="2027">2027</option>
+    </select>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
     <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600;">Prev. Lib.:</span>
     <input type="date" id="lf-data-ini" oninput="renderLibFab()" style="font-size:11px;padding:2px 5px;width:108px;border:1px solid var(--border2);border-radius:var(--r2);" title="Prev. Lib. Fab. — data inicial">
     <span style="font-size:10px;color:var(--ink3);">até</span>
@@ -11813,6 +11863,23 @@ function renderLibFab(){
       return true;
     });
   }
+  // Filtro por intervalo mes/ano — real_lib_fab
+  var rMI=parseInt((document.getElementById('lf-real-mes-ini')||{}).value||0);
+  var rAI=parseInt((document.getElementById('lf-real-ano-ini')||{}).value||0);
+  var rMF=parseInt((document.getElementById('lf-real-mes-fim')||{}).value||0);
+  var rAF=parseInt((document.getElementById('lf-real-ano-fim')||{}).value||0);
+  if((rMI&&rAI)||(rMF&&rAF)){
+    subs=subs.filter(function(s){
+      if(!s.real_lib_fab) return false;
+      var d=new Date(s.real_lib_fab+'T12:00:00');
+      var dN=(d.getFullYear()*100)+(d.getMonth()+1);
+      var ini=(rAI&&rMI)?(rAI*100+rMI):0;
+      var fim=(rAF&&rMF)?(rAF*100+rMF):999999;
+      if(ini&&dN<ini) return false;
+      if(fim<999999&&dN>fim) return false;
+      return true;
+    });
+  }
 
   var G={atrasado:[],mes:[],sem:[],liberado:[]};
   subs.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(G[c])G[c].push(s);});
@@ -11893,7 +11960,8 @@ function limparLibFab(){
   document.querySelectorAll('#lf-status-dropdown input[type=checkbox]').forEach(function(cb){cb.checked=false;});
   var lbl=document.getElementById('lf-status-label'); if(lbl) lbl.textContent='Todos';
   // Limpar filtros de data
-  ['lf-data-ini','lf-data-fim','lf-real-ini','lf-real-fim'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  ['lf-data-ini','lf-data-fim','lf-real-ini','lf-real-fim','lf-real-mes-ini','lf-real-mes-fim'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  ['lf-real-ano-ini','lf-real-ano-fim'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='2026';});
   _lfObraAtiva=''; renderLibFab();
 }
 
@@ -13897,5 +13965,130 @@ function gerarRelatorioDiario(){
   if(w){ w.document.write(html); w.document.close(); }
 }
 </script>
+
+<!-- MODAL COTACAO DE ENGENHARIA -->
+<style>
+#modal-cotacao-eng .cron-modal-box{width:900px;max-width:98vw;}
+#modal-cotacao-eng .cron-mhd{background:linear-gradient(135deg,#4c1d95,#7c3aed);padding:.6rem 1rem;}
+#modal-cotacao-eng .cron-mhd-title{font-size:14px;}
+#modal-cotacao-eng .cron-mbody{padding:.9rem 1.1rem;}
+#modal-cotacao-eng .cot-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+#modal-cotacao-eng .cot-tbl thead tr{background:#4c1d95;}
+#modal-cotacao-eng .cot-tbl thead th{padding:7px 8px;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border:1px solid #6d28d9;text-align:left;white-space:nowrap;}
+#modal-cotacao-eng .cot-tbl thead th.num{text-align:right;}
+#modal-cotacao-eng .cot-tbl tbody td{padding:4px 5px;border:1px solid #e2e8f0;vertical-align:middle;}
+#modal-cotacao-eng .cot-tbl tbody tr:nth-child(even){background:#faf5ff;}
+#modal-cotacao-eng .cot-tbl tbody tr:hover{background:#ede9fe;}
+#modal-cotacao-eng .cot-tbl tfoot tr{background:#1e1b4b;}
+#modal-cotacao-eng .cot-tbl tfoot td{padding:6px 8px;color:#fff;font-weight:700;font-size:11px;border:1px solid #312e81;}
+#modal-cotacao-eng .cot-tbl tfoot td.num{text-align:right;color:#c4b5fd;font-family:'Courier New',monospace;}
+#modal-cotacao-eng input[type=text],#modal-cotacao-eng input[type=number],#modal-cotacao-eng select{font-size:11px;padding:2px 5px;border:1px solid #d1d5db;border-radius:3px;width:100%;background:#fff;color:#1a1714;font-family:var(--font-main);}
+#modal-cotacao-eng input:focus,#modal-cotacao-eng select:focus{border-color:#7c3aed;outline:none;}
+</style>
+<div class="cron-modal-overlay" id="modal-cotacao-eng" onclick="if(event.target.id==='modal-cotacao-eng')fecharModalCotacaoEng();" style="z-index:750;">
+  <div class="cron-modal-box" onclick="event.stopPropagation()">
+    <div class="cron-mhd">
+      <div style="flex:1;">
+        <div class="cron-mhd-title">&#128201; Cotacao de Engenharia</div>
+        <div class="cron-mhd-sub" style="font-size:10px;">Peso Basico x Valor/kg por sub-obra</div>
+      </div>
+      <button onclick="fecharModalCotacaoEng()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">x</button>
+    </div>
+    <div class="cron-mbody">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:.85rem;">
+        <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #7c3aed;"><div style="font-size:8px;text-transform:uppercase;color:#6d28d9;letter-spacing:.07em;margin-bottom:.2rem;">Itens</div><div id="cot-k-itens" style="font-family:'Georgia',serif;font-size:20px;line-height:1;">0</div></div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #059669;"><div style="font-size:8px;text-transform:uppercase;color:#059669;letter-spacing:.07em;margin-bottom:.2rem;">Peso Basico Total</div><div id="cot-k-peso" style="font-family:'Georgia',serif;font-size:14px;line-height:1;">-- kg</div></div>
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #2563eb;"><div style="font-size:8px;text-transform:uppercase;color:#1d4ed8;letter-spacing:.07em;margin-bottom:.2rem;">R$ Total</div><div id="cot-k-total" style="font-family:'Georgia',serif;font-size:14px;line-height:1;">R$ --</div></div>
+        <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #ea580c;"><div style="font-size:8px;text-transform:uppercase;color:#c2410c;letter-spacing:.07em;margin-bottom:.2rem;">Ticket Medio R$/kg</div><div id="cot-k-ticket" style="font-family:'Georgia',serif;font-size:14px;line-height:1;">--</div></div>
+      </div>
+      <div style="overflow-x:auto;border:1.5px solid #c4b5fd;border-radius:6px;margin-bottom:.75rem;">
+        <table class="cot-tbl"><thead><tr>
+          <th style="min-width:80px;">Obra</th><th style="min-width:220px;">Descricao</th>
+          <th class="num" style="min-width:110px;">Peso Basico (kg)</th>
+          <th style="min-width:140px;">Engenharia</th>
+          <th class="num" style="min-width:100px;">R$/kg</th>
+          <th class="num" style="min-width:120px;">R$ Total</th>
+          <th style="width:32px;"></th>
+        </tr></thead>
+        <tbody id="cot-tbody"></tbody>
+        <tfoot><tr>
+          <td colspan="2" style="font-size:10px;">TOTAL</td>
+          <td class="num" id="cot-foot-peso">--</td>
+          <td colspan="2"></td>
+          <td class="num" id="cot-foot-total">R$ --</td>
+          <td></td>
+        </tr></tfoot></table>
+      </div>
+      <button onclick="cotAddLinha()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">+ Adicionar Linha</button>
+      <button onclick="cotImportarDoCronograma()" style="background:#e8f0f8;color:var(--blue);border:1px solid var(--blue);border-radius:4px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);margin-left:.4rem;">Importar do Cronograma</button>
+      <button onclick="cotExportarCSV()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);margin-left:.4rem;">CSV</button>
+    </div>
+    <div class="cron-mfooter">
+      <div style="font-size:10px;color:var(--ink3);">Cotacoes salvas nesta sessao.</div>
+      <button class="btn btn-secondary" onclick="fecharModalCotacaoEng()" style="font-size:11px;padding:4px 14px;">Fechar</button>
+    </div>
+  </div>
+</div>
+<script>
+var _cotLinhas=[];var _cotId=1;
+function abrirModalCotacaoEng(){var o=document.getElementById('modal-cotacao-eng');if(o){cotRender();o.classList.add('show');}}
+function fecharModalCotacaoEng(){var o=document.getElementById('modal-cotacao-eng');if(o)o.classList.remove('show');}
+function cotAddLinha(d){_cotLinhas.push(Object.assign({id:_cotId++,obra:'',descricao:'',peso_basico:'',engenharia:'',r_por_kg:'',r_total:0},d||{}));cotRender();}
+function cotImportarDoCronograma(){
+  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length){alert('Nenhuma sub-obra no cronograma.');return;}
+  allCronSubobras.forEach(function(s){cotAddLinha({obra:s.obra||'',descricao:s.descricao||s.subobra||'',peso_basico:s.peso_previsto||'',engenharia:s.equipe||''});});
+}
+function cotRender(){
+  var tb=document.getElementById('cot-tbody');if(!tb)return;
+  var obras=(typeof allCronSubobras!=='undefined')?[...new Set(allCronSubobras.map(function(s){return s.obra||'';}))].filter(Boolean).sort():[];
+  var eqs=(typeof allCronSubobras!=='undefined')?[...new Set(allCronSubobras.map(function(s){return s.equipe||'';}))].filter(Boolean).sort():[];
+  var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  if(!_cotLinhas.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:#94a3b8;font-size:11px;font-style:italic;">Nenhuma cotacao. Clique em + Adicionar Linha ou importe do Cronograma.</td></tr>';cotKpis();return;}
+  tb.innerHTML=_cotLinhas.map(function(l){
+    l.r_total=(parseFloat(l.peso_basico)||0)*(parseFloat(l.r_por_kg)||0);
+    var tc=l.r_total>0?'#059669':'#94a3b8';
+    var oO=obras.map(function(o){return '<option value="'+o+'"'+(l.obra===o?' selected':'')+'>'+o+'</option>';}).join('');
+    var eO=eqs.map(function(e){return '<option value="'+e+'"'+(l.engenharia===e?' selected':'')+'>'+e+'</option>';}).join('');
+    return '<tr>'
+      +'<td><select onchange="cotUpd('+l.id+',\x27obra\x27,this.value)"><option value=""> -- </option>'+oO+'</select></td>'
+      +'<td><input type="text" value="'+l.descricao.replace(/"/g,'&quot;')+'" placeholder="Descricao" oninput="cotUpd('+l.id+',\x27descricao\x27,this.value)"></td>'
+      +'<td><input type="number" value="'+(l.peso_basico||'')+'" placeholder="0" min="0" step="0.01" style="text-align:right;" oninput="cotUpd('+l.id+',\x27peso_basico\x27,this.value)"></td>'
+      +'<td><select onchange="cotUpd('+l.id+',\x27engenharia\x27,this.value)"><option value=""> -- </option>'+eO+'</select></td>'
+      +'<td><input type="number" value="'+(l.r_por_kg||'')+'" placeholder="0.00" min="0" step="0.01" style="text-align:right;" oninput="cotUpd('+l.id+',\x27r_por_kg\x27,this.value)"></td>'
+      +'<td style="text-align:right;font-family:Courier New,monospace;font-weight:700;color:'+tc+';">'+(l.r_total>0?'R$ '+fmt(l.r_total):'--')+'</td>'
+      +'<td style="text-align:center;"><button onclick="cotRem('+l.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;padding:0 3px;">x</button></td>'
+      +'</tr>';
+  }).join('');
+  cotKpis();
+}
+function cotUpd(id,campo,val){
+  var l=_cotLinhas.find(function(x){return x.id===id;});if(!l)return;
+  l[campo]=val;l.r_total=(parseFloat(l.peso_basico)||0)*(parseFloat(l.r_por_kg)||0);
+  var rows=document.querySelectorAll('#cot-tbody tr');
+  var idx=_cotLinhas.findIndex(function(x){return x.id===id;});
+  var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  if(rows[idx]){var td=rows[idx].querySelectorAll('td')[5];if(td){td.style.color=l.r_total>0?'#059669':'#94a3b8';td.textContent=l.r_total>0?'R$ '+fmt(l.r_total):'--';}}
+  cotKpis();
+}
+function cotRem(id){_cotLinhas=_cotLinhas.filter(function(l){return l.id!==id;});cotRender();}
+function cotKpis(){
+  var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var tP=_cotLinhas.reduce(function(a,l){return a+(parseFloat(l.peso_basico)||0);},0);
+  var tV=_cotLinhas.reduce(function(a,l){return a+(l.r_total||0);},0);
+  var tk=tP>0?tV/tP:0;
+  var sc=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  sc('cot-k-itens',_cotLinhas.length);sc('cot-k-peso',tP>0?fmt(tP)+' kg':'-- kg');
+  sc('cot-k-total',tV>0?'R$ '+fmt(tV):'R$ --');sc('cot-k-ticket',tk>0?'R$ '+fmt(tk)+'/kg':'--');
+  sc('cot-foot-peso',tP>0?fmt(tP)+' kg':'--');sc('cot-foot-total',tV>0?'R$ '+fmt(tV):'R$ --');
+}
+function cotExportarCSV(){
+  if(!_cotLinhas.length){alert('Nenhuma cotacao.');return;}
+  var linhas=['Obra;Descricao;Peso Basico (kg);Engenharia;R$/kg;R$ Total'];
+  _cotLinhas.forEach(function(l){var fn=function(v){return (parseFloat(v)||0).toFixed(2).replace('.',',');};linhas.push([l.obra,l.descricao,fn(l.peso_basico),l.engenharia,fn(l.r_por_kg),fn(l.r_total)].join(';'));});
+  var blob=new Blob([linhas.join('\n')],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='cotacao_engenharia.csv';a.click();URL.revokeObjectURL(url);
+}
+</script>
+<!-- FIM MODAL COTACAO DE ENGENHARIA -->
 </body>
 </html>
