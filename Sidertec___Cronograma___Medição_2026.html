@@ -12929,6 +12929,16 @@ async function excluirMedicao(id){
     <button onclick="gerarRelatorioDiario()" style="background:#7c3aed;color:#fff;border:none;border-radius:var(--r2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">📊 Relatório</button>
   </div>
 
+  <!-- Filtros do Diário -->
+  <div id="diario-filtros" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.5rem 1rem;margin-bottom:.75rem;">
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Filtros:</span>
+    <select id="df-obra" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:160px;"><option value="">Todas obras</option></select>
+    <select id="df-subobra" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:160px;"><option value="">Toda sub-obra</option></select>
+    <select id="df-equipe" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:160px;"><option value="">Todas equipes</option></select>
+    <select id="df-etapa" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:200px;"><option value="">Todas etapas</option></select>
+    <button onclick="limparFiltrosDiario()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:var(--r2);padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">✕</button>
+  </div>
+
   <!-- KPIs do dia -->
   <div id="diario-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:1rem;"></div>
 
@@ -13525,6 +13535,19 @@ function diarioAmanha(){
   renderDiario();
 }
 
+function limparFiltrosDiario(){
+  ['df-obra','df-subobra','df-equipe','df-etapa'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  renderDiario();
+}
+
+function _diarioPopularSelect(id, valores, placeholder){
+  var sel = document.getElementById(id);
+  if(!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">'+placeholder+'</option>';
+  valores.forEach(function(v){ var o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;sel.appendChild(o); });
+}
+
 function renderDiario(){
   var dataEl = document.getElementById('diario-data-input');
   if(!dataEl) return;
@@ -13540,6 +13563,17 @@ function renderDiario(){
   }
 
   var subobras = typeof allCronSubobras !== 'undefined' ? allCronSubobras : [];
+
+  // Popular selects de filtro
+  _diarioPopularSelect('df-obra',    [...new Set(subobras.map(function(s){return s.obra||'';}).filter(Boolean))].sort(), 'Todas obras');
+  _diarioPopularSelect('df-subobra', [...new Set(subobras.map(function(s){return s.subobra||'';}).filter(Boolean))].sort(), 'Toda sub-obra');
+  _diarioPopularSelect('df-equipe',  [...new Set(subobras.map(function(s){return s.equipe||'';}).filter(Boolean))].sort(), 'Todas equipes');
+
+  // Ler valores dos filtros
+  var fObra    = (document.getElementById('df-obra')   ||{}).value||'';
+  var fSubobra = (document.getElementById('df-subobra')||{}).value||'';
+  var fEquipe  = (document.getElementById('df-equipe') ||{}).value||'';
+  var fEtapa   = (document.getElementById('df-etapa')  ||{}).value||'';
 
   // Mapeamento de etapas para verificar
   var ETAPAS_DIARIO = [
@@ -13558,13 +13592,23 @@ function renderDiario(){
     { key:'diagrama_mont',    prevCol:'prev_diagrama_mont',    realCol:'real_diagrama_mont',     nome:'Diagrama de Montagem',      icon:'🔧', cor:'#78350f', bg:'#fef3c7' },
   ];
 
+  // Popular select de etapas
+  _diarioPopularSelect('df-etapa', ETAPAS_DIARIO.map(function(e){return e.nome;}), 'Todas etapas');
+
   // Coleta itens que têm data prevista = dataRef e não têm data real
   var itensNoDia = [];
   var itensConcluidos = [];
   var itensAtrasados = [];
 
   subobras.forEach(function(s){
+    // Aplicar filtros de obra / sub-obra / equipe
+    if(fObra    && s.obra   !== fObra)    return;
+    if(fSubobra && s.subobra!== fSubobra) return;
+    if(fEquipe  && s.equipe !== fEquipe)  return;
+
     ETAPAS_DIARIO.forEach(function(e){
+      // Filtro por etapa
+      if(fEtapa && e.nome !== fEtapa) return;
       var prev = s[e.prevCol];
       var real = s[e.realCol];
       if(!prev) return;
