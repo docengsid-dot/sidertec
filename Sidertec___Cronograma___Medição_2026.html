@@ -12926,7 +12926,13 @@ async function excluirMedicao(id){
     <button onclick="diarioOntem()" style="background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);border-radius:var(--r2);padding:5px 12px;font-size:11px;cursor:pointer;font-family:var(--font-main);">‹ Ontem</button>
     <button onclick="diarioAmanha()" style="background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);border-radius:var(--r2);padding:5px 12px;font-size:11px;cursor:pointer;font-family:var(--font-main);">Amanhã ›</button>
     <div style="margin-left:auto;font-size:11px;color:var(--ink3);" id="diario-resumo-label"></div>
-    <button onclick="gerarRelatorioDiario()" style="background:#7c3aed;color:#fff;border:none;border-radius:var(--r2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">📊 Relatório</button>
+    <div style="position:relative;display:inline-block;" id="diario-rel-wrap">
+      <button onclick="document.getElementById('diario-rel-dd').style.display=document.getElementById('diario-rel-dd').style.display==='block'?'none':'block'" style="background:#7c3aed;color:#fff;border:none;border-radius:var(--r2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);display:flex;align-items:center;gap:4px;">📊 Relatório <span style="font-size:9px;">▼</span></button>
+      <div id="diario-rel-dd" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow2);z-index:300;min-width:170px;overflow:hidden;">
+        <button onclick="gerarRelatorioDiario(false);document.getElementById('diario-rel-dd').style.display='none';" style="display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border);padding:8px 14px;font-size:11px;cursor:pointer;font-family:var(--font-main);">📋 Geral</button>
+        <button onclick="gerarRelatorioDiario(true);document.getElementById('diario-rel-dd').style.display='none';" style="display:block;width:100%;text-align:left;background:none;border:none;padding:8px 14px;font-size:11px;cursor:pointer;font-family:var(--font-main);color:#7c3aed;font-weight:700;">🔍 Por Filtro</button>
+      </div>
+    </div>
   </div>
 
   <!-- Filtros do Diário -->
@@ -12935,7 +12941,7 @@ async function excluirMedicao(id){
     <select id="df-obra" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:160px;"><option value="">Todas obras</option></select>
     <select id="df-subobra" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:160px;"><option value="">Toda sub-obra</option></select>
     <select id="df-equipe" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:160px;"><option value="">Todas equipes</option></select>
-    <select id="df-etapa" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:200px;"><option value="">Todas etapas</option></select>
+    <select id="df-status" onchange="renderDiario()" style="font-size:11px;padding:2px 7px;border:1px solid var(--border2);border-radius:var(--r2);max-width:200px;"><option value="">Todos status</option></select>
     <button onclick="limparFiltrosDiario()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:var(--r2);padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">✕</button>
   </div>
 
@@ -13536,7 +13542,7 @@ function diarioAmanha(){
 }
 
 function limparFiltrosDiario(){
-  ['df-obra','df-subobra','df-equipe','df-etapa'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  ['df-obra','df-subobra','df-equipe','df-status'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   renderDiario();
 }
 
@@ -13573,7 +13579,26 @@ function renderDiario(){
   var fObra    = (document.getElementById('df-obra')   ||{}).value||'';
   var fSubobra = (document.getElementById('df-subobra')||{}).value||'';
   var fEquipe  = (document.getElementById('df-equipe') ||{}).value||'';
-  var fEtapa   = (document.getElementById('df-etapa')  ||{}).value||'';
+  var fStatus  = (document.getElementById('df-status') ||{}).value||'';
+
+  // Popular select de status (igual STATUS_ORDER do cronograma)
+  var _statusOrd = typeof STATUS_ORDER !== 'undefined' ? STATUS_ORDER : [
+    'AG. PROJ. BÁSICO','AG. MODELO PARA APROV.','MODELO EM APROV.',
+    'EMISSÃO PCTE FAB.','INSP. INTERNA','LIB. FABRICAÇÃO',
+    'EM COTAÇÃO ENG.','AG. DOCUMENTOS','HOLD'
+  ];
+  (function(){
+    var sel=document.getElementById('df-status'); if(!sel) return;
+    var cur=sel.value;
+    sel.innerHTML='<option value="">Todos status</option>';
+    // adiciona status fixos + customizados presentes nos dados
+    var vistos=new Set(_statusOrd);
+    var extras=[...new Set(subobras.map(function(s){return s.status||'';}).filter(Boolean))].filter(function(v){return !vistos.has(v);}).sort();
+    _statusOrd.concat(extras).forEach(function(v){
+      var o=document.createElement('option');o.value=v;o.textContent=v;
+      if(v===cur)o.selected=true;sel.appendChild(o);
+    });
+  })();
 
   // Mapeamento de etapas para verificar
   var ETAPAS_DIARIO = [
@@ -13592,23 +13617,20 @@ function renderDiario(){
     { key:'diagrama_mont',    prevCol:'prev_diagrama_mont',    realCol:'real_diagrama_mont',     nome:'Diagrama de Montagem',      icon:'🔧', cor:'#78350f', bg:'#fef3c7' },
   ];
 
-  // Popular select de etapas
-  _diarioPopularSelect('df-etapa', ETAPAS_DIARIO.map(function(e){return e.nome;}), 'Todas etapas');
-
   // Coleta itens que têm data prevista = dataRef e não têm data real
   var itensNoDia = [];
   var itensConcluidos = [];
   var itensAtrasados = [];
 
   subobras.forEach(function(s){
-    // Aplicar filtros de obra / sub-obra / equipe
+    // Aplicar filtros de obra / sub-obra / equipe / status
     if(fObra    && s.obra   !== fObra)    return;
     if(fSubobra && s.subobra!== fSubobra) return;
     if(fEquipe  && s.equipe !== fEquipe)  return;
+    if(fStatus  && (s.status||'') !== fStatus) return;
 
     ETAPAS_DIARIO.forEach(function(e){
-      // Filtro por etapa
-      if(fEtapa && e.nome !== fEtapa) return;
+
       var prev = s[e.prevCol];
       var real = s[e.realCol];
       if(!prev) return;
@@ -13677,6 +13699,61 @@ function renderDiario(){
     );
   }
 
+  // ── Bloco 4: Sub-obras em determinado Status (quando filtro de status ativo) ──
+  if(fStatus){
+    // Coleta todas as sub-obras com esse status (já filtradas por obra/subobra/equipe)
+    var subsStatus = subobras.filter(function(s){
+      if(fObra    && s.obra   !== fObra)    return false;
+      if(fSubobra && s.subobra!== fSubobra) return false;
+      if(fEquipe  && s.equipe !== fEquipe)  return false;
+      return (s.status||'') === fStatus;
+    });
+    if(subsStatus.length){
+      var sc=(typeof STATUS_COLORS!=='undefined'&&STATUS_COLORS[fStatus])||{color:'#334155',bg:'#f1f5f9',icon:'📌'};
+      html += '<div class="diario-bloco">'
+        +'<div class="diario-bloco-hd" style="background:'+sc.color+';">'
+        +'<span class="diario-bloco-title">'+(sc.icon||'📌')+' Sub-obras em: '+fStatus+'</span>'
+        +'<span class="diario-bloco-count">'+subsStatus.length+'</span>'
+        +'</div>';
+      subsStatus.forEach(function(s){
+        // Próxima etapa pendente desta sub-obra
+        var proximaEtapa = null;
+        for(var ei=0;ei<ETAPAS_DIARIO.length;ei++){
+          var et=ETAPAS_DIARIO[ei];
+          if(s[et.prevCol] && !s[et.realCol]){ proximaEtapa=et; break; }
+        }
+        var prazoTxt='';
+        if(proximaEtapa && s[proximaEtapa.prevCol]){
+          var pD=new Date(s[proximaEtapa.prevCol]+'T12:00:00');
+          var hoje=new Date(dataRef+'T12:00:00');
+          var diff=Math.round((pD-hoje)/86400000);
+          var cor=diff<0?'#dc2626':diff===0?'#d97706':diff<=7?'#b45309':'#166534';
+          prazoTxt='<span style="color:'+cor+';font-weight:700;font-size:10px;">'
+            +(diff<0?diff+' dias':diff===0?'Hoje':'+'+diff+' dias')+'</span>';
+        }
+        html += '<div class="diario-item">'
+          +'<div class="diario-item-icon">'+(proximaEtapa?proximaEtapa.icon:'📌')+'</div>'
+          +'<div class="diario-item-body">'
+          +'<div style="display:flex;align-items:center;gap:.4rem;">'
+          +'<span class="diario-item-tag">'+_esc(s.subobra||'—')+'</span>'
+          +'<span class="diario-item-obra">'+_esc(s.obra||'—')+'</span>'
+          +'</div>'
+          +'<div class="diario-item-etapa" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'
+          +(proximaEtapa?'<span style="background:'+proximaEtapa.bg+';color:'+proximaEtapa.cor+';border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;">▶ '+proximaEtapa.nome+'</span>':'<span style="background:#f1f5f9;color:#64748b;border-radius:3px;padding:1px 6px;font-size:10px;">Sem próxima etapa</span>')
+          +(proximaEtapa&&s[proximaEtapa.prevCol]?' <span style="font-size:9px;color:var(--ink3);">Prev: '+_fmtDateBr(s[proximaEtapa.prevCol])+'</span> '+prazoTxt:'')
+          +'</div>'
+          +'<div class="diario-item-meta">Equipe: <strong>'+_esc(s.equipe||'—')+'</strong>'
+          +(s.peso_detalhado?' · Peso Det.: '+Number(s.peso_detalhado).toLocaleString('pt-BR')+'kg':'')
+          +(s.data_limite_fab?' · <span style="color:#b45309;font-weight:700;">Lim.Fab.: '+_fmtDateBr(s.data_limite_fab)+'</span>':'')
+          +'</div>'
+          +'</div>'
+          +'<div class="diario-item-status"><span style="font-size:9px;color:var(--ink3);">'+_esc(s.status||'—')+'</span></div>'
+          +'</div>';
+      });
+      html += '</div>';
+    }
+  }
+
   conteudo.innerHTML = html || '<div class="diario-empty">🎉 Nenhum evento encontrado para esta data.<br><small style="color:var(--ink3);">Verifique se há sub-obras carregadas no Cronograma.</small></div>';
 }
 
@@ -13704,7 +13781,15 @@ function _diarioBloco(titulo, itens, corHd, textoVazio, isAtraso){
         + '<span class="diario-item-tag">'+_esc(s.subobra||'—')+'</span>'
         + '<span class="diario-item-obra">'+_esc(s.obra||'—')+'</span>'
         + '</div>'
-        + '<div class="diario-item-etapa"><span style="background:'+e.bg+';color:'+e.cor+';border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;">'+e.nome+'</span></div>'
+        + '<div class="diario-item-etapa" style="display:flex;align-items:center;gap:4px;">'
+        + '<span style="background:'+e.bg+';color:'+e.cor+';border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;">'+e.nome+'</span>'
+        + (function(){
+            var sc = (typeof STATUS_COLORS!=='undefined'&&STATUS_COLORS[s.status])||null;
+            if(!s.status) return '';
+            var bg2=sc?sc.bg:'#f1f5f9', c2=sc?sc.color:'#475569';
+            return '<span style="background:'+bg2+';color:'+c2+';border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;border:1px solid '+bg2+';">'+(sc&&sc.icon?sc.icon+' ':'')+_esc(s.status)+'</span>';
+          })()
+        + '</div>'
         + '<div class="diario-item-meta">Equipe: <strong>'+_esc(s.equipe||'—')+'</strong> · Prev: '+prevDate+metaExtra+'</div>'
         + (s.peso_detalhado ? '<div class="diario-item-meta">Peso Det.: '+Number(s.peso_detalhado).toLocaleString('pt-BR')+'kg</div>' : '')
         + '</div>'
@@ -13878,7 +13963,7 @@ function gerarRelatorioDCTS(){
 // ══════════════════════════════════════════════════════════════
 //  RELATÓRIO DIÁRIO
 // ══════════════════════════════════════════════════════════════
-function gerarRelatorioDiario(){
+function gerarRelatorioDiario(comFiltro){
   var dataEl = document.getElementById('diario-data-input');
   if(!dataEl || !dataEl.value) return;
   var dataRef = dataEl.value;
@@ -13888,7 +13973,26 @@ function gerarRelatorioDiario(){
   var dataRel = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   var horaRel = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
-  var subobras = typeof allCronSubobras !== 'undefined' ? allCronSubobras : [];
+  var _subAll = typeof allCronSubobras !== 'undefined' ? allCronSubobras : [];
+  var _fObra    = comFiltro ? ((document.getElementById('df-obra')   ||{}).value||'') : '';
+  var _fSubobra = comFiltro ? ((document.getElementById('df-subobra')||{}).value||'') : '';
+  var _fEquipe  = comFiltro ? ((document.getElementById('df-equipe') ||{}).value||'') : '';
+  var _fStatus  = comFiltro ? ((document.getElementById('df-status') ||{}).value||'') : '';
+  var subobras  = comFiltro ? _subAll.filter(function(s){
+    if(_fObra    && s.obra    !== _fObra)    return false;
+    if(_fSubobra && s.subobra !== _fSubobra) return false;
+    if(_fEquipe  && s.equipe  !== _fEquipe)  return false;
+    if(_fStatus  && (s.status||'') !== _fStatus) return false;
+    return true;
+  }) : _subAll;
+  // Rótulo dos filtros ativos para o cabeçalho
+  var _filtrosLabel = [];
+  if(comFiltro){
+    if(_fObra)    _filtrosLabel.push('Obra: '+_fObra);
+    if(_fSubobra) _filtrosLabel.push('Sub-obra: '+_fSubobra);
+    if(_fEquipe)  _filtrosLabel.push('Equipe: '+_fEquipe);
+    if(_fStatus)  _filtrosLabel.push('Status: '+_fStatus);
+  }
   var ETAPAS_DIARIO = [
     { key:'basico',           prevCol:'prev_basico',           realCol:'real_basico',           nome:'Proj. Básico'              },
     { key:'envio_detail',     prevCol:'prev_envio_detail',     realCol:'real_envio_detail',      nome:'Envio Detalhamento'        },
@@ -13982,6 +14086,7 @@ function gerarRelatorioDiario(){
   html+='<div class="meta-row"><span style="font-weight:700;">GERADO EM</span><span>'+dataRel+' '+horaRel+'</span></div>';
   html+='<div class="meta-row"><span style="font-weight:700;">PREVISTAS</span><span>'+itensNoDia.length+'</span></div>';
   html+='<div class="meta-row"><span style="font-weight:700;">ATRASADAS</span><span style="color:#991b1b;font-weight:700;">'+itensAtrasados.length+'</span></div>';
+  if(_filtrosLabel.length) html+='<div class="meta-row"><span style="font-weight:700;color:#7c3aed;">FILTROS</span><span style="color:#7c3aed;">'+_filtrosLabel.join(' · ')+'</span></div>';
   html+='</div></div>';
 
   html+='<div class="kpis">';
@@ -14002,7 +14107,38 @@ function gerarRelatorioDiario(){
     html+='<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">Nenhum evento encontrado para '+dataLabel+'</div>';
   }
 
-  html+='<div class="rel-footer">Sidertec Estruturas Metálicas · Diário de Obras · Gerado em '+dataRel+' às '+horaRel+'</div>';
+  // Bloco extra: sub-obras no status filtrado
+  if(comFiltro && _fStatus && subobras.length){
+    var ETAPAS_D2 = ETAPAS_DIARIO; // reutiliza a lista local
+    var rowsStatus = subobras.map(function(s){
+      // próxima etapa pendente
+      var nx=null;
+      for(var ei=0;ei<ETAPAS_D2.length;ei++){var et=ETAPAS_D2[ei];if(s[et.prevCol]&&!s[et.realCol]){nx=et;break;}}
+      var prazoStr='—', diasStr='';
+      if(nx&&s[nx.prevCol]){
+        prazoStr=fD(s[nx.prevCol]);
+        var diff=Math.round((new Date(dataRef)-new Date(s[nx.prevCol]))/86400000);
+        diasStr=diff>0?'<span style="color:#dc2626;font-weight:700;">+'+diff+'d atraso</span>':diff===0?'<span style="color:#d97706;font-weight:700;">Hoje</span>':'<span style="color:#166534;">'+Math.abs(diff)+'d restantes</span>';
+      }
+      return '<tr>'
+        +'<td style="font-family:Courier New,monospace;font-weight:700;font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;color:#1d4ed8;">'+(s.subobra||'—')+'</td>'
+        +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.obra||'—')+'</td>'
+        +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.equipe?s.equipe.split('(')[0].trim():'—')+'</td>'
+        +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+(nx?nx.nome:'—')+'</td>'
+        +'<td style="font-family:Courier New,monospace;font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+prazoStr+'</td>'
+        +'<td style="font-size:8px;border:1px solid #e2e8f0;padding:3px 5px;">'+diasStr+'</td>'
+        +'<td style="font-family:Courier New,monospace;font-size:8px;text-align:right;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.data_limite_fab?fD(s.data_limite_fab):'—')+'</td>'
+        +'<td style="font-family:Courier New,monospace;font-size:8px;text-align:right;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>'
+        +'</tr>';
+    }).join('');
+    html+='<div style="margin-bottom:10px;">'
+      +'<div style="background:#4c1d95;color:#fff;padding:4px 8px;font-size:9px;font-weight:700;border-radius:3px 3px 0 0;">📌 Sub-obras com Status: '+_fStatus+' ('+subobras.length+')</div>'
+      +'<table><thead><tr>'
+      +'<th>TAG</th><th>Obra</th><th>Equipe</th><th>Próx. Etapa</th><th>Prev. Etapa</th><th>Prazo</th><th>Lim. Fab.</th><th>Peso Det.</th>'
+      +'</tr></thead><tbody>'+rowsStatus+'</tbody></table></div>';
+  }
+
+  html+='<div class="rel-footer">Sidertec Estruturas Metálicas · Diário de Obras · '+(comFiltro&&_filtrosLabel.length?'Filtros: '+_filtrosLabel.join(' · ')+' · ':'')+'Gerado em '+dataRel+' às '+horaRel+'</div>';
   html+='</body></html>';
 
   var w=window.open('','_blank','width=1200,height=800');
