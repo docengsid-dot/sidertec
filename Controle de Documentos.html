@@ -3865,17 +3865,20 @@ async function sbSyncAll() {
     for (const o of DB.obras) {
       try { await sbDelete('obras', `id=eq.${o.id}`); } catch(e) {}
     }
-    /* 2. Inserir obras + sub-obras */
+    /* 2. Inserir obras SEM id (Supabase auto-assign) e guardar mapeamento */
+    const obraIdMap = {}; /* localId → supabaseId */
     for (const o of DB.obras) {
       try {
-        await sbPost('obras', { id: o.id, tag: o.tag, cliente: o.cliente||'',
+        const rows = await sbPost('obras', { tag: o.tag, cliente: o.cliente||'',
           descricao: o.desc, responsavel: o.resp||'',
           status: o.status||'Em andamento', data_inicio: o.data||null });
-      } catch(e) {}
-      if (o.subobras && o.subobras.length > 0) {
+        if (rows && rows[0]) obraIdMap[o.id] = rows[0].id;
+      } catch(e) { console.warn('obra insert fail:', e); }
+      const sbObraId = obraIdMap[o.id];
+      if (sbObraId && o.subobras && o.subobras.length > 0) {
         try {
           await sbPost('subobras', o.subobras.map(s => ({
-            obra_id: o.id, tag: s.tag, descricao: s.desc,
+            obra_id: sbObraId, tag: s.tag, descricao: s.desc,
             num_cliente: s.cli||'', responsavel: s.resp||''
           })));
         } catch(e) {}
@@ -3883,7 +3886,7 @@ async function sbSyncAll() {
     }
     /* 3. Inserir básicos em lotes de 50 */
     const basRows = DB.basicos.map(b => ({
-      obra_id: b.obraId, sub_tag: b.subTag || b.sub, num_cliente: b.cli||'',
+      obra_id: obraIdMap[b.obraId] || b.obraId, sub_tag: b.subTag || b.sub, num_cliente: b.cli||'',
       titulo: b.titulo, status: b.status||'LD', projetista: b.proj||'',
       area: b.area||'', modelo_3d: b.m3d||'2D', diagramas: b.diag||'2D',
       peso_kg: b.peso||null, detalhamento: b.det||'', rev_atual: b.rev||'REV.0',
@@ -3897,7 +3900,7 @@ async function sbSyncAll() {
     }
     /* 4. Inserir detalhados em lotes de 50 */
     const detRows = DB.detalhados.map(d => ({
-      obra_id: d.obraId, sub_tag: d.sub, num_sidertec: d.num,
+      obra_id: obraIdMap[d.obraId] || d.obraId, sub_tag: d.sub, num_sidertec: d.num,
       num_cliente: d.cli||'', tipo: d.tipo, descricao: d.desc||'', peca: d.peca||'',
       peso_kg: d.peso||null, rev_atual: d.rev||'', status_geral: d.statusGeral||'',
       eng_resp: d.engResp||'', lib_fab: d.libfab||'Pendente',
@@ -4320,6 +4323,12 @@ async function loadFromSupabase() {
       revisoes:    Array.isArray(d.revisoes) ? d.revisoes : (d.revisoes ? JSON.parse(d.revisoes) : [])
     }));
 
+    if (DB.obras.length === 0) {
+      /* Supabase vazio — usa localStorage em vez de sobrescrever dados locais */
+      hideLoading();
+      loadFromLocalStorage();
+      return;
+    }
     if (DB.obras.length > 0) curObra = DB.obras[0].id;
     hideLoading();
     refreshAll();
