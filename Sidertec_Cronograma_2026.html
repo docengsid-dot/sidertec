@@ -12096,8 +12096,19 @@ function renderLibFab(){
     });
   }
 
+  // Quando filtro de período real está ativo, ignorar mês atual
+  var periodoRealAtivo=(rMI&&rAI)||(rMF&&rAF)||(rIni)||(rFim);
   var G={atrasado:[],mes:[],sem:[],liberado:[]};
-  subs.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(G[c])G[c].push(s);});
+  if(periodoRealAtivo){
+    // No modo período: tudo que passou pelo filtro vai para liberado (ou sem)
+    subs.forEach(function(s){
+      if(s.real_lib_fab) G.liberado.push(s);
+      else if(!s.prev_lib_fab) G.sem.push(s);
+      else G.atrasado.push(s);
+    });
+  } else {
+    subs.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(G[c])G[c].push(s);});
+  }
   function tP(a){return a.reduce(function(x,r){return x+Number(r.peso_previsto||0);},0);}
   function sc(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
   sc('lf-s-atrasado',G.atrasado.length); sc('lf-s-atrasado-kg',_lfFmtKg(tP(G.atrasado)));
@@ -12105,14 +12116,24 @@ function renderLibFab(){
   sc('lf-s-sem',G.sem.length);           sc('lf-s-sem-kg',_lfFmtKg(tP(G.sem)));
   var pL=(iA?G.atrasado:[]).concat(iM?G.mes:[]).concat(iS?G.sem:[]);
   sc('lf-s-total',pL.length);            sc('lf-s-total-kg',_lfFmtKg(tP(pL)));
-  var libM=G.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;});
+  // libM: no período ativo mostra todos; senão filtra pelo mês selecionado
+  var libM=periodoRealAtivo?G.liberado:G.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;});
   sc('lf-s-liberado',libM.length);       sc('lf-s-liberado-kg',_lfFmtKg(tP(libM)));
+  // Título dinâmico para seção liberados
+  var lblIni=rMI?(MN[rMI-1]+(rAI?'/'+rAI:'')):(rIni?_lfFmtD(rIni):'');
+  var lblFim=rMF?(MN[rMF-1]+(rAF?'/'+rAF:'')):(rFim?_lfFmtD(rFim):'');
+  var libLabel=periodoRealAtivo?'✅ Liberados no período'+(lblIni?' '+lblIni:'')+((lblFim&&lblFim!==lblIni)?' → '+lblFim:''):'✅ Já Liberados em '+MN[mes-1]+'/'+ano;
 
   var html='';
-  if(iA&&G.atrasado.length) html+=_lfSecao('atrasado',G.atrasado,'⚠ Atrasados de Meses Anteriores','Prev. Lib. Fab. anterior a '+MN[mes-1]+'/'+ano+' — não liberadas','#fee2e2','#991b1b',mes,ano,hoje);
-  if(iM&&G.mes.length)       html+=_lfSecao('mes',G.mes,'📅 Previsão para '+MN[mes-1]+'/'+ano,'Sub-obras com Lib. Fabricação prevista para este mês','#dbeafe','#1e40af',mes,ano,hoje);
-  if(iS&&G.sem.length)       html+=_lfSecao('sem',G.sem,'🔲 Sem Previsão de Liberação','Sub-obras não liberadas sem data de previsão definida','#f1f5f9','#475569',mes,ano,hoje);
-  if(libM.length)            html+=_lfSecao('liberado',libM,'✅ Já Liberados em '+MN[mes-1]+'/'+ano,'Liberação real confirmada neste mês','#dcfce7','#166534',mes,ano,hoje);
+  if(!periodoRealAtivo){
+    if(iA&&G.atrasado.length) html+=_lfSecao('atrasado',G.atrasado,'⚠ Atrasados de Meses Anteriores','Prev. Lib. Fab. anterior a '+MN[mes-1]+'/'+ano+' — não liberadas','#fee2e2','#991b1b',mes,ano,hoje);
+    if(iM&&G.mes.length)       html+=_lfSecao('mes',G.mes,'📅 Previsão para '+MN[mes-1]+'/'+ano,'Sub-obras com Lib. Fabricação prevista para este mês','#dbeafe','#1e40af',mes,ano,hoje);
+    if(iS&&G.sem.length)       html+=_lfSecao('sem',G.sem,'🔲 Sem Previsão de Liberação','Sub-obras não liberadas sem data de previsão definida','#f1f5f9','#475569',mes,ano,hoje);
+  } else {
+    if(G.atrasado.length)      html+=_lfSecao('atrasado',G.atrasado,'⚠ Não Liberados (no período)','Sem real_lib_fab, com previsão','#fee2e2','#991b1b',mes,ano,hoje);
+    if(G.sem.length)           html+=_lfSecao('sem',G.sem,'🔲 Sem Previsão (no período)','Sem data de previsão definida','#f1f5f9','#475569',mes,ano,hoje);
+  }
+  if(libM.length)            html+=_lfSecao('liberado',libM,libLabel,'Liberação real confirmada','#dcfce7','#166534',mes,ano,hoje);
   if(!html) html='<div style="padding:2rem;text-align:center;color:var(--ink3);background:#fff;border:1px solid var(--border);border-radius:var(--r);">Nenhuma sub-obra encontrada com os filtros atuais.</div>';
   if(ct) ct.innerHTML=html;
 }
@@ -14649,6 +14670,7 @@ function cotExportarCSV(){
             <input type="file" id="cdoc-import-det" accept=".csv" style="display:none" onchange="cdocImportDet(this)">
           </div>
         </div>
+        <div id="cdd-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
         <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
           <table class="cdoc-tbl">
             <thead><tr>
@@ -15077,6 +15099,38 @@ function cdocRenderDet(){
   var selPesoD=rows.filter(function(d){return _cdocDetSel.has(d.id);}).reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
   var ptElD=document.getElementById('cdd-peso-total'); if(ptElD) ptElD.textContent=totalPesoD?'Total: '+fmtD(totalPesoD)+' kg':'';
   var psElD=document.getElementById('cdd-peso-sel'); if(psElD) psElD.textContent=_cdocDetSel.size?'Selecionados ('+_cdocDetSel.size+'): '+fmtD(selPesoD)+' kg':'';
+  // ── Painel de peso visível ──
+  (function(){
+    var painel=document.getElementById('cdd-peso-painel'); if(!painel) return;
+    if(!rows.length){painel.style.display='none';return;}
+    var fObra2=(document.getElementById('cdd-f-obra')||{}).value||'';
+    var fSub2=((document.getElementById('cdd-f-sub')||{}).value||'').trim();
+    // Total geral dos filtrados
+    var totalFmt=fmtD(totalPesoD);
+    // Breakdown por sub-obra se obra selecionada
+    var subCards='';
+    if(fObra2||fSub2){
+      var bySubMap={};
+      rows.forEach(function(d){var k=d.sub||'(sem sub)';bySubMap[k]=(bySubMap[k]||0)+(parseFloat(d.peso)||0);});
+      var subKeys=Object.keys(bySubMap).sort();
+      subCards=subKeys.map(function(k){
+        return '<div style="background:#fff;border:1px solid #bae6fd;border-radius:5px;padding:6px 12px;text-align:center;min-width:110px;">'
+          +'<div style="font-size:9px;font-weight:700;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">'+_esc(k)+'</div>'
+          +'<div style="font-size:14px;font-weight:800;color:#0369a1;">'+fmtD(bySubMap[k])+'</div>'
+          +'<div style="font-size:9px;color:#64748b;">kg</div>'
+          +'</div>';
+      }).join('');
+    }
+    painel.style.display='';
+    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:7px;padding:8px 20px;min-width:120px;">'
+      +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
+      +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalFmt+'</span>'
+      +'<span style="font-size:11px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.length+' doc(s)</span>'
+      +'</div>'
+      +(subCards?'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+subCards+'</div>':'')
+      +'</div>';
+  })();
   var ddelBtn=document.getElementById('cdd-btn-del-sel'); var ddelCnt=document.getElementById('cdd-del-count');
   if(ddelBtn){ ddelBtn.style.display=_cdocDetSel.size?'':'none'; if(ddelCnt) ddelCnt.textContent=_cdocDetSel.size; }
   if(info) info.textContent=rows.length+' doc(s)';
