@@ -941,6 +941,21 @@ canvas{overflow:visible!important;}
 .dt-h-de { color:#94a3b8; font-size:9px; text-decoration:line-through; }
 .dt-h-para { color:#3b0764; font-weight:700; font-size:11px; }
 .dt-h-ts { color:#cbd5e1; font-size:8px; }
+
+/* ── SIDER AUTH ─────────────────────────────── */
+#sider-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#sider-auth-box{background:#fff;border-radius:12px;padding:2rem 2.5rem;min-width:320px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center;}
+#sider-auth-box h2{margin:0 0 .4rem;font-size:20px;color:#0c4a6e;}
+#sider-auth-box p{font-size:12px;color:#64748b;margin:0 0 1.2rem;}
+#sider-auth-box input{width:100%;padding:9px 14px;border:2px solid #cbd5e1;border-radius:8px;font-size:15px;outline:none;box-sizing:border-box;text-align:center;letter-spacing:3px;}
+#sider-auth-box input:focus{border-color:#0369a1;}
+#sider-auth-box .auth-btn{display:inline-block;margin-top:.9rem;padding:9px 28px;background:#0369a1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+#sider-auth-box .auth-skip{display:block;margin-top:.6rem;font-size:11px;color:#94a3b8;cursor:pointer;text-decoration:underline;}
+#sider-auth-box .auth-err{color:#dc2626;font-size:12px;margin-top:.5rem;min-height:16px;}
+.sider-lock-btn{background:none;border:1px solid rgba(255,255,255,.3);border-radius:6px;color:rgba(255,255,255,.85);cursor:pointer;font-size:13px;padding:3px 10px;margin-left:6px;transition:background .15s;}
+.sider-lock-btn:hover{background:rgba(255,255,255,.15);}
+.sider-lock-btn.locked{color:#fcd34d;border-color:#fcd34d;}
+
 </style>
 <!-- offline -->
 <script>
@@ -7027,7 +7042,7 @@ function exportarPDFSelecionados(){
     '<span>🟢 Verde = realizado  🔵 Cinza = previsto</span>'+
     '<span>Sidertec Engenharia — gerado pelo sistema de cronograma</span>'+
     '</div>'+
-    '\n</body></html>';
+    '\n></html>';
 
   var win = window.open('','_blank','width=1400,height=900,scrollbars=yes');
   if(!win){ showToast('Pop-up bloqueado','Permita pop-ups para gerar o PDF.','warn'); return; }
@@ -14405,107 +14420,410 @@ function gerarRelatorioDiario(comFiltro){
   <div class="cron-modal-box" onclick="event.stopPropagation()">
     <div class="cron-mhd">
       <div style="flex:1;">
-        <div class="cron-mhd-title">&#128201; Cotacao de Engenharia</div>
-        <div class="cron-mhd-sub" style="font-size:10px;">Peso Basico x Valor/kg por sub-obra</div>
+        <div class="cron-mhd-title">&#128201; Cotação de Engenharia</div>
+        <div class="cron-mhd-sub" style="font-size:10px;">Compare propostas de fornecedores — melhor preço e melhor prazo</div>
       </div>
-      <button onclick="fecharModalCotacaoEng()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">x</button>
+      <button onclick="fecharModalCotacaoEng()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">✕</button>
     </div>
-    <div class="cron-mbody">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:.85rem;">
-        <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #7c3aed;"><div style="font-size:8px;text-transform:uppercase;color:#6d28d9;letter-spacing:.07em;margin-bottom:.2rem;">Itens</div><div id="cot-k-itens" style="font-family:'Georgia',serif;font-size:20px;line-height:1;">0</div></div>
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #059669;"><div style="font-size:8px;text-transform:uppercase;color:#059669;letter-spacing:.07em;margin-bottom:.2rem;">Peso Basico Total</div><div id="cot-k-peso" style="font-family:'Georgia',serif;font-size:14px;line-height:1;">-- kg</div></div>
-        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #2563eb;"><div style="font-size:8px;text-transform:uppercase;color:#1d4ed8;letter-spacing:.07em;margin-bottom:.2rem;">R$ Total</div><div id="cot-k-total" style="font-family:'Georgia',serif;font-size:14px;line-height:1;">R$ --</div></div>
-        <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:.55rem .75rem;border-left:3px solid #ea580c;"><div style="font-size:8px;text-transform:uppercase;color:#c2410c;letter-spacing:.07em;margin-bottom:.2rem;">Ticket Medio R$/kg</div><div id="cot-k-ticket" style="font-family:'Georgia',serif;font-size:14px;line-height:1;">--</div></div>
+    <div class="cron-mbody" style="display:flex;flex-direction:column;gap:.5rem;">
+
+      <!-- ── CABEÇALHO DA COTAÇÃO ────────────────────────────── -->
+      <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:.6rem .8rem;">
+        <div style="font-size:9px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">Identificação da Cotação</div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 2fr 1fr 1fr;gap:.5rem;align-items:end;">
+          <div>
+            <label style="font-size:9px;color:#6d28d9;font-weight:700;display:block;margin-bottom:2px;">Nome / Código *</label>
+            <input id="cot-nome-input" placeholder="Ex: S176-12/06/2026" oninput="cotAtualizarNome()" style="width:100%;font-size:12px;padding:4px 7px;border:1.5px solid #a78bfa;border-radius:5px;box-sizing:border-box;font-weight:700;color:#4c1d95;">
+          </div>
+          <div>
+            <label style="font-size:9px;color:#6d28d9;font-weight:700;display:block;margin-bottom:2px;">Obra</label>
+            <select id="cot-obra-input" onchange="cotKpis()" style="width:100%;font-size:11px;padding:4px 7px;border:1.5px solid #a78bfa;border-radius:5px;box-sizing:border-box;"></select>
+          </div>
+          <div>
+            <label style="font-size:9px;color:#6d28d9;font-weight:700;display:block;margin-bottom:2px;">Descrição / Serviço</label>
+            <input id="cot-desc-input" placeholder="Ex: Estruturas 5 ton — Miscelâneas" style="width:100%;font-size:11px;padding:4px 7px;border:1.5px solid #a78bfa;border-radius:5px;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="font-size:9px;color:#6d28d9;font-weight:700;display:block;margin-bottom:2px;">Peso Básico (kg)</label>
+            <input id="cot-peso-input" type="number" placeholder="Ex: 42000" min="0" step="1" oninput="cotRecalcAll()" style="width:100%;font-size:12px;padding:4px 7px;border:1.5px solid #a78bfa;border-radius:5px;box-sizing:border-box;text-align:right;font-weight:700;">
+          </div>
+          <div>
+            <label style="font-size:9px;color:#6d28d9;font-weight:700;display:block;margin-bottom:2px;">Data</label>
+            <input id="cot-data-input" type="date" style="width:100%;font-size:11px;padding:4px 7px;border:1.5px solid #a78bfa;border-radius:5px;box-sizing:border-box;">
+          </div>
+        </div>
       </div>
-      <div style="overflow-x:auto;border:1.5px solid #c4b5fd;border-radius:6px;margin-bottom:.75rem;">
-        <table class="cot-tbl"><thead><tr>
-          <th style="min-width:80px;">Obra</th><th style="min-width:220px;">Descricao</th>
-          <th class="num" style="min-width:110px;">Peso Basico (kg)</th>
-          <th style="min-width:140px;">Engenharia</th>
-          <th class="num" style="min-width:100px;">R$/kg</th>
-          <th class="num" style="min-width:120px;">R$ Total</th>
-          <th style="width:32px;"></th>
-        </tr></thead>
-        <tbody id="cot-tbody"></tbody>
-        <tfoot><tr>
-          <td colspan="2" style="font-size:10px;">TOTAL</td>
-          <td class="num" id="cot-foot-peso">--</td>
-          <td colspan="2"></td>
-          <td class="num" id="cot-foot-total">R$ --</td>
-          <td></td>
-        </tr></tfoot></table>
+
+      <!-- ── KPIs ───────────────────────────────────────────── -->
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.4rem;">
+        <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:.4rem .6rem;border-left:3px solid #7c3aed;"><div style="font-size:7px;text-transform:uppercase;color:#6d28d9;margin-bottom:.1rem;">Propostas</div><div id="cot-k-itens" style="font-family:'Georgia',serif;font-size:18px;">0</div></div>
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:.4rem .6rem;border-left:3px solid #2563eb;"><div style="font-size:7px;text-transform:uppercase;color:#1d4ed8;margin-bottom:.1rem;">Menor R$/kg</div><div id="cot-k-menor-kg" style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;">--</div></div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:.4rem .6rem;border-left:3px solid #059669;"><div style="font-size:7px;text-transform:uppercase;color:#059669;margin-bottom:.1rem;">Menor R$ Total</div><div id="cot-k-menor-tot" style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;">--</div></div>
+        <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:.4rem .6rem;border-left:3px solid #d97706;"><div style="font-size:7px;text-transform:uppercase;color:#92400e;margin-bottom:.1rem;">Melhor Prazo</div><div id="cot-k-prazo" style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;">--</div></div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:.4rem .6rem;border-left:3px solid #16a34a;"><div style="font-size:7px;text-transform:uppercase;color:#15803d;margin-bottom:.1rem;">Contratados</div><div id="cot-k-contratado" style="font-family:'Georgia',serif;font-size:18px;">0</div></div>
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:.4rem .6rem;border-left:3px solid #dc2626;"><div style="font-size:7px;text-transform:uppercase;color:#b91c1c;margin-bottom:.1rem;">Declinados</div><div id="cot-k-declinado" style="font-family:'Georgia',serif;font-size:18px;">0</div></div>
       </div>
-      <button onclick="cotAddLinha()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">+ Adicionar Linha</button>
-      <button onclick="cotImportarDoCronograma()" style="background:#e8f0f8;color:var(--blue);border:1px solid var(--blue);border-radius:4px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);margin-left:.4rem;">Importar do Cronograma</button>
-      <button onclick="cotExportarCSV()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);margin-left:.4rem;">CSV</button>
+
+      <!-- ── TABELA DE PROPOSTAS ────────────────────────────── -->
+      <div style="overflow-x:auto;border:1.5px solid #c4b5fd;border-radius:6px;flex:1;">
+        <table class="cot-tbl" id="cot-table">
+          <thead><tr>
+            <th style="min-width:160px;">Fornecedor / Empresa</th>
+            <th class="num" style="min-width:75px;">R$/kg</th>
+            <th class="num" style="min-width:100px;">R$ Total</th>
+            <th style="min-width:90px;">Prazo</th>
+            <th style="min-width:100px;">Status</th>
+            <th style="min-width:180px;">Observação</th>
+            <th style="width:24px;"></th>
+          </tr></thead>
+          <tbody id="cot-tbody"></tbody>
+          <tfoot><tr>
+            <td style="font-size:9px;font-weight:700;color:#6d28d9;" id="cot-foot-label">COMPARATIVO</td>
+            <td class="num" id="cot-foot-kg" style="color:#1d4ed8;"></td>
+            <td class="num" id="cot-foot-total" style="color:#059669;"></td>
+            <td id="cot-foot-prazo" style="font-size:9px;color:#92400e;"></td>
+            <td colspan="3"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+
+      <!-- ── AÇÕES ──────────────────────────────────────────── -->
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
+        <button onclick="cotAddLinha()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;">+ Proposta</button>
+        <button onclick="cotSalvar()" style="font-size:11px;padding:4px 12px;background:#4c1d95;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:700;">💾 Salvar</button>
+        <button onclick="cotCarregar()" style="font-size:11px;padding:4px 12px;background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:4px;cursor:pointer;font-weight:700;">📂 Carregar</button>
+        <button onclick="cotRelatorio()" style="font-size:11px;padding:4px 12px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:4px;cursor:pointer;font-weight:700;">📊 Relatório</button>
+        <button onclick="cotExportarCSV()" style="font-size:11px;padding:4px 12px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;cursor:pointer;font-weight:700;">CSV</button>
+        <button onclick="cotNova()" style="font-size:11px;padding:4px 12px;background:#f8fafc;color:#64748b;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;">+ Nova</button>
+      </div>
     </div>
     <div class="cron-mfooter">
-      <div style="font-size:10px;color:var(--ink3);">Cotacoes salvas nesta sessao.</div>
+      <div style="font-size:10px;color:var(--ink3);" id="cot-status-bar">Cotações salvas no navegador.</div>
       <button class="btn btn-secondary" onclick="fecharModalCotacaoEng()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
   </div>
 </div>
 <script>
 var _cotLinhas=[];var _cotId=1;
-function abrirModalCotacaoEng(){var o=document.getElementById('modal-cotacao-eng');if(o){cotRender();o.classList.add('show');}}
-function fecharModalCotacaoEng(){var o=document.getElementById('modal-cotacao-eng');if(o)o.classList.remove('show');}
-function cotAddLinha(d){_cotLinhas.push(Object.assign({id:_cotId++,obra:'',descricao:'',peso_basico:'',engenharia:'',r_por_kg:'',r_total:0},d||{}));cotRender();}
-function cotImportarDoCronograma(){
-  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length){alert('Nenhuma sub-obra no cronograma.');return;}
-  allCronSubobras.forEach(function(s){cotAddLinha({obra:s.obra||'',descricao:s.descricao||s.subobra||'',peso_basico:s.peso_previsto||'',engenharia:s.equipe||''});});
+var _COT_STATUS=['Em análise','Contratado','Declinado'];
+var _COT_ST_STYLE={
+  'Em análise':'background:#f1f5f9;color:#475569;',
+  'Contratado':'background:#dcfce7;color:#166534;font-weight:700;',
+  'Declinado':'background:#fee2e2;color:#991b1b;font-weight:700;'
+};
+var _COT_LS='sider_cotacoes_v2';
+
+function abrirModalCotacaoEng(){
+  var o=document.getElementById('modal-cotacao-eng');
+  if(!o) return;
+  _cotPopObraSelect();
+  cotRender();
+  o.classList.add('show');
 }
+function fecharModalCotacaoEng(){var o=document.getElementById('modal-cotacao-eng');if(o)o.classList.remove('show');}
+
+function _cotPopObraSelect(){
+  var sel=document.getElementById('cot-obra-input');if(!sel)return;
+  var cur=sel.value;
+  var obras=(typeof allCronSubobras!=='undefined')?[...new Set(allCronSubobras.map(function(s){return s.obra||'';}))].filter(Boolean).sort():[];
+  sel.innerHTML='<option value="">-- Obra --</option>'+obras.map(function(o){return '<option value="'+o+'"'+(o===cur?' selected':'')+'>'+o+'</option>';}).join('');
+}
+
+function cotNova(){
+  if(_cotLinhas.length&&!confirm('Limpar cotação atual e iniciar nova?')) return;
+  _cotLinhas=[]; _cotId=1;
+  ['cot-nome-input','cot-desc-input','cot-data-input'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  var pEl=document.getElementById('cot-peso-input');if(pEl)pEl.value='';
+  var osel=document.getElementById('cot-obra-input');if(osel)osel.value='';
+  var sb=document.getElementById('cot-status-bar');if(sb)sb.textContent='Nova cotação iniciada.';
+  cotRender();
+}
+
+function cotAddLinha(d){
+  _cotLinhas.push(Object.assign({id:_cotId++,fornecedor:'',r_por_kg:'',r_total:'',prazo:'',status:'Em análise',obs:''},d||{}));
+  cotRender();
+}
+
+function _cotPeso(){
+  var v=parseFloat((document.getElementById('cot-peso-input')||{}).value)||0;
+  return v;
+}
+
+// Calcula silenciosamente sem re-render
+function _cotCalcSilent(l,changed){
+  var p=_cotPeso();
+  if(changed==='r_por_kg'){
+    var kg=parseFloat(l.r_por_kg)||0;
+    if(p&&kg) l.r_total=parseFloat((p*kg).toFixed(2));
+    else l.r_total='';
+  } else if(changed==='r_total'){
+    var tot=parseFloat(l.r_total)||0;
+    if(p&&tot) l.r_por_kg=parseFloat((tot/p).toFixed(4));
+    else l.r_por_kg='';
+  }
+}
+
+function cotRecalcAll(){
+  var p=_cotPeso();
+  _cotLinhas.forEach(function(l){
+    if(l.r_por_kg!==''&&l.r_por_kg!==null){
+      var kg=parseFloat(l.r_por_kg)||0;
+      l.r_total=p&&kg?parseFloat((p*kg).toFixed(2)):'';
+    } else if(l.r_total!==''&&l.r_total!==null){
+      var tot=parseFloat(l.r_total)||0;
+      l.r_por_kg=p&&tot?parseFloat((tot/p).toFixed(4)):'';
+    }
+  });
+  cotRender();
+}
+
 function cotRender(){
   var tb=document.getElementById('cot-tbody');if(!tb)return;
-  var obras=(typeof allCronSubobras!=='undefined')?[...new Set(allCronSubobras.map(function(s){return s.obra||'';}))].filter(Boolean).sort():[];
-  var eqs=(typeof allCronSubobras!=='undefined')?[...new Set(allCronSubobras.map(function(s){return s.equipe||'';}))].filter(Boolean).sort():[];
-  var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-  if(!_cotLinhas.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:#94a3b8;font-size:11px;font-style:italic;">Nenhuma cotacao. Clique em + Adicionar Linha ou importe do Cronograma.</td></tr>';cotKpis();return;}
+  if(!_cotLinhas.length){
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;font-size:12px;">Clique em <strong>+ Proposta</strong> para adicionar a cotação de um fornecedor.</td></tr>';
+    cotKpis();return;
+  }
+  var kgs=_cotLinhas.map(function(l){return l.r_por_kg!==''?parseFloat(l.r_por_kg):Infinity;});
+  var minKg=Math.min.apply(null,kgs);
+  var prazos=_cotLinhas.map(function(l){return l.prazo||'';}).filter(Boolean).sort();
+  var minPrazo=prazos[0]||'';
   tb.innerHTML=_cotLinhas.map(function(l){
-    l.r_total=(parseFloat(l.peso_basico)||0)*(parseFloat(l.r_por_kg)||0);
-    var tc=l.r_total>0?'#059669':'#94a3b8';
-    var oO=obras.map(function(o){return '<option value="'+o+'"'+(l.obra===o?' selected':'')+'>'+o+'</option>';}).join('');
-    var eO=eqs.map(function(e){return '<option value="'+e+'"'+(l.engenharia===e?' selected':'')+'>'+e+'</option>';}).join('');
-    return '<tr>'
-      +'<td><select onchange="cotUpd('+l.id+',\x27obra\x27,this.value)"><option value=""> -- </option>'+oO+'</select></td>'
-      +'<td><input type="text" value="'+l.descricao.replace(/"/g,'&quot;')+'" placeholder="Descricao" oninput="cotUpd('+l.id+',\x27descricao\x27,this.value)"></td>'
-      +'<td><input type="number" value="'+(l.peso_basico||'')+'" placeholder="0" min="0" step="0.01" style="text-align:right;" oninput="cotUpd('+l.id+',\x27peso_basico\x27,this.value)"></td>'
-      +'<td><select onchange="cotUpd('+l.id+',\x27engenharia\x27,this.value)"><option value=""> -- </option>'+eO+'</select></td>'
-      +'<td><input type="number" value="'+(l.r_por_kg||'')+'" placeholder="0.00" min="0" step="0.01" style="text-align:right;" oninput="cotUpd('+l.id+',\x27r_por_kg\x27,this.value)"></td>'
-      +'<td style="text-align:right;font-family:Courier New,monospace;font-weight:700;color:'+tc+';">'+(l.r_total>0?'R$ '+fmt(l.r_total):'--')+'</td>'
-      +'<td style="text-align:center;"><button onclick="cotRem('+l.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;padding:0 3px;">x</button></td>'
+    var stO=_COT_STATUS.map(function(s){return '<option value="'+s+'"'+(l.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    var stSty=_COT_ST_STYLE[l.status]||'';
+    // Valores formatados para exibição no input
+    var rKg=l.r_por_kg!==''&&l.r_por_kg!==null?Number(l.r_por_kg).toFixed(4):'';
+    var rTot=l.r_total!==''&&l.r_total!==null?Number(l.r_total).toFixed(2):'';
+    var isBestKg=rKg!==''&&Math.abs(parseFloat(rKg)-minKg)<0.00001&&minKg!==Infinity;
+    var isBestPrazo=l.prazo&&l.prazo===minPrazo;
+    var rowBg=l.status==='Contratado'?'background:#f0fdf4;':l.status==='Declinado'?'background:#fff5f5;':'';
+    return '<tr id="cot-row-'+l.id+'" style="'+rowBg+'">'
+      +'<td><input type="text" value="'+l.fornecedor.replace(/"/g,'&quot;')+'" placeholder="Nome do fornecedor / empresa" onchange="cotField('+l.id+',\x27fornecedor\x27,this.value)" style="font-weight:600;font-size:11px;"></td>'
+      // R$/kg — onblur para não re-renderizar durante digitação
+      +'<td><input id="cot-rkg-'+l.id+'" type="number" value="'+rKg+'" placeholder="0.00" min="0" step="0.01" '
+      +'style="text-align:right;font-weight:700;'+(isBestKg?'color:#166534;background:#dcfce7;':'')+'" '
+      +'onblur="cotFieldKg('+l.id+',this.value)"></td>'
+      // R$ Total — onblur para não re-renderizar durante digitação
+      +'<td><input id="cot-rtot-'+l.id+'" type="number" value="'+rTot+'" placeholder="0.00" min="0" step="0.01" '
+      +'style="text-align:right;font-weight:700;color:#0369a1;" '
+      +'onblur="cotFieldTot('+l.id+',this.value)"></td>'
+      +'<td><input type="date" value="'+(l.prazo||'')+'" '
+      +'style="font-size:10px;'+(isBestPrazo?'background:#fef9c3;font-weight:700;':'')+'" '
+      +'onchange="cotField('+l.id+',\x27prazo\x27,this.value)"></td>'
+      +'<td><select style="'+stSty+'" onchange="cotField('+l.id+',\x27status\x27,this.value)">'+stO+'</select></td>'
+      +'<td><input type="text" value="'+((l.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Observação..." '
+      +'onchange="cotField('+l.id+',\x27obs\x27,this.value)" style="font-size:10px;"></td>'
+      +'<td style="text-align:center;"><button onclick="cotRem('+l.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;padding:0 3px;">&#x2715;</button></td>'
       +'</tr>';
   }).join('');
   cotKpis();
 }
-function cotUpd(id,campo,val){
+
+// Campo genérico — salva e re-renderiza (prazo, status, obs, fornecedor)
+function cotField(id,campo,val){
   var l=_cotLinhas.find(function(x){return x.id===id;});if(!l)return;
-  l[campo]=val;l.r_total=(parseFloat(l.peso_basico)||0)*(parseFloat(l.r_por_kg)||0);
-  var rows=document.querySelectorAll('#cot-tbody tr');
-  var idx=_cotLinhas.findIndex(function(x){return x.id===id;});
-  var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-  if(rows[idx]){var td=rows[idx].querySelectorAll('td')[5];if(td){td.style.color=l.r_total>0?'#059669':'#94a3b8';td.textContent=l.r_total>0?'R$ '+fmt(l.r_total):'--';}}
-  cotKpis();
+  l[campo]=val;
+  cotRender();
 }
+
+// R$/kg digitado → calcula R$ Total no mesmo campo sem re-render
+function cotFieldKg(id,val){
+  var l=_cotLinhas.find(function(x){return x.id===id;});if(!l)return;
+  l.r_por_kg=val===''?'':parseFloat(val)||0;
+  _cotCalcSilent(l,'r_por_kg');
+  // atualiza só o campo R$ Total desta linha
+  var elTot=document.getElementById('cot-rtot-'+id);
+  if(elTot) elTot.value=l.r_total!==''?Number(l.r_total).toFixed(2):'';
+  cotKpis();
+  // atualiza highlight sem re-render completo
+  _cotUpdateHighlights();
+}
+
+// R$ Total digitado → calcula R$/kg no mesmo campo sem re-render
+function cotFieldTot(id,val){
+  var l=_cotLinhas.find(function(x){return x.id===id;});if(!l)return;
+  l.r_total=val===''?'':parseFloat(val)||0;
+  _cotCalcSilent(l,'r_total');
+  var elKg=document.getElementById('cot-rkg-'+id);
+  if(elKg) elKg.value=l.r_por_kg!==''?Number(l.r_por_kg).toFixed(4):'';
+  cotKpis();
+  _cotUpdateHighlights();
+}
+
+// Atualiza cor dos campos sem reconstruir a tabela
+function _cotUpdateHighlights(){
+  var kgs=_cotLinhas.map(function(l){return l.r_por_kg!==''?parseFloat(l.r_por_kg):Infinity;});
+  var minKg=Math.min.apply(null,kgs);
+  var prazos=_cotLinhas.map(function(l){return l.prazo||'';}).filter(Boolean).sort();
+  var minPrazo=prazos[0]||'';
+  _cotLinhas.forEach(function(l){
+    var elKg=document.getElementById('cot-rkg-'+l.id);
+    if(elKg){
+      var isBest=l.r_por_kg!==''&&Math.abs(parseFloat(l.r_por_kg)-minKg)<0.00001&&minKg!==Infinity;
+      elKg.style.color=isBest?'#166534':'';
+      elKg.style.background=isBest?'#dcfce7':'';
+    }
+  });
+}
+
 function cotRem(id){_cotLinhas=_cotLinhas.filter(function(l){return l.id!==id;});cotRender();}
+
 function cotKpis(){
   var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-  var tP=_cotLinhas.reduce(function(a,l){return a+(parseFloat(l.peso_basico)||0);},0);
-  var tV=_cotLinhas.reduce(function(a,l){return a+(l.r_total||0);},0);
-  var tk=tP>0?tV/tP:0;
+  var fmtD=function(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d;};
   var sc=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
-  sc('cot-k-itens',_cotLinhas.length);sc('cot-k-peso',tP>0?fmt(tP)+' kg':'-- kg');
-  sc('cot-k-total',tV>0?'R$ '+fmt(tV):'R$ --');sc('cot-k-ticket',tk>0?'R$ '+fmt(tk)+'/kg':'--');
-  sc('cot-foot-peso',tP>0?fmt(tP)+' kg':'--');sc('cot-foot-total',tV>0?'R$ '+fmt(tV):'R$ --');
+  var withKg=_cotLinhas.filter(function(l){return l.r_por_kg!=='';});
+  var withPrazo=_cotLinhas.filter(function(l){return l.prazo;}).sort(function(a,b){return a.prazo.localeCompare(b.prazo);});
+  var nCont=_cotLinhas.filter(function(l){return l.status==='Contratado';}).length;
+  var nDecl=_cotLinhas.filter(function(l){return l.status==='Declinado';}).length;
+  var bestKg=withKg.length?withKg.reduce(function(b,l){return parseFloat(l.r_por_kg)<parseFloat(b.r_por_kg)?l:b;}):null;
+  var bestTot=withKg.length?withKg.reduce(function(b,l){return (parseFloat(l.r_total)||0)<(parseFloat(b.r_total)||0)?l:b;}):null;
+  var bestPrazo=withPrazo.length?withPrazo[0]:null;
+  sc('cot-k-itens',_cotLinhas.length);
+  sc('cot-k-menor-kg',bestKg?'R$ '+fmt(bestKg.r_por_kg)+'/kg  ('+bestKg.fornecedor+')':'--');
+  sc('cot-k-menor-tot',bestTot&&bestTot.r_total!==''?'R$ '+fmt(bestTot.r_total)+'  ('+bestTot.fornecedor+')':'--');
+  sc('cot-k-prazo',bestPrazo?fmtD(bestPrazo.prazo)+'  ('+bestPrazo.fornecedor+')':'--');
+  sc('cot-k-contratado',nCont);
+  sc('cot-k-declinado',nDecl);
+  sc('cot-foot-kg',bestKg?'Menor: R$ '+fmt(bestKg.r_por_kg)+'/kg  ('+bestKg.fornecedor+')':'');
+  sc('cot-foot-total',bestTot&&bestTot.r_total!==''?'R$ '+fmt(bestTot.r_total)+'  ('+bestTot.fornecedor+')':'');
+  sc('cot-foot-prazo',bestPrazo?fmtD(bestPrazo.prazo)+'  ('+bestPrazo.fornecedor+')':'');
 }
+
+/* ── SALVAR / CARREGAR ─────────────────────────────────────────── */
+function _cotLoadSaved(){try{return JSON.parse(localStorage.getItem(_COT_LS)||'[]');}catch(e){return [];}}
+function _cotSaveSaved(arr){localStorage.setItem(_COT_LS,JSON.stringify(arr));}
+function _cotGetHeader(){
+  return {
+    nome:((document.getElementById('cot-nome-input')||{}).value||'').trim(),
+    obra:(document.getElementById('cot-obra-input')||{}).value||'',
+    descricao:((document.getElementById('cot-desc-input')||{}).value||'').trim(),
+    peso:((document.getElementById('cot-peso-input')||{}).value||'').trim(),
+    data:(document.getElementById('cot-data-input')||{}).value||''
+  };
+}
+function _cotSetHeader(h){
+  var ss=function(id,v){var e=document.getElementById(id);if(e)e.value=v||'';};
+  ss('cot-nome-input',h.nome);ss('cot-obra-input',h.obra);ss('cot-desc-input',h.descricao);
+  ss('cot-peso-input',h.peso);ss('cot-data-input',h.data);
+}
+
+function cotSalvar(){
+  var hdr=_cotGetHeader();
+  var sugerido=hdr.nome||(hdr.obra?hdr.obra.split(' ')[0]:'')+'-'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  var confirmNome=prompt('Nome para salvar esta cotação:',sugerido);
+  if(confirmNome===null) return;
+  confirmNome=confirmNome.trim()||sugerido;
+  var arr=_cotLoadSaved();
+  var idx=arr.findIndex(function(c){return c.nome===confirmNome;});
+  var rec={nome:confirmNome,saved:new Date().toISOString().slice(0,10),header:Object.assign({},hdr,{nome:confirmNome}),linhas:JSON.parse(JSON.stringify(_cotLinhas))};
+  if(idx>=0){if(!confirm('Já existe uma cotação com este nome. Substituir?')) return; arr[idx]=rec;}
+  else arr.push(rec);
+  _cotSaveSaved(arr);
+  document.getElementById('cot-nome-input').value=confirmNome;
+  var sb=document.getElementById('cot-status-bar');if(sb)sb.textContent='Salvo: '+confirmNome+' em '+new Date().toLocaleDateString('pt-BR');
+}
+
+function cotCarregar(){
+  var arr=_cotLoadSaved();
+  if(!arr.length){alert('Nenhuma cotação salva ainda. Use o botão Salvar para guardar cotações.');return;}
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center;';
+  var box='<div style="background:#fff;border-radius:10px;padding:1.5rem;min-width:500px;max-width:92vw;max-height:80vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.3);">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
+    +'<strong style="font-size:14px;color:#4c1d95;">📂 Cotações Salvas</strong>'
+    +'<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;">✕</button>'
+    +'</div>';
+  arr.slice().reverse().forEach(function(c,i){
+    var ri=arr.length-1-i;
+    var h=c.header||{};
+    box+='<div style="display:flex;align-items:center;gap:.5rem;padding:.65rem;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:.4rem;">'
+      +'<div style="flex:1;">'
+      +'<div style="font-weight:700;font-size:13px;color:#1e1b4b;">'+c.nome+'</div>'
+      +'<div style="font-size:10px;color:#94a3b8;margin-top:2px;">'
+      +(h.obra?'<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 6px;margin-right:4px;">'+h.obra+'</span>':'')
+      +(h.descricao?h.descricao+' · ':'')
+      +(h.peso?Number(h.peso).toLocaleString('pt-BR')+' kg · ':'')
+      +c.linhas.length+' proposta(s) · '+c.saved
+      +'</div>'
+      +'</div>'
+      +'<button onclick="cotCarregarItem('+ri+');this.closest(\'div[style*=fixed]\').remove();" style="padding:5px 14px;font-size:11px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;">Carregar</button>'
+      +'<button onclick="if(confirm(\'Excluir?\'))cotExcluirSalva('+ri+');this.closest(\'div[style*=fixed]\').remove();cotCarregar();" style="padding:5px 10px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;">Excluir</button>'
+      +'</div>';
+  });
+  box+='</div>';
+  ov.innerHTML=box; document.body.appendChild(ov);
+}
+function cotCarregarItem(idx){
+  var arr=_cotLoadSaved();var c=arr[idx];if(!c)return;
+  if(_cotLinhas.length&&!confirm('Substituir cotação atual por "'+c.nome+'"?')) return;
+  _cotSetHeader(c.header||{nome:c.nome});
+  _cotLinhas=JSON.parse(JSON.stringify(c.linhas));
+  _cotId=(_cotLinhas.reduce(function(m,l){return Math.max(m,l.id||0);},0))+1;
+  cotRender();
+  var sb=document.getElementById('cot-status-bar');if(sb)sb.textContent='Carregado: '+c.nome;
+}
+function cotExcluirSalva(idx){var arr=_cotLoadSaved();arr.splice(idx,1);_cotSaveSaved(arr);}
+
+/* ── RELATÓRIO ───────────────────────────────────────────────────── */
+function cotRelatorio(){
+  if(!_cotLinhas.length){alert('Nenhuma proposta.');return;}
+  var hdr=_cotGetHeader();
+  var fmt=function(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var fmtD=function(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d;};
+  var byKg=[..._cotLinhas].filter(function(l){return l.r_por_kg!=='';}).sort(function(a,b){return parseFloat(a.r_por_kg)-parseFloat(b.r_por_kg);});
+  var byPrazo=[..._cotLinhas].filter(function(l){return l.prazo;}).sort(function(a,b){return a.prazo.localeCompare(b.prazo);});
+  var allRows=[..._cotLinhas];
+  var cols='<th>#</th><th>Fornecedor</th><th style="text-align:right">R$/kg</th><th style="text-align:right">R$ Total</th><th>Prazo</th><th>Status</th><th>Observação</th>';
+  var row=function(l,i,hl){
+    var st=l.status==='Contratado'?'color:#166534;font-weight:700':l.status==='Declinado'?'color:#991b1b':'';
+    var bg=i===0?'background:#f0fdf4;':'';
+    return '<tr style="'+bg+'">'
+      +'<td style="font-weight:700;color:#6d28d9;text-align:center;">'+(i+1)+(i===0?' ★':'')+'</td>'
+      +'<td style="font-weight:600;">'+l.fornecedor+'</td>'
+      +'<td style="text-align:right;font-weight:700;'+(i===0?'color:#166534;':'')+'">'+( l.r_por_kg!==''?'R$ '+fmt(l.r_por_kg):'—')+'</td>'
+      +'<td style="text-align:right;">'+( l.r_total!==''?'R$ '+fmt(l.r_total):'—')+'</td>'
+      +'<td style="'+(i===0&&hl==='prazo'?'color:#92400e;font-weight:700;':'')+'">'+fmtD(l.prazo)+'</td>'
+      +'<td style="'+st+'">'+l.status+'</td>'
+      +'<td style="font-size:10px;color:#64748b;">'+(l.obs||'')+'</td></tr>';
+  };
+  var pesoFmt=hdr.peso?Number(hdr.peso).toLocaleString('pt-BR'):'—';
+  var h='<html><head><meta charset="utf-8"><title>'+hdr.nome+'</title>'
+    +'<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:11px;margin:0;padding:1.5rem;color:#111;}h1{color:#4c1d95;border-bottom:2px solid #7c3aed;padding-bottom:.5rem;font-size:16px;margin-bottom:.5rem;}h2{color:#374151;margin-top:1.5rem;font-size:12px;border-left:3px solid #7c3aed;padding-left:.5rem;}table{width:100%;border-collapse:collapse;margin:.5rem 0 1rem;}th{background:#4c1d95;color:#fff;padding:5px 8px;font-size:10px;text-align:left;}td{padding:4px 8px;border-bottom:1px solid #e5e7eb;}tr:nth-child(even){background:#f9f7ff;}.meta{display:flex;gap:1.5rem;margin:.5rem 0 1rem;flex-wrap:wrap;}.meta-item{background:#f5f3ff;border-radius:6px;padding:.3rem .7rem;font-size:10px;}.meta-item strong{color:#6d28d9;display:block;font-size:9px;text-transform:uppercase;}</style>'
+    +'</head><body>'
+    +'<h1>📊 Cotação: '+hdr.nome+'</h1>'
+    +'<div class="meta">'
+    +(hdr.obra?'<div class="meta-item"><strong>Obra</strong>'+hdr.obra+'</div>':'')
+    +(hdr.descricao?'<div class="meta-item"><strong>Serviço</strong>'+hdr.descricao+'</div>':'')
+    +(hdr.peso?'<div class="meta-item"><strong>Peso Básico</strong>'+pesoFmt+' kg</div>':'')
+    +(hdr.data?'<div class="meta-item"><strong>Data</strong>'+fmtD(hdr.data)+'</div>':'')
+    +'<div class="meta-item"><strong>Propostas</strong>'+_cotLinhas.length+'</div>'
+    +'</div>'
+    +(byKg.length?'<h2>🏆 Ranking — Menor R$/kg</h2><table><thead><tr>'+cols+'</tr></thead><tbody>'+byKg.map(function(l,i){return row(l,i,'kg');}).join('')+'</tbody></table>':'')
+    +(byPrazo.length?'<h2>📅 Ranking — Melhor Prazo</h2><table><thead><tr>'+cols+'</tr></thead><tbody>'+byPrazo.map(function(l,i){return row(l,i,'prazo');}).join('')+'</tbody></table>':'')
+    +'<p style="font-size:9px;color:#94a3b8;margin-top:2rem;border-top:1px solid #e2e8f0;padding-top:.5rem;">Gerado em '+new Date().toLocaleString('pt-BR')+'</p>'
+    +'</body></html>';
+  var w=window.open('','_blank');if(w){w.document.write(h);w.document.close();}
+}
+
 function cotExportarCSV(){
-  if(!_cotLinhas.length){alert('Nenhuma cotacao.');return;}
-  var linhas=['Obra;Descricao;Peso Basico (kg);Engenharia;R$/kg;R$ Total'];
-  _cotLinhas.forEach(function(l){var fn=function(v){return (parseFloat(v)||0).toFixed(2).replace('.',',');};linhas.push([l.obra,l.descricao,fn(l.peso_basico),l.engenharia,fn(l.r_por_kg),fn(l.r_total)].join(';'));});
-  var blob=new Blob([linhas.join('\n')],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='cotacao_engenharia.csv';a.click();URL.revokeObjectURL(url);
+  if(!_cotLinhas.length){alert('Nenhuma proposta.');return;}
+  var hdr=_cotGetHeader();
+  var fmtD=function(d){if(!d)return '';var p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d;};
+  var fn=function(v){return v!==''&&!isNaN(parseFloat(v))?(parseFloat(v)).toFixed(2).replace('.',','):'';};
+  var linhas=[
+    '# Cotação: '+hdr.nome,
+    '# Obra: '+hdr.obra+' | Serviço: '+hdr.descricao+' | Peso: '+hdr.peso+' kg',
+    'Fornecedor;R$/kg;R$ Total;Prazo;Status;Observação'
+  ];
+  _cotLinhas.forEach(function(l){linhas.push([l.fornecedor,fn(l.r_por_kg),fn(l.r_total),fmtD(l.prazo),l.status,(l.obs||'').replace(/;/g,' ')].join(';'));});
+  var blob=new Blob(['﻿'+linhas.join('\n')],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;
+  a.download='cotacao_'+(hdr.nome||'eng').replace(/[^a-zA-Z0-9\-_]/g,'_')+'.csv';
+  a.click();URL.revokeObjectURL(url);
 }
 </script>
 <!-- FIM MODAL COTACAO DE ENGENHARIA -->
+
 
 <!-- ═══════ MODAL CONTROLE DE DOCUMENTOS ═══════ -->
 <style>
@@ -14572,6 +14890,7 @@ function cotExportarCSV(){
         <div class="cron-mhd-title">&#128193; Controle de Documentos</div>
         <div style="font-size:10px;opacity:.7;">Proj. Básico · Proj. Detalhado</div>
       </div>
+      <button class="sider-lock-btn locked" title="Clique para desbloquear edição" style="font-size:11px;">🔒 Editar</button>
       <button onclick="fecharCtrlDoc()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">✕</button>
     </div>
     <div class="cron-mbody">
@@ -14633,8 +14952,6 @@ function cotExportarCSV(){
           <input id="cdd-f-sub" placeholder="Sub-obra..." oninput="cdocRenderDet()" style="max-width:130px;">
           <select id="cdd-f-tipo" onchange="cdocRenderDet()">
             <option value="">Todos tipos</option>
-            <option>Modelo IFC</option><option>Diagrama de montagem</option><option>Desenho de detalhamento</option>
-            <option>Memória de Cálculo</option><option>ART</option><option>Data book</option><option>PIT</option><option>Lista de documentos</option><option>Cronograma</option>
           </select>
           <select id="cdd-f-status" onchange="cdocRenderDet()">
             <option value="">Todos status</option>
@@ -15012,8 +15329,25 @@ function cdocRenderBas(){
 }
 
 /* ── PROJ. DETALHADO render ── */
+function _cdocPopulateTipoFiltro(){
+  var sel=document.getElementById('cdd-f-tipo'); if(!sel) return;
+  var cur=sel.value;
+  var db=_cdocDb();
+  // Merge _cdocTipos + tipos reais nos documentos
+  var set=new Set((_cdocTipos||[]).map(function(t){return t;}));
+  (db.detalhados||[]).forEach(function(d){if(d.tipo) set.add(d.tipo);});
+  var list=Array.from(set).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+  // Rebuild options preserving current selection
+  sel.innerHTML='<option value="">Todos tipos</option>';
+  list.forEach(function(t){
+    var o=document.createElement('option'); o.value=t; o.textContent=t;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+}
 function cdocRenderDet(){
   cdocPopFilters();
+  _cdocPopulateTipoFiltro();
   var db=_cdocDb();
   var fObra=(document.getElementById('cdd-f-obra')||{}).value||'';
   var fSub=(document.getElementById('cdd-f-sub')||{}).value||'';
@@ -15143,9 +15477,9 @@ function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','
 function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); cdocRenderDet(); }
 
 /* ── Formulário Básico ── */
-function cdocNovoBas(){ _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
+function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
 function cdocEditBas(id){ var db=_cdocDb(); _cdocMode='bas'; _cdocEditId=id; _cdocAbrirFormBas(db.basicos.find(function(b){return b.id===id;})||null); }
-function cdocDelBas(id){ if(!confirm('Excluir este projeto básico?')) return; var db=_cdocDb(); db.basicos=db.basicos.filter(function(b){return b.id!==id;}); _cdocSave(db); cdocRenderBas(); cdocRenderVisao(); }
+function cdocDelBas(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este projeto básico?')) return; var db=_cdocDb(); db.basicos=db.basicos.filter(function(b){return b.id!==id;}); _cdocSave(db); cdocRenderBas(); cdocRenderVisao(); }
 function cdocDelSelBas(){
   if(!_cdocBasSel.size){alert('Nenhum registro selecionado.');return;}
   var ids=Array.from(_cdocBasSel);
@@ -15170,7 +15504,7 @@ function _cdocAbrirFormBas(rec){
   document.getElementById('cdoc-edit-body').innerHTML=
     '<div class="cdoc-ef">'
     +'<div><label>Obra *</label><select id="cef-obra" onchange="cdocBasObraChange()"><option value="">-- Selecione --</option>'+oO+'</select></div>'
-    +'<div><label>TAG Sub-obra *</label><select id="cef-sub" onchange="cdocBasSubChange()"><option value="">-- Selecione --</option>'+sO+'</select></div>'
+    +'<div><label>TAG Sub-obra *</label><div style="display:flex;gap:4px;align-items:center;"><input id="cef-sub" list="cef-sub-dl" placeholder="Selecione ou digite..." oninput="cdocBasSubChange()" autocomplete="off" value="'+(rec&&rec.sub?rec.sub:'')+'" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"><datalist id="cef-sub-dl">'+sO.replace(/ selected/g,'')+'</datalist></div></div>'
     +'</div>'
     +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+v('titulo').replace(/"/g,'&quot;')+'"></div></div>'
     +'<div class="cdoc-ef">'
@@ -15281,8 +15615,7 @@ function cdocSubirRev(){var el=document.getElementById('cef-rev');if(el)el.value
 function cdocDescerRev(){var el=document.getElementById('cef-rev');if(el)el.value=_cdocIncrRev(el.value.trim(),-1);}
 function cdocBasObraChange(){
   var obra=(document.getElementById('cef-obra')||{}).value||'';
-  var subs=_cdocSubs(obra); var sel=document.getElementById('cef-sub'); if(!sel) return;
-  sel.innerHTML='<option value="">-- Selecione --</option>'+subs.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+  var subs=_cdocSubs(obra); var dl=document.getElementById('cef-sub-dl'); if(dl) dl.innerHTML=subs.map(function(s){return '<option value="'+s+'">';}).join('');
 }
 function cdocBasSubChange(){
   var obra=(document.getElementById('cef-obra')||{}).value||'';
@@ -15299,9 +15632,9 @@ function cdocBasSubChange(){
 }
 
 /* ── Formulário Detalhado ── */
-function cdocNovoDet(){ _cdocMode='det'; _cdocEditId=null; _cdocAbrirFormDet(null); }
+function cdocNovoDet(){ if(!_siderRequireEdit()) return; _cdocMode='det'; _cdocEditId=null; _cdocAbrirFormDet(null); }
 function cdocEditDet(id){ var db=_cdocDb(); _cdocMode='det'; _cdocEditId=id; _cdocAbrirFormDet(db.detalhados.find(function(d){return d.id===id;})||null); }
-function cdocDelDet(id){ if(!confirm('Excluir este documento?')) return; var db=_cdocDb(); db.detalhados=db.detalhados.filter(function(d){return d.id!==id;}); _cdocSave(db); cdocRenderDet(); cdocRenderVisao(); }
+function cdocDelDet(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este documento?')) return; var db=_cdocDb(); db.detalhados=db.detalhados.filter(function(d){return d.id!==id;}); _cdocSave(db); cdocRenderDet(); cdocRenderVisao(); }
 function cdocDelSelDet(){
   if(!_cdocDetSel.size){alert('Nenhum registro selecionado.');return;}
   var ids=Array.from(_cdocDetSel);
@@ -15327,7 +15660,7 @@ function _cdocAbrirFormDet(rec){
   document.getElementById('cdoc-edit-body').innerHTML=
     '<div class="cdoc-ef">'
     +'<div><label>Obra *</label><select id="cef-obra" onchange="cdocDetObraChange()"><option value="">-- Selecione --</option>'+oO+'</select></div>'
-    +'<div><label>TAG Sub-obra *</label><select id="cef-sub" onchange="cdocBasSubChange()"><option value="">-- Selecione --</option>'+sO+'</select></div>'
+    +'<div><label>TAG Sub-obra *</label><div style="display:flex;gap:4px;align-items:center;"><input id="cef-sub" list="cef-sub-dl" placeholder="Selecione ou digite..." oninput="cdocBasSubChange()" autocomplete="off" value="'+(rec&&rec.sub?rec.sub:'')+'" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"><datalist id="cef-sub-dl">'+sO.replace(/ selected/g,'')+'</datalist></div></div>'
     +'</div>'
     +'<div class="cdoc-ef">'
     +'<div><label>Nº Sidertec *</label><input id="cef-num" value="'+v('num')+'"></div>'
@@ -15587,6 +15920,7 @@ function cdocToggleGrdMode(){
   cdocRenderDet();
 }
 function cdocEmitirGrd(){
+  if(!_siderRequireEdit()) return;
   var db=_cdocDb(); var sels=[];
   // Usa a seleção normal de linhas
   _cdocDetSel.forEach(function(id){
@@ -15764,6 +16098,7 @@ function cdocAbrirGrds(){
   document.body.appendChild(box);
 }
 function cdocEnviarGrd(grdId){
+  if(!_siderRequireEdit()) return;
   var db=_cdocLoad();
   var g=(db._grds||[]).find(function(x){return x.id===grdId;});
   if(!g){alert('GRD não encontrada.');return;}
@@ -15788,6 +16123,7 @@ function cdocEnviarGrd(grdId){
   alert('GRD '+g.numero+' enviada! '+((g.docs||[]).length)+' documento(s) atualizado(s).');
 }
 function cdocEditarGrd(grdId){
+  if(!_siderRequireEdit()) return;
   var db=_cdocLoad();
   var g=(db._grds||[]).find(function(x){return x.id===grdId;});
   if(!g){alert('GRD não encontrada.');return;}
@@ -15973,6 +16309,7 @@ function cdocVerGrd(grdId){
   w.document.close();
 }
 function cdocDelGrd(grdId){
+  if(!_siderRequireEdit()) return;
   if(!confirm('Excluir esta GRD? Os registros de envio nos documentos não serão removidos.')) return;
   var db=_cdocLoad();
   db._grds=(db._grds||[]).filter(function(g){return g.id!==grdId;});
@@ -15990,11 +16327,17 @@ function cdocDetObraChange(){
 
 /* ── Salvar (básico ou detalhado) ── */
 function cdocSalvar(){
+  if(!_siderRequireEdit()) return;
   var db=_cdocDb();
   var g=function(id){return (document.getElementById(id)||{}).value||'';};
   if(_cdocMode==='bas'){
     var obra=g('cef-obra'), sub=g('cef-sub'), titulo=g('cef-titulo');
     if(!obra||!sub||!titulo){alert('Obra, Sub-obra e Título são obrigatórios.');return;}
+    // Guardar sub-obra nova no localStorage
+    (function(){if(!db._subsCadastr)db._subsCadastr={};
+      if(typeof allCronSubobras!=='undefined'&&allCronSubobras.find(function(s){return s.subobra===sub;})) return;
+      if(!db._subsCadastr[obra])db._subsCadastr[obra]=[];
+      if(db._subsCadastr[obra].indexOf(sub)===-1) db._subsCadastr[obra].push(sub);})();
     var _oldRec=_cdocEditId?db.basicos.find(function(b){return b.id===_cdocEditId;}):null;
     var rec={id:_cdocEditId||_cdocGenId(db,'bas'),obraId:obra,sub:sub,titulo:titulo,cli:g('cef-cli'),proj:g('cef-proj'),status:g('cef-status')||'LD',area:g('cef-area'),peso:g('cef-peso')||null,m3d:g('cef-m3d')||'2D',diag:g('cef-diag')||'2D',det:g('cef-det'),rev:g('cef-rev'),data:g('cef-data'),revisoes:(_oldRec&&_oldRec.revisoes?_oldRec.revisoes:[]).concat(_cdocPendingRevs||[])};
     _cdocPendingRevs=[];
@@ -16007,6 +16350,11 @@ function cdocSalvar(){
   } else {
     var obra2=g('cef-obra'), sub2=g('cef-sub'), num=g('cef-num');
     if(!obra2||!sub2||!num){alert('Obra, Sub-obra e Nº Sidertec são obrigatórios.');return;}
+    // Guardar sub-obra nova no localStorage
+    (function(){if(!db._subsCadastr)db._subsCadastr={};
+      if(typeof allCronSubobras!=='undefined'&&allCronSubobras.find(function(s){return s.subobra===sub2;})) return;
+      if(!db._subsCadastr[obra2])db._subsCadastr[obra2]=[];
+      if(db._subsCadastr[obra2].indexOf(sub2)===-1) db._subsCadastr[obra2].push(sub2);})();
     // Auto-commit: se usuário preencheu data de lib.fab mas não clicou + Reg., adiciona agora
     var lfData=g('cef-lf-data');
     if(lfData){
@@ -16113,6 +16461,7 @@ function cdocExportDetSel(){
   a.href=url;a.download='detalhado_selecionados.csv';a.click();URL.revokeObjectURL(url);
 }
 function cdocImportBas(input){
+  if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
   var reader=new FileReader();
@@ -16165,6 +16514,7 @@ function cdocImportBas(input){
   reader.readAsText(file,'UTF-8');
 }
 function cdocImportDet(input){
+  if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
   var reader=new FileReader();
@@ -16639,6 +16989,7 @@ function _cdocDownload(content,filename){
 <script>
 /* ── CRUD OBRAS ── */
 function cdocNovaObra(){
+  if(!_siderRequireEdit()) return;
   document.getElementById('cdoc-obra-modal-title').textContent='Nova Obra';
   document.getElementById('cdoc-obra-nome').value='';
   document.getElementById('cdoc-obra-original').value='';
@@ -16655,6 +17006,7 @@ function cdocEditarObra(enc,ev){
   setTimeout(function(){document.getElementById('cdoc-obra-nome').focus();},50);
 }
 function cdocSalvarObra(){
+  if(!_siderRequireEdit()) return;
   var nome=(document.getElementById('cdoc-obra-nome').value||'').trim();
   var original=(document.getElementById('cdoc-obra-original').value||'').trim();
   if(!nome){alert('Informe o nome da obra.');return;}
@@ -16680,6 +17032,7 @@ function cdocSalvarObra(){
   _cdocToast('Obra '+(original?'renomeada':'cadastrada')+' com sucesso!');
 }
 function cdocExcluirObra(enc,ev){
+  if(!_siderRequireEdit()) return;
   if(ev){ev.stopPropagation();}
   var nome=decodeURIComponent(enc);
   var db=_cdocDb();
@@ -16698,5 +17051,124 @@ function cdocExcluirObra(enc,ev){
   _cdocToast('Obra removida da listagem.');
 }
 </script>
+
+<script>
+/* ══ SIDER AUTH ══════════════════════════════════════════════════════ */
+var _SIDER_AUTH_KEY='sider_auth_v1';
+var _SIDER_SESSION_KEY='sider_edit_ok';
+
+function _siderHashPwd(pwd){
+  var s='SDTC:'+pwd+':#2024';
+  var h=0;
+  for(var i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}
+  return btoa(s+'|'+h);
+}
+
+function _siderHasPassword(){return !!localStorage.getItem(_SIDER_AUTH_KEY);}
+function _siderIsUnlocked(){return sessionStorage.getItem(_SIDER_SESSION_KEY)==='1';}
+
+function _siderRequireEdit(){
+  if(_siderIsUnlocked()) return true;
+  _siderShowAuthPrompt('unlock');
+  return false;
+}
+
+function _siderShowAuthPrompt(mode){
+  var existing=document.getElementById('sider-auth-overlay');
+  if(existing) existing.remove();
+  var isSetup=(mode==='setup');
+  var ov=document.createElement('div');
+  ov.id='sider-auth-overlay';
+  ov.innerHTML=
+    '<div id="sider-auth-box">'
+    +'<h2>'+(isSetup?'🔐 Definir Senha de Edição':'🔒 Acesso para Edição')+'</h2>'
+    +'<p>'+(isSetup?'Crie uma senha para proteger as edições do sistema.':'Digite a senha para habilitar edição.')+'</p>'
+    +'<input type="password" id="sider-auth-input" placeholder="Senha..." autofocus>'
+    +(isSetup?'<input type="password" id="sider-auth-input2" placeholder="Confirmar senha..." style="margin-top:8px;">':'')
+    +'<button class="auth-btn" id="sider-auth-submit-btn">'+(isSetup?'Criar Senha':'Desbloquear')+'</button>'
+    +'<span class="auth-skip" onclick="_siderAuthClose()">'+(isSetup?'Pular por agora (sem senha)':'Continuar em modo leitura')+'</span>'
+    +'<div class="auth-err" id="sider-auth-err"></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){var inp=document.getElementById('sider-auth-input');if(inp)inp.focus();},50);
+  document.getElementById('sider-auth-submit-btn').onclick=function(){_siderAuthSubmit(mode);};
+  ov.addEventListener('keydown',function(e){if(e.key==='Enter')_siderAuthSubmit(mode);});
+}
+
+function _siderAuthSubmit(mode){
+  var inp=document.getElementById('sider-auth-input');
+  var pwd=(inp?inp.value:'').trim();
+  var err=document.getElementById('sider-auth-err');
+  if(!pwd){if(err)err.textContent='Informe a senha.';return;}
+  if(mode==='setup'){
+    var inp2=document.getElementById('sider-auth-input2');
+    var pwd2=(inp2?inp2.value:'').trim();
+    if(pwd!==pwd2){if(err)err.textContent='As senhas não coincidem.';return;}
+    localStorage.setItem(_SIDER_AUTH_KEY,_siderHashPwd(pwd));
+    sessionStorage.setItem(_SIDER_SESSION_KEY,'1');
+    _siderAuthClose(); _siderUpdateLockBtns(); _siderToast('Senha definida! Edição desbloqueada.');
+  } else {
+    var stored=localStorage.getItem(_SIDER_AUTH_KEY);
+    if(!stored){
+      sessionStorage.setItem(_SIDER_SESSION_KEY,'1');
+      _siderAuthClose(); _siderUpdateLockBtns(); _siderToast('Edição desbloqueada!'); return;
+    }
+    if(_siderHashPwd(pwd)===stored){
+      sessionStorage.setItem(_SIDER_SESSION_KEY,'1');
+      _siderAuthClose(); _siderUpdateLockBtns(); _siderToast('Edição desbloqueada!');
+    } else {
+      if(err)err.textContent='Senha incorreta.';
+      inp.value=''; inp.focus();
+    }
+  }
+}
+
+function _siderAuthClose(){
+  var ov=document.getElementById('sider-auth-overlay'); if(ov) ov.remove();
+}
+
+function _siderLockSession(){
+  sessionStorage.removeItem(_SIDER_SESSION_KEY);
+  _siderUpdateLockBtns();
+  _siderToast('Edição bloqueada.');
+}
+
+function _siderUpdateLockBtns(){
+  var ok=_siderIsUnlocked();
+  document.querySelectorAll('.sider-lock-btn').forEach(function(b){
+    b.textContent=ok?'Edição ON':'Editar';
+    b.title=ok?'Clique para bloquear edição':'Clique para desbloquear edição';
+    b.classList.toggle('locked',!ok);
+    b.onclick=ok?_siderLockSession:function(){_siderShowAuthPrompt('unlock');};
+  });
+}
+
+function _siderToast(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:#0c4a6e;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.3);';
+  t.textContent=msg; document.body.appendChild(t);
+  setTimeout(function(){t.remove();},2500);
+}
+
+function _siderAuthInit(){
+  _siderUpdateLockBtns();
+  // If no password set, offer to create one
+  if(!_siderHasPassword()){
+    setTimeout(function(){
+      if(confirm('Deseja definir uma senha para proteger as edições do sistema?')){
+        _siderShowAuthPrompt('setup');
+      }
+    },800);
+  }
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',_siderAuthInit);
+} else {
+  setTimeout(_siderAuthInit,200);
+}
+/* ══ END AUTH ════════════════════════════════════════════════════════ */
+</script>
+
 </body>
 </html>
