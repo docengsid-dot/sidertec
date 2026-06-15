@@ -14848,6 +14848,14 @@ function cotExportarCSV(){
         <div class="cdoc-tab" onclick="cdocTab('detalhado')">&#128195; Proj. Detalhado</div>
         <div class="cdoc-tab" onclick="cdocTab('diario')" style="color:#0e7490;">&#128197; Di&aacute;rio</div>
       </div>
+      <!-- FILTRO GLOBAL DE OBRA -->
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.45rem 1rem;background:#f0f9ff;border-bottom:2px solid #bae6fd;flex-shrink:0;">
+        <span style="font-size:10px;font-weight:700;color:#0369a1;white-space:nowrap;">&#127970; OBRA:</span>
+        <select id="cdoc-g-obra" onchange="cdocGlobalObraChange()" style="font-size:12px;font-weight:600;padding:4px 10px;border:1.5px solid #7dd3fc;border-radius:5px;min-width:260px;color:#0c4a6e;background:#fff;">
+          <option value="">&#8212; Todas as obras &#8212;</option>
+        </select>
+        <span id="cdoc-g-obra-info" style="font-size:10px;color:#0369a1;"></span>
+      </div>
 
       <!-- VISÃO GERAL -->
       <div class="cdoc-pane active" id="cdoc-pane-visao">
@@ -14866,7 +14874,7 @@ function cotExportarCSV(){
       <div class="cdoc-pane" id="cdoc-pane-basico">
         <div class="cdoc-bar">
           <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
-          <select id="cdb-f-obra" onchange="cdocRenderBas()"><option value="">Todas obras</option></select>
+          <select id="cdb-f-obra" onchange="_cdocSyncGlobalFromTab('cdb-f-obra');cdocRenderBas()"><option value="">Todas obras</option></select>
           <input id="cdb-f-sub" placeholder="Sub-obra..." oninput="cdocRenderBas()" style="max-width:130px;">
           <select id="cdb-f-status" onchange="cdocRenderBas()">
             <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
@@ -14896,7 +14904,7 @@ function cotExportarCSV(){
       <div class="cdoc-pane" id="cdoc-pane-detalhado">
         <div class="cdoc-bar">
           <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
-          <select id="cdd-f-obra" onchange="cdocRenderDet()"><option value="">Todas obras</option></select>
+          <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
           <input id="cdd-f-sub" placeholder="Sub-obra..." oninput="cdocRenderDet()" style="max-width:130px;">
           <select id="cdd-f-tipo" onchange="cdocRenderDet()">
             <option value="">Todos tipos</option>
@@ -15106,6 +15114,17 @@ async function abrirCtrlDoc(){
 }
 function fecharCtrlDoc(){ document.getElementById('modal-ctrl-doc').classList.remove('show'); }
 
+function _cdocSyncGlobalFromTab(srcId){
+  var v=(document.getElementById(srcId)||{}).value||'';
+  var g=document.getElementById('cdoc-g-obra'); if(g) g.value=v;
+  _cdocVisaoObra=v;
+  var vSel=document.getElementById('cdv-f-obra'); if(vSel) vSel.value=v;
+  // Sync other tab filters
+  ['cdb-f-obra','cdd-f-obra'].forEach(function(id){
+    if(id!==srcId){ var el=document.getElementById(id); if(el) el.value=v; }
+  });
+  _cdocGlobalObraInfo();
+}
 function cdocTab(t){
   document.querySelectorAll('.cdoc-tab').forEach(function(el,i){el.classList.toggle('active',['visao','basico','detalhado','diario'][i]===t);});
   document.querySelectorAll('.cdoc-pane').forEach(function(el){el.classList.remove('active');});
@@ -15120,21 +15139,40 @@ function cdocRefreshAll(){ cdocRenderVisao(); cdocRenderBas(); cdocRenderDet(); 
 
 function cdocPopFilters(){
   var obras=_cdocObras();
-  ['cdb-f-obra','cdd-f-obra'].forEach(function(id){
+  // Popula o filtro GLOBAL e os filtros por aba (sincronizados)
+  ['cdoc-g-obra','cdb-f-obra','cdd-f-obra'].forEach(function(id){
     var sel=document.getElementById(id); if(!sel) return;
     var cur=sel.value;
-    sel.innerHTML='<option value="">Todas obras</option>';
+    sel.innerHTML=(id==='cdoc-g-obra'?'<option value="">— Todas as obras —</option>':'<option value="">Todas obras</option>');
     obras.forEach(function(o){ var op=document.createElement('option');op.value=o;op.textContent=o;if(o===cur)op.selected=true;sel.appendChild(op); });
   });
-  // sub filtros das tab de básico/detalhado
-  function popSub(selId, obraSelId){
-    var ssel=document.getElementById(selId); if(!ssel) return;
-    var obra=(document.getElementById(obraSelId)||{}).value||'';
-    var subs=_cdocSubs(obra); var cur=ssel.value;
-    ssel.innerHTML='<option value="">Toda sub-obra</option>';
-    subs.forEach(function(s){ var op=document.createElement('option');op.value=s;op.textContent=s;if(s===cur)op.selected=true;ssel.appendChild(op); });
-  }
-  // sub-obra agora é campo de texto livre
+  // Atualiza info de obras no filtro global
+  _cdocGlobalObraInfo();
+}
+
+function _cdocGlobalObraInfo(){
+  var obra=(document.getElementById('cdoc-g-obra')||{}).value||'';
+  var info=document.getElementById('cdoc-g-obra-info'); if(!info) return;
+  if(!obra){ info.textContent=''; return; }
+  var db=_cdocLoad();
+  var nBas=db.basicos.filter(function(b){return b.obraId===obra;}).length;
+  var nDet=db.detalhados.filter(function(d){return d.obraId===obra;}).length;
+  info.textContent=nBas+' proj. básico(s) · '+nDet+' proj. detalhado(s)';
+}
+
+function cdocGlobalObraChange(){
+  var sel=document.getElementById('cdoc-g-obra'); if(!sel) return;
+  var obra=sel.value;
+  // Propaga para todos os filtros por aba
+  ['cdb-f-obra','cdd-f-obra'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value=obra;
+  });
+  // Propaga para Visão Geral
+  _cdocVisaoObra=obra;
+  var vSel=document.getElementById('cdv-f-obra'); if(vSel) vSel.value=obra;
+  // Re-renderiza todas as abas
+  cdocRefreshAll();
+  _cdocGlobalObraInfo();
 }
 
 /* ── STATUS badges ── */
@@ -15500,8 +15538,8 @@ function cdocRenderDet(){
 }
 
 /* ── Limpar filtros ── */
-function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); cdocRenderBas(); }
-function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); cdocRenderDet(); }
+function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
+function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
 
 /* ── Formulário Básico ── */
 function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
@@ -16560,18 +16598,17 @@ function cdocImportBas(input){
       var obra=row['Obra']||row['obra']||'';
       var sub=row['TAG']||row['sub']||row['TAG Sub-obra']||'';
       var titulo=row['Título']||row['Titulo']||row['Título / Descrição']||row['titulo']||'';
-      if(!obra||!sub||!titulo){erros.push('Linha '+(i+1)+': Obra/TAG/Título obrigatórios'); continue;}
-      var cli=row['Nº Cliente']||row['No Cliente']||'';
-      // Chave de upsert: Nº Cliente (se preenchido) OU obra+TAG
-      var existing=null;
-      if(cli) existing=db.basicos.find(function(b){return b.cli===cli;});
-      if(!existing) existing=db.basicos.find(function(b){return b.obraId===obra&&b.sub===sub;});
+      var cli=(row['Nº Cliente']||row['No Cliente']||'').trim();
+      // Nº Cliente é o único identificador válido — Obra+TAG não é único
+      if(!cli&&(!obra||!titulo)){erros.push('Linha '+(i+1)+': Nº Cliente (ou Obra+Título) obrigatórios'); continue;}
+      // Upsert apenas por Nº Cliente; sem fallback por obra+TAG para não sobrescrever registros distintos
+      var existing=cli?db.basicos.find(function(b){return b.cli===cli;}):null;
       var newData={
         obraId:obra,sub:sub,titulo:titulo,cli:cli,
         proj:row['Projetista']||'',
         status:row['Status']||'LD',
         area:row['Área']||row['Area']||'',
-        peso:row['Peso (kg)']||row['Peso']||null,
+        peso:(function(){var v=row['Peso (kg)']||row['Peso']||'';v=v.replace(/\./g,'').replace(',','.');return v?parseFloat(v)||null:null;})(),
         m3d:row['3D']||'2D',
         diag:row['Diagramas']||row['Diag.']||'2D',
         det:row['Tipo Detalhamento']||'',
