@@ -16713,7 +16713,22 @@ function cdocExportBas(){
 function cdocExportBasSel(){
   if(!_cdocBasSel.size){alert('Nenhuma linha selecionada. Use as caixas de seleção na tabela.');return;}
   var db=_cdocDb();
-  var sel=db.basicos.filter(function(b){return _cdocBasSel.has(b.id);});
+  // aplica os mesmos filtros ativos da tabela antes de cruzar com a seleção
+  var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
+  var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
+  var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
+  var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
+  var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
+  var visible=db.basicos.filter(function(b){
+    if(fObra&&b.obraId!==fObra) return false;
+    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
+    if(fSt&&b.status!==fSt) return false;
+    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
+    if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
+    return true;
+  });
+  var sel=visible.filter(function(b){return _cdocBasSel.has(b.id);});
+  if(!sel.length){alert('Nenhuma linha selecionada está visível com os filtros atuais.');return;}
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
   sel.forEach(function(b){rows.push([b.obraId,b.sub,b.cli,b.titulo,b.area||'',b.peso||'',b.status,b.m3d,b.diag,b.proj,b.rev,b.data].join(';'));});
   _cdocDownload(rows.join('\n'),'proj_basico_sel_'+sel.length+'.csv');
