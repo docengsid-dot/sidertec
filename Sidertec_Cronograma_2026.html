@@ -16618,6 +16618,57 @@ function cdocDetObraChange(){
   sel.innerHTML='<option value="">-- Selecione --</option>'+subs.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
 }
 
+
+/* ── Inserção automática no Cronograma ao cadastrar Proj. Básico ── */
+async function _cdocCriarNoCronograma(rec){
+  if(typeof allCronSubobras==='undefined'||typeof sbClient==='undefined') return;
+  // Verifica se já existe sub-obra com a mesma TAG e Obra
+  var exists=allCronSubobras.find(function(s){
+    return (s.subobra||'').toUpperCase()===(rec.sub||'').toUpperCase()&&
+           (s.obra||'').toUpperCase()===(rec.obraId||'').toUpperCase();
+  });
+  if(exists){
+    // Se já existe, apenas atualiza peso_previsto e num_proj_basico se estiverem vazios
+    var updates={};
+    if(!exists.peso_previsto&&rec.peso) updates.peso_previsto=parseFloat(rec.peso)||null;
+    if(!exists.num_proj_basico&&rec.cli) updates.num_proj_basico=rec.cli;
+    if(!exists.area&&rec.area) updates.area=rec.area;
+    if(Object.keys(updates).length){
+      Object.assign(exists,updates);
+      updates.atualizado_em=new Date().toISOString();
+      try{ await sbClient.from('cronograma_subobras').eq('id',exists.id).update(updates).select(); }catch(e){}
+    }
+    return;
+  }
+  // Cria nova sub-obra no cronograma
+  var newId=_genId();
+  var newSub={
+    id:newId,
+    obra:rec.obraId||'',
+    subobra:rec.sub||'',
+    descricao:rec.titulo||'',
+    area:rec.area||'',
+    num_proj_basico:rec.cli||'',
+    peso_previsto:rec.peso?parseFloat(rec.peso)||null:null,
+    equipe:'',status:'Planejado',prioridade:'',
+    prev_lib_fab:null,real_lib_fab:null,data_limite_fab:null,
+    peso_detalhado:null,peso_pcp:null,
+    criado_em:new Date().toISOString(),
+    atualizado_em:new Date().toISOString()
+  };
+  allCronSubobras.push(newSub);
+  // Persiste no localStorage
+  var ls=_lsGet('cronograma_subobras'); ls.unshift(newSub); _lsSet('cronograma_subobras',ls);
+  // Sobe para Supabase
+  try{
+    var res=await sbClient.from('cronograma_subobras').insert([newSub]).select();
+    if(res.data&&res.data[0]){ Object.assign(newSub,res.data[0]); }
+    _cdocToast('Sub-obra '+rec.sub+' inserida no Cronograma automaticamente!');
+  }catch(e){
+    _cdocToast('Sub-obra '+rec.sub+' inserida localmente no Cronograma (Supabase offline).');
+  }
+}
+
 /* ── Salvar (básico ou detalhado) ── */
 function cdocSalvar(){
   if(!_siderRequireEdit()) return;
@@ -16635,7 +16686,7 @@ function cdocSalvar(){
     var rec={id:_cdocEditId||_cdocGenId(db,'bas'),obraId:obra,sub:sub,titulo:titulo,cli:g('cef-cli'),proj:g('cef-proj'),status:g('cef-status')||'LD',area:g('cef-area'),peso:g('cef-peso')||null,m3d:g('cef-m3d')||'2D',diag:g('cef-diag')||'2D',det:g('cef-det'),rev:g('cef-rev'),data:g('cef-data'),revisoes:(_oldRec&&_oldRec.revisoes?_oldRec.revisoes:[]).concat(_cdocPendingRevs||[])};
     _cdocPendingRevs=[];
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
-    else{ db.basicos.push(rec); }
+    else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
     document.getElementById('cdoc-edit-overlay').classList.remove('show');
     cdocRenderBas(); cdocRenderVisao();
