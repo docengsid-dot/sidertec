@@ -14484,7 +14484,10 @@ function gerarRelatorioDiario(comFiltro){
       </div>
     </div>
     <div class="cron-mfooter">
-      <div style="font-size:10px;color:var(--ink3);" id="cot-status-bar">Cotações salvas no navegador.</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="cot-status-bar" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
+        <button onclick="abrirModalCotacaoEng()" title="Recarregar da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 7px;font-size:10px;color:#64748b;cursor:pointer;">🔄</button>
+      </div>
       <button class="btn btn-secondary" onclick="fecharModalCotacaoEng()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
   </div>
@@ -14493,11 +14496,62 @@ function gerarRelatorioDiario(comFiltro){
 var _cotLinhas=[];var _cotId=1;var _cotNomeAtual='';
 var _COT_STATUS=['Em análise','Contratado','Declinado'];
 var _COT_ST_STYLE={'Em análise':'background:#f1f5f9;color:#475569;','Contratado':'background:#dcfce7;color:#166534;font-weight:700;','Declinado':'background:#fee2e2;color:#991b1b;font-weight:700;'};
-var _COT_LS='sider_cotacoes_v1';
+var _COT_LS='sider_cotacoes_v1'; // mantido por compatibilidade
+var _cotSBCache = null; // cache em memória para cotações
 
-function abrirModalCotacaoEng(){
+function _cotSBStatus(msg, color){
+  var el=document.getElementById('cot-status-bar'); if(!el) return;
+  el.textContent=msg; el.style.color=color||'#64748b';
+}
+
+async function _cotSBLoad(){
+  try {
+    _cotSBStatus('⏳ Carregando cotações da nuvem...','#0369a1');
+    var r=await fetch(_sbUrl('cdoc_cotacoes?key=eq.main&select=data'),{headers:_SB_H});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var rows=await r.json();
+    if(rows.length&&rows[0].data){
+      _cotSBCache=rows[0].data;
+      try{localStorage.setItem(_COT_LS,JSON.stringify(_cotSBCache));}catch(e){}
+      _cotSBStatus('☁ '+_cotSBCache.length+' cotação(ões) carregada(s)','#16a34a');
+      setTimeout(function(){_cotSBStatus('☁ Nuvem','#94a3b8');},2500);
+    } else {
+      var local=null;
+      try{local=JSON.parse(localStorage.getItem(_COT_LS)||'null');}catch(e){}
+      _cotSBCache=local||[];
+      if(local&&local.length){
+        await _cotSBPush(_cotSBCache);
+        _cotSBStatus('☁ Dados locais publicados','#16a34a');
+        setTimeout(function(){_cotSBStatus('☁ Nuvem','#94a3b8');},2500);
+      } else {
+        _cotSBStatus('☁ Nuvem (nenhuma cotação)','#94a3b8');
+      }
+    }
+  } catch(e) {
+    console.error('_cotSBLoad error:',e);
+    var fallback=null;
+    try{fallback=JSON.parse(localStorage.getItem(_COT_LS)||'null');}catch(ex){}
+    _cotSBCache=fallback||[];
+    _cotSBStatus('⚠ Offline — cotações locais','#dc2626');
+  }
+}
+
+async function _cotSBPush(arr){
+  var r=await fetch(_sbUrl('cdoc_cotacoes'),{
+    method:'POST',
+    headers:Object.assign({},_SB_H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+    body:JSON.stringify({key:'main',data:arr})
+  });
+  if(!r.ok) throw new Error('HTTP '+r.status);
+}
+
+async function abrirModalCotacaoEng(){
   var o=document.getElementById('modal-cotacao-eng');
-  if(o){_cotPopFiltroObra();cotRender();o.classList.add('show');}
+  if(!o) return;
+  o.classList.add('show');
+  _cotPopObraSelect();
+  cotRender();
+  await _cotSBLoad();
 }
 function fecharModalCotacaoEng(){var o=document.getElementById('modal-cotacao-eng');if(o)o.classList.remove('show');}
 
@@ -14611,8 +14665,21 @@ function cotKpis(){
 }
 
 /* ── SALVAR / CARREGAR ───────────────────────────────────────── */
-function _cotLoadSaved(){try{return JSON.parse(localStorage.getItem(_COT_LS)||'[]');}catch(e){return [];}}
-function _cotSaveSaved(arr){localStorage.setItem(_COT_LS,JSON.stringify(arr));}
+function _cotLoadSaved(){
+  if(_cotSBCache!==null) return _cotSBCache;
+  try{return JSON.parse(localStorage.getItem(_COT_LS)||'[]');}catch(e){return [];}
+}
+function _cotSaveSaved(arr){
+  _cotSBCache=arr;
+  try{localStorage.setItem(_COT_LS,JSON.stringify(arr));}catch(e){}
+  _cotSBStatus('💾 Salvando...','#0369a1');
+  _cotSBPush(arr).then(function(){
+    _cotSBStatus('☁ Salvo na nuvem','#16a34a');
+    setTimeout(function(){_cotSBStatus('☁ Nuvem','#94a3b8');},2500);
+  }).catch(function(e){
+    _cotSBStatus('⚠ Erro ao salvar na nuvem','#dc2626');
+  });
+}
 
 function cotSalvar(){
   var nome=prompt('Nome para esta cotação:'+((_cotNomeAtual)?' (atual: '+_cotNomeAtual+')':''),'');
@@ -14913,7 +14980,10 @@ function cotExportarCSV(){
       </div>
     </div>
     <div class="cron-mfooter">
-      <div style="font-size:10px;color:#64748b;">Dados salvos localmente no navegador.</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="cdoc-sb-status" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
+        <button onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
+      </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
   </div>
@@ -14930,11 +15000,82 @@ function cotExportarCSV(){
 var _cdocMode = null; // 'bas' ou 'det'
 var _cdocEditId = null;
 
+// ── SUPABASE INTEGRATION — Controle de Documentos ────────────────────────────
+var _cdocSBCache = null; // cache em memória
+var _cdocSBReady = false;
+
+function _cdocSBStatus(msg, color){
+  var el=document.getElementById('cdoc-sb-status'); if(!el) return;
+  el.textContent=msg; el.style.color=color||'#64748b';
+}
+
+async function _cdocSBLoad(){
+  try {
+    _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
+    var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var rows=await r.json();
+    if(rows.length&&rows[0].data){
+      _cdocSBCache=rows[0].data;
+      // sincroniza backup local
+      try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
+      _cdocSBStatus('☁ Sincronizado','#16a34a');
+      setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2000);
+    } else {
+      // nuvem vazia — sobe dados locais se existirem
+      var local=null;
+      try{local=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
+      _cdocSBCache=local||{basicos:[],detalhados:[],_ids:{bas:1,det:1}};
+      if(local) {
+        // publica dados locais para a nuvem
+        await _cdocSBPush(_cdocSBCache);
+        _cdocSBStatus('☁ Dados locais publicados na nuvem','#16a34a');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
+      } else {
+        _cdocSBStatus('☁ Nuvem (sem dados)','#94a3b8');
+      }
+    }
+    _cdocSBReady=true;
+  } catch(e) {
+    console.error('_cdocSBLoad error:',e);
+    // fallback para localStorage
+    var fallback=null;
+    try{fallback=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(ex){}
+    _cdocSBCache=fallback||{basicos:[],detalhados:[],_ids:{bas:1,det:1}};
+    _cdocSBStatus('⚠ Offline — dados locais','#dc2626');
+  }
+}
+
+async function _cdocSBPush(db){
+  try{
+    var r=await fetch(_sbUrl('cdoc_database'),{
+      method:'POST',
+      headers:Object.assign({},_SB_H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify({key:'main',data:db})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+  } catch(e){ console.error('_cdocSBPush error:',e); throw e; }
+}
+
 function _cdocLoad(){
+  if(_cdocSBCache) return _cdocSBCache;
+  // cache ainda não carregado — usa localStorage como fallback imediato
   try{ return JSON.parse(localStorage.getItem('sider_ctrldoc')||'null')||{basicos:[],detalhados:[],_ids:{bas:1,det:1}}; }
   catch(e){ return {basicos:[],detalhados:[],_ids:{bas:1,det:1}}; }
 }
-function _cdocSave(db){ try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){console.error('cdocSave ERR:',e);alert('Erro ao salvar: '+e.message);} }
+
+function _cdocSave(db){
+  _cdocSBCache=db;
+  try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+  _cdocSBStatus('💾 Salvando...','#0369a1');
+  _cdocSBPush(db).then(function(){
+    _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
+    setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
+  }).catch(function(e){
+    _cdocSBStatus('⚠ Erro ao salvar na nuvem','#dc2626');
+  });
+}
+
 function _cdocDb(){ return _cdocLoad(); }
 function _cdocGenId(db,k){ db._ids=db._ids||{bas:1,det:1}; return db._ids[k]=(db._ids[k]||1)+1; }
 
@@ -14954,8 +15095,13 @@ function _cdocSubs(obra){
   return [...new Set(allCronSubobras.filter(function(s){return !obra||s.obra===obra;}).map(function(s){return s.subobra||'';}).filter(Boolean))].sort();
 }
 
-function abrirCtrlDoc(){
-  document.getElementById('modal-ctrl-doc').classList.add('show');
+async function abrirCtrlDoc(){
+  var modal=document.getElementById('modal-ctrl-doc');
+  modal.classList.add('show');
+  // Mostrar spinner enquanto carrega da nuvem
+  var panes=['visao','basico','detalhado','diario'];
+  panes.forEach(function(p){ var el=document.getElementById('cdoc-pane-'+p); if(el) el.innerHTML='<div style="text-align:center;padding:3rem;color:#94a3b8;">⏳ Carregando dados da nuvem...</div>'; });
+  await _cdocSBLoad();
   cdocRefreshAll();
 }
 function fecharCtrlDoc(){ document.getElementById('modal-ctrl-doc').classList.remove('show'); }
