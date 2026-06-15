@@ -15043,6 +15043,7 @@ function cotExportarCSV(){
           <div style="margin-left:auto;display:flex;gap:.4rem;">
             <button onclick="cdocNovoBas()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
             <button onclick="cdocExportBas()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CSV</button>
+            <button onclick="cdocExportBasSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
             <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV">&#8593; CSV</button>
             <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
           </div>
@@ -16708,6 +16709,14 @@ function cdocExportBas(){
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
   db.basicos.forEach(function(b){rows.push([b.obraId,b.sub,b.cli,b.titulo,b.area||'',b.peso||'',b.status,b.m3d,b.diag,b.proj,b.rev,b.data].join(';'));});
   _cdocDownload(rows.join('\n'),'proj_basico.csv');
+}
+function cdocExportBasSel(){
+  if(!_cdocBasSel.size){alert('Nenhuma linha selecionada. Use as caixas de seleção na tabela.');return;}
+  var db=_cdocDb();
+  var sel=db.basicos.filter(function(b){return _cdocBasSel.has(b.id);});
+  var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
+  sel.forEach(function(b){rows.push([b.obraId,b.sub,b.cli,b.titulo,b.area||'',b.peso||'',b.status,b.m3d,b.diag,b.proj,b.rev,b.data].join(';'));});
+  _cdocDownload(rows.join('\n'),'proj_basico_sel_'+sel.length+'.csv');
 }
 function cdocExportDet(){
   var db=_cdocDb();
