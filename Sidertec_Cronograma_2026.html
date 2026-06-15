@@ -15185,6 +15185,9 @@ async function _cdocSBLoad(){
     var rows=await r.json();
     if(rows.length&&rows[0].data){
       _cdocSBCache=rows[0].data;
+      // Sanitiza pesos armazenados como string ou NaN
+      (_cdocSBCache.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
+      (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
       // sincroniza backup local
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
       _cdocSBStatus('☁ Sincronizado','#16a34a');
@@ -15232,14 +15235,43 @@ function _cdocLoad(){
   catch(e){ return {basicos:[],detalhados:[],_ids:{bas:1,det:1}}; }
 }
 
+function _cdocMergeSnapshots(remote,local){
+  var r=JSON.parse(JSON.stringify(remote));
+  (local.basicos||[]).forEach(function(lb){
+    var idx=r.basicos.findIndex(function(rb){return rb.id===lb.id;});
+    if(idx>=0) r.basicos[idx]=lb; else r.basicos.push(lb);
+  });
+  (local.detalhados||[]).forEach(function(ld){
+    var idx=r.detalhados.findIndex(function(rd){return rd.id===ld.id;});
+    if(idx>=0) r.detalhados[idx]=ld; else r.detalhados.push(ld);
+  });
+  r._ids=r._ids||{};
+  r._ids.bas=Math.max((remote._ids||{}).bas||1,(local._ids||{}).bas||1);
+  r._ids.det=Math.max((remote._ids||{}).det||1,(local._ids||{}).det||1);
+  return r;
+}
 function _cdocSave(db){
   _cdocSBCache=db;
   try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
   _cdocSBStatus('💾 Salvando...','#0369a1');
-  _cdocSBPush(db).then(function(){
+  (async function(){
+    try{
+      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
+      if(r.ok){
+        var rows=await r.json();
+        if(rows.length&&rows[0].data){
+          var merged=_cdocMergeSnapshots(rows[0].data,db);
+          _cdocSBCache=merged;
+          try{localStorage.setItem('sider_ctrldoc',JSON.stringify(merged));}catch(e){}
+          db=merged;
+        }
+      }
+    }catch(e){}
+    await _cdocSBPush(db);
     _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
     setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
-  }).catch(function(e){
+    cdocRefreshAll();
+  })().catch(function(e){
     _cdocSBStatus('⚠ Erro ao salvar na nuvem','#dc2626');
   });
 }
@@ -15263,18 +15295,38 @@ function _cdocSubs(obra){
   return [...new Set(allCronSubobras.filter(function(s){return !obra||s.obra===obra;}).map(function(s){return s.subobra||'';}).filter(Boolean))].sort();
 }
 
+var _cdocAutoRefreshTimer=null;
 async function abrirCtrlDoc(){
   var modal=document.getElementById('modal-ctrl-doc');
   modal.classList.add('show');
-  // Mostra loading só na barra de status, não destrói o conteúdo das panes
   _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
-  // Desabilita botão Atualizar durante carregamento
   var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
   await _cdocSBLoad();
   if(btnAt) btnAt.disabled=false;
   cdocRefreshAll();
+  // Auto-refresh a cada 45s enquanto o modal estiver aberto
+  if(_cdocAutoRefreshTimer) clearInterval(_cdocAutoRefreshTimer);
+  _cdocAutoRefreshTimer=setInterval(async function(){
+    if(!document.getElementById('modal-ctrl-doc').classList.contains('show')){
+      clearInterval(_cdocAutoRefreshTimer); _cdocAutoRefreshTimer=null; return;
+    }
+    var editOv=document.getElementById('cdoc-edit-overlay');
+    if(editOv&&editOv.classList.contains('show')) return;
+    try{
+      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
+      if(!r.ok) return;
+      var rows=await r.json();
+      if(rows.length&&rows[0].data){
+        _cdocSBCache=rows[0].data;
+        try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
+        cdocRefreshAll();
+        _cdocSBStatus('☁ '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#16a34a');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
+      }
+    }catch(e){}
+  },45000);
 }
-function fecharCtrlDoc(){ document.getElementById('modal-ctrl-doc').classList.remove('show'); }
+function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;} document.getElementById('modal-ctrl-doc').classList.remove('show'); }
 
 function _cdocSyncGlobalFromTab(srcId){
   var v=(document.getElementById(srcId)||{}).value||'';
@@ -15618,7 +15670,7 @@ function cdocRenderDet(){
   });
   if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum documento. Clique em + Novo.</td></tr>';}
   else{
-    var fmt=function(v){return v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
+    var fmt=function(v){var n=Number(v);return (v!==null&&v!==''&&!isNaN(n))?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
     tb.innerHTML=rows.map(function(d){
       var isSel=_cdocDetSel.has(d.id);
       return '<tr class="'+(isSel?'cdoc-selected':'')+'" onclick="_cdocToggleSelDet('+d.id+',event)" style="cursor:pointer;">'
@@ -16683,6 +16735,11 @@ function cdocSalvar(){
       if(!db._subsCadastr[obra])db._subsCadastr[obra]=[];
       if(db._subsCadastr[obra].indexOf(sub)===-1) db._subsCadastr[obra].push(sub);})();
     var _oldRec=_cdocEditId?db.basicos.find(function(b){return b.id===_cdocEditId;}):null;
+    // Para novo registro: se Rev. foi preenchida e não há pendências, insere automaticamente como 1ª revisão
+    var _revVal=g('cef-rev'), _revData=g('cef-data');
+    if(!_cdocEditId&&_revVal&&!(_cdocPendingRevs&&_cdocPendingRevs.length)){
+      _cdocPendingRevs=[{rev:_revVal,data:_revData,obs:'Revisão inicial'}];
+    }
     var rec={id:_cdocEditId||_cdocGenId(db,'bas'),obraId:obra,sub:sub,titulo:titulo,cli:g('cef-cli'),proj:g('cef-proj'),status:g('cef-status')||'LD',area:g('cef-area'),peso:g('cef-peso')||null,m3d:g('cef-m3d')||'2D',diag:g('cef-diag')||'2D',det:g('cef-det'),rev:g('cef-rev'),data:g('cef-data'),revisoes:(_oldRec&&_oldRec.revisoes?_oldRec.revisoes:[]).concat(_cdocPendingRevs||[])};
     _cdocPendingRevs=[];
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
@@ -16942,7 +16999,7 @@ function cdocImportDet(input){
         engResp:row['Eng.Resp']||row['Eng. Responsável']||'',
         desc:row['Descrição']||row['Descricao']||row['DESCRIÇÃO']||'',
         peca:row['Peça']||row['Peca']||'',
-        peso:row['Peso (kg)']||row['Peso']||null,
+        peso:(function(){var v=(row['Peso (kg)']||row['Peso']||'').trim().replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;})(),
         rev:row['Rev']||row['Rev.']||row['Revisão']||'',
         statusGeral:row['Status Geral']||row['Status']||null,
         data:normData(row['Data']||'')};
