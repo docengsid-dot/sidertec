@@ -14990,7 +14990,7 @@ function cotExportarCSV(){
     <div class="cron-mfooter">
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="cdoc-sb-status" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
-        <button onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
+        <button id="cdoc-btn-atualizar" onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
@@ -15106,10 +15106,12 @@ function _cdocSubs(obra){
 async function abrirCtrlDoc(){
   var modal=document.getElementById('modal-ctrl-doc');
   modal.classList.add('show');
-  // Mostrar spinner enquanto carrega da nuvem
-  var panes=['visao','basico','detalhado','diario'];
-  panes.forEach(function(p){ var el=document.getElementById('cdoc-pane-'+p); if(el) el.innerHTML='<div style="text-align:center;padding:3rem;color:#94a3b8;">⏳ Carregando dados da nuvem...</div>'; });
+  // Mostra loading só na barra de status, não destrói o conteúdo das panes
+  _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
+  // Desabilita botão Atualizar durante carregamento
+  var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
   await _cdocSBLoad();
+  if(btnAt) btnAt.disabled=false;
   cdocRefreshAll();
 }
 function fecharCtrlDoc(){ document.getElementById('modal-ctrl-doc').classList.remove('show'); }
