@@ -15523,7 +15523,7 @@ function cdocRenderBas(){
         var cronPeso=null;
         if(typeof allCronSubobras!=='undefined'){
           var cronRec=allCronSubobras.find(function(s){return s.subobra===tag&&(!g.obra||s.obra===g.obra);});
-          if(cronRec&&cronRec.peso_basico) cronPeso=parseFloat(cronRec.peso_basico)||null;
+          if(cronRec&&cronRec.peso_previsto) cronPeso=parseFloat(cronRec.peso_previsto)||null;
         }
         var diff=cronPeso!==null&&g.peso?g.peso-cronPeso:null;
         var diffHtml='<span style="color:#94a3b8;">—</span>';
