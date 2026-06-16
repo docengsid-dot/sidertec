@@ -15523,6 +15523,7 @@ function cotExportarCSV(){
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="cdoc-sb-status" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
         <button id="cdoc-btn-atualizar" onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
+        <button onclick="backupCompleto()" title="Baixar backup completo JSON" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📥 Backup</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
@@ -15697,6 +15698,44 @@ async function abrirCtrlDoc(){
       }
     }catch(e){}
   },45000);
+}
+async function backupCompleto(){
+  var btn = event && event.target;
+  if(btn){btn.disabled=true;btn.textContent='⏳ Baixando...';}
+  try{
+    var snap = {timestamp: new Date().toISOString(), versao: 'Sidertec_v2_1424'};
+    // Ctrl. Doc. blob
+    try{
+      var r1 = await sbClient.from('cdoc_database').select('*').eq('key','main');
+      snap.cdoc_database = r1.data || [];
+    }catch(e){ snap.cdoc_database = []; snap.cdoc_error = e.message; }
+    // Cotações
+    try{
+      var r2 = await sbClient.from('cdoc_cotacoes').select('*');
+      snap.cdoc_cotacoes = r2.data || [];
+    }catch(e){ snap.cdoc_cotacoes = []; }
+    // Cronograma
+    try{
+      var r3 = await sbClient.from('cronograma_subobras').select('*');
+      snap.cronograma_subobras = r3.data || [];
+    }catch(e){ snap.cronograma_subobras = []; snap.cron_error = e.message; }
+    var hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+    var json = JSON.stringify(snap, null, 2);
+    var blob = new Blob([json],{type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'Sidertec_Backup_'+hoje+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    var total = (snap.cronograma_subobras.length||0) + ((snap.cdoc_database[0]&&snap.cdoc_database[0].data&&snap.cdoc_database[0].data.basicos)?snap.cdoc_database[0].data.basicos.length:0);
+    _cdocSBStatus('✅ Backup salvo ('+hoje+')','#166534');
+    setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
+  }catch(e){
+    alert('Erro no backup: '+e.message);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='📥 Backup';}
+  }
 }
 function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;} document.getElementById('modal-ctrl-doc').classList.remove('show'); }
 
