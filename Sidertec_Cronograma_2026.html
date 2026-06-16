@@ -8363,6 +8363,7 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
       <td style="padding:4px 6px;font-size:7.5px;color:#333;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
       <td style="padding:4px 6px;font-size:7.5px;color:#555;max-width:120px;word-wrap:break-word;">${s.area||'—'}</td>
+      <td style="padding:4px 6px;font-size:8px;font-family:'Courier New';font-weight:800;color:#7c3aed;">${s.num_proj_basico||'—'}</td>
       <td style="padding:4px 6px;font-size:7px;color:#0369a1;max-width:140px;word-wrap:break-word;">${s.escopo_fornecimento||'—'}</td>
       <td style="padding:4px 6px;font-size:8px;text-align:center;color:#7c3aed;font-weight:700;">${s.prior_det!=null&&s.prior_det!==''?s.prior_det:'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_basico)}</td>
@@ -8374,6 +8375,8 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#1d4ed8;">${s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#c2410c;">${s.peso_pcp?Number(s.peso_pcp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#16a34a;">${s.peso_executado?Number(s.peso_executado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+      ${(()=>{const _pcp=Number(s.peso_pcp||s.peso_previsto)||0;const _stg=(w,cor)=>{if(!_pcp)return '<td style="padding:4px 4px;text-align:center;font-size:7.5px;color:#94a3b8;">—</td>';const p=Math.min(100,Math.round((Number(s[w])||0)/_pcp*100));const c=p>=100?'#166534':p>=50?'#d97706':'#94a3b8';return `<td style="padding:4px 4px;text-align:center;font-size:7.5px;font-weight:700;color:${c};">${p}%</td>`;};return _stg('peso_executado')+''+_stg('peso_inspecao_fab')+''+_stg('peso_pintura')+''+_stg('peso_expedicao');})()}
       <td style="padding:4px 6px;text-align:center;">${revBadge}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';font-weight:700;color:${calcPct(s)>=100?'#166534':calcPct(s)>0?'#c2410c':'#94a3b8'}">${calcPct(s)}%</td>
       <td style="padding:4px 6px;text-align:center;">${(()=>{const fp=_fabPctRel(s);return fp===null?'<span style="color:#94a3b8;font-size:7px;">—</span>':`<span style="font-size:8px;font-weight:700;color:${fp>=100?'#166534':fp>0?'#d97706':'#94a3b8'};">${fp}%</span>`;})()}</td>
@@ -8434,6 +8437,7 @@ function gerarRelatorioCron(){
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Status</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;max-width:200px;">Descrição</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Área</th>
+          <th style="color:#c4b5fd;padding:5px 6px;text-align:left;white-space:nowrap;">Nº Proj.Básico</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Escopo Forn.</th>
           <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Prior.Det.</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Rec. Básico</th>
@@ -8445,6 +8449,11 @@ function gerarRelatorioCron(){
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Bás. (kg)</th>
           <th style="color:#93c5fd;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Det. (kg)</th>
           <th style="color:#fdba74;padding:5px 6px;text-align:right;white-space:nowrap;">Peso PCP (kg)</th>
+          <th style="color:#86efac;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Exec. (kg)</th>
+          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Prep.%</th>
+          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Insp.%</th>
+          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Pint.%</th>
+          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Exped.%</th>
           <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Revisão</th>
           <th style="color:#4ade80;padding:5px 6px;text-align:right;white-space:nowrap;">Avanço</th>
           <th style="color:#fb923c;padding:5px 6px;text-align:center;white-space:nowrap;">Fab.%</th>
@@ -8455,7 +8464,7 @@ function gerarRelatorioCron(){
       <tbody>
         ${rows}
         <tr style="background:#1A1714;">
-          <td colspan="9" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
+          <td colspan="15" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
           <td style="color:#f5c89a;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${fmtRelPeso(totBasico)}</td>
           <td style="color:#93c5fd;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totDetalhado>0?fmtRelPeso(totDetalhado):'—'}</td>
           <td style="color:#fdba74;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totPcp>0?fmtRelPeso(totPcp):'—'}</td>
