@@ -15694,7 +15694,7 @@ function cotExportarCSV(){
         <div class="cron-mhd-title">&#128193; Controle de Documentos</div>
         <div style="font-size:10px;opacity:.7;">Proj. Básico · Proj. Detalhado</div>
       </div>
-      <button class="sider-lock-btn locked" title="Clique para desbloquear edição" style="font-size:11px;">🔒 Editar</button>
+      <button class="sider-lock-btn locked" onclick="_siderToggleLock()" title="Clique para desbloquear edição" style="font-size:11px;cursor:pointer;">🔒 Editar</button>
       <button onclick="fecharCtrlDoc()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">✕</button>
     </div>
     <div class="cron-mbody">
@@ -15870,6 +15870,34 @@ var _cdocEditId = null;
 // ── SUPABASE INTEGRATION — Controle de Documentos ────────────────────────────
 var _cdocSBCache = null; // cache em memória
 var _cdocSBReady = false;
+
+// ── CONTROLE DE EDIÇÃO (cadeado) ─────────────────────────────────────────────
+var _siderEditUnlocked = false;
+var _CDOC_SENHA = 'sidertec';
+
+function _siderToggleLock(){
+  var btn = document.querySelector('.sider-lock-btn');
+  if(_siderEditUnlocked){
+    _siderEditUnlocked = false;
+    if(btn){ btn.classList.add('locked'); btn.innerHTML='🔒 Editar'; btn.title='Clique para desbloquear edição'; }
+  } else {
+    var s = prompt('Digite a senha para habilitar edição:');
+    if(s === null) return;
+    if(s === _CDOC_SENHA){
+      _siderEditUnlocked = true;
+      if(btn){ btn.classList.remove('locked'); btn.innerHTML='🔓 Editando'; btn.title='Edição ativa — clique para bloquear'; }
+    } else {
+      alert('Senha incorreta.');
+    }
+  }
+}
+
+function _siderRequireEdit(){
+  if(_siderEditUnlocked) return true;
+  _siderToggleLock();
+  return _siderEditUnlocked;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function _cdocSBStatus(msg, color){
   var el=document.getElementById('cdoc-sb-status'); if(!el) return;
