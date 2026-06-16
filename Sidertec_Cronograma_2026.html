@@ -8353,6 +8353,7 @@ function gerarRelatorioCron(){
     const pct = s.peso_previsto>0?Math.min(100,Math.round(pesoLib/s.peso_previsto*100)):0;
     const mpBadge = s.status_resumo_mp ? `<span style="background:${s.status_resumo_mp==='CONCLUÍDO'?'#dcfce7':'#fee2e2'};color:${s.status_resumo_mp==='CONCLUÍDO'?'#166534':'#991b1b'};border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">${s.status_resumo_mp}</span>` : '—';
     const revBadge = s.tem_revisao ? `<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">SIM${s.num_revisao?' · '+s.num_revisao:''}</span>` : '—';
+    const _fabPctRel = s => { const pcp=Number(s.peso_pcp||s.peso_previsto)||0; if(!pcp) return null; const ks=['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao']; const tot=ks.reduce((a,k)=>a+(Number(s[k])||0),0); return Math.min(100,Math.round((tot/ks.length)/pcp*100)); };
     const fmtDt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
     return `<tr style="border-bottom:1px solid #e2e8f0;">
       <td style="padding:4px 6px;font-size:8px;font-weight:700;color:#7f1d1d;text-align:center;">${_ri+1}</td>
@@ -8361,7 +8362,9 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
       <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
       <td style="padding:4px 6px;font-size:7.5px;color:#333;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
-      <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.area||'—'}</td>
+      <td style="padding:4px 6px;font-size:7.5px;color:#555;max-width:120px;word-wrap:break-word;">${s.area||'—'}</td>
+      <td style="padding:4px 6px;font-size:7px;color:#0369a1;max-width:140px;word-wrap:break-word;">${s.escopo_fornecimento||'—'}</td>
+      <td style="padding:4px 6px;font-size:8px;text-align:center;color:#7c3aed;font-weight:700;">${s.prior_det!=null&&s.prior_det!==''?s.prior_det:'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_basico)}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_envio_modelo)}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_pcte_fab)}</td>
@@ -8373,6 +8376,9 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#c2410c;">${s.peso_pcp?Number(s.peso_pcp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td style="padding:4px 6px;text-align:center;">${revBadge}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';font-weight:700;color:${calcPct(s)>=100?'#166534':calcPct(s)>0?'#c2410c':'#94a3b8'}">${calcPct(s)}%</td>
+      <td style="padding:4px 6px;text-align:center;">${(()=>{const fp=_fabPctRel(s);return fp===null?'<span style="color:#94a3b8;font-size:7px;">—</span>':`<span style="font-size:8px;font-weight:700;color:${fp>=100?'#166534':fp>0?'#d97706':'#94a3b8'};">${fp}%</span>`;})()}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:7px;">${s.real_expedicao?`<span style="color:#166534;font-weight:700;">✓</span> <span style="font-size:6.5px;">${fmtDt(s.real_expedicao)}</span>`:(s.prev_expedicao?`<span style="color:#94a3b8;font-size:6.5px;">Prev: ${fmtDt(s.prev_expedicao)}</span>`:'<span style="color:#94a3b8;">—</span>')}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:7px;">${s.montagem_na?'<span style="color:#94a3b8;font-style:italic;font-size:7px;">N/A</span>':s.real_montagem?`<span style="color:#166534;font-weight:700;">✓</span> <span style="font-size:6.5px;">${fmtDt(s.real_montagem)}</span>`:(s.prev_montagem?`<span style="color:#94a3b8;font-size:6.5px;">Prev: ${fmtDt(s.prev_montagem)}</span>`:'<span style="color:#94a3b8;">—</span>')}</td>
     </tr>`;
   }).join('');
 
@@ -8428,6 +8434,8 @@ function gerarRelatorioCron(){
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Status</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;max-width:200px;">Descrição</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Área</th>
+          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Escopo Forn.</th>
+          <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Prior.Det.</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Rec. Básico</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Modelo</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Pcte.Fab.</th>
@@ -8439,16 +8447,19 @@ function gerarRelatorioCron(){
           <th style="color:#fdba74;padding:5px 6px;text-align:right;white-space:nowrap;">Peso PCP (kg)</th>
           <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Revisão</th>
           <th style="color:#4ade80;padding:5px 6px;text-align:right;white-space:nowrap;">Avanço</th>
+          <th style="color:#fb923c;padding:5px 6px;text-align:center;white-space:nowrap;">Fab.%</th>
+          <th style="color:#67e8f9;padding:5px 6px;text-align:center;white-space:nowrap;">Expedição</th>
+          <th style="color:#a78bfa;padding:5px 6px;text-align:center;white-space:nowrap;">Montagem</th>
         </tr>
       </thead>
       <tbody>
         ${rows}
         <tr style="background:#1A1714;">
-          <td colspan="7" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
+          <td colspan="9" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
           <td style="color:#f5c89a;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${fmtRelPeso(totBasico)}</td>
           <td style="color:#93c5fd;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totDetalhado>0?fmtRelPeso(totDetalhado):'—'}</td>
           <td style="color:#fdba74;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totPcp>0?fmtRelPeso(totPcp):'—'}</td>
-          <td colspan="2" style="color:#fff;padding:5px 6px;text-align:center;font-size:8px;">${totBasico>0?'Δ Det: '+(((totDetalhado-totBasico)/totBasico)*100).toFixed(1)+'%':''}</td>
+          <td colspan="5" style="color:#fff;padding:5px 6px;text-align:center;font-size:8px;">${totBasico>0?'Δ Det: '+(((totDetalhado-totBasico)/totBasico)*100).toFixed(1)+'%':''}</td>
         </tr>
       </tbody>
     </table>
