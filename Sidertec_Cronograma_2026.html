@@ -1899,6 +1899,13 @@ ALTER TABLE medicao_terceiros
           <input type="text" class="field-input" id="cm-descricao" placeholder="Ex: Pipe Rack Trecho 01"></div>
         <div class="field-group"><label class="field-label">Área</label>
           <input type="text" class="field-input" id="cm-area" placeholder="Ex: Área 01 / Utilidades" autocomplete="off"></div>
+        <div class="field-group"><label class="field-label">Escopo de Fornecimento</label>
+          <select class="field-input" id="cm-escopo">
+            <option value="">— Selecione —</option>
+            <option value="Fornecimento">Fornecimento</option>
+            <option value="Montagem">Montagem</option>
+            <option value="Fornecimento e Montagem">Fornecimento e Montagem</option>
+          </select></div>
         <div class="field-group"><label class="field-label">Equipe Projetista</label>
           <select class="field-input" id="cm-equipe"><option value="">— Selecione —</option></select></div>
         <div class="field-group"><label class="field-label">Prioridade</label>
@@ -1907,6 +1914,8 @@ ALTER TABLE medicao_terceiros
             <option value="MÉDIA">Média</option>
             <option value="ALTA">Alta</option>
           </select></div>
+        <div class="field-group"><label class="field-label">Prioridade Detalhamento (0–100)</label>
+          <input type="number" class="field-input" id="cm-prior-det" placeholder="0" min="0" max="100" step="1"></div>
         <div class="field-group">
           <label class="field-label">Peso Básico (kg)</label>
           <input type="number" class="field-input" id="cm-peso" placeholder="0,00" min="0" step="0.01">
@@ -3597,7 +3606,7 @@ if(window._colunasDisponiveis.size === 0) sessionStorage.removeItem('_col_disp')
 function probeColunasSupabase(){
   // Modo offline: todas as colunas marcadas como disponíveis
   window._colunasDisponiveis = new Set([
-    'num_proj_basico','area',
+    'num_proj_basico','area','escopo_fornecimento','prior_det',
     'prev_rec_modelo','real_rec_modelo','obs_rec_modelo',
     'prev_resumo_mp','real_resumo_mp','obs_resumo_mp','status_resumo_mp',
     'prev_inspecao_interna','real_inspecao_interna','obs_inspecao_interna',
@@ -3614,7 +3623,8 @@ function probeColunasSupabase(){
     'prev_preparacao','real_preparacao','obs_preparacao',
     'prev_inspecao_fab','real_inspecao_fab','obs_inspecao_fab',
     'prev_pintura','real_pintura','obs_pintura',
-    'prev_expedicao','real_expedicao','obs_expedicao'
+    'prev_expedicao','real_expedicao','obs_expedicao',
+    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na'
   ]);
   return Promise.resolve();
 }
@@ -3668,6 +3678,11 @@ const ETAPAS_CONFIG = [
       {key:'pintura',      label:'Pintura',    col_prev:null, col_real:null, col_obs:'obs_pintura',      col_conc:'conc_pintura',      extra:'peso_exec',  col_peso_exec:'peso_pintura'},
       {key:'expedicao',    label:'Expedição',  col_prev:'prev_expedicao', col_real:'real_expedicao', col_obs:'obs_expedicao', col_conc:'conc_expedicao', extra:'expedicao', col_peso_exec:'peso_expedicao'},
     ]
+  },
+  {
+    key:'montagem', num:'7️⃣', label:'Montagem',
+    col_prev:'prev_montagem', col_real:'real_montagem', col_obs:'obs_montagem', col_conc:'conc_montagem', col_regs:'regs_montagem',
+    extra:'montagem'
   },
 ];
 
@@ -3837,7 +3852,8 @@ function etapasStateFromSubobra(s){
       prev:s[e.col_prev]||'',real:s[e.col_real]||'',
       obs:(e.extra==='resultado')?'':(s[e.col_obs]||''),
       grd:(e.extra==='grd')?(s.grd_modelo||''):'',
-      peso_exec:(e.extra==='peso_exec'||e.extra==='expedicao')?(e.col_peso_exec?s[e.col_peso_exec]||'':''):''
+      peso_exec:(e.extra==='peso_exec'||e.extra==='expedicao')?(e.col_peso_exec?s[e.col_peso_exec]||'':''):'',
+      montagem_na:(e.extra==='montagem')?(s.montagem_na===true||s.montagem_na==='S'||s.montagem_na==='true'):false
     };
   });
 
@@ -4000,7 +4016,16 @@ function renderEtapasDinamicas(){
 
     rows += '<tr class="'+trClass+'" id="etapa-row-'+etapa.key+'">';
     rows += '<td style="width:28px;text-align:center;"><span class="etapa-num">'+rowIdx+'</span></td>';
-    rows += '<td><span class="etapa-name">'+etapa.num+' '+etapa.label+'</span>'+anexosPill+(function(){
+    // N/A toggle para montagem
+    var naToggleBtn = '';
+    if(etapa.extra==='montagem'){
+      var _isNA = st.montagem_na||false;
+      naToggleBtn = ' <button onclick="etapaToggleMontagemNA()" style="font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid '+(_isNA?'#6b7280':'#d1d5db')+';background:'+(_isNA?'#6b7280':'transparent')+';color:'+(_isNA?'#fff':'#6b7280')+';cursor:pointer;font-weight:700;" title="Marcar como Não Aplicável">N/A</button>';
+      if(_isNA){
+        pillHtml='<span class="cron-etapa-status-pill" style="background:#f1f5f9;color:#64748b;font-size:9px;padding:2px 7px;border-radius:10px;">⊘ Não Aplicável</span>';
+      }
+    }
+    rows += '<td><span class="etapa-name">'+etapa.num+' '+etapa.label+'</span>'+naToggleBtn+anexosPill+(function(){
       if(etapa.extra!=='peso_exec') return '';
       var _pPcpM=0;
       if(typeof allCronSubobras!=='undefined'&&editingCronId){var _csM=allCronSubobras.find(function(x){return x.id===editingCronId;});if(_csM)_pPcpM=parseFloat(_csM.peso_pcp||_csM.peso_previsto||0)||0;}
@@ -4010,7 +4035,7 @@ function renderEtapasDinamicas(){
       var _bcM=_avg>=100?'#166534':_avg>=50?'#d97706':'#2563eb';
       return '<div style="display:flex;align-items:center;gap:.3rem;margin-top:2px;"><div style="flex:1;background:#e2e8f0;border-radius:3px;height:6px;overflow:hidden;"><div style="width:'+_avg+'%;height:100%;background:'+_bcM+';border-radius:3px;"></div></div><span style="font-size:9px;font-weight:700;color:'+_bcM+';">'+_avg+'% (méd.)</span></div>';
     }())+'</td>';
-    if(etapa.col_prev){
+    if(etapa.col_prev && !(etapa.extra==='montagem' && st.montagem_na)){
     rows += '<td class="num" style="width:110px;">';
     var _prevInput = '<input type="date" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)">';
     rows += _dtHistWrap(_prevInput, etapa.key, 'prev', etapa.label);
@@ -4020,6 +4045,10 @@ function renderEtapasDinamicas(){
     rows += _dtHistWrap(_realInput, etapa.key, 'real', etapa.label);
     rows += '</td>';
     rows += '<td style="width:90px;text-align:center;">'+_diasBadgeInline(st.prev,st.real)+'</td>';
+    } else if(etapa.extra==='montagem' && st.montagem_na){
+    rows += '<td class="num" style="width:110px;text-align:center;"><span style="color:#94a3b8;font-size:9px;font-style:italic;">N/A</span></td>';
+    rows += '<td class="num" style="width:110px;text-align:center;"><span style="color:#94a3b8;font-size:9px;font-style:italic;">N/A</span></td>';
+    rows += '<td style="width:90px;text-align:center;"></td>';
     } else {
     rows += '<td class="num" style="width:110px;"><span style="color:#94a3b8;font-size:9px;">—</span></td>';
     rows += '<td class="num" style="width:110px;"><span style="color:#94a3b8;font-size:9px;">—</span></td>';
@@ -4300,6 +4329,26 @@ function etapaSet(key,campo,valor){
   }
 }
 function etapaSetResultado(key,val){ if(!_etapasState[key])return; _etapasState[key].resultado=(_etapasState[key].resultado===val)?'':val; renderEtapasDinamicas(); }
+function etapaToggleMontagemNA(){
+  if(!_etapasState['montagem'])_etapasState['montagem']={};
+  var novoVal = !_etapasState['montagem'].montagem_na;
+  _etapasState['montagem'].montagem_na = novoVal;
+  if(novoVal){
+    // Limpa datas ao marcar N/A
+    _etapasState['montagem'].prev=''; _etapasState['montagem'].real='';
+  }
+  // Salva no Supabase
+  if(editingCronId){
+    var upd={montagem_na:novoVal, atualizado_em:new Date().toISOString()};
+    if(novoVal){upd.prev_montagem=null;upd.real_montagem=null;}
+    var i=allCronSubobras.findIndex(function(x){return x.id===editingCronId;});
+    if(i>=0) allCronSubobras[i]=Object.assign({},allCronSubobras[i],upd);
+    sbClient.from('cronograma_subobras').update(upd).eq('id',editingCronId).select()
+      .then(function(r){if(r.error)console.warn('[montagemNA]',r.error.message);})
+      .catch(function(e){console.warn('[montagemNA]',e.message);});
+  }
+  renderEtapasDinamicas();
+}
 function etapaSetReg(key,idx,campo,valor){ etapaSet(key,campo,valor); }
 function etapaAdicionarReg(){}
 function etapaRemoverReg(){}
@@ -5231,7 +5280,9 @@ function xlPopulateFilter(col){
     if(col==='status')         v=s.status||'';
     else if(col==='equipe')    v=s.equipe?s.equipe.split('(')[0].trim():'';
     else if(col==='obra')      v=s.obra||'';
-    else if(col==='area')      v=s.area||'';
+    else if(col==='area')               v=s.area||'';
+    else if(col==='escopo_fornecimento') v=s.escopo_fornecimento||'';
+    else if(col==='prior_det')          v=s.prior_det!=null?String(s.prior_det):'';
     else if(col==='descricao') v=s.descricao||'';
     else if(col==='subobra')   v=s.subobra||'';
     else if(col==='num_proj_basico') v=s.num_proj_basico||'';
@@ -5345,7 +5396,9 @@ function xlFiltrarSubs(subs){
       if(col==='status')         v=s.status||'';
       else if(col==='equipe')    v=s.equipe?s.equipe.split('(')[0].trim():'';
       else if(col==='obra')      v=s.obra||'';
-      else if(col==='area')      v=s.area||'';
+      else if(col==='area')               v=s.area||'';
+      else if(col==='escopo_fornecimento') v=s.escopo_fornecimento||'';
+      else if(col==='prior_det')          v=s.prior_det!=null?String(s.prior_det):'';
       else if(col==='descricao') v=s.descricao||'';
       else if(col==='subobra')   v=s.subobra||'';
       else if(col==='num_proj_basico') v=s.num_proj_basico||'';
@@ -5504,6 +5557,13 @@ function cronRenderTabela(subs){
   const ETAPAS_SO_REAL = new Set(['materia_prima','envio_detail']);
 
   function celulaEtapa(s, etapa){
+    // Special: Montagem N/A
+    if(etapa.isMontagem && (s.montagem_na===true||s.montagem_na==='true'||s.montagem_na==='S')){
+      return '<td style="background:#f1f5f9;padding:2px 4px;text-align:center;border:1px solid #e2e8f0;min-width:54px;vertical-align:middle;" title="Não Aplicável" onclick="event.stopPropagation();abrirAndamentoNaEtapaById(\''+s.id+'\',\'montagem\')">'
+        +'<div style="font-size:9px;color:#94a3b8;font-style:italic;">⊘</div>'
+        +'<div style="font-size:7px;color:#94a3b8;">N/A</div>'
+        +'</td>';
+    }
     // Special: Fabricação % column (col 12)
     if(etapa.isFabPct){
       var _pPcpV=parseFloat(s.peso_pcp||s.peso_previsto||0)||0;
@@ -5615,6 +5675,8 @@ function cronRenderTabela(subs){
       <td style="padding:3px 5px;font-size:10px;color:#7c3aed;font-family:'Courier New',monospace,monospace;font-weight:800;white-space:nowrap;border:1px solid #e2e8f0;letter-spacing:.02em;">${s.num_proj_basico||'—'}</td>
       <td style="padding:3px 5px;font-size:9px;color:var(--ink2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #e2e8f0;" title="${(s.descricao||'').replace(/"/g,'&quot;')}">${s.descricao||'—'}</td>
       <td style="padding:3px 5px;font-size:8px;color:var(--blue);white-space:nowrap;border:1px solid #e2e8f0;">${s.area||'—'}</td>
+      <td style="padding:3px 5px;font-size:8px;color:#6d28d9;white-space:nowrap;border:1px solid #e2e8f0;">${(()=>{var e=s.escopo_fornecimento||'';if(!e)return '—';if(e==='Fornecimento')return '<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:600;">Forn.</span>';if(e==='Montagem')return '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:600;">Mont.</span>';return '<span style="background:#ede9fe;color:#6d28d9;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:600;">F+M</span>';})()}</td>
+      <td style="padding:3px 5px;text-align:center;border:1px solid #e2e8f0;">${(()=>{var pd=s.prior_det;if(pd===null||pd===undefined||pd==='')return '<span style="color:#94a3b8;font-size:8px;">—</span>';var n=Number(pd);var bg=n>=80?'#fca5a5':n>=50?'#fcd34d':n>=20?'#86efac':'#e2e8f0';var fg=n>=80?'#991b1b':n>=50?'#92400e':n>=20?'#166534':'#94a3b8';return '<span style="background:'+bg+';color:'+fg+';border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">'+n+'</span>';})()}</td>
       <td style="padding:3px 5px;text-align:center;border:1px solid #e2e8f0;">${(()=>{
         if(!s.data_limite_fab) return '<span class="limite-fab-badge sem">—</span>';
         const fmtLim = new Date(s.data_limite_fab+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -5731,6 +5793,20 @@ function cronRenderTabela(subs){
               <div class="xl-th-inner" onclick="cronSortBy('area')" id="xl-sort-area">
                 <span class="xl-th-label">Área</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="area" onclick="event.stopPropagation();xlOpenFilter('area',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
               <div class="xl-filter-dd" id="xl-dd-area"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('area',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('area')">OK</button></div></div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:90px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('escopo_fornecimento')" id="xl-sort-escopo_fornecimento">
+                <span class="xl-th-label">Escopo Forn.</span><span class="xl-sort-icon"></span><button class="xl-filter-btn" data-xl-filter="escopo_fornecimento" onclick="event.stopPropagation();xlOpenFilter('escopo_fornecimento',this)" title="Filtrar" style="background:rgba(0,0,0,.2);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 5px;border-radius:2px;margin-left:3px;flex-shrink:0;">▾</button></div>
+              <div class="xl-filter-dd" id="xl-dd-escopo_fornecimento"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="xlToggleAll('escopo_fornecimento',{checked:true})">Tudo</button><button class="ok" onclick="xlOK('escopo_fornecimento')">OK</button></div></div>
+            </div>
+          </th>
+          <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:55px;">
+            <div style="position:relative;">
+              <div class="xl-th-inner" onclick="cronSortBy('prior_det')" id="xl-sort-prior_det">
+                <span class="xl-th-label">Prior.Det.</span><span class="xl-sort-icon"></span>
+              </div>
             </div>
           </th>
 <th style="position:sticky;top:0;z-index:10;background:#217346;border:1px solid #155a32;min-width:65px;">
@@ -5900,7 +5976,7 @@ async function abrirCronModal(id){
   cmEq.innerHTML   = '<option value="">— Selecione —</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
 
   // Reset fields
-  const ids = ['cm-obra','cm-subobra','cm-descricao','cm-area','cm-equipe','cm-peso','cm-num-proj-basico','cm-peso-detalhado','cm-peso-pcp','cm-data-limite-fab',
+  const ids = ['cm-obra','cm-subobra','cm-descricao','cm-area','cm-escopo','cm-equipe','cm-prior-det','cm-peso','cm-num-proj-basico','cm-peso-detalhado','cm-peso-pcp','cm-data-limite-fab',
     'cm-prev-basico','cm-real-basico','cm-obs-basico',
     'cm-prev-envio-detail','cm-real-envio-detail','cm-obs-envio-detail',
     'cm-prev-materia-prima','cm-real-materia-prima','cm-obs-materia-prima',
@@ -5938,6 +6014,7 @@ async function abrirCronModal(id){
     const sv=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!=null)el.value=val;};
     sv('cm-obra',s.obra); sv('cm-subobra',s.subobra); sv('cm-descricao',s.descricao);
     sv('cm-area',s.area);
+    sv('cm-escopo',s.escopo_fornecimento);
     sv('cm-equipe',s.equipe); sv('cm-peso',s.peso_previsto);
     // Garante que o status atual existe no select antes de setar
     (function(){
@@ -5950,7 +6027,7 @@ async function abrirCronModal(id){
       }
     })();
     sv('cm-status',s.status);
-    sv('cm-prior',s.prioridade); sv('cm-num-proj-basico',s.num_proj_basico);
+    sv('cm-prior',s.prioridade); sv('cm-prior-det',s.prior_det!=null?s.prior_det:''); sv('cm-num-proj-basico',s.num_proj_basico);
     sv('cm-peso-detalhado',s.peso_detalhado);
     sv('cm-peso-pcp',s.peso_pcp);
     sv('cm-data-limite-fab',s.data_limite_fab);
@@ -6155,6 +6232,7 @@ async function salvarCronSubobra(){
     obra, subobra: subobra.trim(), descricao: getCronV('cm-descricao'),
     equipe: getCronV('cm-equipe'), peso_previsto: getCronN('cm-peso'),
     status: statusNovo||'AG. PROJ. BÁSICO', prioridade: getCronV('cm-prior')||'NORMAL',
+    prior_det: (getCronV('cm-prior-det')!==''&&getCronV('cm-prior-det')!==null) ? (parseInt(getCronV('cm-prior-det'))||0) : null,
     atualizado_em: new Date().toISOString(),
     prev_basico:         _v('basico','prev')   || null,
     real_basico:         _v('basico','real')   || null,
@@ -6186,6 +6264,7 @@ async function salvarCronSubobra(){
   // Colunas opcionais — só se SQL já executado (probeColunasSupabase confirmou)
   const _opt = window._colunasDisponiveis || new Set();
   if(areaVal && _opt.has('area')) payload.area = areaVal;
+  if(_opt.has('escopo_fornecimento')) payload.escopo_fornecimento = getCronV('cm-escopo') || null;
   payload.num_proj_basico = getCronV('cm-num-proj-basico') || null;
   if(_opt.has('prev_rec_modelo')){
     payload.prev_rec_modelo = _v('rec_modelo','prev');
@@ -6223,6 +6302,13 @@ async function salvarCronSubobra(){
     payload.obs_preparacao    = _v('preparacao','obs') || null;
     payload.obs_inspecao_fab  = _v('inspecao_fab','obs') || null;
     payload.obs_pintura       = _v('pintura','obs')    || null;
+  }
+  if(_opt.has('prev_montagem')){
+    var _stMont = (_etapasState['montagem']||{});
+    payload.montagem_na    = _stMont.montagem_na || false;
+    payload.prev_montagem  = _stMont.montagem_na ? null : (_v('montagem','prev') || null);
+    payload.real_montagem  = _stMont.montagem_na ? null : (_v('montagem','real') || null);
+    payload.obs_montagem   = _v('montagem','obs') || null;
   }
 
 
@@ -6799,7 +6885,8 @@ function importarCSV(input){
         'prev_envio_modelo','real_envio_modelo','prev_resumo_mp','real_resumo_mp',
         'prev_retorno_modelo','real_retorno_modelo','prev_pcte_fab','real_pcte_fab',
         'prev_inspecao_interna','real_inspecao_interna',
-        'prev_lib_fab','real_lib_fab','prev_diagramas','real_diagramas']);
+        'prev_lib_fab','real_lib_fab','prev_diagramas','real_diagramas',
+        'prev_expedicao','real_expedicao','prev_montagem','real_montagem']);
 
       // Normaliza nomes de colunas do CSV → campos internos do banco
       const ALIAS_MAP = {
@@ -6861,6 +6948,37 @@ function importarCSV(input){
         'lim fab'            : 'data_limite_fab',
         'data limite fabrica': 'data_limite_fab',
         'limite fabrica'     : 'data_limite_fab',
+        // escopo_fornecimento
+        'escopo_fornecimento': 'escopo_fornecimento',
+        'escopo fornecimento': 'escopo_fornecimento',
+        'escopo'             : 'escopo_fornecimento',
+        'fornecimento'       : 'escopo_fornecimento',
+        // prior_det (prioridade de detalhamento)
+        'prior_det'          : 'prior_det',
+        'prior det'          : 'prior_det',
+        'prioridade detalhamento': 'prior_det',
+        'prioridade det'     : 'prior_det',
+        'prior. det.'        : 'prior_det',
+        // fabricacao (peso) campos
+        'peso_executado'     : 'peso_executado',
+        'peso executado'     : 'peso_executado',
+        'peso_inspecao_fab'  : 'peso_inspecao_fab',
+        'peso inspecao fab'  : 'peso_inspecao_fab',
+        'peso inspecao'      : 'peso_inspecao_fab',
+        'peso_pintura'       : 'peso_pintura',
+        'peso pintura'       : 'peso_pintura',
+        'peso_expedicao'     : 'peso_expedicao',
+        'peso expedicao'     : 'peso_expedicao',
+        'peso expedicao fab' : 'peso_expedicao',
+        // montagem
+        'prev_montagem'      : 'prev_montagem',
+        'prev montagem'      : 'prev_montagem',
+        'real_montagem'      : 'real_montagem',
+        'real montagem'      : 'real_montagem',
+        'montagem_na'        : 'montagem_na',
+        'montagem na'        : 'montagem_na',
+        'montagem n/a'       : 'montagem_na',
+        'n/a montagem'       : 'montagem_na',
       };
       const rawHeader = parseLine(lines[0]).map(h=>h.toLowerCase().trim()
         .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // remove acentos
@@ -6888,6 +7006,12 @@ function importarCSV(input){
         if(row.peso_detalhado) row.peso_detalhado = parsePeso(row.peso_detalhado);
         // data_limite_fab (também é data)
         if(row.data_limite_fab) row.data_limite_fab = parseData(row.data_limite_fab);
+        // prior_det → inteiro
+        if(row.prior_det!=null && row.prior_det!=='') row.prior_det = parseInt(row.prior_det)||null;
+        // montagem_na → booleano
+        if(row.montagem_na!=null){ var _mna=String(row.montagem_na).trim().toLowerCase(); row.montagem_na=(_mna==='s'||_mna==='sim'||_mna==='true'||_mna==='1'||_mna==='n/a'); }
+        // pesos de fabricação → numérico
+        ['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'].forEach(function(f){ if(row[f]!=null) row[f]=parsePeso(String(row[f]))||null; });
         // Status
         if(row.status) row.status = STATUS_MAP[row.status?.trim()] || row.status?.trim() || null;
       });
@@ -6933,6 +7057,12 @@ async function processarImportacao(rows, tipo){
   camposValidos.add('peso_detalhado'); camposValidos.add('data_limite_fab');
   // area e num_proj_basico são sempre válidos
   camposValidos.add('area'); camposValidos.add('num_proj_basico');
+  // Campos novos sempre válidos
+  ['escopo_fornecimento','prior_det',
+   'peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao',
+   'prev_expedicao','real_expedicao','obs_expedicao',
+   'prev_montagem','real_montagem','obs_montagem','montagem_na',
+  ].forEach(function(c){ camposValidos.add(c); });
   // Outros opcionais
   ['prev_rec_modelo','real_rec_modelo','obs_rec_modelo',
    'prev_resumo_mp','real_resumo_mp','obs_resumo_mp','status_resumo_mp',
@@ -7005,6 +7135,7 @@ function exportarCSV(){
   if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra para exportar.','warn'); return; }
   // Apenas colunas existentes no Supabase
   const cols = ['obra','subobra','descricao','area','num_proj_basico','equipe','status','prioridade',
+    'escopo_fornecimento','prior_det',
     'peso_previsto','peso_detalhado','data_limite_fab',
     'prev_basico','real_basico','obs_basico',
     'prev_envio_detail','real_envio_detail','obs_envio_detail',
@@ -7016,12 +7147,25 @@ function exportarCSV(){
     'prev_pcte_fab','real_pcte_fab','obs_pcte_fab',
     'prev_inspecao_interna','real_inspecao_interna','obs_inspecao_interna',
     'prev_lib_fab','real_lib_fab','obs_lib_fab',
-    'prev_diagramas','real_diagramas','obs_diagramas'];
+    'prev_diagramas','real_diagramas','obs_diagramas',
+    'peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao',
+    'prev_expedicao','real_expedicao','obs_expedicao',
+    'prev_montagem','real_montagem','obs_montagem','montagem_na'];
+  // Calculado em mem\u00F3ria \u2014 n\u00E3o salvo no banco
+  const colsFab = cols.concat(['fab_pct']);
   const header = cols.join(';');
-  const rows = subs.map(s=>cols.map(c=>{
-    const v = s[c]!=null?String(s[c]):'';
-    return v.includes(';')?`"${v}"`:v;
-  }).join(';'));
+  const rows = subs.map(s=>{
+    return cols.map(c=>{
+      var v;
+      if(c==='fab_pct'){
+        var _pp=parseFloat(s.peso_pcp||s.peso_previsto||0)||0;
+        var _ks=['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'];
+        var _tot=_ks.reduce(function(a,k){return a+(parseFloat(s[k])||0);},0);
+        v=_pp>0?String(Math.min(100,Math.round((_tot/_ks.length)/_pp*100)))+'%':'';
+      } else { v=s[c]!=null?String(s[c]):''; }
+      return v.includes(';')?'"'+v+'"':v;
+    }).join(';');
+  });
   const csv = '\uFEFF'+header+'\n'+rows.join('\n');
   const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
@@ -7037,7 +7181,8 @@ function exportarExcel(){
   const subs = allCronSubobras;
   if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra para exportar.','warn'); return; }
   const cols = ['obra','subobra','descricao','area','equipe','status','prioridade','num_proj_basico',
-    'peso_previsto','peso_detalhado',
+    'escopo_fornecimento','prior_det',
+    'peso_previsto','peso_detalhado','data_limite_fab',
     'prev_basico','real_basico','prev_envio_detail','real_envio_detail',
     'prev_materia_prima','real_materia_prima',
     'prev_rec_modelo','real_rec_modelo',
@@ -7046,10 +7191,14 @@ function exportarExcel(){
     'prev_retorno_modelo','real_retorno_modelo','prev_pcte_fab','real_pcte_fab',
     'prev_inspecao_interna','real_inspecao_interna',
     'prev_lib_fab','real_lib_fab','prev_diagramas','real_diagramas',
+    'peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao',
+    'prev_expedicao','real_expedicao',
+    'prev_montagem','real_montagem','montagem_na',
     'tem_revisao','num_revisao',
     'rev_aprovado_eng','rev_aprovado_cli','rev_faturado'];
   const labels = ['Obra','Sub-obra/TAG','Descrição','Área','Equipe','Status','Prioridade','Nº Proj. Básico',
-    'Peso Básico (kg)','Peso Detalhado (kg)',
+    'Escopo Fornecimento','Prior. Det.',
+    'Peso Básico (kg)','Peso Detalhado (kg)','Data Limite Fab.',
     'Prev. Rec. Básico','Real. Rec. Básico','Prev. Em Detalhamento','Real. Em Detalhamento',
     'Prev. Mat. Prima','Real. Mat. Prima',
     'Prev. Rec. Modelo','Real. Rec. Modelo',
@@ -7058,6 +7207,9 @@ function exportarExcel(){
     'Prev. Ret. Modelo','Real. Ret. Modelo','Prev. Pcte Fab.','Real. Pcte Fab.',
     'Prev. Insp. Interna','Real. Insp. Interna',
     'Prev. Lib. Fab.','Real. Lib. Fab.','Prev. Diagramas','Real. Diagramas',
+    'Peso Prep. (kg)','Peso Insp. (kg)','Peso Pintura (kg)','Peso Exped. (kg)',
+    'Prev. Expedição','Real. Expedição',
+    'Prev. Montagem','Real. Montagem','Montagem N/A',
     'Tem Revisão','Nº Revisão',
     'Aprovado Eng.','Aprovado Cliente','Faturado'];
   let xml = `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">`;
@@ -7084,6 +7236,7 @@ function exportarCSVSelecionados(){
   var subs = allCronSubobras.filter(function(s){ return _selectedIds.has(s.id); });
   if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra encontrada.','warn'); return; }
   var cols = ['obra','subobra','descricao','area','num_proj_basico','equipe','status','prioridade',
+    'escopo_fornecimento','prior_det',
     'peso_previsto','peso_detalhado','data_limite_fab',
     'prev_basico','real_basico','obs_basico',
     'prev_envio_detail','real_envio_detail','obs_envio_detail',
@@ -7095,7 +7248,10 @@ function exportarCSVSelecionados(){
     'prev_pcte_fab','real_pcte_fab','obs_pcte_fab',
     'prev_inspecao_interna','real_inspecao_interna','obs_inspecao_interna',
     'prev_lib_fab','real_lib_fab','obs_lib_fab',
-    'prev_diagramas','real_diagramas','obs_diagramas'];
+    'prev_diagramas','real_diagramas','obs_diagramas',
+    'peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao',
+    'prev_expedicao','real_expedicao','obs_expedicao',
+    'prev_montagem','real_montagem','obs_montagem','montagem_na'];
   var header = cols.join(';');
   var rows = subs.map(function(s){
     return cols.map(function(c){
@@ -7612,11 +7768,32 @@ function gerarRelatorioCompleto(){
   ];
 
   if(tipo==='cronograma' || tipo==='avanco'){
+    // Helper: % médio de fabricação da sub-obra
+    const fabPct = s => {
+      const pcp = Number(s.peso_pcp||s.peso_previsto)||0;
+      if(!pcp) return null;
+      const ks = ['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'];
+      const tot = ks.reduce((a,k)=>a+(Number(s[k])||0),0);
+      return Math.min(100,Math.round((tot/ks.length)/pcp*100));
+    };
     const rows = subs.map(s=>{
       const cfg = (typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[s.status])||{color:'#475569',bg:'#f1f5f9',icon:'•'};
       const pct = (s.conc_basico?20:0)+(s.conc_retorno_modelo?25:0)+(s.conc_pcte_fab?25:0)+(s.conc_lib_fab?30:0);
       const barW = pct+'%';
       const barC = pct>=100?'#16a34a':pct>=50?'#0e7490':pct>0?'#ea580c':'#e2e8f0';
+      // Fabricação %
+      const fp = fabPct(s);
+      const fabCell = fp===null?'<span style="color:#94a3b8;font-size:7px;">—</span>':`<span style="font-size:8px;font-weight:700;color:${fp>=100?'#166534':fp>0?'#d97706':'#94a3b8'};">${fp}%</span>`;
+      // Expedição
+      const expCell = s.real_expedicao
+        ? `<span style="color:#166534;font-weight:700;font-size:7px;">✓</span> <span style="font-size:6.5px;color:#555;">${fmtDt(s.real_expedicao)}</span>`
+        : (s.prev_expedicao?`<span style="font-size:6.5px;color:#94a3b8;">Prev: ${fmtDt(s.prev_expedicao)}</span>`:'<span style="color:#94a3b8;font-size:7px;">—</span>');
+      // Montagem
+      const monCell = s.montagem_na
+        ? `<span style="font-size:7px;color:#94a3b8;font-style:italic;">N/A</span>`
+        : s.real_montagem
+          ? `<span style="color:#166534;font-weight:700;font-size:7px;">✓</span> <span style="font-size:6.5px;color:#555;">${fmtDt(s.real_montagem)}</span>`
+          : (s.prev_montagem?`<span style="font-size:6.5px;color:#94a3b8;">Prev: ${fmtDt(s.prev_montagem)}</span>`:'<span style="color:#94a3b8;font-size:7px;">—</span>');
       return `<tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:3px 5px;font-family:'Courier New';font-size:8px;font-weight:700;color:${cfg.color};">${s.subobra||'—'}</td>
         <td style="padding:3px 5px;font-size:7.5px;">${(s.obra||'').split(' ').slice(0,3).join(' ')}</td>
@@ -7633,6 +7810,9 @@ function gerarRelatorioCompleto(){
             <div style="width:${barW};height:100%;background:${barC};border-radius:2px;"></div>
           </div>
         </td>
+        <td style="padding:3px 4px;text-align:center;">${fabCell}</td>
+        <td style="padding:3px 4px;text-align:center;">${expCell}</td>
+        <td style="padding:3px 4px;text-align:center;">${monCell}</td>
         <td style="padding:3px 5px;text-align:right;font-size:7.5px;font-family:'Courier New';">${fmtKg(s.peso_previsto)}</td>
         <td style="padding:3px 5px;text-align:right;font-size:7.5px;font-family:'Courier New';color:#1d4ed8;">${fmtKg(s.peso_detalhado)}</td>
         <td style="padding:3px 5px;text-align:right;font-size:7.5px;font-family:'Courier New';color:#c2410c;">${fmtKg(s.peso_pcp)}</td>
@@ -7647,6 +7827,9 @@ function gerarRelatorioCompleto(){
         <th style="color:#fff;padding:4px 5px;text-align:left;">Status</th>
         ${ETAPAS_REL.map(e=>`<th style="color:#fff;padding:4px 4px;text-align:center;font-size:7px;">${e.label}<br><span style="opacity:.6;">${e.pct}%</span></th>`).join('')}
         <th style="color:#4ade80;padding:4px 5px;text-align:center;">Avanço</th>
+        <th style="color:#fb923c;padding:4px 4px;text-align:center;font-size:7px;">Fab.%</th>
+        <th style="color:#67e8f9;padding:4px 4px;text-align:center;font-size:7px;">Expedição</th>
+        <th style="color:#a78bfa;padding:4px 4px;text-align:center;font-size:7px;">Montagem</th>
         <th style="color:#f5c89a;padding:4px 5px;text-align:right;">Peso Bás.</th>
         <th style="color:#93c5fd;padding:4px 5px;text-align:right;">Peso Det.</th>
         <th style="color:#fdba74;padding:4px 5px;text-align:right;">Peso PCP</th>
@@ -7656,6 +7839,9 @@ function gerarRelatorioCompleto(){
         <td colspan="5" style="color:#fff;font-weight:700;padding:4px 5px;font-size:8px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
         ${ETAPAS_REL.map(e=>{const n=subs.filter(s=>s[e.key]).length;return `<td style="color:#fff;padding:4px;text-align:center;font-size:7px;">${n}/${subs.length}</td>`}).join('')}
         <td style="color:#4ade80;padding:4px 5px;text-align:center;font-weight:700;">${totPct}%</td>
+        <td style="color:#fb923c;padding:4px;text-align:center;font-size:7px;">${subs.filter(s=>fabPct(s)===100).length}/${subs.length} 100%</td>
+        <td style="color:#67e8f9;padding:4px;text-align:center;font-size:7px;">${subs.filter(s=>s.real_expedicao).length}/${subs.length}</td>
+        <td style="color:#a78bfa;padding:4px;text-align:center;font-size:7px;">${subs.filter(s=>s.real_montagem||s.montagem_na).length}/${subs.length}</td>
         <td style="color:#f5c89a;padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${totBas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</td>
         <td style="color:#93c5fd;padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${totDet>0?totDet.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
         <td style="color:#fdba74;padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${totPcp>0?totPcp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
@@ -8467,6 +8653,7 @@ const ETAPAS_DEF = [
   {key:'diagramas',         label:'Documentos ℹ',      prev:'prev_diagramas',         real:'real_diagramas',         obs:'obs_diagramas', informativo:true},
   {key:'fabricacao_pct',    label:'FAB. %',             prev:null,                     real:null,                     obs:null, isFabPct:true},
   {key:'expedicao',         label:'Expedição',          prev:'prev_expedicao',         real:'real_expedicao',         obs:'obs_expedicao'},
+  {key:'montagem',          label:'Montagem',           prev:'prev_montagem',          real:'real_montagem',          obs:'obs_montagem', isMontagem:true},
 ];
 
 function toggleEtapas(){
@@ -11014,8 +11201,10 @@ function aplicarCopiaSubobra(){
       'equipe':       'cm-equipe',
       'prioridade':   'cm-prior',
       'status':       'cm-status',
-      'area':         'cm-area',
-      'peso_previsto':'cm-peso',
+      'area':                'cm-area',
+      'escopo_fornecimento': 'cm-escopo',
+      'prior_det':           'cm-prior-det',
+      'peso_previsto':       'cm-peso',
     };
     if(mapa[campo]){
       var el = document.getElementById(mapa[campo]);
@@ -17337,12 +17526,25 @@ function cdocImportBas(input){
         rev:row['Revisão']||row['Rev.']||row['Revisao']||'',
         data:row['Data']||''};
       if(newData.data&&newData.data.includes('/')){var dp=newData.data.split('/');if(dp.length===3)newData.data=dp[2]+'-'+dp[1]+'-'+dp[0];}
+      // Montar entrada de revisão se Rev. ou Data estiverem preenchidos
+      var revEntry=null;
+      if(newData.rev||newData.data){
+        revEntry={rev:newData.rev||'',data:newData.data||'',obs:'Importado via CSV',user:'CSV',timestamp:new Date().toISOString()};
+      }
       if(existing){
         // Atualizar preservando históricos e id
+        var prevRevisoes=existing.revisoes||[];
         Object.assign(existing,newData);
+        existing.revisoes=prevRevisoes;
+        // Adicionar entrada de revisão se ainda não existe (por rev+data)
+        if(revEntry){
+          var jaExiste=prevRevisoes.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});
+          if(!jaExiste) existing.revisoes.push(revEntry);
+        }
         updated++;
       } else {
         newData.id=_cdocGenId(db,'bas');
+        newData.revisoes=revEntry?[revEntry]:[];
         db.basicos.push(newData);
         added++;
       }
@@ -17694,323 +17896,4 @@ function _cdocApplySort(rows,st,tbl){
     if(col==='peso') return parseFloat(d.peso)||0;
     return (d[col]||'').toString().toLowerCase();
   }
-  return rows.slice().sort(function(a,b){
-    var va=val(a),vb=val(b);
-    if(typeof va==='number') return dir*(va-vb);
-    return dir*va.localeCompare(vb,'pt-BR',{numeric:true});
-  });
-}
-function _cdocUpdateSortBtns(tbl){
-  var st=tbl==='det'?_cdocDetSort:_cdocBasSort;
-  document.querySelectorAll('[id^="'+(tbl==='det'?'cdd':'cdb')+'-srt-"]').forEach(function(btn){
-    var col=btn.id.replace((tbl==='det'?'cdd':'cdb')+'-srt-','');
-    btn.classList.remove('asc','desc');
-    btn.textContent='⇵';
-    if(st.col===col){
-      btn.classList.add(st.dir===1?'asc':'desc');
-      btn.textContent=st.dir===1?'↑':'↓';
-    }
-  });
-}
-var _cdocBasSel=new Set(), _cdocDetSel=new Set();
-var _cdocColFltsBas={}, _cdocColFltsDet={};
-function _cdocToggleSelBas(id,e){
-  if(e&&e.target&&e.target.tagName==='BUTTON') return;
-  if(_cdocBasSel.has(id)) _cdocBasSel.delete(id); else _cdocBasSel.add(id);
-  cdocRenderBas();
-}
-function _cdocToggleSelDet(id,e){
-  if(e&&e.target&&e.target.tagName==='BUTTON') return;
-  if(_cdocDetSel.has(id)) _cdocDetSel.delete(id); else _cdocDetSel.add(id);
-  cdocRenderDet();
-}
-function _cdocBasSelAll(cb){
-  var db=_cdocDb(); _cdocBasSel.clear();
-  if(cb.checked) db.basicos.forEach(function(b){_cdocBasSel.add(b.id);});
-  cdocRenderBas();
-}
-function _cdocDetSelAll(cb){
-  var db=_cdocDb(); _cdocDetSel.clear();
-  if(cb.checked) db.detalhados.forEach(function(d){_cdocDetSel.add(d.id);});
-  cdocRenderDet();
-}
-function _cdocBasClearSel(){ _cdocBasSel.clear(); cdocRenderBas(); }
-function _cdocDetClearSel(){ _cdocDetSel.clear(); cdocRenderDet(); }
-
-/* ── Filtros de coluna (Excel-like) ── */
-var _cdocColFltCtx={tbl:null,col:null};
-function _cdocShowColFlt(e,tbl,col){
-  e.stopPropagation();
-  var popup=document.getElementById('cdoc-col-popup'); if(!popup) return;
-  var db=_cdocDb();
-  var items=tbl==='bas'?db.basicos:db.detalhados;
-  var actFlts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
-  // Coletar valores únicos desta coluna
-  var vals={}; items.forEach(function(r){var v=(r[col]||'(vazio)').toString();vals[v]=(vals[v]||0)+1;});
-  var sorted=Object.keys(vals).sort();
-  var curSel=actFlts[col]||null; // null = todos
-  var list=document.getElementById('cdoc-col-list');
-  var search=document.getElementById('cdoc-col-search');
-  if(search) search.value='';
-  _cdocColFltCtx={tbl:tbl,col:col};
-  list.innerHTML=sorted.map(function(v){
-    var chk=(!curSel)||curSel.has(v);
-    return '<label class="cdoc-col-item"><input type="checkbox" value="'+_escAttr(v)+'" '+(chk?'checked':'')+'>'+_esc(v)+'<span style="color:#94a3b8;font-size:9px;margin-left:auto;">('+vals[v]+')</span></label>';
-  }).join('');
-  // Posicionar popup
-  var rect=e.target.getBoundingClientRect();
-  popup.style.left=Math.min(rect.left,window.innerWidth-280)+'px';
-  popup.style.top=(rect.bottom+2)+'px';
-  popup.classList.add('show');
-  // Fechar ao clicar fora
-  setTimeout(function(){
-    document.addEventListener('click',function close(ev){
-      if(!popup.contains(ev.target)){popup.classList.remove('show');document.removeEventListener('click',close);}
-    });
-  },10);
-}
-function _escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
-function _cdocColSearchFilter(){
-  var q=(document.getElementById('cdoc-col-search')||{}).value.toLowerCase();
-  document.querySelectorAll('#cdoc-col-list .cdoc-col-item').forEach(function(el){
-    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
-  });
-}
-function _cdocColSelectAll(){document.querySelectorAll('#cdoc-col-list input').forEach(function(cb){cb.checked=true;});}
-function _cdocColClearAll(){document.querySelectorAll('#cdoc-col-list input').forEach(function(cb){cb.checked=false;});}
-function _cdocColApply(){
-  var tbl=_cdocColFltCtx.tbl, col=_cdocColFltCtx.col; if(!tbl||!col) return;
-  var actFlts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
-  var checked=[]; document.querySelectorAll('#cdoc-col-list input:checked').forEach(function(cb){checked.push(cb.value);});
-  var db=_cdocDb(); var items=tbl==='bas'?db.basicos:db.detalhados;
-  var vals=new Set(); items.forEach(function(r){vals.add((r[col]||'(vazio)').toString());});
-  if(checked.length===vals.size){ delete actFlts[col]; } // todos selecionados = sem filtro
-  else { actFlts[col]=new Set(checked); }
-  document.getElementById('cdoc-col-popup').classList.remove('show');
-  // Atualizar visual do botão
-  var btnSel=tbl==='bas'?'cdb':'cdd';
-  if(tbl==='bas') cdocRenderBas(); else cdocRenderDet();
-}
-/* aplicar filtros de coluna em cima dos rows já filtrados pelo filter bar */
-function _cdocApplyColFlts(rows,tbl,items){
-  var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
-  var cols=Object.keys(flts); if(!cols.length) return rows;
-  return rows.filter(function(r){
-    return cols.every(function(col){
-      var v=(r[col]||'(vazio)').toString(); return flts[col].has(v);
-    });
-  });
-}
-function _cdocDownload(content,filename){
-  // BOM UTF-8 garante que Excel/LibreOffice abram corretamente com acentos
-  var bom='\uFEFF';
-  var blob=new Blob([bom+content],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
-}
-</script>
-
-<!-- MODAL NOVA/EDITAR OBRA -->
-<div id="cdoc-obra-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:340px;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,.18);">
-    <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:16px;" id="cdoc-obra-modal-title">Nova Obra</div>
-    <div style="margin-bottom:10px;">
-      <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Código / Nome da Obra *</label>
-      <input id="cdoc-obra-nome" type="text" placeholder="Ex: S176 RIO VERDE NOURYON"
-        style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;">
-    </div>
-    <input type="hidden" id="cdoc-obra-original">
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-      <button onclick="document.getElementById('cdoc-obra-modal').style.display='none';"
-        style="font-size:12px;padding:7px 18px;border:1px solid #cbd5e1;border-radius:5px;background:#f8fafc;cursor:pointer;">Cancelar</button>
-      <button onclick="cdocSalvarObra()"
-        style="font-size:12px;font-weight:700;padding:7px 18px;background:#0369a1;color:#fff;border:none;border-radius:5px;cursor:pointer;">Salvar</button>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ── CRUD OBRAS ── */
-function cdocNovaObra(){
-  if(!_siderRequireEdit()) return;
-  document.getElementById('cdoc-obra-modal-title').textContent='Nova Obra';
-  document.getElementById('cdoc-obra-nome').value='';
-  document.getElementById('cdoc-obra-original').value='';
-  document.getElementById('cdoc-obra-modal').style.display='flex';
-  setTimeout(function(){document.getElementById('cdoc-obra-nome').focus();},50);
-}
-function cdocEditarObra(enc,ev){
-  if(ev){ev.stopPropagation();}
-  var nome=decodeURIComponent(enc);
-  document.getElementById('cdoc-obra-modal-title').textContent='Editar Obra';
-  document.getElementById('cdoc-obra-nome').value=nome;
-  document.getElementById('cdoc-obra-original').value=nome;
-  document.getElementById('cdoc-obra-modal').style.display='flex';
-  setTimeout(function(){document.getElementById('cdoc-obra-nome').focus();},50);
-}
-function cdocSalvarObra(){
-  if(!_siderRequireEdit()) return;
-  var nome=(document.getElementById('cdoc-obra-nome').value||'').trim();
-  var original=(document.getElementById('cdoc-obra-original').value||'').trim();
-  if(!nome){alert('Informe o nome da obra.');return;}
-  var db=_cdocDb();
-  if(!db._obras) db._obras=[];
-  if(original){
-    // EDITAR: renomear em todos os registros
-    db.basicos.forEach(function(r){if(r.obraId===original)r.obraId=nome;});
-    db.detalhados.forEach(function(r){if(r.obraId===original)r.obraId=nome;});
-    var idx=db._obras.indexOf(original);
-    if(idx>=0) db._obras[idx]=nome;
-    else if(db._obras.indexOf(nome)===-1) db._obras.push(nome);
-    // Se estava oculta, remover das ocultas
-    if(db._obrasOcultas) db._obrasOcultas=db._obrasOcultas.filter(function(o){return o!==original&&o!==nome;});
-  } else {
-    // NOVA: adicionar e remover de ocultas se estava lá
-    if(db._obras.indexOf(nome)===-1) db._obras.push(nome);
-    if(db._obrasOcultas) db._obrasOcultas=db._obrasOcultas.filter(function(o){return o!==nome;});
-  }
-  _cdocSave(db);
-  document.getElementById('cdoc-obra-modal').style.display='none';
-  cdocRenderVisao(); cdocPopFilters();
-  _cdocToast('Obra '+(original?'renomeada':'cadastrada')+' com sucesso!');
-}
-function cdocExcluirObra(enc,ev){
-  if(!_siderRequireEdit()) return;
-  if(ev){ev.stopPropagation();}
-  var nome=decodeURIComponent(enc);
-  var db=_cdocDb();
-  var bas=db.basicos.filter(function(r){return r.obraId===nome;}).length;
-  var det=db.detalhados.filter(function(r){return r.obraId===nome;}).length;
-  var msg='Excluir a obra "'+nome+'" da listagem?';
-  if(bas||det) msg+='\n\n⚠️ Esta obra possui '+bas+' proj. básico(s) e '+det+' doc(s) detalhado(s) que ficarão sem obra vinculada.';
-  if(!confirm(msg)) return;
-  // Remove da lista _obras (cadastradas manualmente)
-  if(db._obras) db._obras=db._obras.filter(function(o){return o!==nome;});
-  // Ocultar também obras vindas do Supabase
-  if(!db._obrasOcultas) db._obrasOcultas=[];
-  if(db._obrasOcultas.indexOf(nome)===-1) db._obrasOcultas.push(nome);
-  _cdocSave(db);
-  cdocRenderVisao(); cdocPopFilters();
-  _cdocToast('Obra removida da listagem.');
-}
-</script>
-
-<script>
-/* ══ SIDER AUTH ══════════════════════════════════════════════════════ */
-var _SIDER_AUTH_KEY='sider_auth_v1';
-var _SIDER_SESSION_KEY='sider_edit_ok';
-
-function _siderHashPwd(pwd){
-  var s='SDTC:'+pwd+':#2024';
-  var h=0;
-  for(var i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}
-  return btoa(s+'|'+h);
-}
-
-function _siderHasPassword(){return !!localStorage.getItem(_SIDER_AUTH_KEY);}
-function _siderIsUnlocked(){return sessionStorage.getItem(_SIDER_SESSION_KEY)==='1';}
-
-function _siderRequireEdit(){
-  if(_siderIsUnlocked()) return true;
-  _siderShowAuthPrompt('unlock');
-  return false;
-}
-
-function _siderShowAuthPrompt(mode){
-  var existing=document.getElementById('sider-auth-overlay');
-  if(existing) existing.remove();
-  var isSetup=(mode==='setup');
-  var ov=document.createElement('div');
-  ov.id='sider-auth-overlay';
-  ov.innerHTML=
-    '<div id="sider-auth-box">'
-    +'<h2>'+(isSetup?'🔐 Definir Senha de Edição':'🔒 Acesso para Edição')+'</h2>'
-    +'<p>'+(isSetup?'Crie uma senha para proteger as edições do sistema.':'Digite a senha para habilitar edição.')+'</p>'
-    +'<input type="password" id="sider-auth-input" placeholder="Senha..." autofocus>'
-    +(isSetup?'<input type="password" id="sider-auth-input2" placeholder="Confirmar senha..." style="margin-top:8px;">':'')
-    +'<button class="auth-btn" id="sider-auth-submit-btn">'+(isSetup?'Criar Senha':'Desbloquear')+'</button>'
-    +'<span class="auth-skip" onclick="_siderAuthClose()">'+(isSetup?'Pular por agora (sem senha)':'Continuar em modo leitura')+'</span>'
-    +'<div class="auth-err" id="sider-auth-err"></div>'
-    +'</div>';
-  document.body.appendChild(ov);
-  setTimeout(function(){var inp=document.getElementById('sider-auth-input');if(inp)inp.focus();},50);
-  document.getElementById('sider-auth-submit-btn').onclick=function(){_siderAuthSubmit(mode);};
-  ov.addEventListener('keydown',function(e){if(e.key==='Enter')_siderAuthSubmit(mode);});
-}
-
-function _siderAuthSubmit(mode){
-  var inp=document.getElementById('sider-auth-input');
-  var pwd=(inp?inp.value:'').trim();
-  var err=document.getElementById('sider-auth-err');
-  if(!pwd){if(err)err.textContent='Informe a senha.';return;}
-  if(mode==='setup'){
-    var inp2=document.getElementById('sider-auth-input2');
-    var pwd2=(inp2?inp2.value:'').trim();
-    if(pwd!==pwd2){if(err)err.textContent='As senhas não coincidem.';return;}
-    localStorage.setItem(_SIDER_AUTH_KEY,_siderHashPwd(pwd));
-    sessionStorage.setItem(_SIDER_SESSION_KEY,'1');
-    _siderAuthClose(); _siderUpdateLockBtns(); _siderToast('Senha definida! Edição desbloqueada.');
-  } else {
-    var stored=localStorage.getItem(_SIDER_AUTH_KEY);
-    if(!stored){
-      sessionStorage.setItem(_SIDER_SESSION_KEY,'1');
-      _siderAuthClose(); _siderUpdateLockBtns(); _siderToast('Edição desbloqueada!'); return;
-    }
-    if(_siderHashPwd(pwd)===stored){
-      sessionStorage.setItem(_SIDER_SESSION_KEY,'1');
-      _siderAuthClose(); _siderUpdateLockBtns(); _siderToast('Edição desbloqueada!');
-    } else {
-      if(err)err.textContent='Senha incorreta.';
-      inp.value=''; inp.focus();
-    }
-  }
-}
-
-function _siderAuthClose(){
-  var ov=document.getElementById('sider-auth-overlay'); if(ov) ov.remove();
-}
-
-function _siderLockSession(){
-  sessionStorage.removeItem(_SIDER_SESSION_KEY);
-  _siderUpdateLockBtns();
-  _siderToast('Edição bloqueada.');
-}
-
-function _siderUpdateLockBtns(){
-  var ok=_siderIsUnlocked();
-  document.querySelectorAll('.sider-lock-btn').forEach(function(b){
-    b.textContent=ok?'Edição ON':'Editar';
-    b.title=ok?'Clique para bloquear edição':'Clique para desbloquear edição';
-    b.classList.toggle('locked',!ok);
-    b.onclick=ok?_siderLockSession:function(){_siderShowAuthPrompt('unlock');};
-  });
-}
-
-function _siderToast(msg){
-  var t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:24px;right:24px;background:#0c4a6e;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.3);';
-  t.textContent=msg; document.body.appendChild(t);
-  setTimeout(function(){t.remove();},2500);
-}
-
-function _siderAuthInit(){
-  _siderUpdateLockBtns();
-  // If no password set, offer to create one
-  if(!_siderHasPassword()){
-    setTimeout(function(){
-      if(confirm('Deseja definir uma senha para proteger as edições do sistema?')){
-        _siderShowAuthPrompt('setup');
-      }
-    },800);
-  }
-}
-
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',_siderAuthInit);
-} else {
-  setTimeout(_siderAuthInit,200);
-}
-/* ══ END AUTH ════════════════════════════════════════════════════════ */
-</script>
-
-</body>
-</html>
+  return rows.slice().sort(functio
