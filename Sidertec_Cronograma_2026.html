@@ -1171,6 +1171,11 @@ canvas{overflow:visible!important;}
     <button class="ie-btn csv" onclick="exportarCSV()" style="padding:3px 9px;font-size:10px;">⬇ CSV</button>
     <button class="ie-btn xls" onclick="exportarExcel()" style="padding:3px 9px;font-size:10px;">⬇ Excel</button>
     <div class="fsep"></div>
+    <label class="ie-btn" style="cursor:pointer;padding:3px 9px;font-size:10px;background:#fff7ed;color:#c2410c;border-color:#ea580c;" title="Importar planilha de avanço de fabricação (Prep/Insp/Pint/Exped)">
+      ⬆ Avanço Fab.
+      <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarAvançoFabricacao(this)">
+    </label>
+    <div class="fsep"></div>
     <button class="ie-btn" onclick="abrirRelatorioCron()" style="background:var(--purple2);color:var(--purple);border-color:var(--purple);padding:3px 9px;font-size:10px;">📊 Relatório</button>
   </div>
 
@@ -7037,6 +7042,98 @@ function importarExcel(input){
   reader.readAsArrayBuffer(file);
 }
 
+// ── IMPORTAR AVANÇO DE FABRICAÇÃO ────────────────────────────────────────────
+function importarAvançoFabricacao(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0]; input.value='';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      if(typeof XLSX==='undefined'){
+        showToast('SheetJS não carregado','Aguarde o carregamento completo da página e tente novamente.','error');
+        return;
+      }
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:false});
+      var SECOES={
+        'PREPARAÇÃO':'peso_executado','PREPARACAO':'peso_executado',
+        'INSPEÇÃO':'peso_inspecao_fab','INSPECAO':'peso_inspecao_fab','INSPEÇÃO FAB':'peso_inspecao_fab',
+        'PINTURA':'peso_pintura',
+        'EXPEDIÇÃO':'peso_expedicao','EXPEDICAO':'peso_expedicao',
+      };
+      var resultados={};
+      var i=0;
+      while(i<raw.length){
+        var linha=raw[i];
+        if(!linha||!linha[0]){i++;continue;}
+        var titulo=String(linha[0]).trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+        var campo=SECOES[titulo];
+        if(campo){
+          var tags=[];
+          for(var cc=1;cc<linha.length;cc++){tags.push(linha[cc]?String(linha[cc]).trim():null);}
+          var linhaPeso=null;
+          var j=i+1;
+          while(j<raw.length&&(!raw[j]||raw[j].every(function(v){return v==null;}))){j++;}
+          if(j<raw.length) linhaPeso=raw[j];
+          tags.forEach(function(tag,idx){
+            if(!tag) return;
+            var peso=linhaPeso&&linhaPeso[idx+1]!=null?parseFloat(linhaPeso[idx+1]):null;
+            if(peso===null||isNaN(peso)) return;
+            if(!resultados[tag]) resultados[tag]={};
+            resultados[tag][campo]=peso;
+          });
+          i=j+1;
+        } else { i++; }
+      }
+      var tags=Object.keys(resultados);
+      if(!tags.length){showToast('Sem dados','Nenhuma TAG reconhecida na planilha. Verifique o formato.','warn');return;}
+      var preview=tags.slice(0,5).map(function(t){
+        var d=resultados[t];
+        return t+': Prep='+(d.peso_executado!=null?d.peso_executado.toFixed(0):'—')
+          +' Insp='+(d.peso_inspecao_fab!=null?d.peso_inspecao_fab.toFixed(0):'—')
+          +' Pint='+(d.peso_pintura!=null?d.peso_pintura.toFixed(0):'—')
+          +' Exped='+(d.peso_expedicao!=null?d.peso_expedicao.toFixed(0):'—');
+      }).join('\n');
+      var msg=tags.length+' TAGs encontradas.\n\nExemplos:\n'+preview+(tags.length>5?'\n...e mais '+(tags.length-5):'')+'\n\nConfirmar importação?';
+      if(!confirm(msg)) return;
+      _importarAvançoBatch(resultados);
+    } catch(err){
+      showToast('Erro na leitura','Não foi possível ler o arquivo: '+err.message,'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function _importarAvançoBatch(resultados){
+  var ok=0, naoEncontrado=[], erros=[];
+  var tags=Object.keys(resultados);
+  for(var t=0;t<tags.length;t++){
+    var tag=tags[t];
+    var dados=resultados[tag];
+    var idx=allCronSubobras.findIndex(function(s){return s.subobra&&s.subobra.trim().toUpperCase()===tag.toUpperCase();});
+    if(idx<0){naoEncontrado.push(tag);continue;}
+    var sub=allCronSubobras[idx];
+    var payload={atualizado_em:new Date().toISOString()};
+    ['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'].forEach(function(f){if(dados[f]!=null) payload[f]=dados[f];});
+    allCronSubobras[idx]=Object.assign({},sub,payload);
+    try{
+      var r=await sbClient.from('cronograma_subobras').update(payload).eq('id',sub.id).select();
+      if(r.error) erros.push(tag+': '+r.error.message);
+      else ok++;
+    } catch(e){ erros.push(tag+': '+e.message); }
+  }
+  var msg=ok+' TAG(s) atualizada(s).';
+  if(naoEncontrado.length) msg+='\n\nNão encontradas ('+naoEncontrado.length+'): '+naoEncontrado.slice(0,10).join(', ')+(naoEncontrado.length>10?'...':'');
+  if(erros.length) msg+='\n\nErros: '+erros.slice(0,5).join('\n');
+  showToast(ok+' atualizado(s)',naoEncontrado.length?ok+' ok / '+naoEncontrado.length+' não encontradas':ok+' TAGs atualizadas com sucesso.','success');
+  alert(msg);
+  renderCronograma();
+}
+
+
 async function processarImportacao(rows, tipo){
   // Colunas base que sempre existem na tabela
   const camposBase = new Set([
@@ -7151,8 +7248,6 @@ function exportarCSV(){
     'peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao',
     'prev_expedicao','real_expedicao','obs_expedicao',
     'prev_montagem','real_montagem','obs_montagem','montagem_na'];
-  // Calculado em mem\u00F3ria \u2014 n\u00E3o salvo no banco
-  const colsFab = cols.concat(['fab_pct']);
   const header = cols.join(';');
   const rows = subs.map(s=>{
     return cols.map(c=>{
@@ -15712,6 +15807,7 @@ function cotExportarCSV(){
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="cdoc-sb-status" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
         <button id="cdoc-btn-atualizar" onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
+        <label title="Restaurar CDOC de um arquivo JSON de backup" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;">📥 Restaurar JSON<input type="file" accept=".json" style="display:none;" onchange="cdocRestaurarJSON(this)"></label>
         <button onclick="backupCompleto()" title="Baixar backup completo JSON" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📥 Backup</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
@@ -15743,7 +15839,15 @@ async function _cdocSBLoad(){
   try {
     _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
     var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok){
+      var errBody=''; try{errBody=await r.text();}catch(ex){}
+      console.error('[CDOC] Supabase HTTP '+r.status+':', errBody);
+      if(r.status===404||r.status===406){
+        _cdocSBStatus('⚠ Tabela cdoc_database não encontrada ('+r.status+')','#dc2626');
+        showToast('CDOC — Tabela não encontrada','Execute o SQL de criação da tabela cdoc_database no Supabase (Dashboard → SQL Editor).','error');
+      }
+      throw new Error('HTTP '+r.status);
+    }
     var rows=await r.json();
     if(rows.length&&rows[0].data){
       _cdocSBCache=rows[0].data;
@@ -15752,20 +15856,22 @@ async function _cdocSBLoad(){
       (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
       // sincroniza backup local
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
-      _cdocSBStatus('☁ Sincronizado','#16a34a');
-      setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2000);
+      _cdocSBStatus('☁ Sincronizado — '+(((_cdocSBCache.basicos||[]).length)+' básicos / '+((_cdocSBCache.detalhados||[]).length)+' det.'),'#16a34a');
+      setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
     } else {
       // nuvem vazia — sobe dados locais se existirem
       var local=null;
       try{local=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
-      _cdocSBCache=local||{basicos:[],detalhados:[],_ids:{bas:1,det:1}};
-      if(local) {
+      if(local&&((local.basicos||[]).length+(local.detalhados||[]).length)>0){
+        _cdocSBCache=local;
         // publica dados locais para a nuvem
         await _cdocSBPush(_cdocSBCache);
         _cdocSBStatus('☁ Dados locais publicados na nuvem','#16a34a');
         setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
       } else {
-        _cdocSBStatus('☁ Nuvem (sem dados)','#94a3b8');
+        _cdocSBCache={basicos:[],detalhados:[],_ids:{bas:1,det:1}};
+        _cdocSBStatus('☁ Nuvem vazia — sem dados','#f59e0b');
+        showToast('CDOC — Nuvem vazia','Nenhum dado encontrado. Se você tinha dados em uma versão anterior, use o botão "📥 Restaurar JSON" para reimportar.','warn');
       }
     }
     _cdocSBReady=true;
@@ -15774,8 +15880,13 @@ async function _cdocSBLoad(){
     // fallback para localStorage
     var fallback=null;
     try{fallback=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(ex){}
-    _cdocSBCache=fallback||{basicos:[],detalhados:[],_ids:{bas:1,det:1}};
-    _cdocSBStatus('⚠ Offline — dados locais','#dc2626');
+    if(fallback&&((fallback.basicos||[]).length+(fallback.detalhados||[]).length)>0){
+      _cdocSBCache=fallback;
+      _cdocSBStatus('⚠ Offline — '+((fallback.basicos||[]).length)+' básicos / '+((fallback.detalhados||[]).length)+' det. (local)','#f59e0b');
+    } else {
+      _cdocSBCache={basicos:[],detalhados:[],_ids:{bas:1,det:1}};
+      _cdocSBStatus('⚠ Erro de conexão — '+e.message,'#dc2626');
+    }
   }
 }
 
@@ -15788,6 +15899,48 @@ async function _cdocSBPush(db){
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
   } catch(e){ console.error('_cdocSBPush error:',e); throw e; }
+}
+
+// Restaura CDOC a partir de um arquivo JSON de backup
+function cdocRestaurarJSON(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0]; input.value='';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var json=JSON.parse(e.target.result);
+      var cdocData=null;
+      if(json.ctrldoc&&(json.ctrldoc.basicos||json.ctrldoc.detalhados)){
+        cdocData=json.ctrldoc;
+      } else if(json.basicos||json.detalhados){
+        cdocData=json;
+      } else {
+        showToast('Formato inválido','O arquivo não contém dados reconhecidos de Controle de Documentos.','error');
+        return;
+      }
+      var nBas=(cdocData.basicos||[]).length;
+      var nDet=(cdocData.detalhados||[]).length;
+      if(!confirm('Restaurar '+nBas+' docs básicos e '+nDet+' docs detalhados do arquivo "'+file.name+'"?
+
+Atenção: os dados atuais na nuvem serão substituídos.')) return;
+      _cdocSBCache=cdocData;
+      try{localStorage.setItem('sider_ctrldoc',JSON.stringify(cdocData));}catch(ex){}
+      _cdocSBStatus('Publicando restauração na nuvem...','#7c3aed');
+      _cdocSBPush(cdocData).then(function(){
+        _cdocSBStatus('☁ '+nBas+' básicos / '+nDet+' det. restaurados','#16a34a');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
+        cdocRefreshAll();
+        showToast('CDOC restaurado',''+nBas+' docs básicos e '+nDet+' detalhados carregados com sucesso.','success');
+      }).catch(function(err){
+        _cdocSBStatus('⚠ Dados restaurados localmente','#f59e0b');
+        cdocRefreshAll();
+        showToast('Restaurado localmente','Dados carregados mas erro ao salvar na nuvem: '+err.message,'warn');
+      });
+    } catch(err){
+      showToast('Erro ao ler JSON','Arquivo inválido: '+err.message,'error');
+    }
+  };
+  reader.readAsText(file,'utf-8');
 }
 
 function _cdocLoad(){
@@ -17896,4 +18049,101 @@ function _cdocApplySort(rows,st,tbl){
     if(col==='peso') return parseFloat(d.peso)||0;
     return (d[col]||'').toString().toLowerCase();
   }
-  return rows.slice().sort(functio
+  return rows.slice().sort(function(a,b){
+    var va=val(a),vb=val(b);
+    if(typeof va==='number') return dir*(va-vb);
+    return dir*va.localeCompare(vb,'pt-BR',{numeric:true});
+  });
+}
+function _cdocUpdateSortBtns(tbl){
+  var st=tbl==='det'?_cdocDetSort:_cdocBasSort;
+  document.querySelectorAll('[id^="'+(tbl==='det'?'cdd':'cdb')+'-srt-"]').forEach(function(btn){
+    var col=btn.id.replace((tbl==='det'?'cdd':'cdb')+'-srt-','');
+    btn.classList.remove('asc','desc');
+    btn.textContent='⇵';
+    if(st.col===col){
+      btn.classList.add(st.dir===1?'asc':'desc');
+      btn.textContent=st.dir===1?'↑':'↓';
+    }
+  });
+}
+var _cdocBasSel=new Set(), _cdocDetSel=new Set();
+var _cdocColFltsBas={}, _cdocColFltsDet={};
+function _cdocToggleSelBas(id,e){
+  if(e&&e.target&&e.target.tagName==='BUTTON') return;
+  if(_cdocBasSel.has(id)) _cdocBasSel.delete(id); else _cdocBasSel.add(id);
+  cdocRenderBas();
+}
+function _cdocToggleSelDet(id,e){
+  if(e&&e.target&&e.target.tagName==='BUTTON') return;
+  if(_cdocDetSel.has(id)) _cdocDetSel.delete(id); else _cdocDetSel.add(id);
+  cdocRenderDet();
+}
+function _cdocBasSelAll(cb){
+  var db=_cdocDb(); _cdocBasSel.clear();
+  if(cb.checked) db.basicos.forEach(function(b){_cdocBasSel.add(b.id);});
+  cdocRenderBas();
+}
+function _cdocDetSelAll(cb){
+  var db=_cdocDb(); _cdocDetSel.clear();
+  if(cb.checked) db.detalhados.forEach(function(d){_cdocDetSel.add(d.id);});
+  cdocRenderDet();
+}
+function _cdocBasClearSel(){ _cdocBasSel.clear(); cdocRenderBas(); }
+function _cdocDetClearSel(){ _cdocDetSel.clear(); cdocRenderDet(); }
+
+/* ── Filtros de coluna (Excel-like) ── */
+var _cdocColFltCtx={tbl:null,col:null};
+function _cdocShowColFlt(e,tbl,col){
+  e.stopPropagation();
+  var popup=document.getElementById('cdoc-col-popup'); if(!popup) return;
+  var db=_cdocDb();
+  var items=tbl==='bas'?db.basicos:db.detalhados;
+  var actFlts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
+  // Coletar valores únicos desta coluna
+  var vals={}; items.forEach(function(r){var v=(r[col]||'(vazio)').toString();vals[v]=(vals[v]||0)+1;});
+  var sorted=Object.keys(vals).sort();
+  var curSel=actFlts[col]||null; // null = todos
+  var list=document.getElementById('cdoc-col-list');
+  var search=document.getElementById('cdoc-col-search');
+  if(search) search.value='';
+  _cdocColFltCtx={tbl:tbl,col:col};
+  list.innerHTML=sorted.map(function(v){
+    var chk=(!curSel)||curSel.has(v);
+    return '<label class="cdoc-col-item"><input type="checkbox" value="'+_escAttr(v)+'" '+(chk?'checked':'')+'>'+_esc(v)+'<span style="color:#94a3b8;font-size:9px;margin-left:auto;">('+vals[v]+')</span></label>';
+  }).join('');
+  // Posicionar popup
+  var rect=e.target.getBoundingClientRect();
+  popup.style.left=Math.min(rect.left,window.innerWidth-280)+'px';
+  popup.style.top=(rect.bottom+2)+'px';
+  popup.classList.add('show');
+  // Fechar ao clicar fora
+  setTimeout(function(){
+    document.addEventListener('click',function close(ev){
+      if(!popup.contains(ev.target)){popup.classList.remove('show');document.removeEventListener('click',close);}
+    });
+  },10);
+}
+function _escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+function _cdocColSearchFilter(){
+  var q=(document.getElementById('cdoc-col-search')||{}).value.toLowerCase();
+  document.querySelectorAll('#cdoc-col-list .cdoc-col-item').forEach(function(el){
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+function _cdocColSelectAll(){document.querySelectorAll('#cdoc-col-list input').forEach(function(cb){cb.checked=true;});}
+function _cdocColClearAll(){document.querySelectorAll('#cdoc-col-list input').forEach(function(cb){cb.checked=false;});}
+function _cdocColApply(){
+  var tbl=_cdocColFltCtx.tbl, col=_cdocColFltCtx.col; if(!tbl||!col) return;
+  var actFlts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
+  var checked=[]; document.querySelectorAll('#cdoc-col-list input:checked').forEach(function(cb){checked.push(cb.value);});
+  var db=_cdocDb(); var items=tbl==='bas'?db.basicos:db.detalhados;
+  var vals=new Set(); items.forEach(function(r){vals.add((r[col]||'(vazio)').toString());});
+  if(checked.length===vals.size){ delete actFlts[col]; } // todos selecionados = sem filtro
+  else { actFlts[col]=new Set(checked); }
+  document.getElementById('cdoc-col-popup').classList.remove('show');
+  // Atualizar visual do botão
+  var btnSel=tbl==='bas'?'cdb':'cdd';
+  if(tbl==='bas') cdocRenderBas(); else cdocRenderDet();
+}
+/* aplicar filtros de coluna em cima dos rows já filtrados pelo filter b
