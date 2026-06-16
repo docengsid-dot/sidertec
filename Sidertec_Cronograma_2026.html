@@ -3629,9 +3629,26 @@ function probeColunasSupabase(){
     'prev_inspecao_fab','real_inspecao_fab','obs_inspecao_fab',
     'prev_pintura','real_pintura','obs_pintura',
     'prev_expedicao','real_expedicao','obs_expedicao',
-    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na'
+    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na',
+    'prev_desenhos_fab','real_desenhos_fab','obs_desenhos_fab','conc_desenhos_fab',
+    'prev_diagrama_mont','real_diagrama_mont','obs_diagrama_mont','conc_diagrama_mont'
   ]);
-  return Promise.resolve();
+  // Probe real: verifica se colunas novas existem consultando uma linha do Supabase
+  return sbClient.from('cronograma_subobras').limit(1).select('prev_desenhos_fab')
+    .then(function(r){
+      if(r.error && r.error.message && r.error.message.includes('prev_desenhos_fab')){
+        // Coluna não existe — remove do set para não enviar no payload
+        window._colunasDisponiveis.delete('prev_desenhos_fab');
+        window._colunasDisponiveis.delete('real_desenhos_fab');
+        window._colunasDisponiveis.delete('obs_desenhos_fab');
+        window._colunasDisponiveis.delete('conc_desenhos_fab');
+        window._colunasDisponiveis.delete('prev_diagrama_mont');
+        window._colunasDisponiveis.delete('real_diagrama_mont');
+        window._colunasDisponiveis.delete('obs_diagrama_mont');
+        window._colunasDisponiveis.delete('conc_diagrama_mont');
+      }
+    })
+    .catch(function(){ });
 }
 
 // ESTRUTURA DE ETAPAS — agrupadas com sub-etapas internas
@@ -6286,13 +6303,17 @@ async function salvarCronSubobra(){
     payload.real_inspecao_interna = _v('inspecao_interna','real');
     payload.obs_inspecao_interna  = _v('inspecao_interna','obs');
   }
-  // Sub-etapas de Documentos — colunas próprias (não conflitam com fluxo principal)
-  payload.prev_desenhos_fab  = _v('resumo_mp_doc','prev')   || null;
-  payload.real_desenhos_fab  = _v('resumo_mp_doc','real')   || null;
-  payload.obs_desenhos_fab   = _v('resumo_mp_doc','obs')    || null;
-  payload.prev_diagrama_mont = _v('diagrama_mont','prev')   || null;
-  payload.real_diagrama_mont = _v('diagrama_mont','real')   || null;
-  payload.obs_diagrama_mont  = _v('diagrama_mont','obs')    || null;
+  // Sub-etapas de Documentos — só envia se colunas já existem no Supabase
+  if(_opt.has('prev_desenhos_fab')){
+    payload.prev_desenhos_fab  = _v('resumo_mp_doc','prev')   || null;
+    payload.real_desenhos_fab  = _v('resumo_mp_doc','real')   || null;
+    payload.obs_desenhos_fab   = _v('resumo_mp_doc','obs')    || null;
+  }
+  if(_opt.has('prev_diagrama_mont')){
+    payload.prev_diagrama_mont = _v('diagrama_mont','prev')   || null;
+    payload.real_diagrama_mont = _v('diagrama_mont','real')   || null;
+    payload.obs_diagrama_mont  = _v('diagrama_mont','obs')    || null;
+  }
 
   // Etapa 6 Fabricação — pesos e datas de expedição
   if(_opt.has('peso_executado')){
@@ -15920,9 +15941,7 @@ function cdocRestaurarJSON(input){
       }
       var nBas=(cdocData.basicos||[]).length;
       var nDet=(cdocData.detalhados||[]).length;
-      if(!confirm('Restaurar '+nBas+' docs básicos e '+nDet+' docs detalhados do arquivo "'+file.name+'"?
-
-Atenção: os dados atuais na nuvem serão substituídos.')) return;
+      if(!confirm('Restaurar '+nBas+' docs básicos e '+nDet+' docs detalhados do arquivo "'+file.name+'"?\n\nAtenção: os dados atuais na nuvem serão substituídos.')) return;
       _cdocSBCache=cdocData;
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(cdocData));}catch(ex){}
       _cdocSBStatus('Publicando restauração na nuvem...','#7c3aed');
@@ -16016,7 +16035,8 @@ async function abrirCtrlDoc(){
   modal.classList.add('show');
   _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
   var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
-  await _cdocSBLoad();
+  _cdocSBCache=null; // força recarregar do Supabase sempre
+  try{ await _cdocSBLoad(); } catch(e){ console.error('abrirCtrlDoc error:',e); }
   if(btnAt) btnAt.disabled=false;
   cdocRefreshAll();
   // Auto-refresh a cada 45s enquanto o modal estiver aberto
@@ -18146,4 +18166,6 @@ function _cdocColApply(){
   var btnSel=tbl==='bas'?'cdb':'cdd';
   if(tbl==='bas') cdocRenderBas(); else cdocRenderDet();
 }
-/* aplicar filtros de coluna em cima dos rows já filtrados pelo filter b
+</script>
+</body>
+</html>
