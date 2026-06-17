@@ -15742,8 +15742,8 @@ function cotExportarCSV(){
             <button onclick="cdocRelatorioBas()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Gerar relatório completo">📄 Relatório</button>
             <button onclick="cdocExportBas()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CSV</button>
             <button onclick="cdocExportBasSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
-            <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV">&#8593; CSV</button>
-            <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
+            <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV ou XLSX">&#8593; CSV/XLSX</button>
+            <input type="file" id="cdoc-import-bas" accept=".csv,.xlsx,.xls" style="display:none" onchange="cdocImportBas(this)">
           </div>
         </div>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
@@ -17732,9 +17732,10 @@ function _cdocToast(msg){
   setTimeout(function(){t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);},2000);
 }
 
-/* ── Utilitário de download ── */
+/* ── Export CSV ── */
+/* ── Utilitário de download CSV ── */
 function _cdocDownload(text, filename){
-  var bom='﻿'; // BOM para Excel reconhecer UTF-8
+  var bom='\uFEFF';
   var blob=new Blob([bom+text],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
@@ -17742,7 +17743,6 @@ function _cdocDownload(text, filename){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
 }
-/* ── Export CSV ── */
 function cdocExportBas(){
   var db=_cdocDb();
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
@@ -17772,166 +17772,6 @@ function cdocExportBasSel(){
   sel.forEach(function(b){rows.push([b.obraId,b.sub,b.cli,b.titulo,b.area||'',b.peso||'',b.status,b.m3d,b.diag,b.proj,b.rev,b.data].join(';'));});
   _cdocDownload(rows.join('\n'),'proj_basico_sel_'+sel.length+'.csv');
 }
-
-/* ── RELATÓRIO PROJETO BÁSICO ── */
-function cdocRelatorioBas(){
-  var db=_cdocDb();
-  // Aplica filtros ativos (mesma lógica do render)
-  var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
-  var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
-  var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
-  var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
-  var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
-  var rows=(db.basicos||[]).filter(function(b){
-    if(fObra&&b.obraId!==fObra) return false;
-    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
-    if(fSt&&b.status!==fSt) return false;
-    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
-    if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
-    return true;
-  });
-  rows=_cdocApplyColFlts(rows,'bas');
-  rows=_cdocApplySort(rows,_cdocBasSort);
-
-  var fmt=function(v){return (v!=null&&v!=='')?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
-  var fmtD=function(v){if(!v)return'—';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v;};
-  var totalPeso=rows.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
-  var obra=fObra||'Todas as obras';
-  var geradoEm=new Date().toLocaleString('pt-BR');
-
-  // Resumo por Status
-  var statMap={};
-  rows.forEach(function(b){ var s=b.status||'—'; statMap[s]=(statMap[s]||0)+1; });
-
-  // Resumo por TAG
-  var tagMap={};
-  rows.forEach(function(b){
-    var t=b.sub||'(sem TAG)';
-    if(!tagMap[t]) tagMap[t]={count:0,peso:0,areas:new Set()};
-    tagMap[t].count++;
-    tagMap[t].peso+=(parseFloat(b.peso)||0);
-    if(b.area) tagMap[t].areas.add(b.area);
-  });
-
-  var statusBadge=function(s){
-    var cor={LD:'#0369a1','Em andamento':'#d97706','Concluído':'#16a34a'}[s]||'#64748b';
-    return '<span style="background:'+cor+'20;color:'+cor+';border:1px solid '+cor+'55;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">'+_esc(s||'—')+'</span>';
-  };
-
-  var revHistHtml=function(b){
-    if(!b.revisoes||!b.revisoes.length) return '<span style="color:#94a3b8;font-size:9px;">—</span>';
-    return b.revisoes.map(function(r){
-      return '<div style="display:flex;gap:6px;font-size:9px;border-bottom:1px solid #f1f5f9;padding:1px 0;">'
-        +'<span style="font-weight:700;color:#0369a1;min-width:32px;">'+_esc(r.rev||'')+'</span>'
-        +'<span style="color:#64748b;min-width:72px;">'+fmtD(r.data||'')+'</span>'
-        +'<span style="color:#475569;">'+_esc(r.obs||'')+'</span>'
-        +'</div>';
-    }).join('');
-  };
-
-  var rowsHtml=rows.map(function(b,i){
-    var bg=(i%2===0)?'#ffffff':'#f8fafc';
-    return '<tr style="background:'+bg+';border-bottom:1px solid #e2e8f0;">'
-      +'<td style="padding:5px 7px;font-size:9px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(b.obraId||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;font-weight:700;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(b.sub||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;white-space:nowrap;">'+_esc(b.cli||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;max-width:220px;">'+_esc(b.titulo||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;color:#2563eb;">'+_esc(b.area||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;text-align:right;font-family:Courier New,monospace;">'+fmt(b.peso)+'</td>'
-      +'<td style="padding:5px 7px;text-align:center;">'+statusBadge(b.status)+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;text-align:center;">'+_esc(b.m3d||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;text-align:center;">'+_esc(b.diag||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;">'+_esc(b.proj||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;font-family:Courier New,monospace;text-align:center;font-weight:700;">'+_esc(b.rev||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;white-space:nowrap;">'+_esc(b.det||'—')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;font-family:Courier New,monospace;white-space:nowrap;">'+fmtD(b.data)+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;">'+revHistHtml(b)+'</td>'
-      +'</tr>';
-  }).join('');
-
-  var statHtml=Object.keys(statMap).map(function(s){
-    var cor={LD:'#0369a1','Em andamento':'#d97706','Concluído':'#16a34a'}[s]||'#64748b';
-    return '<span style="display:inline-flex;align-items:center;gap:4px;background:'+cor+'15;border:1px solid '+cor+'44;border-radius:4px;padding:3px 10px;font-size:10px;margin:2px;">'
-      +'<span style="font-weight:700;color:'+cor+';">'+_esc(s)+'</span>'
-      +'<span style="color:#64748b;">'+statMap[s]+' doc(s)</span></span>';
-  }).join('');
-
-  var tagHtml=Object.keys(tagMap).sort().map(function(t){
-    var g=tagMap[t];
-    return '<tr><td style="padding:3px 8px;font-family:Courier New,monospace;font-size:9px;font-weight:700;color:#0369a1;">'+_esc(t)+'</td>'
-      +'<td style="padding:3px 8px;font-size:9px;text-align:center;">'+g.count+'</td>'
-      +'<td style="padding:3px 8px;font-size:9px;color:#2563eb;">'+Array.from(g.areas).join(', ')+'</td>'
-      +'<td style="padding:3px 8px;font-size:9px;text-align:right;font-family:Courier New,monospace;">'+(g.peso?g.peso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>'
-      +'</tr>';
-  }).join('');
-
-  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
-    +'<title>Relatório Projeto Básico — '+_esc(obra)+'</title>'
-    +'<style>'
-    +'*{box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;margin:0;padding:20px;}'
-    +'@media print{body{padding:8px;}.no-print{display:none!important;}@page{margin:12mm;}}'
-    +'.header{background:linear-gradient(135deg,#0c4a6e,#0369a1);color:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px;}'
-    +'.header h1{margin:0;font-size:16px;font-weight:700;}'
-    +'.header p{margin:4px 0 0;font-size:10px;opacity:.8;}'
-    +'.cards{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}'
-    +'.card{background:#fff;border:1.5px solid #e2e8f0;border-radius:6px;padding:10px 16px;min-width:120px;}'
-    +'.card .val{font-size:20px;font-weight:700;color:#0369a1;}'
-    +'.card .lbl{font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;}'
-    +'.section{background:#fff;border:1.5px solid #e2e8f0;border-radius:6px;margin-bottom:16px;overflow:hidden;}'
-    +'.sec-hdr{background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:8px 14px;font-size:11px;font-weight:700;color:#334155;}'
-    +'.sec-body{padding:12px 14px;}'
-    +'table{width:100%;border-collapse:collapse;}th{background:#0c4a6e;color:#fff;padding:6px 7px;font-size:9px;font-weight:700;text-align:left;white-space:nowrap;}'
-    +'tr:hover{background:#f0f9ff!important;}'
-    +'.btn-print{background:#0369a1;color:#fff;border:none;border-radius:5px;padding:8px 20px;font-size:12px;cursor:pointer;font-weight:700;margin-right:8px;}'
-    +'.btn-close{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:8px 20px;font-size:12px;cursor:pointer;font-weight:700;}'
-    +'</style></head><body>'
-    +'<div class="no-print" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">'
-    +'<button class="btn-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>'
-    +'<button class="btn-close" onclick="window.close()">✕ Fechar</button>'
-    +'<span style="font-size:10px;color:#94a3b8;">Dica: no diálogo de impressão selecione "Salvar como PDF" para exportar.</span>'
-    +'</div>'
-    +'<div class="header">'
-    +'<h1>📋 Relatório — Projeto Básico</h1>'
-    +'<p>Obra: <strong>'+_esc(obra)+'</strong>'+(fSub?' · TAG: '+_esc(fSub):'')+(fSt?' · Status: '+_esc(fSt):'')+'</p>'
-    +'<p>Gerado em: '+geradoEm+' · '+rows.length+' documento(s)</p>'
-    +'</div>'
-    // Cards
-    +'<div class="cards">'
-    +'<div class="card"><div class="val">'+rows.length+'</div><div class="lbl">Total Docs</div></div>'
-    +'<div class="card"><div class="val">'+totalPeso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</div><div class="lbl">Peso Total</div></div>'
-    +'<div class="card"><div class="val">'+Object.keys(tagMap).length+'</div><div class="lbl">TAGs</div></div>'
-    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='Concluído';}).length+'</div><div class="lbl">Concluídos</div></div>'
-    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='Em andamento';}).length+'</div><div class="lbl">Em andamento</div></div>'
-    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='LD';}).length+'</div><div class="lbl">LD</div></div>'
-    +'</div>'
-    // Status
-    +'<div class="section"><div class="sec-hdr">📊 Distribuição por Status</div><div class="sec-body">'+statHtml+'</div></div>'
-    // Por TAG
-    +'<div class="section"><div class="sec-hdr">🏷 Resumo por TAG</div>'
-    +'<table><thead><tr><th>TAG / Sub-obra</th><th style="text-align:center;">Qtd</th><th>Área(s)</th><th style="text-align:right;">Peso Básico</th></tr></thead>'
-    +'<tbody>'+tagHtml+'</tbody></table></div>'
-    // Tabela completa
-    +'<div class="section"><div class="sec-hdr">📄 Listagem Completa ('+rows.length+' registros)</div>'
-    +'<div style="overflow-x:auto;"><table>'
-    +'<thead><tr>'
-    +'<th>Obra</th><th>TAG</th><th>Nº Cliente</th><th>Título / Descrição</th>'
-    +'<th>Área</th><th style="text-align:right;">Peso (kg)</th><th>Status</th>'
-    +'<th>3D</th><th>Diag.</th><th>Projetista</th><th>Rev.</th>'
-    +'<th>Tipo Det.</th><th>Data</th><th>Histórico Revisões</th>'
-    +'</tr></thead><tbody>'+rowsHtml+'</tbody>'
-    +'<tfoot><tr style="background:#0c4a6e;color:#fff;">'
-    +'<td colspan="5" style="padding:5px 7px;font-size:9px;font-weight:700;">TOTAL</td>'
-    +'<td style="padding:5px 7px;font-size:9px;font-weight:700;text-align:right;font-family:Courier New,monospace;">'+totalPeso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td>'
-    +'<td colspan="8" style="padding:5px 7px;font-size:9px;">'+rows.length+' documento(s)</td>'
-    +'</tr></tfoot>'
-    +'</table></div></div>'
-    +'</body></html>';
-
-  var w=window.open('','_blank','width=1200,height=800,scrollbars=yes');
-  if(w){ w.document.open(); w.document.write(html); w.document.close(); }
-  else { alert('Pop-up bloqueado. Permita pop-ups para este site e tente novamente.'); }
-}
-
 function cdocExportDet(){
   var db=_cdocDb();
   var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
@@ -17975,71 +17815,204 @@ function cdocExportDetSel(){
   var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='detalhado_selecionados.csv';a.click();URL.revokeObjectURL(url);
 }
+
+/* ── RELATÓRIO PROJETO BÁSICO ── */
+function cdocRelatorioBas(){
+  var db=_cdocDb();
+  var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
+  var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
+  var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
+  var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
+  var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
+  var rows=(db.basicos||[]).filter(function(b){
+    if(fObra&&b.obraId!==fObra) return false;
+    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
+    if(fSt&&b.status!==fSt) return false;
+    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
+    if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
+    return true;
+  });
+  if(typeof _cdocApplyColFlts==='function') rows=_cdocApplyColFlts(rows,'bas');
+  if(typeof _cdocApplySort==='function') rows=_cdocApplySort(rows,_cdocBasSort||{});
+  var fmt=function(v){return (v!=null&&v!=='')?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'\u2014';};
+  var fmtD=function(v){if(!v)return'\u2014';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v;};
+  var totalPeso=rows.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+  var obra=fObra||'Todas as obras';
+  var geradoEm=new Date().toLocaleString('pt-BR');
+  var statMap={};
+  rows.forEach(function(b){var s=b.status||'\u2014';statMap[s]=(statMap[s]||0)+1;});
+  var tagMap={};
+  rows.forEach(function(b){
+    var t=b.sub||'(sem TAG)';
+    if(!tagMap[t]) tagMap[t]={count:0,peso:0,areas:[]};
+    tagMap[t].count++;
+    tagMap[t].peso+=(parseFloat(b.peso)||0);
+    if(b.area&&tagMap[t].areas.indexOf(b.area)===-1) tagMap[t].areas.push(b.area);
+  });
+  var statusBadge=function(s){
+    var cor={LD:'#0369a1','Em andamento':'#d97706','Conclu\u00eddo':'#16a34a'}[s]||'#64748b';
+    return '<span style="background:'+cor+'20;color:'+cor+';border:1px solid '+cor+'55;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">'+_esc(s||'\u2014')+'</span>';
+  };
+  var revHistHtml=function(b){
+    if(!b.revisoes||!b.revisoes.length) return '<span style="color:#94a3b8;font-size:9px;">\u2014</span>';
+    return b.revisoes.map(function(r){
+      return '<div style="display:flex;gap:6px;font-size:9px;border-bottom:1px solid #f1f5f9;padding:1px 0;">'
+        +'<span style="font-weight:700;color:#0369a1;min-width:32px;">'+_esc(r.rev||'')+'</span>'
+        +'<span style="color:#64748b;min-width:72px;">'+fmtD(r.data||'')+'</span>'
+        +'<span style="color:#475569;">'+_esc(r.obs||'')+'</span>'
+        +'</div>';
+    }).join('');
+  };
+  var rowsHtml=rows.map(function(b,i){
+    var bg=(i%2===0)?'#ffffff':'#f8fafc';
+    return '<tr style="background:'+bg+';border-bottom:1px solid #e2e8f0;">'
+      +'<td style="padding:5px 7px;font-size:9px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(b.obraId||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;font-weight:700;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(b.sub||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;white-space:nowrap;">'+_esc(b.cli||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;max-width:220px;">'+_esc(b.titulo||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;color:#2563eb;">'+_esc(b.area||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;text-align:right;font-family:Courier New,monospace;">'+fmt(b.peso)+'</td>'
+      +'<td style="padding:5px 7px;text-align:center;">'+statusBadge(b.status)+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;text-align:center;">'+_esc(b.m3d||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;text-align:center;">'+_esc(b.diag||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;">'+_esc(b.proj||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;font-family:Courier New,monospace;text-align:center;font-weight:700;">'+_esc(b.rev||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;white-space:nowrap;">'+_esc(b.det||'\u2014')+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;font-family:Courier New,monospace;white-space:nowrap;">'+fmtD(b.data)+'</td>'
+      +'<td style="padding:5px 7px;font-size:9px;">'+revHistHtml(b)+'</td>'
+      +'</tr>';
+  }).join('');
+  var statHtml=Object.keys(statMap).map(function(s){
+    var cor={LD:'#0369a1','Em andamento':'#d97706','Conclu\u00eddo':'#16a34a'}[s]||'#64748b';
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:'+cor+'15;border:1px solid '+cor+'44;border-radius:4px;padding:3px 10px;font-size:10px;margin:2px;">'
+      +'<span style="font-weight:700;color:'+cor+';">'+_esc(s)+'</span>'
+      +'<span style="color:#64748b;">'+statMap[s]+' doc(s)</span></span>';
+  }).join('');
+  var tagHtml=Object.keys(tagMap).sort().map(function(t){
+    var g=tagMap[t];
+    return '<tr><td style="padding:3px 8px;font-family:Courier New,monospace;font-size:9px;font-weight:700;color:#0369a1;">'+_esc(t)+'</td>'
+      +'<td style="padding:3px 8px;font-size:9px;text-align:center;">'+g.count+'</td>'
+      +'<td style="padding:3px 8px;font-size:9px;color:#2563eb;">'+g.areas.join(', ')+'</td>'
+      +'<td style="padding:3px 8px;font-size:9px;text-align:right;font-family:Courier New,monospace;">'+(g.peso?g.peso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'\u2014')+'</td>'
+      +'</tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    +'<title>Relat\u00f3rio Projeto B\u00e1sico \u2014 '+_esc(obra)+'</title>'
+    +'<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;margin:0;padding:20px;}'
+    +'@media print{body{padding:8px;}.no-print{display:none!important;}@page{margin:12mm;}}'
+    +'.header{background:linear-gradient(135deg,#0c4a6e,#0369a1);color:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px;}'
+    +'.header h1{margin:0;font-size:16px;font-weight:700;}.header p{margin:4px 0 0;font-size:10px;opacity:.8;}'
+    +'.cards{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}'
+    +'.card{background:#fff;border:1.5px solid #e2e8f0;border-radius:6px;padding:10px 16px;min-width:120px;}'
+    +'.card .val{font-size:20px;font-weight:700;color:#0369a1;}.card .lbl{font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;}'
+    +'.section{background:#fff;border:1.5px solid #e2e8f0;border-radius:6px;margin-bottom:16px;overflow:hidden;}'
+    +'.sec-hdr{background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:8px 14px;font-size:11px;font-weight:700;color:#334155;}'
+    +'.sec-body{padding:12px 14px;}'
+    +'table{width:100%;border-collapse:collapse;}th{background:#0c4a6e;color:#fff;padding:6px 7px;font-size:9px;font-weight:700;text-align:left;white-space:nowrap;}'
+    +'tr:hover{background:#f0f9ff!important;}'
+    +'.btn-print{background:#0369a1;color:#fff;border:none;border-radius:5px;padding:8px 20px;font-size:12px;cursor:pointer;font-weight:700;margin-right:8px;}'
+    +'.btn-close{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:8px 20px;font-size:12px;cursor:pointer;font-weight:700;}'
+    +'</style></head><body>'
+    +'<div class="no-print" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">'
+    +'<button class="btn-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>'
+    +'<button class="btn-close" onclick="window.close()">✕ Fechar</button>'
+    +'<span style="font-size:10px;color:#94a3b8;">Dica: no di\u00e1logo de impress\u00e3o selecione "Salvar como PDF".</span></div>'
+    +'<div class="header"><h1>📋 Relat\u00f3rio \u2014 Projeto B\u00e1sico</h1>'
+    +'<p>Obra: <strong>'+_esc(obra)+'</strong>'+(fSub?' \u00b7 TAG: '+_esc(fSub):'')+(fSt?' \u00b7 Status: '+_esc(fSt):'')+'</p>'
+    +'<p>Gerado em: '+geradoEm+' \u00b7 '+rows.length+' documento(s)</p></div>'
+    +'<div class="cards">'
+    +'<div class="card"><div class="val">'+rows.length+'</div><div class="lbl">Total Docs</div></div>'
+    +'<div class="card"><div class="val">'+totalPeso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</div><div class="lbl">Peso Total</div></div>'
+    +'<div class="card"><div class="val">'+Object.keys(tagMap).length+'</div><div class="lbl">TAGs</div></div>'
+    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='Conclu\u00eddo';}).length+'</div><div class="lbl">Conclu\u00eddos</div></div>'
+    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='Em andamento';}).length+'</div><div class="lbl">Em andamento</div></div>'
+    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='LD';}).length+'</div><div class="lbl">LD</div></div>'
+    +'</div>'
+    +'<div class="section"><div class="sec-hdr">📊 Distribui\u00e7\u00e3o por Status</div><div class="sec-body">'+statHtml+'</div></div>'
+    +'<div class="section"><div class="sec-hdr">🏷 Resumo por TAG</div>'
+    +'<table><thead><tr><th>TAG / Sub-obra</th><th style="text-align:center;">Qtd</th><th>\u00c1rea(s)</th><th style="text-align:right;">Peso B\u00e1sico</th></tr></thead>'
+    +'<tbody>'+tagHtml+'</tbody></table></div>'
+    +'<div class="section"><div class="sec-hdr">📄 Listagem Completa ('+rows.length+' registros)</div>'
+    +'<div style="overflow-x:auto;"><table><thead><tr>'
+    +'<th>Obra</th><th>TAG</th><th>N\u00ba Cliente</th><th>T\u00edtulo / Descri\u00e7\u00e3o</th>'
+    +'<th>\u00c1rea</th><th style="text-align:right;">Peso (kg)</th><th>Status</th>'
+    +'<th>3D</th><th>Diag.</th><th>Projetista</th><th>Rev.</th>'
+    +'<th>Tipo Det.</th><th>Data</th><th>Hist. Revis\u00f5es</th>'
+    +'</tr></thead><tbody>'+rowsHtml+'</tbody>'
+    +'<tfoot><tr style="background:#0c4a6e;color:#fff;">'
+    +'<td colspan="5" style="padding:5px 7px;font-size:9px;font-weight:700;">TOTAL</td>'
+    +'<td style="padding:5px 7px;font-size:9px;font-weight:700;text-align:right;font-family:Courier New,monospace;">'+totalPeso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td>'
+    +'<td colspan="8" style="padding:5px 7px;font-size:9px;">'+rows.length+' documento(s)</td>'
+    +'</tr></tfoot></table></div></div></body></html>';
+  var w=window.open('','_blank','width=1200,height=800,scrollbars=yes');
+  if(w){w.document.open();w.document.write(html);w.document.close();}
+  else{alert('Pop-up bloqueado. Permita pop-ups para este site.');}
+}
+
 function cdocImportBas(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
-    if(!lines.length){alert('Arquivo vazio.');return;}
-    var sep=lines[0].includes(';')?';':',';
-    var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
+  var isXlsx=/\.(xlsx|xls)$/i.test(file.name);
+  function _normData(v){
+    if(!v) return '';
+    if(v instanceof Date){var y=v.getFullYear(),m=String(v.getMonth()+1).padStart(2,'0'),d=String(v.getDate()).padStart(2,'0');return y+'-'+m+'-'+d;}
+    var s=String(v).trim();
+    if(/^\d{4,5}$/.test(s)){var ep=new Date(Date.UTC(1899,11,30));ep.setUTCDate(ep.getUTCDate()+parseInt(s));return ep.toISOString().slice(0,10);}
+    if(s.includes('/')){var dp=s.split('/');if(dp.length===3)return dp[2].length===4?dp[2]+'-'+dp[1]+'-'+dp[0]:dp[0]+'-'+dp[1]+'-'+dp[2];}
+    return s;
+  }
+  function _processar(rowObjs){
     var db=_cdocDb(); var added=0; var updated=0; var erros=[];
-    for(var i=1;i<lines.length;i++){
-      var cols=_cdocParseCsvLine(lines[i],sep);
-      var row={}; headers.forEach(function(h,idx){row[h]=cols[idx]||'';});
-      var obra=row['Obra']||row['obra']||'';
-      var sub=row['TAG']||row['sub']||row['TAG Sub-obra']||'';
-      var titulo=row['Título']||row['Titulo']||row['Título / Descrição']||row['titulo']||'';
-      var cli=(row['Nº Cliente']||row['No Cliente']||'').trim();
-      // Nº Cliente é o único identificador válido — Obra+TAG não é único
-      if(!cli&&(!obra||!titulo)){erros.push('Linha '+(i+1)+': Nº Cliente (ou Obra+Título) obrigatórios'); continue;}
-      // Upsert apenas por Nº Cliente; sem fallback por obra+TAG para não sobrescrever registros distintos
-      var existing=cli?db.basicos.find(function(b){return b.cli===cli;}):null;
-      var newData={
-        obraId:obra,sub:sub,titulo:titulo,cli:cli,
-        proj:row['Projetista']||'',
-        status:row['Status']||'LD',
-        area:row['Área']||row['Area']||'',
-        peso:(function(){var v=row['Peso (kg)']||row['Peso']||'';v=v.replace(/\./g,'').replace(',','.');return v?parseFloat(v)||null:null;})(),
-        m3d:row['3D']||'2D',
-        diag:row['Diagramas']||row['Diag.']||'2D',
-        det:row['Tipo Detalhamento']||'',
-        rev:row['Revisão']||row['Rev.']||row['Revisao']||'',
-        data:row['Data']||''};
-      if(newData.data&&newData.data.includes('/')){var dp=newData.data.split('/');if(dp.length===3)newData.data=dp[2]+'-'+dp[1]+'-'+dp[0];}
-      // Montar entrada de revisão se Rev. ou Data estiverem preenchidos
+    rowObjs.forEach(function(row,idx){
+      var obra=String(row['Obra']||row['obra']||'').trim();
+      var sub=String(row['TAG']||row['sub']||row['TAG Sub-obra']||'').trim();
+      var titulo=String(row['T\u00edtulo']||row['Titulo']||row['T\u00edtulo / Descri\u00e7\u00e3o']||row['titulo']||'').trim();
+      var cli=String(row['N\u00ba Cliente']||row['No Cliente']||row['N\u00ba CLIENTE']||'').trim();
+      if(!cli&&(!obra||!titulo)){erros.push('Linha '+(idx+2)+': N\u00ba Cliente obrigat\u00f3rio');return;}
+      var pesoRaw=String(row['Peso (kg)']||row['Peso']||'').replace(/\./g,'').replace(',','.');
+      var revVal=String(row['Revis\u00e3o']||row['Rev.']||row['Revisao']||'').trim();
+      var dataVal=_normData(row['Data']||'');
+      var newData={obraId:obra,sub:sub,titulo:titulo,cli:cli,
+        proj:String(row['Projetista']||'').trim(),
+        status:String(row['Status']||'LD').trim(),
+        area:String(row['\u00c1rea']||row['Area']||'').trim(),
+        peso:pesoRaw?parseFloat(pesoRaw)||null:null,
+        m3d:String(row['3D']||'2D').trim(),
+        diag:String(row['Diagramas']||row['Diag.']||'2D').trim(),
+        det:String(row['Tipo Detalhamento']||'').trim(),
+        rev:revVal, data:dataVal};
       var revEntry=null;
-      if(newData.rev||newData.data){
-        revEntry={rev:newData.rev||'',data:newData.data||'',obs:'Importado via CSV',user:'CSV',timestamp:new Date().toISOString()};
-      }
+      if(revVal||dataVal){ revEntry={rev:revVal,data:dataVal,obs:'Importado via arquivo',timestamp:new Date().toISOString()}; }
+      var existing=cli?db.basicos.find(function(b){return b.cli===cli;}):null;
       if(existing){
-        // Atualizar preservando históricos e id
-        var prevRevisoes=existing.revisoes||[];
-        Object.assign(existing,newData);
-        existing.revisoes=prevRevisoes;
-        // Adicionar entrada de revisão se ainda não existe (por rev+data)
-        if(revEntry){
-          var jaExiste=prevRevisoes.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});
-          if(!jaExiste) existing.revisoes.push(revEntry);
-        }
+        var prevRev=existing.revisoes||[];
+        Object.assign(existing,newData); existing.revisoes=prevRev;
+        if(revEntry){var jaEx=prevRev.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});if(!jaEx)existing.revisoes.push(revEntry);}
         updated++;
       } else {
-        newData.id=_cdocGenId(db,'bas');
-        newData.revisoes=revEntry?[revEntry]:[];
-        db.basicos.push(newData);
-        added++;
+        newData.id=_cdocGenId(db,'bas'); newData.revisoes=revEntry?[revEntry]:[];
+        db.basicos.push(newData); added++;
       }
-    }
+    });
     _cdocSave(db);
     var msg=added+' novo(s) + '+updated+' atualizado(s).';
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
-    alert(msg);
+    showToast('Importa\u00e7\u00e3o conclu\u00edda',msg,'success');
     cdocRenderBas(); cdocRenderVisao();
-  };
-  reader.readAsText(file,'UTF-8');
+  }
+  if(isXlsx){
+    if(typeof XLSX==='undefined'){showToast('SheetJS n\u00e3o carregado','Aguarde e tente novamente.','error');return;}
+    var reader=new FileReader();
+    reader.onload=function(e){try{var data=new Uint8Array(e.target.result);var wb=XLSX.read(data,{type:'array',cellDates:true});var ws=wb.Sheets[wb.SheetNames[0]];var rowObjs=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false,dateNF:'yyyy-mm-dd'});if(!rowObjs.length){showToast('Arquivo vazio','','error');return;}_processar(rowObjs);}catch(err){showToast('Erro ao ler XLSX',err.message,'error');}};
+    reader.readAsArrayBuffer(file);
+  } else {
+    var reader=new FileReader();
+    reader.onload=function(e){var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});if(!lines.length){showToast('Arquivo vazio','','error');return;}var sep=lines[0].includes(';')?';':',';var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});var rowObjs=[];for(var i=1;i<lines.length;i++){var cols=_cdocParseCsvLine(lines[i],sep);var row={};headers.forEach(function(h,idx){row[h]=cols[idx]||'';});rowObjs.push(row);}_processar(rowObjs);};
+    reader.readAsText(file,'UTF-8');
+  }
 }
+
 function cdocImportDet(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
