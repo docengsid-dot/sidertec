@@ -1004,6 +1004,7 @@ canvas{overflow:visible!important;}
     <div class="sync-status"><div class="sync-dot syncing" id="sync-dot"></div><span id="sync-label">Conectando…</span></div>
     <button class="hbtn" onclick="recarregarTudo()">↺ Atualizar</button>
     <button class="hbtn" onclick="abrirModalImprimir()" style="background:var(--blue);color:#fff;">🖨 Relatório</button>
+    <button class="sider-lock-btn locked" onclick="_siderToggleLock()" title="Clique para desbloquear edição" style="font-size:11px;cursor:pointer;">🔒 Editar</button>
   </div>
 </header>
 
@@ -1287,7 +1288,13 @@ canvas{overflow:visible!important;}
   ADD COLUMN IF NOT EXISTS conc_expedicao        text,
   ADD COLUMN IF NOT EXISTS peso_inspecao_fab     numeric,
   ADD COLUMN IF NOT EXISTS peso_pintura          numeric,
-  ADD COLUMN IF NOT EXISTS peso_expedicao        numeric;
+  ADD COLUMN IF NOT EXISTS peso_expedicao        numeric,
+  ADD COLUMN IF NOT EXISTS tem_revisao           text,
+  ADD COLUMN IF NOT EXISTS num_revisao           text,
+  ADD COLUMN IF NOT EXISTS obs_revisao           text,
+  ADD COLUMN IF NOT EXISTS rev_aprovado_eng      text,
+  ADD COLUMN IF NOT EXISTS rev_aprovado_cli      text,
+  ADD COLUMN IF NOT EXISTS rev_faturado          text;
 
 CREATE TABLE IF NOT EXISTS medicao_terceiros (
   id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -3634,21 +3641,34 @@ function probeColunasSupabase(){
     'prev_expedicao','real_expedicao','obs_expedicao',
     'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na',
     'prev_desenhos_fab','real_desenhos_fab','obs_desenhos_fab','conc_desenhos_fab',
-    'prev_diagrama_mont','real_diagrama_mont','obs_diagrama_mont','conc_diagrama_mont'
+    'prev_diagrama_mont','real_diagrama_mont','obs_diagrama_mont','conc_diagrama_mont',
+    'tem_revisao','num_revisao','obs_revisao','rev_aprovado_eng','rev_aprovado_cli','rev_faturado'
   ]);
   // Probe real: verifica se colunas novas existem consultando uma linha do Supabase
-  return sbClient.from('cronograma_subobras').limit(1).select('prev_desenhos_fab')
+  return sbClient.from('cronograma_subobras').limit(1).select('prev_desenhos_fab,tem_revisao')
     .then(function(r){
-      if(r.error && r.error.message && r.error.message.includes('prev_desenhos_fab')){
-        // Coluna não existe — remove do set para não enviar no payload
-        window._colunasDisponiveis.delete('prev_desenhos_fab');
-        window._colunasDisponiveis.delete('real_desenhos_fab');
-        window._colunasDisponiveis.delete('obs_desenhos_fab');
-        window._colunasDisponiveis.delete('conc_desenhos_fab');
-        window._colunasDisponiveis.delete('prev_diagrama_mont');
-        window._colunasDisponiveis.delete('real_diagrama_mont');
-        window._colunasDisponiveis.delete('obs_diagrama_mont');
-        window._colunasDisponiveis.delete('conc_diagrama_mont');
+      if(r.error && r.error.message){
+        var msg = r.error.message;
+        if(msg.includes('prev_desenhos_fab')){
+          // Colunas de desenhos/diagrama não existem
+          window._colunasDisponiveis.delete('prev_desenhos_fab');
+          window._colunasDisponiveis.delete('real_desenhos_fab');
+          window._colunasDisponiveis.delete('obs_desenhos_fab');
+          window._colunasDisponiveis.delete('conc_desenhos_fab');
+          window._colunasDisponiveis.delete('prev_diagrama_mont');
+          window._colunasDisponiveis.delete('real_diagrama_mont');
+          window._colunasDisponiveis.delete('obs_diagrama_mont');
+          window._colunasDisponiveis.delete('conc_diagrama_mont');
+        }
+        if(msg.includes('tem_revisao')){
+          // Colunas de revisão não existem — remover para não quebrar UPDATE
+          window._colunasDisponiveis.delete('tem_revisao');
+          window._colunasDisponiveis.delete('num_revisao');
+          window._colunasDisponiveis.delete('obs_revisao');
+          window._colunasDisponiveis.delete('rev_aprovado_eng');
+          window._colunasDisponiveis.delete('rev_aprovado_cli');
+          window._colunasDisponiveis.delete('rev_faturado');
+        }
       }
     })
     .catch(function(){ });
@@ -6397,24 +6417,26 @@ async function salvarCronSubobra(){
     payload.obs_montagem   = _v('montagem','obs') || null;
   }
 
-  // ── Revisão de Projeto ─────────────────────────────────────────────
-  (function(){
-    var temRev = (document.getElementById('cm-revisao-sim-nao')||{}).value === 'SIM';
-    payload.tem_revisao = temRev ? 'S' : null;
-    if(temRev){
-      payload.num_revisao     = getCronV('cm-num-revisao') || null;
-      payload.obs_revisao     = getCronV('cm-obs-revisao') || null;
-      var _revEng = document.querySelector('input[name="rev-eng"]:checked');
-      payload.rev_aprovado_eng = _revEng ? _revEng.value : null;
-      var _revCli = document.querySelector('input[name="rev-cli"]:checked');
-      payload.rev_aprovado_cli = _revCli ? _revCli.value : null;
-      var _revFat = document.querySelector('input[name="rev-fat"]:checked');
-      payload.rev_faturado     = _revFat ? _revFat.value : null;
-    } else {
-      payload.num_revisao = null; payload.obs_revisao = null;
-      payload.rev_aprovado_eng = null; payload.rev_aprovado_cli = null; payload.rev_faturado = null;
-    }
-  })();
+  // ── Revisão de Projeto (apenas se colunas existem no Supabase) ────────
+  if(_opt.has('tem_revisao')){
+    (function(){
+      var temRev = (document.getElementById('cm-revisao-sim-nao')||{}).value === 'SIM';
+      payload.tem_revisao = temRev ? 'S' : null;
+      if(temRev){
+        payload.num_revisao     = getCronV('cm-num-revisao') || null;
+        payload.obs_revisao     = getCronV('cm-obs-revisao') || null;
+        var _revEng = document.querySelector('input[name="rev-eng"]:checked');
+        payload.rev_aprovado_eng = _revEng ? _revEng.value : null;
+        var _revCli = document.querySelector('input[name="rev-cli"]:checked');
+        payload.rev_aprovado_cli = _revCli ? _revCli.value : null;
+        var _revFat = document.querySelector('input[name="rev-fat"]:checked');
+        payload.rev_faturado     = _revFat ? _revFat.value : null;
+      } else {
+        payload.num_revisao = null; payload.obs_revisao = null;
+        payload.rev_aprovado_eng = null; payload.rev_aprovado_cli = null; payload.rev_faturado = null;
+      }
+    })();
+  }
 
   // Salva no Supabase (fonte principal) + espelho em localStorage como cache
   async function _salvar(p, modo, id){
@@ -15822,18 +15844,20 @@ function cotExportarCSV(){
             <button onclick="cdocExportBasSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
             <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV ou XLSX">&#8593; CSV/XLSX</button>
             <input type="file" id="cdoc-import-bas" accept=".csv,.xlsx,.xls" style="display:none" onchange="cdocImportBas(this)">
+            <button onclick="cdocEmitirGrdBas()" id="cdb-btn-grd" title="Selecione registros e emita a GRD de remessa" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#128203; Emitir GRD</button>
+            <button onclick="cdocAbrirGrdsBas()" style="background:#1e40af;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Ver GRDs de remessa emitidas">&#128196; GRDs</button>
           </div>
         </div>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
         <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
           <table class="cdoc-tbl">
             <thead><tr>
-              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="width:54px;"></th>
+              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="white-space:nowrap;"><div class="th-inner">GRD Remessa</div></th><th style="width:54px;"></th>
             </tr></thead>
             <tbody id="cdb-tbody"></tbody>
           </table>
         </div>
-        <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button onclick="_cdocBasClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button id="cdb-btn-grd-emit" onclick="cdocEmitirGrdBas()" style="display:none;background:#5b21b6;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">&#128203; Emitir GRD selecionados</button><button onclick="_cdocBasClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
       </div>
 
       <!-- PROJETO DETALHADO -->
@@ -15955,16 +15979,16 @@ var _siderEditUnlocked = false;
 var _CDOC_SENHA = 'sidertec';
 
 function _siderToggleLock(){
-  var btn = document.querySelector('.sider-lock-btn');
+  var btns = document.querySelectorAll('.sider-lock-btn');
   if(_siderEditUnlocked){
     _siderEditUnlocked = false;
-    if(btn){ btn.classList.add('locked'); btn.innerHTML='🔒 Editar'; btn.title='Clique para desbloquear edição'; }
+    btns.forEach(function(b){ b.classList.add('locked'); b.innerHTML='🔒 Editar'; b.title='Clique para desbloquear edição'; });
   } else {
     var s = prompt('Digite a senha para habilitar edição:');
     if(s === null) return;
     if(s === _CDOC_SENHA){
       _siderEditUnlocked = true;
-      if(btn){ btn.classList.remove('locked'); btn.innerHTML='🔓 Editando'; btn.title='Edição ativa — clique para bloquear'; }
+      btns.forEach(function(b){ b.classList.remove('locked'); b.innerHTML='🔓 Editando'; b.title='Edição ativa — clique para bloquear'; });
     } else {
       alert('Senha incorreta.');
     }
@@ -16109,6 +16133,29 @@ function _cdocMergeSnapshots(remote,local){
   r._ids=r._ids||{};
   r._ids.bas=Math.max((remote._ids||{}).bas||1,(local._ids||{}).bas||1);
   r._ids.det=Math.max((remote._ids||{}).det||1,(local._ids||{}).det||1);
+  // Preserva campos extras do local que não existem no remote (GRDs, contadores, etc.)
+  ['_grds_bas','_grds','_grdCounters','_obras','_obrasOcultas','_subsCadastr'].forEach(function(k){
+    if(local[k]!==undefined){
+      if((k==='_grds_bas'||k==='_grds')&&Array.isArray(local[k])){
+        // Local é AUTORITATIVO para listas de GRD: exclusões devem persistir
+        r[k]=JSON.parse(JSON.stringify(local[k]));
+      } else if(Array.isArray(local[k])&&Array.isArray(r[k])){
+        // Mescla aditiva para outros arrays (nunca remove itens remotos)
+        (local[k]).forEach(function(item){
+          if(!item||!item.id) return;
+          var exists=r[k].find(function(x){return x.id===item.id;});
+          if(!exists) r[k].push(item);
+        });
+      } else if(r[k]===undefined||r[k]===null){
+        r[k]=local[k];
+      } else if(k==='_grdCounters'&&typeof local[k]==='object'){
+        r[k]=r[k]||{};
+        Object.keys(local[k]).forEach(function(p){
+          r[k][p]=Math.max(r[k][p]||0,local[k][p]||0);
+        });
+      }
+    }
+  });
   return r;
 }
 function _cdocSave(db){
@@ -16407,8 +16454,12 @@ function _cdocApplyColFlts(rows, tab){
   if(!cols.length) return rows;
   return rows.filter(function(r){
     return cols.every(function(col){
-      var rv = String(r[col]||'').toLowerCase();
-      return rv.indexOf(flts[col].toLowerCase()) !== -1;
+      var rv = String(r[col]||'(vazio)');
+      var fv = flts[col];
+      // Filtro via checkbox (Set de valores exatos)
+      if(fv instanceof Set) return fv.has(rv);
+      // Filtro via texto (string — busca parcial)
+      return rv.toLowerCase().indexOf(String(fv).toLowerCase()) !== -1;
     });
   });
 }
@@ -16533,6 +16584,7 @@ function cdocRenderBas(){
         +'<td style="font-size:10px;">'+_esc(b.proj||'—')+'</td>'
         +'<td style="font-size:10px;white-space:nowrap;">'+_esc(b.rev||'—')+(b.revisoes&&b.revisoes.length?'<span title="Histórico: '+b.revisoes.length+' revisão(ões)" style="margin-left:3px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px;font-size:8px;font-weight:700;cursor:help;">'+b.revisoes.length+'</span>':'')+'</td>'
         +'<td style="font-family:Courier New,monospace;font-size:10px;">'+_fD2(b.data)+'</td>'
+        +'<td style="font-size:9px;font-family:Courier New,monospace;white-space:nowrap;">'+(b.grd_remessa?'<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:1px 5px;font-weight:700;">'+_esc(b.grd_remessa)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
         +'<td style="white-space:nowrap;">'
           +'<button onclick="cdocEditBas('+b.id+')" style="background:none;border:none;cursor:pointer;color:#0369a1;font-size:12px;padding:1px 4px;" title="Editar">✎</button>'
           +'<button onclick="cdocDelBas('+b.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
@@ -16548,6 +16600,7 @@ function cdocRenderBas(){
   var psEl=document.getElementById('cdb-peso-sel'); if(psEl) psEl.textContent=_cdocBasSel.size?'Selecionados ('+_cdocBasSel.size+'): '+fmt(selPesoB)+' kg':'';
   var bdelBtn=document.getElementById('cdb-btn-del-sel'); var bdelCnt=document.getElementById('cdb-del-count');
   if(bdelBtn){ bdelBtn.style.display=_cdocBasSel.size?'':'none'; if(bdelCnt) bdelCnt.textContent=_cdocBasSel.size; }
+  var bgrdBtn=document.getElementById('cdb-btn-grd-emit'); if(bgrdBtn) bgrdBtn.style.display=_cdocBasSel.size?'':'none';
   // ── Resumo por TAG ──
   var resumoEl=document.getElementById('cdb-resumo');
   if(resumoEl){
@@ -17857,6 +17910,284 @@ function _cdocDownload(text, filename){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
 }
+/* ═══════════════════════════════════════════════════════════
+   GRD DE REMESSA — PROJETO BÁSICO
+   ═══════════════════════════════════════════════════════════ */
+function cdocEmitirGrdBas(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  var sels=[];
+  _cdocBasSel.forEach(function(id){
+    var doc=db.basicos.find(function(b){return b.id===id;});
+    if(doc) sels.push(doc);
+  });
+  if(!sels.length){alert('Selecione pelo menos um registro de Projeto Básico para emitir a GRD.');return;}
+
+  // Montar opções de subobra do cronograma filtradas pela obra dos selecionados
+  var _obrasSels=[]; sels.forEach(function(b){if(b.obraId&&_obrasSels.indexOf(b.obraId)<0)_obrasSels.push(b.obraId);});
+  var _cronOpts=(typeof allCronSubobras!=='undefined'?allCronSubobras:[])
+    .filter(function(s){return _obrasSels.length===0||_obrasSels.indexOf(s.obra)>=0;})
+    .sort(function(a,b){return (a.obra+a.subobra).localeCompare(b.obra+b.subobra);});
+  var _cronCbHtml=_cronOpts.map(function(s){
+    return '<label style="display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:3px;cursor:pointer;font-size:11px;color:#1e293b;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'\'">'
+      +'<input type="checkbox" class="grd-bas-cron-cb" value="'+s.id+'" style="accent-color:#7c3aed;cursor:pointer;">'
+      +'<span><strong style="color:#4c1d95;">'+_esc(s.obra)+' · '+_esc(s.subobra)+'</strong>'+(s.descricao?' <span style="color:#64748b;">— '+_esc(s.descricao)+'</span>':'')+'</span>'
+      +'</label>';
+  }).join('');
+
+  // Mini-modal para número manual + destino
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:420px;max-width:94vw;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
+    +'<div style="font-size:15px;font-weight:700;color:#4c1d95;margin-bottom:14px;">📋 Emitir GRD de Remessa — Projeto Básico</div>'
+    +'<div style="margin-bottom:12px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº da GRD <span style="color:#dc2626;">*</span> <span style="font-size:9px;font-weight:400;color:#94a3b8;">(obrigatório — inserir manualmente)</span></label>'
+    +'<input id="grd-bas-num" placeholder="Ex: S176-EP.031" style="width:100%;box-sizing:border-box;font-size:14px;font-weight:700;font-family:Courier New,monospace;padding:7px 10px;border:2px solid #7c3aed;border-radius:5px;color:#4c1d95;"></div>'
+    +(_cronOpts.length?'<div style="margin-bottom:12px;">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;">Subobras do Cronograma <span style="font-size:9px;font-weight:400;color:#94a3b8;">(selecione as que serão atualizadas)</span></label>'
+    +'<button type="button" onclick="(function(){var cbs=document.querySelectorAll(\'.grd-bas-cron-cb\');var anyUnchecked=[].some.call(cbs,function(c){return!c.checked;});cbs.forEach(function(c){c.checked=anyUnchecked;});})()" style="font-size:9px;padding:2px 7px;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:3px;cursor:pointer;">Selecionar todas</button>'
+    +'</div>'
+    +'<div id="grd-bas-cron-list" style="max-height:130px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:5px;padding:4px 2px;background:#fafafa;">'
+    +_cronCbHtml+'</div></div>':'')
+    +'<div style="margin-bottom:12px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">Destino da remessa <span style="font-size:9px;font-weight:400;color:#94a3b8;">(atualiza etapas no Cronograma)</span></label>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;">'
+    +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;"><input type="checkbox" id="grd-bas-dest-proj" checked style="accent-color:#7c3aed;"> Enviado ao Projetista p/ Detalhamento</label>'
+    +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;"><input type="checkbox" id="grd-bas-dest-mp" style="accent-color:#7c3aed;"> Enviado p/ Verificação de MP</label>'
+    +'</div></div>'
+    +'<div style="margin-bottom:12px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Tipo de Emissão</label>'
+    +'<select id="grd-bas-tipo" style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;">'
+    +'<option>Para Detalhamento</option><option>Para Verificação de MP</option><option>Para Aprovação</option><option>Para Informação</option></select></div>'
+    +'<div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
+    +'<textarea id="grd-bas-obs" rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;resize:vertical;"></textarea></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;">'
+    +'<button id="grd-bas-cancel" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:7px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
+    +'<button id="grd-bas-ok" style="background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">Gerar GRD</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('grd-bas-num').focus();
+  document.getElementById('grd-bas-cancel').onclick=function(){document.body.removeChild(overlay);};
+  document.getElementById('grd-bas-ok').onclick=function(){
+    var numGrd=(document.getElementById('grd-bas-num').value||'').trim();
+    if(!numGrd){alert('Informe o número da GRD.');document.getElementById('grd-bas-num').focus();return;}
+    var tipoEm=document.getElementById('grd-bas-tipo').value;
+    var obsGrd=document.getElementById('grd-bas-obs').value;
+    var destProj=document.getElementById('grd-bas-dest-proj').checked;
+    var destMp=document.getElementById('grd-bas-dest-mp').checked;
+    var cronSubIds=[];
+    document.querySelectorAll('.grd-bas-cron-cb:checked').forEach(function(cb){cronSubIds.push(cb.value);});
+    document.body.removeChild(overlay);
+    _cdocGerarGrdBasJanela(sels, numGrd, tipoEm, obsGrd, destProj, destMp, cronSubIds);
+  };
+}
+
+function _cdocGerarGrdBasJanela(sels, numGrd, tipoEm, obsGrd, destProj, destMp, cronSubIds){
+  var hoje=new Date(); var dStr=hoje.toLocaleDateString('pt-BR');
+  var dataISO=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+  var db=_cdocLoad();
+  // Salva GRD no banco de GRDs de básico
+  db._grds_bas=db._grds_bas||[];
+  var grdRec={
+    id:Date.now(),numero:numGrd,data:dataISO,tipo:tipoEm,obs:obsGrd||'',
+    destProj:destProj,destMp:destMp,cronSubIds:Array.isArray(cronSubIds)&&cronSubIds.length?cronSubIds:null,
+    docs:sels.map(function(b){return {docId:b.id,obra:b.obraId,sub:b.sub,cli:b.cli,titulo:b.titulo,rev:b.rev,peso:b.peso,proj:b.proj};})
+  };
+  db._grds_bas.push(grdRec);
+  // Salva grd_remessa em cada básico selecionado — mutação in-place + reconstrói array
+  sels.forEach(function(s){
+    var idx=db.basicos.findIndex(function(x){return x.id===s.id;});
+    if(idx>=0){
+      db.basicos[idx]=Object.assign({},db.basicos[idx],{grd_remessa:numGrd,grd_remessa_data:dataISO});
+    }
+  });
+  // Garante cache atualizado antes de salvar e renderizar
+  _cdocSBCache=db;
+  _cdocSave(db);
+  // Atualiza etapas no Cronograma para cada subobra selecionada (cronSubIds = array de IDs)
+  if((destProj||destMp) && Array.isArray(cronSubIds) && cronSubIds.length && typeof allCronSubobras!=='undefined'){
+    var obsEntry='GRD: '+numGrd+' ('+tipoEm+') — '+dStr;
+    var _lsCron=_lsGet('cronograma_subobras');
+    cronSubIds.forEach(function(csId){
+      var cronSub=allCronSubobras.find(function(s){return String(s.id)===String(csId);});
+      if(!cronSub) return;
+      var updates={atualizado_em:dataISO};
+      if(destProj){
+        updates.prev_envio_detail = cronSub.prev_envio_detail || dataISO;
+        updates.real_envio_detail = dataISO;
+        updates.obs_envio_detail  = obsEntry;
+        updates.conc_envio_detail = 'S';
+      }
+      if(destMp){
+        updates.prev_materia_prima = cronSub.prev_materia_prima || dataISO;
+        updates.real_materia_prima = dataISO;
+        updates.obs_materia_prima  = obsEntry;
+        updates.conc_materia_prima = 'S';
+      }
+      Object.assign(cronSub, updates);
+      _lsCron=_lsCron.map(function(r){return String(r.id)===String(cronSub.id)?Object.assign({},r,updates):r;});
+      if(typeof sbClient!=='undefined'){
+        sbClient.from('cronograma_subobras').eq('id',cronSub.id).update(updates).select()
+          .then(function(r){if(r.error) console.warn('[GRD-BAS-CRON]',r.error.message);})
+          .catch(function(e){console.warn('[GRD-BAS-CRON]',e.message);});
+      }
+    });
+    _lsSet('cronograma_subobras',_lsCron);
+  }
+  // Gera documento de GRD
+  var rows=sels.map(function(b,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+_esc(b.obraId||'')+'</td><td>'+_esc(b.sub||'')+'</td>'
+      +'<td>'+_esc(b.cli||'')+'</td><td style="max-width:200px;">'+_esc(b.titulo||'')+'</td>'
+      +'<td>'+_esc(b.rev||'')+'</td><td>'+(b.peso?Number(b.peso).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</td>'
+      +'<td>'+_esc(b.proj||'')+'</td><td>&nbsp;</td></tr>';
+  }).join('');
+  var destiLabel=[];
+  if(destProj) destiLabel.push('Projetista (Detalhamento)');
+  if(destMp)   destiLabel.push('Verificação de MP');
+  var w=window.open('','_blank','width=1080,height=750');
+  if(!w){alert('Permita popups para gerar a GRD.');return;}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>GRD Básico — '+numGrd+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;font-size:12px;}'
+    +'h2{color:#4c1d95;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 6px;}'
+    +'.meta{display:flex;gap:24px;margin-bottom:10px;font-size:11px;flex-wrap:wrap;}'
+    +'.grd-num{font-size:22px;font-weight:900;color:#4c1d95;letter-spacing:1px;margin-bottom:4px;}'
+    +'.tipo-badge{display:inline-block;padding:4px 14px;border-radius:4px;font-size:12px;font-weight:700;color:#5b21b6;background:#ede9fe;border:1px solid #c4b5fd;margin-bottom:8px;}'
+    +'.dest-badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;margin-right:6px;margin-bottom:10px;}'
+    +'table{width:100%;border-collapse:collapse;}thead th{background:#4c1d95;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}'
+    +'tbody td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;}'
+    +'tbody tr:nth-child(even){background:#f8fafc;}'
+    +'.assin{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:48px;}'
+    +'.assin div{border-top:1px solid #94a3b8;padding-top:8px;color:#64748b;font-size:11px;}'
+    +'@media print{.no-print{display:none;}}</style></head><body>'
+    +'<div class="grd-num">'+_esc(numGrd)+'</div>'
+    +'<h2>GRD &mdash; Guia de Remessa de Documentos &mdash; Projeto B&#225;sico</h2>'
+    +'<p class="sub">SIDERTEC ESTRUTURAS MET&#193;LICAS</p>'
+    +'<div class="tipo-badge">'+_esc(tipoEm)+'</div><br>'
+    +destiLabel.map(function(d){return '<span class="dest-badge">&#10148; '+_esc(d)+'</span>';}).join('')
+    +'<div class="meta" style="margin-top:8px;">'
+    +'<span>N&#186; GRD: <strong>'+_esc(numGrd)+'</strong></span>'
+    +'<span>Data: <strong>'+dStr+'</strong></span>'
+    +'<span>Total: <strong>'+sels.length+' doc(s)</strong></span>'
+    +(function(){var tot=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);return tot?'<span>Peso Total: <strong>'+tot.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</strong></span>':'';}())
+    +'</div>'
+    +(obsGrd?'<div style="margin-bottom:10px;padding:6px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><strong>Obs.:</strong> '+_esc(obsGrd)+'</div>':'')
+    +'<table><thead><tr><th>#</th><th>Obra</th><th>TAG</th><th>N&#186; Cliente</th>'
+    +'<th>T&#237;tulo / Descri&#231;&#227;o</th><th>Rev.</th><th>Peso</th><th>Projetista</th><th>Obs.</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +(function(){var tot=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);return tot?'<tfoot><tr style="background:#f3e8ff;"><td colspan="6" style="text-align:right;font-weight:700;padding:5px 8px;font-size:11px;border-top:2px solid #c4b5fd;">Peso Total:</td><td style="font-weight:700;padding:5px 8px;font-size:11px;border-top:2px solid #c4b5fd;">'+tot.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td><td colspan="2" style="border-top:2px solid #c4b5fd;"></td></tr></tfoot>':'';}())
+    +'</table>'
+    +'<div class="assin"><div>Emitido por: ________________________<br><br>Data: ___/___/______</div>'
+    +'<div>Recebido por: ________________________<br><br>Data: ___/___/______</div></div>'
+    +'<br><div class="no-print" style="margin-top:16px;">'
+    +'<button onclick="window.print()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;margin-right:8px;">&#128438; Imprimir / PDF</button>'
+    +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
+    +'</div></body></html>');
+  w.document.close();
+  _cdocBasSel.clear();
+  cdocRenderBas();
+  cdocRenderVisao();
+  showToast('GRD emitida','Nº '+numGrd+' registrada nos documentos selecionados.','success');
+}
+
+function cdocAbrirGrdsBas(){
+  var db=_cdocLoad();
+  var grds=(db._grds_bas||[]).slice().reverse();
+  var overlay=document.createElement('div');
+  overlay.id='grd-bas-list-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  var rows=grds.length?grds.map(function(g){
+    var docs=(g.docs||[]).map(function(d){return _esc(d.sub||'')+(d.cli?' / '+_esc(d.cli):'');}).join(', ');
+    var dest=[];
+    if(g.destProj) dest.push('Projetista');
+    if(g.destMp)   dest.push('MP');
+    return '<tr>'
+      +'<td style="font-weight:700;font-family:Courier New;color:#4c1d95;">'+_esc(g.numero)+'</td>'
+      +'<td>'+_esc(g.data||'')+'</td>'
+      +'<td>'+_esc(g.tipo||'')+'</td>'
+      +'<td>'+dest.join(' + ')+'</td>'
+      +'<td style="font-size:9px;">'+_esc(docs)+'</td>'
+      +'<td style="font-size:9px;color:#64748b;">'+_esc(g.obs||'')+'</td>'
+      +'<td style="text-align:center;"><button onclick="cdocExcluirGrdBas('+g.id+')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 7px;font-size:11px;cursor:pointer;" title="Excluir GRD e reverter dados">🗑</button></td>'
+      +'</tr>';
+  }).join('')
+  :'<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">Nenhuma GRD de Básico emitida ainda.</td></tr>';
+  overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:20px 24px;min-width:700px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
+    +'<span style="font-size:14px;font-weight:700;color:#4c1d95;">📄 GRDs de Remessa — Projeto Básico</span>'
+    +'<button id="grds-bas-close" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;">✕</button>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px;">'
+    +'<thead><tr style="background:#4c1d95;color:#fff;">'
+    +'<th style="padding:6px 8px;">Nº GRD</th><th style="padding:6px 8px;">Data</th><th style="padding:6px 8px;">Tipo</th>'
+    +'<th style="padding:6px 8px;">Destino</th><th style="padding:6px 8px;">Documentos</th><th style="padding:6px 8px;">Obs.</th>'
+    +'<th style="padding:6px 8px;"></th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('grds-bas-close').onclick=function(){document.body.removeChild(overlay);};
+  overlay.addEventListener('click',function(e){if(e.target===overlay)document.body.removeChild(overlay);});
+}
+
+function cdocExcluirGrdBas(grdId){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocLoad();
+  var grd=db._grds_bas&&db._grds_bas.find(function(g){return g.id===grdId;});
+  if(!grd){alert('GRD não encontrada.');return;}
+  var nDocs=(grd.docs||[]).length;
+  if(!confirm('Excluir GRD '+grd.numero+'?\n\nIsso vai:\n• Remover a GRD da lista\n• Limpar o campo "GRD Remessa" nos '+nDocs+' documento(s)\n• Reverter etapas do Cronograma marcadas por esta GRD')){return;}
+
+  // 1. Limpar grd_remessa nos básicos vinculados a esta GRD
+  (grd.docs||[]).forEach(function(doc){
+    var idx=db.basicos.findIndex(function(b){return b.id===doc.docId;});
+    if(idx>=0&&db.basicos[idx].grd_remessa===grd.numero){
+      db.basicos[idx]=Object.assign({},db.basicos[idx],{grd_remessa:null,grd_remessa_data:null});
+    }
+  });
+
+  // 2. Reverter etapas do Cronograma marcadas por esta GRD (cronSubIds = array, com fallback para cronSubId legado)
+  var _delCronIds=Array.isArray(grd.cronSubIds)&&grd.cronSubIds.length?grd.cronSubIds
+    :(grd.cronSubId?[grd.cronSubId]:[]);
+  if(typeof allCronSubobras!=='undefined'&&_delCronIds.length){
+    var _lsCron2=_lsGet('cronograma_subobras');
+    var pattern='GRD: '+grd.numero;
+    _delCronIds.forEach(function(csId){
+      var cronSub=allCronSubobras.find(function(s){return String(s.id)===String(csId);});
+      if(!cronSub) return;
+      var updates={atualizado_em:new Date().toISOString()};
+      if(grd.destProj&&cronSub.obs_envio_detail&&String(cronSub.obs_envio_detail).indexOf(pattern)===0){
+        updates.real_envio_detail=null; updates.obs_envio_detail=null; updates.conc_envio_detail=null;
+      }
+      if(grd.destMp&&cronSub.obs_materia_prima&&String(cronSub.obs_materia_prima).indexOf(pattern)===0){
+        updates.real_materia_prima=null; updates.obs_materia_prima=null; updates.conc_materia_prima=null;
+      }
+      if(Object.keys(updates).length>1){
+        Object.assign(cronSub,updates);
+        _lsCron2=_lsCron2.map(function(r){return String(r.id)===String(cronSub.id)?Object.assign({},r,updates):r;});
+        if(typeof sbClient!=='undefined'){
+          sbClient.from('cronograma_subobras').eq('id',cronSub.id).update(updates).select()
+            .then(function(r){if(r.error)console.warn('[DEL-GRD-BAS-CRON]',r.error.message);})
+            .catch(function(e){console.warn('[DEL-GRD-BAS-CRON]',e.message);});
+        }
+      }
+    });
+    _lsSet('cronograma_subobras',_lsCron2);
+  }
+
+  // 3. Remover GRD da lista e salvar
+  db._grds_bas=db._grds_bas.filter(function(g){return g.id!==grdId;});
+  _cdocSBCache=db;
+  _cdocSave(db);
+  cdocRenderBas();
+  cdocRenderVisao();
+  showToast('GRD excluída','Nº '+grd.numero+' removida e dados revertidos.','success');
+
+  // 4. Fechar e reabrir a lista atualizada
+  var ov=document.getElementById('grd-bas-list-overlay');
+  if(ov) document.body.removeChild(ov);
+  cdocAbrirGrdsBas();
+}
+
 function cdocExportBas(){
   var db=_cdocDb();
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
