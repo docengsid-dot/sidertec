@@ -6397,6 +6397,24 @@ async function salvarCronSubobra(){
     payload.obs_montagem   = _v('montagem','obs') || null;
   }
 
+  // ── Revisão de Projeto ─────────────────────────────────────────────
+  (function(){
+    var temRev = (document.getElementById('cm-revisao-sim-nao')||{}).value === 'SIM';
+    payload.tem_revisao = temRev ? 'S' : null;
+    if(temRev){
+      payload.num_revisao     = getCronV('cm-num-revisao') || null;
+      payload.obs_revisao     = getCronV('cm-obs-revisao') || null;
+      var _revEng = document.querySelector('input[name="rev-eng"]:checked');
+      payload.rev_aprovado_eng = _revEng ? _revEng.value : null;
+      var _revCli = document.querySelector('input[name="rev-cli"]:checked');
+      payload.rev_aprovado_cli = _revCli ? _revCli.value : null;
+      var _revFat = document.querySelector('input[name="rev-fat"]:checked');
+      payload.rev_faturado     = _revFat ? _revFat.value : null;
+    } else {
+      payload.num_revisao = null; payload.obs_revisao = null;
+      payload.rev_aprovado_eng = null; payload.rev_aprovado_cli = null; payload.rev_faturado = null;
+    }
+  })();
 
   // Salva no Supabase (fonte principal) + espelho em localStorage como cache
   async function _salvar(p, modo, id){
@@ -17653,6 +17671,40 @@ function cdocDetObraChange(){
 
 
 /* ── Inserção automática no Cronograma ao cadastrar Proj. Básico ── */
+// Sincroniza Projetista do CDOC com Equipe no Cronograma
+async function _cdocSyncEquipeCronograma(rec){
+  if(!rec.proj) return;
+  if(typeof allCronSubobras === 'undefined' || typeof sbClient === 'undefined') return;
+  // Busca sub-obra correspondente no cronograma (TAG + Obra)
+  var cronSub = allCronSubobras.find(function(s){
+    return (s.subobra||'').toUpperCase() === (rec.sub||'').toUpperCase() &&
+           (s.obra||'').toUpperCase() === (rec.obraId||'').toUpperCase();
+  });
+  if(!cronSub) return;
+  // Atualiza equipe (sempre, para refletir o projetista atual)
+  var novaEquipe = rec.proj.trim();
+  if(cronSub.equipe === novaEquipe) return; // Nenhuma mudança
+  cronSub.equipe = novaEquipe;
+  var updates = { equipe: novaEquipe, atualizado_em: new Date().toISOString() };
+  // Atualiza localStorage
+  var ls = _lsGet('cronograma_subobras');
+  ls = ls.map(function(r){ return String(r.id)===String(cronSub.id) ? Object.assign({},r,updates) : r; });
+  _lsSet('cronograma_subobras', ls);
+  // Atualiza array em memória
+  var idx = allCronSubobras.findIndex(function(x){ return x.id===cronSub.id; });
+  if(idx>=0) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], updates);
+  // Persiste no Supabase
+  try{
+    await sbClient.from('cronograma_subobras').eq('id', cronSub.id).update(updates).select();
+    // Garante que a equipe está na lista de equipes disponíveis (sessionStorage)
+    var extras = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
+    if(extras.indexOf(novaEquipe) === -1){ extras.push(novaEquipe); sessionStorage.setItem('sidertec_extra_equipes', JSON.stringify(extras)); }
+    _cdocToast('Equipe "'+novaEquipe+'" atualizada no Cronograma!');
+  } catch(e){
+    _cdocToast('Equipe atualizada localmente (Supabase offline).');
+  }
+}
+
 async function _cdocCriarNoCronograma(rec){
   if(typeof allCronSubobras==='undefined'||typeof sbClient==='undefined') return;
   // Verifica se já existe sub-obra com a mesma TAG e Obra
@@ -17726,6 +17778,8 @@ function cdocSalvar(){
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
+    // Atualiza Equipe no Cronograma quando Projetista é preenchido
+    _cdocSyncEquipeCronograma(rec);
     document.getElementById('cdoc-edit-overlay').classList.remove('show');
     cdocRenderBas(); cdocRenderVisao();
     _cdocToast('Registro salvo com sucesso!');
