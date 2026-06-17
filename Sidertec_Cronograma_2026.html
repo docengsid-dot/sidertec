@@ -1895,11 +1895,14 @@ ALTER TABLE medicao_terceiros
       <!-- Identificação -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
         <div class="field-group"><label class="field-label">Obra Principal *</label>
-          <select class="field-input" id="cm-obra"><option value="">— Selecione —</option></select></div>
+          <select class="field-input" id="cm-obra" onchange="_cronCdocUpdateSubList(this.value)"><option value="">— Selecione —</option></select></div>
         <div class="field-group"><label class="field-label">TAG da Sub-obra *</label>
-          <input type="text" class="field-input" id="cm-subobra" placeholder="Ex: 4600-SS053" style="font-family:'Courier New',monospace,monospace;"></div>
-        <div class="field-group"><label class="field-label">Nº Projeto Básico</label>
-          <input type="text" class="field-input" id="cm-num-proj-basico" placeholder="Ex: PB-2026-001" style="font-family:'Courier New',monospace,monospace;"></div>
+          <input type="text" class="field-input" id="cm-subobra" list="cdoc-sub-list" placeholder="Ex: 4600-SS053" style="font-family:'Courier New',monospace,monospace;" oninput="_cronCdocSubInput()" onchange="_cronCdocSubInput()">
+          <datalist id="cdoc-sub-list"></datalist>
+          <span id="cm-cdoc-hint" style="font-size:9px;color:#7c3aed;margin-top:2px;display:block;"></span></div>
+        <div class="field-group"><label class="field-label">Nº Projeto Básico <span style="font-size:9px;font-weight:400;color:#7c3aed;">(Nº Cliente CDOC)</span></label>
+          <input type="text" class="field-input" id="cm-num-proj-basico" list="cdoc-num-list" placeholder="Selecione TAG ou digite" style="font-family:'Courier New',monospace,monospace;">
+          <datalist id="cdoc-num-list"></datalist></div>
         <div class="field-group"><label class="field-label">Descrição</label>
           <input type="text" class="field-input" id="cm-descricao" placeholder="Ex: Pipe Rack Trecho 01"></div>
         <div class="field-group"><label class="field-label">Área</label>
@@ -5970,6 +5973,58 @@ async function abrirAndamentoNaEtapaById(subobraId, etapaKey){
 }
 
 // ── MODAL ABRIR/FECHAR ────────────────────────────────────────────────
+// ---- CDOC ↔ Cronograma modal helpers ----
+function _cronCdocGetBasicos(obra){
+  var db = (typeof _cdocSBCache !== 'undefined' && _cdocSBCache) ? _cdocSBCache : (typeof _cdocLoad === 'function' ? _cdocLoad() : null);
+  if(!db||!db.basicos) return [];
+  if(!obra) return db.basicos;
+  return db.basicos.filter(function(b){ return b.obraId && b.obraId.indexOf(obra) !== -1; });
+}
+
+function _cronCdocUpdateSubList(obra){
+  var basicos = _cronCdocGetBasicos(obra);
+  var tags = [];
+  basicos.forEach(function(b){ if(b.sub && tags.indexOf(b.sub)===-1) tags.push(b.sub); });
+  tags.sort();
+  var dl = document.getElementById('cdoc-sub-list');
+  if(dl) dl.innerHTML = tags.map(function(t){ return '<option value="'+t+'">'; }).join('');
+}
+
+function _cronCdocUpdateNumList(tag){
+  var db = (typeof _cdocSBCache !== 'undefined' && _cdocSBCache) ? _cdocSBCache : (typeof _cdocLoad === 'function' ? _cdocLoad() : null);
+  var basicos = (db&&db.basicos) ? db.basicos : [];
+  var matches = tag ? basicos.filter(function(b){ return b.sub===tag; }) : [];
+  var dl = document.getElementById('cdoc-num-list');
+  if(dl) dl.innerHTML = matches.map(function(b){
+    var label = b.cli + (b.titulo ? ' — '+b.titulo : '');
+    return '<option value="'+b.cli+'" label="'+label.replace(/"/g,'&quot;')+'">';
+  }).join('');
+  // hint
+  var hint = document.getElementById('cm-cdoc-hint');
+  if(hint){
+    if(matches.length > 0){
+      hint.textContent = matches.length + ' doc(s) no CDOC para esta TAG';
+      hint.style.color = '#7c3aed';
+    } else if(tag){
+      hint.textContent = 'TAG não encontrada no CDOC Projeto Básico';
+      hint.style.color = '#b45309';
+    } else {
+      hint.textContent = '';
+    }
+  }
+  // auto-fill cm-num-proj-basico only if empty and exactly 1 match
+  var numInput = document.getElementById('cm-num-proj-basico');
+  if(numInput && !numInput.value && matches.length === 1){
+    numInput.value = matches[0].cli || '';
+  }
+}
+
+function _cronCdocSubInput(){
+  var tag = (document.getElementById('cm-subobra')||{}).value || '';
+  _cronCdocUpdateNumList(tag.trim());
+}
+// ---- fim CDOC helpers ----
+
 async function abrirCronModal(id){
   editingCronId = id;
   // Carregar histórico de datas para esta subobra
@@ -5996,6 +6051,8 @@ async function abrirCronModal(id){
   const equipes= [...new Set([...allLancamentos.map(l=>l.equipe),...allCronSubobras.map(s=>s.equipe).filter(Boolean),...extraEqs])].filter(Boolean).sort();
   cmObra.innerHTML = '<option value="">— Selecione —</option>'+obras.map(o=>`<option>${o}</option>`).join('');
   cmEq.innerHTML   = '<option value="">— Selecione —</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
+  // Pré-carrega lista de TAGs do CDOC (sem filtro de obra ainda)
+  _cronCdocUpdateSubList('');
 
   // Reset fields
   const ids = ['cm-obra','cm-subobra','cm-descricao','cm-area','cm-escopo','cm-equipe','cm-prior-det','cm-peso','cm-num-proj-basico','cm-peso-detalhado','cm-peso-pcp','cm-data-limite-fab',
@@ -6050,6 +6107,9 @@ async function abrirCronModal(id){
     })();
     sv('cm-status',s.status);
     sv('cm-prior',s.prioridade); sv('cm-prior-det',s.prior_det!=null?s.prior_det:''); sv('cm-num-proj-basico',s.num_proj_basico);
+    // Atualiza listas CDOC com TAG da sub-obra carregada
+    _cronCdocUpdateSubList(s.obra||'');
+    _cronCdocUpdateNumList(s.subobra||'');
     sv('cm-peso-detalhado',s.peso_detalhado);
     sv('cm-peso-pcp',s.peso_pcp);
     sv('cm-data-limite-fab',s.data_limite_fab);
