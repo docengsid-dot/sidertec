@@ -1488,7 +1488,7 @@ ALTER TABLE medicao_terceiros
     </div>
     <div style="display:flex;gap:1rem;">
       <div style="text-align:center;"><div id="med-stat-contratos" style="font-family:'Georgia',serif,serif;font-size:22px;color:#fff;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Contratos</div></div>
-      <div style="text-align:center;"><div id="med-stat-valor-total" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#67e8f9;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Valor Total</div></div>
+      <div style="text-align:center;"><div id="med-stat-valor-total" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#67e8f9;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Valor Total (Bruto)</div></div>
       <div style="text-align:center;"><div id="med-stat-pago" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#86efac;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Pago</div></div>
       <div style="text-align:center;"><div id="med-stat-pendente" style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#fca5a5;">—</div><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;">Pendente</div></div>
     </div>
@@ -1602,6 +1602,40 @@ ALTER TABLE medicao_terceiros
         <div class="field-group">
           <label class="field-label">💵 Valor Total (R$)</label>
           <div id="med-valor-total-preview" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);font-weight:700;color:var(--green);display:flex;align-items:center;">—</div>
+        </div>
+      </div>
+
+      <!-- Linha 2b: Acréscimo Telhas/Cobertura -->
+      <div class="med-row" style="grid-template-columns:1fr 1.6fr;">
+        <div class="field-group">
+          <label class="field-label">🏗 Acréscimo Telhas/Cobertura (R$)</label>
+          <input type="number" class="field-input" id="med-acrescimo-telhas" placeholder="0,00" step="0.01" min="0"
+            oninput="recalcularMedicao()"
+            style="color:#0369a1;font-weight:700;">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📝 Obs. Telhas/Cobertura</label>
+          <input type="text" class="field-input" id="med-obs-telhas" placeholder="Descrição do projeto de telhas e cobertura…">
+        </div>
+      </div>
+
+      <!-- Linha 2c: Desconto / Débito / Obs Ajuste / Valor Líquido -->
+      <div class="med-row" style="grid-template-columns:1fr 1fr 1.6fr 1fr;">
+        <div class="field-group">
+          <label class="field-label">🏷 Desconto (R$)</label>
+          <input type="number" class="field-input" id="med-desconto" placeholder="0,00" step="0.01" min="0" oninput="recalcularMedicao()" style="color:#dc2626;">
+        </div>
+        <div class="field-group">
+          <label class="field-label">➖ Valor a Debitado (R$)</label>
+          <input type="number" class="field-input" id="med-valor-debito" placeholder="0,00" step="0.01" min="0" oninput="recalcularMedicao()" style="color:#b45309;">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📝 Obs. do Ajuste</label>
+          <input type="text" class="field-input" id="med-obs-ajuste" placeholder="Motivo do desconto ou débito…">
+        </div>
+        <div class="field-group">
+          <label class="field-label">✅ Valor Líquido (R$)</label>
+          <div id="med-valor-liquido" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);font-weight:700;font-size:12px;padding:4px 8px;min-height:28px;display:flex;align-items:center;color:var(--green);">—</div>
         </div>
       </div>
 
@@ -4298,6 +4332,19 @@ function etapaSet(key,campo,valor){
   }
 
   _etapasState[key][campo] = valor;
+  // Sincronizar input estático HTML (garante consistência com _v fallback)
+  var _sIdMap={'basico':{prev:'cm-prev-basico',real:'cm-real-basico',obs:'cm-obs-basico'},
+    'envio_detail':{prev:'cm-prev-envio-detail',real:'cm-real-envio-detail',obs:'cm-obs-envio-detail'},
+    'materia_prima':{prev:'cm-prev-materia-prima',real:'cm-real-materia-prima',obs:'cm-obs-materia-prima'},
+    'envio_modelo':{prev:'cm-prev-envio-modelo',real:'cm-real-envio-modelo',obs:'cm-obs-envio-modelo'},
+    'rec_modelo':{prev:'cm-prev-rec-modelo',real:'cm-real-rec-modelo',obs:'cm-obs-rec-modelo'},
+    'lista_resumo_mp':{prev:'cm-prev-resumo-mp',real:'cm-real-resumo-mp',obs:'cm-obs-resumo-mp'},
+    'retorno_modelo':{prev:'cm-prev-retorno-modelo',real:'cm-real-retorno-modelo',obs:'cm-obs-retorno-modelo'},
+    'pcte_fab':{prev:'cm-prev-pcte-fab',real:'cm-real-pcte-fab',obs:'cm-obs-pcte-fab'},
+    'lib_fab':{prev:'cm-prev-lib-fab',real:'cm-real-lib-fab',obs:'cm-obs-lib-fab'},
+    'diagramas':{prev:'cm-prev-diagramas',real:'cm-real-diagramas',obs:'cm-obs-diagramas'}};
+  var _sEl=document.getElementById((_sIdMap[key]||{})[campo]);
+  if(_sEl) _sEl.value=valor||'';
   if(key==="lib_fab" && campo==="prev") atualizarDiasLimiteFab();
 
   // Auto-marcar concluído quando data real é preenchida
@@ -6219,7 +6266,10 @@ async function salvarCronSubobra(){
   // Lê do novo _etapasState (campo direto, sem registros[])
   const etSt = (typeof _etapasState !== 'undefined') ? _etapasState : {};
   const _v = function(key, campo){
-    // Primeiro: tenta ler do input HTML direto (mais confiável)
+    // PRIORIDADE 1: _etapasState — source of truth (atualizado por etapaSet e por etapasStateFromSubobra)
+    var stateVal = (_etapasState[key]||{})[campo];
+    if(stateVal) return stateVal;
+    // PRIORIDADE 2: input estático HTML (fallback p/ campos que não passam por etapaSet)
     var idMap = {
       'basico':         {prev:'cm-prev-basico',        real:'cm-real-basico',        obs:'cm-obs-basico'},
       'envio_detail':   {prev:'cm-prev-envio-detail',  real:'cm-real-envio-detail',  obs:'cm-obs-envio-detail'},
@@ -6235,8 +6285,7 @@ async function salvarCronSubobra(){
     };
     var elId = (idMap[key]||{})[campo];
     if(elId){ var el=document.getElementById(elId); if(el && el.value) return el.value; }
-    // Segundo: tenta _etapasState
-    return (_etapasState[key]||{})[campo]||null;
+    return null;
   };
 
   // PAYLOAD: SOMENTE colunas que existem na tabela original do Supabase
@@ -8947,10 +8996,14 @@ async function carregarMedicoes(){
   try{
     const {data,error}=await sbClient.from('medicao_terceiros').order('criado_em',{ascending:false}).limit(2000).select();
     allMedicoes=(error?[]:data||[]);
+    if(!allMedicoes.length) window._colAjusteExiste = false;
     // Detectar se colunas BM existem
     if(allMedicoes.length > 0 && (!('bm_conferido_por' in allMedicoes[0]) || !('data_pagamento' in allMedicoes[0]))){
       setTimeout(_mostrarMigracaoBM, 1500);
     }
+    // Detectar se colunas de ajuste existem
+    window._colAjusteExiste = allMedicoes.length > 0 && ('acrescimo_telhas' in allMedicoes[0]);
+    if(!window._colAjusteExiste){ setTimeout(_mostrarMigracaoAjuste, 2000); }
   }catch(e){ allMedicoes=[]; }
 }
 
@@ -8985,7 +9038,7 @@ function renderMedicao(){
   lista = medXlFiltrar(lista);;
 
   // KPIs
-  const totalValor  = lista.reduce((s,m)=>s+(Number(m.valor_total)||0),0);
+  const totalValor  = lista.reduce((s,m)=>{ const _vt=Number(m.valor_total)||0; const _a=_parseAjuste(m); return s + _vt + _a.acr - _a.des - _a.deb; },0);
   const totalPago   = lista.reduce((s,m)=>{
     let p=0;
     if((m.p1_status==='PAGO')) p+=Number(m.valor_total)*0.4;
@@ -9013,10 +9066,12 @@ function renderMedicao(){
     return `<span style="background:${cfg.bg};color:${cfg.cor};border-radius:3px;padding:2px 7px;font-size:8px;font-weight:700;white-space:nowrap;">${cfg.ic} ${pct}% · ${fmtBRL(v)}</span>`;
   }
 
-  el.innerHTML = `<div class="xl-table-wrap" style="max-height:calc(100vh - 250px);"><table class="xl-table"><thead><tr><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Data</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('data',this)" data-med-filter="data">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-data"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('data',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('data')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:100px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Engenharia</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('equipe',this)" data-med-filter="equipe">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-equipe"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('equipe',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('equipe')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:90px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Obra</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('obra',this)" data-med-filter="obra">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-obra"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('obra',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('obra')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Peso Prev.</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('peso_previsto',this)" data-med-filter="peso_previsto">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-peso_previsto"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('peso_previsto',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('peso_previsto')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Peso Det.</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('peso_detalhado',this)" data-med-filter="peso_detalhado">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-peso_detalhado"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('peso_detalhado',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('peso_detalhado')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:65px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">R$/kg</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('valor_kg',this)" data-med-filter="valor_kg">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-valor_kg"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('valor_kg',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('valor_kg')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:95px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Valor Total</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('valor_total',this)" data-med-filter="valor_total">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-valor_total"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('valor_total',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('valor_total')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:60px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">BM</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('bm',this)" data-med-filter="bm">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-bm"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('bm',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('bm')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:60px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">NF</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('nf',this)" data-med-filter="nf">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-nf"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('nf',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('nf')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:90px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Pgto.</span></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:70px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Status</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('status_contrato',this)" data-med-filter="status_contrato">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-status_contrato"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('status_contrato',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('status_contrato')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;padding:3px 6px;color:#93c5fd;font-size:9px;">🏷 TAGs</th><th style="background:#0c4a6e;border:1px solid #0a3d5c;width:50px;"></th></tr></thead>
+  el.innerHTML = `<div class="xl-table-wrap" style="max-height:calc(100vh - 250px);"><table class="xl-table"><thead><tr><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Data</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('data',this)" data-med-filter="data">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-data"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('data',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('data')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:100px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Engenharia</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('equipe',this)" data-med-filter="equipe">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-equipe"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('equipe',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('equipe')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:90px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Obra</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('obra',this)" data-med-filter="obra">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-obra"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('obra',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('obra')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Peso Prev.</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('peso_previsto',this)" data-med-filter="peso_previsto">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-peso_previsto"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('peso_previsto',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('peso_previsto')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Peso Det.</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('peso_detalhado',this)" data-med-filter="peso_detalhado">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-peso_detalhado"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('peso_detalhado',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('peso_detalhado')">OK</button></div></div></div></th><th style="background:#7c3510;border:1px solid #0a3d5c;min-width:85px;padding:0;white-space:nowrap;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fde68a;font-size:9px;font-weight:600;">📏 Peso Med.</span></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:65px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">R$/kg</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('valor_kg',this)" data-med-filter="valor_kg">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-valor_kg"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('valor_kg',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('valor_kg')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:95px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Valor Total</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('valor_total',this)" data-med-filter="valor_total">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-valor_total"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('valor_total',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('valor_total')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:60px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">BM</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('bm',this)" data-med-filter="bm">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-bm"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('bm',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('bm')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:60px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">NF</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('nf',this)" data-med-filter="nf">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-nf"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('nf',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('nf')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:90px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Pgto.</span></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;min-width:70px;padding:0;white-space:nowrap;"><div style="position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Status</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;font-weight:700;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();medXlOpenFilter('status_contrato',this)" data-med-filter="status_contrato">▾</button></div><div class="xl-filter-dd" id="med-xl-dd-status_contrato"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="medXlToggleAll('status_contrato',{checked:true})">Tudo</button><button class="ok" onclick="medXlOK('status_contrato')">OK</button></div></div></div></th><th style="background:#0c4a6e;border:1px solid #0a3d5c;padding:3px 6px;color:#93c5fd;font-size:9px;">🏷 TAGs</th><th style="background:#0c4a6e;border:1px solid #0a3d5c;width:50px;"></th></tr></thead>
       <tbody>
         ${lista.map((m,idx)=>{
           const vt = Number(m.valor_total)||0;
+          const vtLiq = vt + (Number(m.acrescimo_telhas)||0) - (Number(m.desconto)||0) - (Number(m.valor_debito)||0);
+          const vtDisplay = (m.acrescimo_telhas||m.desconto||m.valor_debito) ? vtLiq : vt;
           const statusC = (m.status_contrato||'ATIVO')==='ATIVO'
             ? '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ATIVO</span>'
             : '<span style="background:#f1f5f9;color:#64748b;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ENCERRADO</span>';
@@ -9030,6 +9085,16 @@ function renderMedicao(){
           const tagSubs = tagEntradas.map(e=>(allCronSubobras||[]).find(s=>String(s.id)===e.id)).filter(Boolean);
           const sumPesoPrev = tagSubs.reduce((a,s)=>a+(Number(s.peso_previsto)||0),0);
           const sumPesoDet  = tagSubs.reduce((a,s)=>a+(Number(s.peso_detalhado)||0),0);
+          const sumPesoMed  = tagEntradas.reduce((a,e)=>{
+            const s=tagSubs.find(x=>String(x.id)===String(e.id||e));
+            if(!s) return a;
+            const pm=Number(e.peso_med)||0;
+            const pd=Number(s.peso_detalhado)||0;
+            const pb=Number(s.peso_previsto)||0;
+            return a+(pm>0?pm:(pd>0?pd:pb));
+          },0);
+          const _adjR = _parseAjuste(m);
+          const vtDisplay2 = (_adjR.acr||_adjR.des||_adjR.deb) ? (Number(m.valor_total)||0)+_adjR.acr-_adjR.des-_adjR.deb : (Number(m.valor_total)||0);
 
           // Status distintos das TAGs (do cronograma)
           const statusSet = [...new Set(tagSubs.map(s=>s.status).filter(Boolean))];
@@ -9049,8 +9114,9 @@ function renderMedicao(){
             <td style="${xtd}color:#1d4ed8;">${(m.obra||'—').split(' ').slice(0,3).join(' ')}</td>
             <td style="${xtdr}">${fmtPeso(sumPesoPrev)}</td>
             <td style="${xtdr}color:#1d4ed8;font-weight:600;">${fmtPeso(sumPesoDet)}</td>
+            <td style="${xtdr}color:#b45309;font-weight:600;">${sumPesoMed>0?fmtPeso(sumPesoMed):'—'}</td>
             <td style="${xtdr}">R$ ${Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-            <td style="${xtdr}font-weight:700;color:#166534;">${fmtBRL(vt)}</td>
+            <td style="${xtdr}font-weight:700;color:${vtDisplay2<(Number(m.valor_total)||0)?'#d97706':'#166534'};">${fmtBRL(vtDisplay2)}</td>
             <td style="${xtdc}">
               ${m.bm?`<span style="background:#fef3c7;color:#92400e;border-radius:2px;padding:1px 5px;font-size:8px;font-weight:700;">${m.bm}</span>`:'—'}
               ${m.bm_status==='APROVADO'?`<span style="background:#dcfce7;color:#166534;border-radius:2px;padding:1px 4px;font-size:7px;font-weight:700;margin-left:2px;">✅</span>`:m.bm_status==='REPROVADO'?`<span style="background:#fee2e2;color:#991b1b;border-radius:2px;padding:1px 4px;font-size:7px;font-weight:700;margin-left:2px;">❌</span>`:''}
@@ -9086,6 +9152,7 @@ function renderMedicao(){
 function imprimirMedicao(id){
   const m = allMedicoes.find(x=>x.id===id);
   if(!m) return;
+  let vt = Number(m.valor_total)||0; // bruto; atualizado para sumVal após loop de TAGs
 
   // Resolve TAGs
   var tagEntradas = [];
@@ -9147,6 +9214,8 @@ function imprimirMedicao(id){
   const diffBD = sumPesoD - sumPesoB;
   const diffMB = sumPesoMed - sumPesoB;
   const fmtDiff = function(v){ return (v>=0?'+':'')+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg'; };
+  // Usar sumVal como bruto real (independente do valor salvo no banco)
+  if(sumVal > 0) vt = sumVal;
   const tagFooter = tagEntradas.length ? '<tfoot><tr style="background:#0c4a6e;font-weight:700;color:#fff;">'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:11px;" colspan="3">TOTAL ('+tagEntradas.length+' TAGs)</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#a7f3d0;">'+fmtKg2(sumPesoB)+'</td>'+
@@ -9159,7 +9228,30 @@ function imprimirMedicao(id){
   '</tr></tfoot>' : '';
 
   const dataFmt = m.data ? m.data.split('-').reverse().join('/') : '—';
-  const vt = Number(m.valor_total)||0;
+  // vt: bruto real das TAGs (calculado abaixo) ou valor_total do banco
+  // Lê adj do modal se estiver aberto para este registro (valores mais recentes)
+  let _vtAcrescimo=0, _vtDesconto=0, _vtDebito=0, _obsAjuste='', _obsTelhas='';
+  const _modalAberto = typeof editingMedicaoId!=='undefined' && editingMedicaoId===id &&
+    document.getElementById('modal-medicao')?.classList.contains('show');
+  if(_modalAberto){
+    _vtAcrescimo = parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+    _vtDesconto  = parseFloat(document.getElementById('med-desconto')?.value)||0;
+    _vtDebito    = parseFloat(document.getElementById('med-valor-debito')?.value)||0;
+    _obsAjuste   = document.getElementById('med-obs-ajuste')?.value||'';
+    _obsTelhas   = document.getElementById('med-obs-telhas')?.value||'';
+  } else {
+    const _adj = _parseAjuste(m);
+    _vtAcrescimo = _adj.acr; _vtDesconto = _adj.des; _vtDebito = _adj.deb;
+    _obsAjuste = _adj.obs_a; _obsTelhas = _adj.obs_t;
+  }
+  const vtAcrescimo = _vtAcrescimo;
+  const vtDesconto  = _vtDesconto;
+  const vtDebito    = _vtDebito;
+  const obsAjuste   = _obsAjuste;
+  const obsTelhas   = _obsTelhas;
+  const vtLiquido   = vt + vtAcrescimo - vtDesconto - vtDebito;
+  const temAjusteRel = vtAcrescimo > 0 || vtDesconto > 0 || vtDebito > 0;
+  const fmtR = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   // Anexos
   var anexosHtml = '';
@@ -9174,50 +9266,86 @@ function imprimirMedicao(id){
 
   const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'+
     '<title>Medição — '+m.num_ps+'</title>'+
-    '<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:24px;color:#1a1714;max-width:900px;margin:0 auto;}'+
+    '<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:12px 16px;color:#1a1714;max-width:950px;margin:0 auto;font-size:11px;}'+
     'table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#0c4a6e;color:#fff;padding:7px 8px;text-align:left;border:1px solid #0a3d5c;}'+
     'tr:nth-child(even){background:#f8fafc;}@media print{.no-print{display:none;}}</style></head><body>'+
 
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0c4a6e;">'+
-      '<div><h1 style="margin:0;font-size:18px;color:#0c4a6e;">📐 Medição de Terceiros</h1>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid #0c4a6e;">'+
+      '<div><h1 style="margin:0;font-size:15px;color:#0c4a6e;">📐 Medição de Terceiros</h1>'+
       '<p style="margin:3px 0 0;font-size:12px;color:#64748b;">Sidertec Estruturas Metálicas · Gestão de Projetos 2026</p></div>'+
       '<button class="no-print" onclick="window.print()" style="background:#0c4a6e;color:#fff;border:none;border-radius:5px;padding:7px 18px;font-size:12px;cursor:pointer;font-weight:700;">🖨 Imprimir</button>'+
     '</div>'+
 
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">'+
-      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Data</div><div style="font-size:15px;font-weight:700;color:#0c4a6e;">'+dataFmt+'</div></div>'+
-      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Engenharia / Equipe</div><div style="font-size:13px;font-weight:700;color:#1a1714;">'+( m.equipe||'—')+'</div></div>'+
-      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Obra</div><div style="font-size:13px;font-weight:700;color:#1d4ed8;">'+(m.obra||'—')+'</div></div>'+
-      '<div style="background:#f0fdf4;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº PS</div><div style="font-size:14px;font-weight:800;font-family:monospace;color:#0c4a6e;">'+(m.num_ps||'—')+'</div></div>'+
-      '<div style="background:#fef3c7;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº BM</div><div style="font-size:13px;font-weight:700;">'+(m.bm||'—')+'</div></div>'+
-      '<div style="background:#fef3c7;border-radius:6px;padding:10px 14px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº NF</div><div style="font-size:13px;font-weight:700;">'+(m.nf||'—')+'</div></div>'+
-      '<div style="background:'+(m.data_pagamento?'#f0fdf4':'#f8fafc')+';border-radius:6px;padding:10px 14px;">'+'<div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">💳 Data para Pagamento</div>'+'<div style="font-size:15px;font-weight:800;color:'+(m.data_pagamento?'#166534':'#94a3b8')+';">'+(m.data_pagamento?m.data_pagamento.split('-').reverse().join('/'):'—')+'</div></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:8px;">'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:6px 10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Data</div><div style="font-size:15px;font-weight:700;color:#0c4a6e;">'+dataFmt+'</div></div>'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:6px 10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Engenharia / Equipe</div><div style="font-size:13px;font-weight:700;color:#1a1714;">'+( m.equipe||'—')+'</div></div>'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:6px 10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Obra</div><div style="font-size:13px;font-weight:700;color:#1d4ed8;">'+(m.obra||'—')+'</div></div>'+
+      '<div style="background:#f0fdf4;border-radius:6px;padding:6px 10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº PS</div><div style="font-size:14px;font-weight:800;font-family:monospace;color:#0c4a6e;">'+(m.num_ps||'—')+'</div></div>'+
+      '<div style="background:#fef3c7;border-radius:6px;padding:6px 10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº BM</div><div style="font-size:13px;font-weight:700;">'+(m.bm||'—')+'</div></div>'+
+      '<div style="background:#fef3c7;border-radius:6px;padding:6px 10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Nº NF</div><div style="font-size:13px;font-weight:700;">'+(m.nf||'—')+'</div></div>'+
+      '<div style="background:'+(m.data_pagamento?'#f0fdf4':'#f8fafc')+';border-radius:6px;padding:6px 10px;">'+'<div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">💳 Data para Pagamento</div>'+'<div style="font-size:15px;font-weight:800;color:'+(m.data_pagamento?'#166534':'#94a3b8')+';">'+(m.data_pagamento?m.data_pagamento.split('-').reverse().join('/'):'—')+'</div></div>'+
     '</div>'+
     ((m.bm_conferido_por||m.bm_status)?
       '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;background:'+(m.bm_status==='REPROVADO'?'#fef2f2':m.bm_status==='APROVADO'?'#f0fdf4':'#f8fafc')+';border:1px solid '+(m.bm_status==='REPROVADO'?'#fecaca':m.bm_status==='APROVADO'?'#bbf7d0':'#e2e8f0')+';border-radius:8px;padding:10px 16px;">'+
         '<div><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">🔎 BM Conferido por</div><div style="font-size:13px;font-weight:700;color:#1a1714;">'+(m.bm_conferido_por||'—')+'</div></div>'+
         '<div style="margin-left:16px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Status do BM</div>'+
-          '<div style="font-size:13px;font-weight:800;color:'+(m.bm_status==='APROVADO'?'#166534':m.bm_status==='REPROVADO'?'#991b1b':'#475569')+';">'+(m.bm_status==='APROVADO'?'✅ Aprovado':m.bm_status==='REPROVADO'?'❌ Reprovado':'— Pendente')+'</div></div>'+
+          '<div style="font-size:12px;font-weight:800;color:'+(m.bm_status==='APROVADO'?'#166534':m.bm_status==='REPROVADO'?'#991b1b':'#475569')+';">'+(m.bm_status==='APROVADO'?'✅ Aprovado':m.bm_status==='REPROVADO'?'❌ Reprovado':'— Pendente')+'</div></div>'+
         (m.bm_motivo?'<div style="margin-left:16px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;font-weight:700;">Motivo</div><div style="font-size:12px;color:#991b1b;">'+m.bm_motivo+'</div></div>':'')+
       '</div>'
     : '')+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">'+
-      '<div style="background:#0c4a6e;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;">Valor/kg</div><div style="font-size:16px;font-weight:800;color:#fff;font-family:monospace;">R$ '+(Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))+'</div></div>'+
-      '<div style="background:#065f46;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;">Valor Total</div><div style="font-size:16px;font-weight:800;color:#fff;font-family:monospace;">'+(vt>0?'R$ '+vt.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—')+'</div></div>'+
-      '<div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:#64748b;text-transform:uppercase;">Peso Previsto (geral)</div><div style="font-size:14px;font-weight:700;font-family:monospace;">'+(m.peso_previsto?Number(m.peso_previsto).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
-      '<div style="background:#eff6ff;border-radius:6px;padding:10px 14px;text-align:center;"><div style="font-size:9px;color:#64748b;text-transform:uppercase;">Peso Detalhado (geral)</div><div style="font-size:14px;font-weight:700;color:#1d4ed8;font-family:monospace;">'+(m.peso_detalhado?Number(m.peso_detalhado).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
+      '<div style="background:#0c4a6e;border-radius:6px;padding:6px 10px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;">Valor/kg</div><div style="font-size:14px;font-weight:800;color:#fff;font-family:monospace;">R$ '+(Number(m.valor_kg||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))+'</div></div>'+
+      '<div style="background:'+(temAjusteRel?'#1e3a5f':'#065f46')+';border-radius:6px;padding:6px 10px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;">'+(temAjusteRel?'Valor Líquido':'Valor Total')+'</div><div style="font-size:14px;font-weight:800;color:#fff;font-family:monospace;">'+(temAjusteRel?(vtLiquido<0?'−':'')+fmtR(vtLiquido):(vt>0?fmtBRL(vt):'—'))+'</div>'+(temAjusteRel?'<div style="font-size:8px;color:rgba(255,255,255,.55);margin-top:2px;">Bruto: '+fmtBRL(vt)+'</div>':'')+'</div></div>'+
+      '<div style="background:#f1f5f9;border-radius:6px;padding:6px 10px;text-align:center;"><div style="font-size:9px;color:#64748b;text-transform:uppercase;">Peso Previsto (geral)</div><div style="font-size:12px;font-weight:700;font-family:monospace;">'+(m.peso_previsto?Number(m.peso_previsto).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
+      '<div style="background:#eff6ff;border-radius:6px;padding:6px 10px;text-align:center;"><div style="font-size:9px;color:#64748b;text-transform:uppercase;">Peso Detalhado (geral)</div><div style="font-size:14px;font-weight:700;color:#1d4ed8;font-family:monospace;">'+(m.peso_detalhado?Number(m.peso_detalhado).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
     '</div>'+
+
+    (temAjusteRel ?
+      '<div style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px 10px;margin-bottom:6px;background:#f8fafc;">' +
+        '<div style="font-size:10px;font-weight:800;color:#0c4a6e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">📊 Composição do Valor Final</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">' +
+          (vtAcrescimo > 0 ?
+            '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px 12px;text-align:center;">' +
+              '<div style="font-size:8px;color:#1d4ed8;text-transform:uppercase;font-weight:700;">🏗 Acréscimo Telhas/Coberta</div>' +
+              '<div style="font-size:14px;font-weight:800;color:#1d4ed8;font-family:monospace;">+' + fmtR(vtAcrescimo) + '</div>' +
+              (m.obs_telhas ? '<div style="font-size:8px;color:#475569;margin-top:3px;">' + m.obs_telhas + '</div>' : '') +
+            '</div>'
+          : '') +
+          (vtDesconto > 0 ?
+            '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;text-align:center;">' +
+              '<div style="font-size:8px;color:#dc2626;text-transform:uppercase;font-weight:700;">🏷 Desconto</div>' +
+              '<div style="font-size:14px;font-weight:800;color:#dc2626;font-family:monospace;">−' + fmtR(vtDesconto) + '</div>' +
+            '</div>'
+          : '') +
+          (vtDebito > 0 ?
+            '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;text-align:center;">' +
+              '<div style="font-size:8px;color:#b45309;text-transform:uppercase;font-weight:700;">➖ Valor a Debitado</div>' +
+              '<div style="font-size:14px;font-weight:800;color:#b45309;font-family:monospace;">−' + fmtR(vtDebito) + '</div>' +
+            '</div>'
+          : '') +
+          '<div style="background:' + (vtLiquido < 0 ? '#fef2f2' : '#f0fdf4') + ';border:2px solid ' + (vtLiquido < 0 ? '#fca5a5' : '#86efac') + ';border-radius:6px;padding:8px 12px;text-align:center;">' +
+            '<div style="font-size:8px;color:' + (vtLiquido < 0 ? '#dc2626' : '#166534') + ';text-transform:uppercase;font-weight:700;">✅ Valor Líquido</div>' +
+            '<div style="font-size:14px;font-weight:800;color:' + (vtLiquido < 0 ? '#dc2626' : '#166534') + ';font-family:monospace;">' + (vtLiquido < 0 ? '−' : '') + fmtR(vtLiquido) + '</div>' +
+          '</div>' +
+        '</div>' +
+        ((m.obs_ajuste || m.obs_telhas) ?
+          '<div style="margin-top:8px;font-size:10px;color:#475569;background:#fff;border-radius:4px;padding:6px 10px;border:1px solid #e2e8f0;">📝 ' +
+            [m.obs_ajuste, m.obs_telhas].filter(Boolean).join(' | ') +
+          '</div>'
+        : '') +
+      '</div>'
+    : '') +
     (tagEntradas.length?
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px;">'+
-        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso Básico (TAGs)</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:#166534;">'+(sumPesoB>0?sumPesoB.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
-        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso Detalhado (TAGs)</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:#1d4ed8;">'+(sumPesoD>0?sumPesoD.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
-        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso na Medição (TAGs)</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:#b45309;">'+(sumPesoMed>0?sumPesoMed.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
-        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">Δ Medição − Básico</div><div style="font-size:13px;font-weight:800;font-family:monospace;color:'+(diffMB>0?'#c2410c':diffMB<0?'#166534':'#94a3b8')+';">'+(sumPesoB>0&&sumPesoMed>0?(diffMB>=0?'+':'')+diffMB.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
-      '</div>':'<div style="margin-bottom:16px;"></div>'
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px;">'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso Básico (TAGs)</div><div style="font-size:12px;font-weight:800;font-family:monospace;color:#166534;">'+(sumPesoB>0?sumPesoB.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso Detalhado (TAGs)</div><div style="font-size:12px;font-weight:800;font-family:monospace;color:#1d4ed8;">'+(sumPesoD>0?sumPesoD.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">∑ Peso na Medição (TAGs)</div><div style="font-size:12px;font-weight:800;font-family:monospace;color:#b45309;">'+(sumPesoMed>0?sumPesoMed.toLocaleString('pt-BR',{minimumFractionDigits:2})+' kg':'—')+'</div></div>'+
+        '<div style="text-align:center;"><div style="font-size:8px;color:#0369a1;text-transform:uppercase;font-weight:700;">Δ Medição − Básico</div><div style="font-size:12px;font-weight:800;font-family:monospace;color:'+(diffMB>0?'#c2410c':diffMB<0?'#166534':'#94a3b8')+';">'+(sumPesoB>0&&sumPesoMed>0?(diffMB>=0?'+':'')+diffMB.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</div></div>'+
+      '</div>':'<div style="margin-bottom:8px;"></div>'
     )+
 
-    (m.obs_contrato?'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#78350f;"><strong>Observações:</strong> '+m.obs_contrato+'</div>':'')+
+    (m.obs_contrato?'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:#78350f;"><strong>Observações:</strong> '+m.obs_contrato+'</div>':'')+
 
     '<h3 style="font-size:13px;color:#0c4a6e;margin:0 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">TAGs incluídas nesta medição</h3>'+
     (tagRows?
@@ -9286,6 +9414,27 @@ function recalcularMedicao(){
     el.style.color = total > 0 ? 'var(--green)' : 'var(--ink3)';
   }
 
+  // Valor líquido = total bruto + acréscimo telhas − desconto − débito
+  const acrescimoTelhas = parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+  const desconto   = parseFloat(document.getElementById('med-desconto')?.value)||0;
+  const debito     = parseFloat(document.getElementById('med-valor-debito')?.value)||0;
+  const liquido    = total + acrescimoTelhas - desconto - debito;
+  const elLiq      = document.getElementById('med-valor-liquido');
+  if(elLiq){
+    const temAjuste = acrescimoTelhas > 0 || desconto > 0 || debito > 0;
+    if(total > 0 || temAjuste){
+      elLiq.textContent = fmtBRL(liquido);
+      elLiq.style.color = liquido < 0 ? '#dc2626' : (temAjuste ? '#d97706' : 'var(--green)');
+      elLiq.title = temAjuste
+        ? `Bruto: ${fmtBRL(total)}  |  Telhas: +${fmtBRL(acrescimoTelhas)}  |  Desconto: −${fmtBRL(desconto)}  |  Débito: −${fmtBRL(debito)}`
+        : '';
+    } else {
+      elLiq.textContent = '—';
+      elLiq.style.color = 'var(--ink3)';
+      elLiq.title = '';
+    }
+  }
+
   // Calcular somas de pesos das TAGs selecionadas
   const subs = allCronSubobras||[];
   let sumPesoB = 0, sumPesoD = 0, sumPesoMed = 0;
@@ -9328,6 +9477,22 @@ function recalcularMedicao(){
       </span>${pesoInfo}`;
     } else {
       el2.innerHTML = pesoInfo || '';
+    }
+  }
+
+  // _adjLive: atualiza exibição na lista e relatório em tempo real (sem precisar salvar)
+  if(typeof editingMedicaoId !== 'undefined' && editingMedicaoId && typeof allMedicoes !== 'undefined'){
+    const _li = allMedicoes.findIndex(x=>x.id===editingMedicaoId);
+    if(_li >= 0){
+      const _acr = parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+      const _des = parseFloat(document.getElementById('med-desconto')?.value)||0;
+      const _deb = parseFloat(document.getElementById('med-valor-debito')?.value)||0;
+      allMedicoes[_li]._adjLive = {acr:_acr, des:_des, deb:_deb,
+        obs_t:document.getElementById('med-obs-telhas')?.value||'',
+        obs_a:document.getElementById('med-obs-ajuste')?.value||''};
+      // Re-renderizar lista para mostrar valor atualizado em tempo real
+      clearTimeout(window._adjLiveTimer);
+      window._adjLiveTimer = setTimeout(function(){ if(typeof renderMedicao==='function') renderMedicao(); }, 200);
     }
   }
 }
@@ -9792,10 +9957,11 @@ function toggleApenasSelMedTags(){
 }
 
 function renderMedTags(){
-  const obra  = document.getElementById('med-obra')?.value;
-  const busca = (document.getElementById('med-tags-busca')?.value||'').toLowerCase().trim();
-  const lista = document.getElementById('med-tags-lista');
-  const count = document.getElementById('med-tags-count');
+  const obra   = document.getElementById('med-obra')?.value;
+  const equipe = document.getElementById('med-equipe')?.value;
+  const busca  = (document.getElementById('med-tags-busca')?.value||'').toLowerCase().trim();
+  const lista  = document.getElementById('med-tags-lista');
+  const count  = document.getElementById('med-tags-count');
   if(!lista) return;
 
   if(!obra){
@@ -9806,6 +9972,7 @@ function renderMedTags(){
 
   let subs = (allCronSubobras||[]).filter(s =>
     s.obra === obra &&
+    (!equipe || !s.equipe || s.equipe === equipe) &&
     (!busca || (s.subobra||'').toLowerCase().includes(busca) || (s.descricao||'').toLowerCase().includes(busca))
   );
 
@@ -10121,6 +10288,24 @@ function _buildMedHistoricoMap(){
   return m;
 }
 
+function _parseAjuste(m){
+  // PRIORIDADE 1: _adjLive — valores do modal em tempo real (antes de salvar)
+  if(m._adjLive && (m._adjLive.acr||m._adjLive.des||m._adjLive.deb||m._adjLive.obs_t||m._adjLive.obs_a)){
+    return m._adjLive;
+  }
+  // PRIORIDADE 2: colunas do DB (após migração SQL)
+  if(m.acrescimo_telhas!=null||m.desconto!=null||m.valor_debito!=null){
+    return {acr:Number(m.acrescimo_telhas)||0,des:Number(m.desconto)||0,deb:Number(m.valor_debito)||0,obs_t:m.obs_telhas||'',obs_a:m.obs_ajuste||''};
+  }
+  // PRIORIDADE 3: dado embutido em subobras_ids
+  try{
+    const arr=JSON.parse(m.subobras_ids||'[]');
+    const a=arr.find(x=>x._adj);
+    if(a) return {acr:a.acr||0,des:a.des||0,deb:a.deb||0,obs_t:a.obs_t||'',obs_a:a.obs_a||''};
+  }catch(e){}
+  return {acr:0,des:0,deb:0,obs_t:'',obs_a:''};
+}
+
 function getMedTagsIds(){
   // Salva como JSON: [{id, etapas:[], pct, peso_med?}, ...]
   const arr = [..._medTagsMap.entries()].map(([id,entry])=>({
@@ -10137,7 +10322,7 @@ function carregarMedTagsSalvas(raw){
   if(!raw) return;
   try{
     const arr = JSON.parse(raw);
-    if(Array.isArray(arr)) arr.forEach(item=>{
+    if(Array.isArray(arr)) arr.filter(x=>!x._adj).forEach(item=>{
       const id = String(item.id||item);
       // Novo formato: etapas é array
       if(item.etapas && Array.isArray(item.etapas)){
@@ -10247,6 +10432,7 @@ function abrirModalMedicao(id){
   // Reset todos os campos
   ['med-data','med-valor-kg','med-peso-previsto','med-peso-detalhado',
    'med-num-ps','med-bm','med-bm-conferido-por','med-bm-motivo','med-data-pagamento','med-nf','med-obs-contrato','med-tags-busca'
+  ,'med-acrescimo-telhas','med-obs-telhas','med-desconto','med-valor-debito','med-obs-ajuste'
   ].forEach(fid=>{ const el=document.getElementById(fid); if(el) el.value=''; });
   _medTagsMap = new Map();
   document.getElementById('med-status-contrato').value = 'ATIVO';
@@ -10277,6 +10463,12 @@ function abrirModalMedicao(id){
     sv('med-data-pagamento', m.data_pagamento);
     sv('med-nf', m.nf);
     sv('med-obs-contrato', m.obs_contrato);
+    const _adjM = _parseAjuste(m);
+    sv('med-acrescimo-telhas', _adjM.acr > 0 ? _adjM.acr : '');
+    sv('med-obs-telhas', _adjM.obs_t);
+    sv('med-desconto', _adjM.des > 0 ? _adjM.des : '');
+    sv('med-valor-debito', _adjM.deb > 0 ? _adjM.deb : '');
+    sv('med-obs-ajuste', _adjM.obs_a);
     sv('med-status-contrato', m.status_contrato||'ATIVO');
     carregarMedTagsSalvas(m.subobras_ids||'');
     _medCarregarAnexos(m.anexos_med||'');
@@ -10326,6 +10518,47 @@ ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS data_pagamento date;`;
     </div>`;
 }
 
+function _mostrarMigracaoAjuste(){
+  var sqlLines = [
+    '-- Execute no Supabase SQL Editor:',
+    'ALTER TABLE medicao_terceiros',
+    '  ADD COLUMN IF NOT EXISTS acrescimo_telhas NUMERIC,',
+    '  ADD COLUMN IF NOT EXISTS obs_telhas      TEXT,',
+    '  ADD COLUMN IF NOT EXISTS desconto        NUMERIC,',
+    '  ADD COLUMN IF NOT EXISTS valor_debito    NUMERIC,',
+    '  ADD COLUMN IF NOT EXISTS obs_ajuste      TEXT;'
+  ];
+  var sqlText = sqlLines.join('\n');
+  if(document.getElementById('sider-mig-ajuste')) return;
+  var div = document.createElement('div');
+  div.id = 'sider-mig-ajuste';
+  div.style.cssText = 'position:fixed;bottom:60px;right:16px;z-index:9999;background:#1e3a5f;color:#e0f2fe;border-radius:8px;padding:12px 16px;font-size:11px;max-width:440px;box-shadow:0 4px 20px rgba(0,0,0,.4);';
+  var pre = document.createElement('pre');
+  pre.id = 'sider-mig-ajuste-sql';
+  pre.style.cssText = 'background:#0f2744;border-radius:4px;padding:8px;font-size:9px;overflow-x:auto;margin:6px 0 8px;white-space:pre;';
+  pre.textContent = sqlText;
+  var hd = document.createElement('div');
+  hd.style.cssText = 'font-weight:800;font-size:12px;margin-bottom:4px;';
+  hd.textContent = '🔧 Migração necessária — Novos campos de Medição';
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:10px;opacity:.85;margin-bottom:4px;';
+  sub.textContent = 'Execute este SQL no Supabase para habilitar Acréscimo Telhas, Desconto e Débito:';
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px;';
+  var btnCopy = document.createElement('button');
+  btnCopy.style.cssText = 'background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-weight:700;';
+  btnCopy.textContent = '📋 Copiar SQL';
+  btnCopy.onclick = function(){ navigator.clipboard.writeText(sqlText).then(function(){ showToast('Copiado','SQL copiado para área de transferência.','ok'); }); };
+  var btnClose = document.createElement('button');
+  btnClose.style.cssText = 'background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;';
+  btnClose.textContent = '✕ Fechar';
+  btnClose.onclick = function(){ div.remove(); };
+  btnRow.appendChild(btnCopy);
+  btnRow.appendChild(btnClose);
+  div.appendChild(hd); div.appendChild(sub); div.appendChild(pre); div.appendChild(btnRow);
+  document.body.appendChild(div);
+}
+
 async function salvarMedicao(){
   const data     = document.getElementById('med-data')?.value;
   const equipe   = document.getElementById('med-equipe')?.value;
@@ -10344,6 +10577,7 @@ async function salvarMedicao(){
   const pesoBase       = peso_detalhado || peso_previsto || null;
   // valor_total = soma real das TAGs (considera peso_med e % de cada etapa)
   const _vtTags = _calcTotalTags();
+  // valor_total = BRUTO (soma das TAGs). O líquido é calculado na exibição via _parseAjuste.
   const valor_total = _vtTags > 0 ? _vtTags : (pesoBase ? valor_kg * pesoBase : null);
 
   const gv = id => document.getElementById(id)?.value||null;
@@ -10357,8 +10591,27 @@ async function salvarMedicao(){
     data_pagamento: gv('med-data-pagamento') || null,
     nf: gv('med-nf'),
     obs_contrato:    gv('med-obs-contrato'),
+    // Campos de ajuste opcionais (se colunas existirem no Supabase após migração SQL)
+    ...(_colAjusteExiste ? {
+      acrescimo_telhas: parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||null,
+      obs_telhas:      gv('med-obs-telhas'),
+      desconto:        parseFloat(document.getElementById('med-desconto')?.value)||null,
+      valor_debito:    parseFloat(document.getElementById('med-valor-debito')?.value)||null,
+      obs_ajuste:      gv('med-obs-ajuste'),
+    } : {}),
     status_contrato: gv('med-status-contrato')||'ATIVO',
-    subobras_ids:    getMedTagsIds() || null,
+    subobras_ids: (()=>{
+      let _sRaw = getMedTagsIds();
+      const _aAcr=parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+      const _aDes=parseFloat(document.getElementById('med-desconto')?.value)||0;
+      const _aDeb=parseFloat(document.getElementById('med-valor-debito')?.value)||0;
+      const _aObsT=gv('med-obs-telhas')||'';
+      const _aObsA=gv('med-obs-ajuste')||'';
+      if(_aAcr||_aDes||_aDeb||_aObsT||_aObsA){
+        try{ const _arr=JSON.parse(_sRaw||'[]'); _arr.push({_adj:true,acr:_aAcr,des:_aDes,deb:_aDeb,obs_t:_aObsT,obs_a:_aObsA}); _sRaw=JSON.stringify(_arr); }catch(e){}
+      }
+      return _sRaw||null;
+    })(),
     anexos_med:      _medAnexosToJson() || null,
     atualizado_em:   new Date().toISOString()
   };
@@ -13631,75 +13884,6 @@ function _medCarregarAnexos(raw){
   _medRenderAnexos();
 }
 
-function abrirModalMedicao(id){
-  editingMedicaoId = id;
-  _anexosMed = {1:[],2:[],3:[]};
-  [1,2,3].forEach(n=>renderAnexosMed(n));
-  _medAnexos = [];
-  _medRenderAnexos();
-  _medAnexos = [];
-  _medRenderAnexos();
-  // Reset filtro "só selecionadas"
-  _medApenasSelected = false;
-  const btnSel = document.getElementById('btn-apenas-selecionadas');
-  if(btnSel){ btnSel.style.background='rgba(255,200,0,.18)'; btnSel.style.color='#fde68a'; }
-
-  // Popular selects de equipe e obra com dados reais
-  const eqSel = document.getElementById('med-equipe');
-  const obSel = document.getElementById('med-obra');
-  const equipes = [...new Set([...allLancamentos.map(l=>l.equipe),...allCronSubobras.map(s=>s.equipe).filter(Boolean)])].filter(Boolean).sort();
-  const obras   = [...new Set([...allLancamentos.map(l=>l.obra),...allCronSubobras.map(s=>s.obra).filter(Boolean)])].filter(Boolean).sort();
-  eqSel.innerHTML = '<option value="">— Selecione —</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
-  obSel.innerHTML = '<option value="">— Selecione —</option>'+obras.map(o=>`<option>${o}</option>`).join('');
-
-  // Reset todos os campos
-  ['med-data','med-valor-kg','med-peso-previsto','med-peso-detalhado',
-   'med-num-ps','med-bm','med-bm-conferido-por','med-bm-motivo','med-data-pagamento','med-nf','med-obs-contrato','med-tags-busca'
-  ].forEach(fid=>{ const el=document.getElementById(fid); if(el) el.value=''; });
-  _medTagsMap = new Map();
-  document.getElementById('med-status-contrato').value = 'ATIVO';
-  const bmSelReset = document.getElementById('med-bm-status');
-  if(bmSelReset) bmSelReset.value = '';
-  document.getElementById('med-valor-total-preview').textContent = '—';
-  const totEl = document.getElementById('med-modal-totais');
-  if(totEl) totEl.textContent = '';
-
-  if(id){
-    const m = allMedicoes.find(x=>x.id===id);
-    if(!m) return;
-    document.getElementById('med-modal-title').textContent = 'Editar Medição';
-    document.getElementById('med-modal-sub').textContent = (m.equipe||'') + ' · ' + (m.obra||'');
-    const sv=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!=null)el.value=val;};
-    sv('med-data', m.data);
-    sv('med-equipe', m.equipe);
-    sv('med-obra', m.obra);
-    sv('med-peso-previsto', m.peso_previsto);
-    sv('med-peso-detalhado', m.peso_detalhado);
-    sv('med-valor-kg', m.valor_kg);
-    sv('med-num-ps', m.num_ps);
-    sv('med-bm', m.bm);
-    sv('med-bm-conferido-por', m.bm_conferido_por);
-    const bmSel = document.getElementById('med-bm-status');
-    if(bmSel) bmSel.value = m.bm_status || '';
-    sv('med-bm-motivo', m.bm_motivo);
-    sv('med-data-pagamento', m.data_pagamento);
-    sv('med-nf', m.nf);
-    sv('med-obs-contrato', m.obs_contrato);
-    sv('med-status-contrato', m.status_contrato||'ATIVO');
-    carregarMedTagsSalvas(m.subobras_ids||'');
-    _medCarregarAnexos(m.anexos_med||'');
-    setTimeout(()=>{ renderMedTags(); recalcularMedicao(); }, 50);
-  } else {
-    document.getElementById('med-modal-title').textContent = 'Nova Medição';
-    document.getElementById('med-modal-sub').textContent = '';
-    // Preenche data de hoje por padrão
-    document.getElementById('med-data').value = new Date().toISOString().slice(0,10);
-    setTimeout(renderMedTags, 50);
-  }
-
-  document.getElementById('modal-medicao').classList.add('show');
-}
-
 function fecharModalMedicao(e){
   if(!e||e.target.id==='modal-medicao')
     document.getElementById('modal-medicao').classList.remove('show');
@@ -13732,103 +13916,6 @@ ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS data_pagamento date;`;
         </div>
       </div>
     </div>`;
-}
-
-async function salvarMedicao(){
-  const data     = document.getElementById('med-data')?.value;
-  const equipe   = document.getElementById('med-equipe')?.value;
-  const obra     = document.getElementById('med-obra')?.value;
-  const valor_kg = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
-
-  if(!data  ){ showToast('Campo obrigatório','Informe a data da medição.','error'); return; }
-  if(!equipe){ showToast('Campo obrigatório','Selecione a Engenharia/Equipe.','error'); return; }
-  if(!obra  ){ showToast('Campo obrigatório','Selecione a Obra.','error'); return; }
-  if(!valor_kg){ showToast('Campo obrigatório','Informe o valor por kg.','error'); return; }
-  const num_ps = (document.getElementById('med-num-ps')?.value||'').trim() || null;
-  if(!num_ps){ showToast('Campo obrigatório','Informe o Nº PS (Pedido de Serviço).','error'); return; }
-
-  const peso_previsto  = parseFloat(document.getElementById('med-peso-previsto')?.value)||null;
-  const peso_detalhado = parseFloat(document.getElementById('med-peso-detalhado')?.value)||null;
-  const pesoBase       = peso_detalhado || peso_previsto || null;
-  // valor_total = soma real das TAGs (considera peso_med e % de cada etapa)
-  const _vtTags = _calcTotalTags();
-  const valor_total = _vtTags > 0 ? _vtTags : (pesoBase ? valor_kg * pesoBase : null);
-
-  const gv = id => document.getElementById(id)?.value||null;
-  const payload = {
-    data, equipe, obra, valor_kg, num_ps,
-    peso_previsto, peso_detalhado, valor_total,
-    bm: gv('med-bm'),
-    bm_conferido_por: gv('med-bm-conferido-por'),
-    bm_status: gv('med-bm-status') || null,
-    bm_motivo: gv('med-bm-motivo'),
-    data_pagamento: gv('med-data-pagamento') || null,
-    nf: gv('med-nf'),
-    obs_contrato:    gv('med-obs-contrato'),
-    status_contrato: gv('med-status-contrato')||'ATIVO',
-    subobras_ids:    getMedTagsIds() || null,
-    anexos_med:      _medAnexosToJson() || null,
-    atualizado_em:   new Date().toISOString()
-  };
-
-  const btn = document.getElementById('btn-salvar-medicao');
-  btn.disabled=true; btn.textContent='Salvando…';
-  try{
-    if(editingMedicaoId){
-      const{data,error}=await sbClient.from('medicao_terceiros').eq('id',editingMedicaoId).update(payload).select();
-      if(error) throw new Error(error.message||JSON.stringify(error));
-      const idx=allMedicoes.findIndex(m=>m.id===editingMedicaoId);
-      if(idx>=0&&data?.[0]) allMedicoes[idx]=data[0];
-      showToast('✓ Atualizado','Medição salva.','success');
-    } else {
-      const{data,error}=await sbClient.from('medicao_terceiros').insert([Object.assign({id:_genId(),criado_em:new Date().toISOString()},payload)]).select();
-      if(error) throw new Error(error.message||JSON.stringify(error));
-      if(data?.[0]) allMedicoes.unshift(data[0]);
-      showToast('✓ Medição criada','Registro adicionado.','success');
-    }
-    fecharModalMedicao();
-    renderMedicao();
-  }catch(e){
-    showToast('Erro ao salvar',e.message,'error');
-    // Se coluna não existe no schema cache, mostrar botão de migração
-    if(e.message.includes('column') || e.message.includes('schema cache')){
-      _mostrarMigracaoBM();
-    }
-    // Se tabela não existe, mostra instrução SQL
-    if(e.message.includes('relation') || e.message.includes('does not exist')){
-      console.warn(`-- Cole este SQL no Supabase SQL Editor:
-CREATE TABLE IF NOT EXISTS medicao_terceiros (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  data date,
-  equipe text,
-  obra text,
-  peso_previsto numeric,
-  peso_detalhado numeric,
-  valor_kg numeric,
-  valor_total numeric,
-  bm text,
-  bm_conferido_por text,
-  bm_status text,
-  bm_motivo text,
-  data_pagamento date,
-  nf text,
-  obs_contrato text,
-  status_contrato text DEFAULT 'ATIVO',
-  anexos_med text,
-  criado_em timestamptz DEFAULT now(),
-  atualizado_em timestamptz DEFAULT now()
-);
-
--- Se a tabela já existe, adicione as colunas:
-ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS anexos_med text;
-ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS bm_conferido_por text;
-ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS bm_status text;
-ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS bm_motivo text;
-ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS data_pagamento date;`);
-    }
-  }finally{
-    btn.disabled=false; btn.textContent='💾 Salvar Medição';
-  }
 }
 
 async function excluirMedicao(id){
