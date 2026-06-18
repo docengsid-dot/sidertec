@@ -1004,7 +1004,6 @@ canvas{overflow:visible!important;}
     <div class="sync-status"><div class="sync-dot syncing" id="sync-dot"></div><span id="sync-label">Conectando…</span></div>
     <button class="hbtn" onclick="recarregarTudo()">↺ Atualizar</button>
     <button class="hbtn" onclick="abrirModalImprimir()" style="background:var(--blue);color:#fff;">🖨 Relatório</button>
-    <button class="sider-lock-btn locked" onclick="_siderToggleLock()" title="Clique para desbloquear edição" style="font-size:11px;cursor:pointer;">🔒 Editar</button>
   </div>
 </header>
 
@@ -1018,6 +1017,7 @@ canvas{overflow:visible!important;}
   <div class="hub-bar-hd eng">
     <span style="font-size:18px;">🏗️</span>
     <h2>Controle de Engenharia</h2>
+    <button class="sider-lock-btn locked" onclick="_siderToggleLock()" title="Clique para desbloquear edição" style="font-size:11px;cursor:pointer;">🔒 Editar</button>
     <button class="hub-bar-close" onclick="fecharHubEng()">✕ Fechar</button>
   </div>
   <div class="hub-bar-tabs">
@@ -1288,13 +1288,7 @@ canvas{overflow:visible!important;}
   ADD COLUMN IF NOT EXISTS conc_expedicao        text,
   ADD COLUMN IF NOT EXISTS peso_inspecao_fab     numeric,
   ADD COLUMN IF NOT EXISTS peso_pintura          numeric,
-  ADD COLUMN IF NOT EXISTS peso_expedicao        numeric,
-  ADD COLUMN IF NOT EXISTS tem_revisao           text,
-  ADD COLUMN IF NOT EXISTS num_revisao           text,
-  ADD COLUMN IF NOT EXISTS obs_revisao           text,
-  ADD COLUMN IF NOT EXISTS rev_aprovado_eng      text,
-  ADD COLUMN IF NOT EXISTS rev_aprovado_cli      text,
-  ADD COLUMN IF NOT EXISTS rev_faturado          text;
+  ADD COLUMN IF NOT EXISTS peso_expedicao        numeric;
 
 CREATE TABLE IF NOT EXISTS medicao_terceiros (
   id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -1902,14 +1896,11 @@ ALTER TABLE medicao_terceiros
       <!-- Identificação -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
         <div class="field-group"><label class="field-label">Obra Principal *</label>
-          <select class="field-input" id="cm-obra" onchange="_cronCdocUpdateSubList(this.value)"><option value="">— Selecione —</option></select></div>
+          <select class="field-input" id="cm-obra"><option value="">— Selecione —</option></select></div>
         <div class="field-group"><label class="field-label">TAG da Sub-obra *</label>
-          <input type="text" class="field-input" id="cm-subobra" list="cdoc-sub-list" placeholder="Ex: 4600-SS053" style="font-family:'Courier New',monospace,monospace;" oninput="_cronCdocSubInput()" onchange="_cronCdocSubInput()">
-          <datalist id="cdoc-sub-list"></datalist>
-          <span id="cm-cdoc-hint" style="font-size:9px;color:#7c3aed;margin-top:2px;display:block;"></span></div>
-        <div class="field-group"><label class="field-label">Nº Projeto Básico <span style="font-size:9px;font-weight:400;color:#7c3aed;">(Nº Cliente CDOC)</span></label>
-          <input type="text" class="field-input" id="cm-num-proj-basico" list="cdoc-num-list" placeholder="Selecione TAG ou digite" style="font-family:'Courier New',monospace,monospace;">
-          <datalist id="cdoc-num-list"></datalist></div>
+          <input type="text" class="field-input" id="cm-subobra" placeholder="Ex: 4600-SS053" style="font-family:'Courier New',monospace,monospace;"></div>
+        <div class="field-group"><label class="field-label">Nº Projeto Básico</label>
+          <input type="text" class="field-input" id="cm-num-proj-basico" placeholder="Ex: PB-2026-001" style="font-family:'Courier New',monospace,monospace;"></div>
         <div class="field-group"><label class="field-label">Descrição</label>
           <input type="text" class="field-input" id="cm-descricao" placeholder="Ex: Pipe Rack Trecho 01"></div>
         <div class="field-group"><label class="field-label">Área</label>
@@ -3639,39 +3630,9 @@ function probeColunasSupabase(){
     'prev_inspecao_fab','real_inspecao_fab','obs_inspecao_fab',
     'prev_pintura','real_pintura','obs_pintura',
     'prev_expedicao','real_expedicao','obs_expedicao',
-    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na',
-    'prev_desenhos_fab','real_desenhos_fab','obs_desenhos_fab','conc_desenhos_fab',
-    'prev_diagrama_mont','real_diagrama_mont','obs_diagrama_mont','conc_diagrama_mont',
-    'tem_revisao','num_revisao','obs_revisao','rev_aprovado_eng','rev_aprovado_cli','rev_faturado'
+    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na'
   ]);
-  // Probe real: verifica se colunas novas existem consultando uma linha do Supabase
-  return sbClient.from('cronograma_subobras').limit(1).select('prev_desenhos_fab,tem_revisao')
-    .then(function(r){
-      if(r.error && r.error.message){
-        var msg = r.error.message;
-        if(msg.includes('prev_desenhos_fab')){
-          // Colunas de desenhos/diagrama não existem
-          window._colunasDisponiveis.delete('prev_desenhos_fab');
-          window._colunasDisponiveis.delete('real_desenhos_fab');
-          window._colunasDisponiveis.delete('obs_desenhos_fab');
-          window._colunasDisponiveis.delete('conc_desenhos_fab');
-          window._colunasDisponiveis.delete('prev_diagrama_mont');
-          window._colunasDisponiveis.delete('real_diagrama_mont');
-          window._colunasDisponiveis.delete('obs_diagrama_mont');
-          window._colunasDisponiveis.delete('conc_diagrama_mont');
-        }
-        if(msg.includes('tem_revisao')){
-          // Colunas de revisão não existem — remover para não quebrar UPDATE
-          window._colunasDisponiveis.delete('tem_revisao');
-          window._colunasDisponiveis.delete('num_revisao');
-          window._colunasDisponiveis.delete('obs_revisao');
-          window._colunasDisponiveis.delete('rev_aprovado_eng');
-          window._colunasDisponiveis.delete('rev_aprovado_cli');
-          window._colunasDisponiveis.delete('rev_faturado');
-        }
-      }
-    })
-    .catch(function(){ });
+  return Promise.resolve();
 }
 
 // ESTRUTURA DE ETAPAS — agrupadas com sub-etapas internas
@@ -5993,58 +5954,6 @@ async function abrirAndamentoNaEtapaById(subobraId, etapaKey){
 }
 
 // ── MODAL ABRIR/FECHAR ────────────────────────────────────────────────
-// ---- CDOC ↔ Cronograma modal helpers ----
-function _cronCdocGetBasicos(obra){
-  var db = (typeof _cdocSBCache !== 'undefined' && _cdocSBCache) ? _cdocSBCache : (typeof _cdocLoad === 'function' ? _cdocLoad() : null);
-  if(!db||!db.basicos) return [];
-  if(!obra) return db.basicos;
-  return db.basicos.filter(function(b){ return b.obraId && b.obraId.indexOf(obra) !== -1; });
-}
-
-function _cronCdocUpdateSubList(obra){
-  var basicos = _cronCdocGetBasicos(obra);
-  var tags = [];
-  basicos.forEach(function(b){ if(b.sub && tags.indexOf(b.sub)===-1) tags.push(b.sub); });
-  tags.sort();
-  var dl = document.getElementById('cdoc-sub-list');
-  if(dl) dl.innerHTML = tags.map(function(t){ return '<option value="'+t+'">'; }).join('');
-}
-
-function _cronCdocUpdateNumList(tag){
-  var db = (typeof _cdocSBCache !== 'undefined' && _cdocSBCache) ? _cdocSBCache : (typeof _cdocLoad === 'function' ? _cdocLoad() : null);
-  var basicos = (db&&db.basicos) ? db.basicos : [];
-  var matches = tag ? basicos.filter(function(b){ return b.sub===tag; }) : [];
-  var dl = document.getElementById('cdoc-num-list');
-  if(dl) dl.innerHTML = matches.map(function(b){
-    var label = b.cli + (b.titulo ? ' — '+b.titulo : '');
-    return '<option value="'+b.cli+'" label="'+label.replace(/"/g,'&quot;')+'">';
-  }).join('');
-  // hint
-  var hint = document.getElementById('cm-cdoc-hint');
-  if(hint){
-    if(matches.length > 0){
-      hint.textContent = matches.length + ' doc(s) no CDOC para esta TAG';
-      hint.style.color = '#7c3aed';
-    } else if(tag){
-      hint.textContent = 'TAG não encontrada no CDOC Projeto Básico';
-      hint.style.color = '#b45309';
-    } else {
-      hint.textContent = '';
-    }
-  }
-  // auto-fill cm-num-proj-basico only if empty and exactly 1 match
-  var numInput = document.getElementById('cm-num-proj-basico');
-  if(numInput && !numInput.value && matches.length === 1){
-    numInput.value = matches[0].cli || '';
-  }
-}
-
-function _cronCdocSubInput(){
-  var tag = (document.getElementById('cm-subobra')||{}).value || '';
-  _cronCdocUpdateNumList(tag.trim());
-}
-// ---- fim CDOC helpers ----
-
 async function abrirCronModal(id){
   editingCronId = id;
   // Carregar histórico de datas para esta subobra
@@ -6071,8 +5980,6 @@ async function abrirCronModal(id){
   const equipes= [...new Set([...allLancamentos.map(l=>l.equipe),...allCronSubobras.map(s=>s.equipe).filter(Boolean),...extraEqs])].filter(Boolean).sort();
   cmObra.innerHTML = '<option value="">— Selecione —</option>'+obras.map(o=>`<option>${o}</option>`).join('');
   cmEq.innerHTML   = '<option value="">— Selecione —</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
-  // Pré-carrega lista de TAGs do CDOC (sem filtro de obra ainda)
-  _cronCdocUpdateSubList('');
 
   // Reset fields
   const ids = ['cm-obra','cm-subobra','cm-descricao','cm-area','cm-escopo','cm-equipe','cm-prior-det','cm-peso','cm-num-proj-basico','cm-peso-detalhado','cm-peso-pcp','cm-data-limite-fab',
@@ -6127,9 +6034,6 @@ async function abrirCronModal(id){
     })();
     sv('cm-status',s.status);
     sv('cm-prior',s.prioridade); sv('cm-prior-det',s.prior_det!=null?s.prior_det:''); sv('cm-num-proj-basico',s.num_proj_basico);
-    // Atualiza listas CDOC com TAG da sub-obra carregada
-    _cronCdocUpdateSubList(s.obra||'');
-    _cronCdocUpdateNumList(s.subobra||'');
     sv('cm-peso-detalhado',s.peso_detalhado);
     sv('cm-peso-pcp',s.peso_pcp);
     sv('cm-data-limite-fab',s.data_limite_fab);
@@ -6383,17 +6287,13 @@ async function salvarCronSubobra(){
     payload.real_inspecao_interna = _v('inspecao_interna','real');
     payload.obs_inspecao_interna  = _v('inspecao_interna','obs');
   }
-  // Sub-etapas de Documentos — só envia se colunas já existem no Supabase
-  if(_opt.has('prev_desenhos_fab')){
-    payload.prev_desenhos_fab  = _v('resumo_mp_doc','prev')   || null;
-    payload.real_desenhos_fab  = _v('resumo_mp_doc','real')   || null;
-    payload.obs_desenhos_fab   = _v('resumo_mp_doc','obs')    || null;
-  }
-  if(_opt.has('prev_diagrama_mont')){
-    payload.prev_diagrama_mont = _v('diagrama_mont','prev')   || null;
-    payload.real_diagrama_mont = _v('diagrama_mont','real')   || null;
-    payload.obs_diagrama_mont  = _v('diagrama_mont','obs')    || null;
-  }
+  // Sub-etapas de Documentos — colunas próprias (não conflitam com fluxo principal)
+  payload.prev_desenhos_fab  = _v('resumo_mp_doc','prev')   || null;
+  payload.real_desenhos_fab  = _v('resumo_mp_doc','real')   || null;
+  payload.obs_desenhos_fab   = _v('resumo_mp_doc','obs')    || null;
+  payload.prev_diagrama_mont = _v('diagrama_mont','prev')   || null;
+  payload.real_diagrama_mont = _v('diagrama_mont','real')   || null;
+  payload.obs_diagrama_mont  = _v('diagrama_mont','obs')    || null;
 
   // Etapa 6 Fabricação — pesos e datas de expedição
   if(_opt.has('peso_executado')){
@@ -6417,26 +6317,6 @@ async function salvarCronSubobra(){
     payload.obs_montagem   = _v('montagem','obs') || null;
   }
 
-  // ── Revisão de Projeto (apenas se colunas existem no Supabase) ────────
-  if(_opt.has('tem_revisao')){
-    (function(){
-      var temRev = (document.getElementById('cm-revisao-sim-nao')||{}).value === 'SIM';
-      payload.tem_revisao = temRev ? 'S' : null;
-      if(temRev){
-        payload.num_revisao     = getCronV('cm-num-revisao') || null;
-        payload.obs_revisao     = getCronV('cm-obs-revisao') || null;
-        var _revEng = document.querySelector('input[name="rev-eng"]:checked');
-        payload.rev_aprovado_eng = _revEng ? _revEng.value : null;
-        var _revCli = document.querySelector('input[name="rev-cli"]:checked');
-        payload.rev_aprovado_cli = _revCli ? _revCli.value : null;
-        var _revFat = document.querySelector('input[name="rev-fat"]:checked');
-        payload.rev_faturado     = _revFat ? _revFat.value : null;
-      } else {
-        payload.num_revisao = null; payload.obs_revisao = null;
-        payload.rev_aprovado_eng = null; payload.rev_aprovado_cli = null; payload.rev_faturado = null;
-      }
-    })();
-  }
 
   // Salva no Supabase (fonte principal) + espelho em localStorage como cache
   async function _salvar(p, modo, id){
@@ -8453,7 +8333,6 @@ function gerarRelatorioCron(){
     const pct = s.peso_previsto>0?Math.min(100,Math.round(pesoLib/s.peso_previsto*100)):0;
     const mpBadge = s.status_resumo_mp ? `<span style="background:${s.status_resumo_mp==='CONCLUÍDO'?'#dcfce7':'#fee2e2'};color:${s.status_resumo_mp==='CONCLUÍDO'?'#166534':'#991b1b'};border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">${s.status_resumo_mp}</span>` : '—';
     const revBadge = s.tem_revisao ? `<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">SIM${s.num_revisao?' · '+s.num_revisao:''}</span>` : '—';
-    const _fabPctRel = s => { const pcp=Number(s.peso_pcp||s.peso_previsto)||0; if(!pcp) return null; const ks=['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao']; const tot=ks.reduce((a,k)=>a+(Number(s[k])||0),0); return Math.min(100,Math.round((tot/ks.length)/pcp*100)); };
     const fmtDt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
     return `<tr style="border-bottom:1px solid #e2e8f0;">
       <td style="padding:4px 6px;font-size:8px;font-weight:700;color:#7f1d1d;text-align:center;">${_ri+1}</td>
@@ -8462,10 +8341,7 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
       <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
       <td style="padding:4px 6px;font-size:7.5px;color:#333;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
-      <td style="padding:4px 6px;font-size:7.5px;color:#555;max-width:120px;word-wrap:break-word;">${s.area||'—'}</td>
-      <td style="padding:4px 6px;font-size:8px;font-family:'Courier New';font-weight:800;color:#7c3aed;">${s.num_proj_basico||'—'}</td>
-      <td style="padding:4px 6px;font-size:7px;color:#0369a1;max-width:140px;word-wrap:break-word;">${s.escopo_fornecimento||'—'}</td>
-      <td style="padding:4px 6px;font-size:8px;text-align:center;color:#7c3aed;font-weight:700;">${s.prior_det!=null&&s.prior_det!==''?s.prior_det:'—'}</td>
+      <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.area||'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_basico)}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_envio_modelo)}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_pcte_fab)}</td>
@@ -8475,13 +8351,8 @@ function gerarRelatorioCron(){
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#1d4ed8;">${s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#c2410c;">${s.peso_pcp?Number(s.peso_pcp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#16a34a;">${s.peso_executado?Number(s.peso_executado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
-      ${(()=>{const _pcp=Number(s.peso_pcp||s.peso_previsto)||0;const _stg=(w,cor)=>{if(!_pcp)return '<td style="padding:4px 4px;text-align:center;font-size:7.5px;color:#94a3b8;">—</td>';const p=Math.min(100,Math.round((Number(s[w])||0)/_pcp*100));const c=p>=100?'#166534':p>=50?'#d97706':'#94a3b8';return `<td style="padding:4px 4px;text-align:center;font-size:7.5px;font-weight:700;color:${c};">${p}%</td>`;};return _stg('peso_executado')+''+_stg('peso_inspecao_fab')+''+_stg('peso_pintura')+''+_stg('peso_expedicao');})()}
       <td style="padding:4px 6px;text-align:center;">${revBadge}</td>
       <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';font-weight:700;color:${calcPct(s)>=100?'#166534':calcPct(s)>0?'#c2410c':'#94a3b8'}">${calcPct(s)}%</td>
-      <td style="padding:4px 6px;text-align:center;">${(()=>{const fp=_fabPctRel(s);return fp===null?'<span style="color:#94a3b8;font-size:7px;">—</span>':`<span style="font-size:8px;font-weight:700;color:${fp>=100?'#166534':fp>0?'#d97706':'#94a3b8'};">${fp}%</span>`;})()}</td>
-      <td style="padding:4px 6px;text-align:center;font-size:7px;">${s.real_expedicao?`<span style="color:#166534;font-weight:700;">✓</span> <span style="font-size:6.5px;">${fmtDt(s.real_expedicao)}</span>`:(s.prev_expedicao?`<span style="color:#94a3b8;font-size:6.5px;">Prev: ${fmtDt(s.prev_expedicao)}</span>`:'<span style="color:#94a3b8;">—</span>')}</td>
-      <td style="padding:4px 6px;text-align:center;font-size:7px;">${s.montagem_na?'<span style="color:#94a3b8;font-style:italic;font-size:7px;">N/A</span>':s.real_montagem?`<span style="color:#166534;font-weight:700;">✓</span> <span style="font-size:6.5px;">${fmtDt(s.real_montagem)}</span>`:(s.prev_montagem?`<span style="color:#94a3b8;font-size:6.5px;">Prev: ${fmtDt(s.prev_montagem)}</span>`:'<span style="color:#94a3b8;">—</span>')}</td>
     </tr>`;
   }).join('');
 
@@ -8537,9 +8408,6 @@ function gerarRelatorioCron(){
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Status</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;max-width:200px;">Descrição</th>
           <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Área</th>
-          <th style="color:#c4b5fd;padding:5px 6px;text-align:left;white-space:nowrap;">Nº Proj.Básico</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Escopo Forn.</th>
-          <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Prior.Det.</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Rec. Básico</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Modelo</th>
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Pcte.Fab.</th>
@@ -8549,26 +8417,18 @@ function gerarRelatorioCron(){
           <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Bás. (kg)</th>
           <th style="color:#93c5fd;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Det. (kg)</th>
           <th style="color:#fdba74;padding:5px 6px;text-align:right;white-space:nowrap;">Peso PCP (kg)</th>
-          <th style="color:#86efac;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Exec. (kg)</th>
-          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Prep.%</th>
-          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Insp.%</th>
-          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Pint.%</th>
-          <th style="color:#fde68a;padding:5px 4px;text-align:center;white-space:nowrap;font-size:7.5px;">Exped.%</th>
           <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Revisão</th>
           <th style="color:#4ade80;padding:5px 6px;text-align:right;white-space:nowrap;">Avanço</th>
-          <th style="color:#fb923c;padding:5px 6px;text-align:center;white-space:nowrap;">Fab.%</th>
-          <th style="color:#67e8f9;padding:5px 6px;text-align:center;white-space:nowrap;">Expedição</th>
-          <th style="color:#a78bfa;padding:5px 6px;text-align:center;white-space:nowrap;">Montagem</th>
         </tr>
       </thead>
       <tbody>
         ${rows}
         <tr style="background:#1A1714;">
-          <td colspan="15" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
+          <td colspan="7" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
           <td style="color:#f5c89a;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${fmtRelPeso(totBasico)}</td>
           <td style="color:#93c5fd;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totDetalhado>0?fmtRelPeso(totDetalhado):'—'}</td>
           <td style="color:#fdba74;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totPcp>0?fmtRelPeso(totPcp):'—'}</td>
-          <td colspan="5" style="color:#fff;padding:5px 6px;text-align:center;font-size:8px;">${totBasico>0?'Δ Det: '+(((totDetalhado-totBasico)/totBasico)*100).toFixed(1)+'%':''}</td>
+          <td colspan="2" style="color:#fff;padding:5px 6px;text-align:center;font-size:8px;">${totBasico>0?'Δ Det: '+(((totDetalhado-totBasico)/totBasico)*100).toFixed(1)+'%':''}</td>
         </tr>
       </tbody>
     </table>
@@ -9261,6 +9121,16 @@ function imprimirMedicao(id){
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-size:10px;">'+etapas+'</td>'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-weight:700;color:#475569;">'+pct+'%</td>'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;font-weight:700;color:#166534;">'+(val>0?'R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'</td>'+
+    (function(){
+      var _st=entry.status_peso||'';
+      var _ob=entry.obs_correcao||'';
+      var _dp=!s.real_diagramas&&!s.real_diagrama_mont;
+      var _stHtml=_st==='aceito'?'<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:2px 5px;font-size:9px;font-weight:700;">✅ Aceito</span>':
+                  _st==='correcao'?'<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:2px 5px;font-size:9px;font-weight:700;">⚠ Corr.</span>'+(_ob?'<div style="font-size:8px;color:#78350f;margin-top:2px;">'+_ob+'</div>':''):
+                  '<span style="color:#94a3b8;font-size:9px;">—</span>';
+      var _etHtml=_dp?'<div style="margin-top:2px;"><span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">⏳ Et.11 pend.</span></div>':'';
+      return '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;">'+_stHtml+_etHtml+'</td>';
+    })()+
     '</tr>';
   }).join('');
 
@@ -9344,7 +9214,7 @@ function imprimirMedicao(id){
     '<h3 style="font-size:13px;color:#0c4a6e;margin:0 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">TAGs incluídas nesta medição</h3>'+
     (tagRows?
       '<table><thead><tr>'+
-        '<th>TAG</th><th>Descrição</th><th>Status</th>'+
+        '<th>TAG</th><th>Descrição</th><th>Status</th><th style="text-align:center;">Status Peso / Et.11</th>'+
         '<th style="text-align:right;background:#065f46;">⚖ Peso Básico</th>'+
         '<th style="text-align:right;background:#1e3a5f;">📐 Peso Detalhado</th>'+
         '<th style="text-align:right;background:#78350f;">📏 Peso na Medição</th>'+
@@ -10226,6 +10096,23 @@ function atualizarResumoMedTags(){
   if(typeof recalcularMedicao==='function') recalcularMedicao();
 }
 
+function _buildMedHistoricoMap(){
+  var m = new Map();
+  (allMedicoes||[]).forEach(function(med){
+    if(editingMedicaoId && String(med.id)===String(editingMedicaoId)) return;
+    try{
+      var arr=JSON.parse(med.subobras_ids||'[]');
+      arr.forEach(function(entry){
+        var sid=String(entry.id||entry);
+        if(!m.has(sid)) m.set(sid,new Set());
+        var ets=Array.isArray(entry.etapas)?entry.etapas:[entry.etapa||'modelo'];
+        ets.forEach(function(e){m.get(sid).add(e);});
+      });
+    }catch(e){}
+  });
+  return m;
+}
+
 function getMedTagsIds(){
   // Salva como JSON: [{id, etapas:[], pct, peso_med?}, ...]
   const arr = [..._medTagsMap.entries()].map(([id,entry])=>({
@@ -10255,7 +10142,7 @@ function carregarMedTagsSalvas(raw){
         const etapas = etapaStr==='todos'
           ? new Set(['modelo','pacote','diagrama'])
           : new Set([etapaStr]);
-        _medTagsMap.set(id, {etapas, pct:_medPct({etapas}), peso_med:item.peso_med||null});
+        _medTagsMap.set(id, {etapas, pct:_medPct({etapas}), peso_med:item.peso_med||null, status_peso:item.status_peso||null, obs_correcao:item.obs_correcao||null});
       }
     });
   } catch(e){
@@ -13326,14 +13213,22 @@ function renderMedTags(){
       const pesoB = Number(s.peso_previsto)||0;
       const pesoD = Number(s.peso_detalhado)||0;
       const pesoPcp = Number(s.peso_pcp)||0;
+      const _medHistMap = (typeof _buildMedHistoricoMap==='function') ? _buildMedHistoricoMap() : new Map();
+      const _histEt = _medHistMap.get(String(s.id)) || new Set();
+      const _histPct = MED_ETAPAS.filter(e=>_histEt.has(e.key)).reduce((a,e)=>a+e.pct,0);
+      const _diagPendente = !s.real_diagramas && !s.real_diagrama_mont;
+      const _dupBadge = _histPct>0 ? `<span title="Etapas já medidas em outra medição: ${MED_ETAPAS.filter(e=>_histEt.has(e.key)).map(e=>e.label).join(', ')}" style="background:${_histPct>=100?'#fee2e2':'#fef9c3'};color:${_histPct>=100?'#991b1b':'#854d0e'};border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;cursor:help;">${_histPct>=100?'⛔ Já 100% medida':'⚠ '+_histPct+'% já medido'}</span>` : '';
+      const _et11Badge = _diagPendente ? `<span title="Etapa 11 — Diagrama de Montagem (20%) ainda não medida" style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">⏳ Et.11 pendente</span>` : '';
+
 
       // Linha principal: checkbox + TAG + info
       const header = `
-        <div style="display:flex;align-items:center;gap:.5rem;cursor:pointer;" onclick="medTagToggle('${s.id}')">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;cursor:pointer;" onclick="medTagToggle('${s.id}')">
           <span style="font-size:14px;flex-shrink:0;">${sel?'☑':'☐'}</span>
           <span style="font-family:'Courier New',monospace;font-size:11px;font-weight:800;color:${sel?'#1d4ed8':cfg.color};">${s.subobra||'—'}</span>
           ${s.descricao?`<span style="font-size:9px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${s.descricao}</span>`:''}
           <span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">${cfg.icon} ${s.status}</span>
+          ${_dupBadge}${_et11Badge}
           <span style="margin-left:auto;display:flex;gap:.4rem;flex-shrink:0;">
             ${pesoB?`<span style="font-size:8px;background:#f0fdf4;color:#166534;border-radius:3px;padding:1px 5px;font-family:'Courier New',monospace;">⚖ ${pesoB.toLocaleString('pt-BR',{maximumFractionDigits:0})} kg</span>`:''}
             ${pesoD?`<span style="font-size:8px;background:#eff6ff;color:#1d4ed8;border-radius:3px;padding:1px 5px;font-family:'Courier New',monospace;">📐 ${pesoD.toLocaleString('pt-BR',{maximumFractionDigits:0})} kg</span>`:''}
@@ -13398,6 +13293,18 @@ function renderMedTags(){
                 ${valorTotal>0?`💵 R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}<span style="font-size:8px;color:#94a3b8;font-weight:400;margin-left:3px;">(${pctTotal}% total)</span>`:'Selecione etapas acima'}
               </span>
             </div>
+            <div style="margin-top:.3rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
+              <span style="font-size:8px;color:#475569;font-weight:700;text-transform:uppercase;white-space:nowrap;">Status do peso:</span>
+              <button onclick="event.stopPropagation();medTagSetStatusPeso('${s.id}','aceito')"
+                style="background:${entry.status_peso==='aceito'?'#dcfce7':'#f1f5f9'};border:1.5px solid ${entry.status_peso==='aceito'?'#16a34a':'#e2e8f0'};border-radius:4px;padding:2px 7px;font-size:8px;font-weight:700;cursor:pointer;color:${entry.status_peso==='aceito'?'#166534':'#475569'};">
+                ✅ Aceito
+              </button>
+              <button onclick="event.stopPropagation();medTagSetStatusPeso('${s.id}','correcao')"
+                style="background:${entry.status_peso==='correcao'?'#fef3c7':'#f1f5f9'};border:1.5px solid ${entry.status_peso==='correcao'?'#d97706':'#e2e8f0'};border-radius:4px;padding:2px 7px;font-size:8px;font-weight:700;cursor:pointer;color:${entry.status_peso==='correcao'?'#92400e':'#475569'};">
+                ⚠ Solicitar Correção
+              </button>
+              ${entry.status_peso==='correcao'?`<input type="text" placeholder="Descrever correção solicitada..." value="${entry.obs_correcao||''}" oninput="event.stopPropagation();medTagSetObsCorrecao('${s.id}',this.value)" onclick="event.stopPropagation()" style="flex:1;min-width:180px;font-size:9px;padding:2px 6px;border:1px solid #fcd34d;border-radius:3px;background:#fffbeb;color:#78350f;">`:''}
+            </div>
           </div>`;
       }
 
@@ -13409,6 +13316,23 @@ function renderMedTags(){
 
   if(count) count.textContent = _medTagsMap.size + ' selecionada' + (_medTagsMap.size!==1?'s':'');
   atualizarResumoMedTags();
+}
+
+function medTagSetStatusPeso(id,status){
+  const sid=String(id);
+  const prev=_medTagsMap.get(sid);
+  if(!prev) return;
+  if(prev.status_peso===status){prev.status_peso=null;prev.obs_correcao=null;}
+  else{prev.status_peso=status;if(status!=='correcao') prev.obs_correcao=null;}
+  _medTagsMap.set(sid,prev);
+  renderMedTags();
+}
+function medTagSetObsCorrecao(id,val){
+  const sid=String(id);
+  const prev=_medTagsMap.get(sid);
+  if(!prev) return;
+  prev.obs_correcao=val||null;
+  _medTagsMap.set(sid,prev);
 }
 
 function medTagToggle(id){
@@ -13601,7 +13525,9 @@ function getMedTagsIds(){
     id,
     etapas: [...(entry.etapas||new Set())],
     pct: _medPct(entry),
-    ...(entry.peso_med ? {peso_med: entry.peso_med} : {})
+    ...(entry.peso_med ? {peso_med: entry.peso_med} : {}),
+    ...(entry.status_peso ? {status_peso: entry.status_peso} : {}),
+    ...(entry.obs_correcao ? {obs_correcao: entry.obs_correcao} : {})
   }));
   return arr.length ? JSON.stringify(arr) : '';
 }
@@ -15839,25 +15765,22 @@ function cotExportarCSV(){
           <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
           <div style="margin-left:auto;display:flex;gap:.4rem;">
             <button onclick="cdocNovoBas()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
-            <button onclick="cdocRelatorioBas()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Gerar relatório completo">📄 Relatório</button>
             <button onclick="cdocExportBas()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CSV</button>
             <button onclick="cdocExportBasSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
-            <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV ou XLSX">&#8593; CSV/XLSX</button>
-            <input type="file" id="cdoc-import-bas" accept=".csv,.xlsx,.xls" style="display:none" onchange="cdocImportBas(this)">
-            <button onclick="cdocEmitirGrdBas()" id="cdb-btn-grd" title="Selecione registros e emita a GRD de remessa" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#128203; Emitir GRD</button>
-            <button onclick="cdocAbrirGrdsBas()" style="background:#1e40af;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Ver GRDs de remessa emitidas">&#128196; GRDs</button>
+            <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV">&#8593; CSV</button>
+            <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
           </div>
         </div>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
         <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
           <table class="cdoc-tbl">
             <thead><tr>
-              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="white-space:nowrap;"><div class="th-inner">GRD Remessa</div></th><th style="width:54px;"></th>
+              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="width:54px;"></th>
             </tr></thead>
             <tbody id="cdb-tbody"></tbody>
           </table>
         </div>
-        <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button id="cdb-btn-grd-emit" onclick="cdocEmitirGrdBas()" style="display:none;background:#5b21b6;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">&#128203; Emitir GRD selecionados</button><button onclick="_cdocBasClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button onclick="_cdocBasClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
       </div>
 
       <!-- PROJETO DETALHADO -->
@@ -15953,6 +15876,7 @@ function cotExportarCSV(){
         <button id="cdoc-btn-atualizar" onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
         <label title="Restaurar CDOC de um arquivo JSON de backup" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;">📥 Restaurar JSON<input type="file" accept=".json" style="display:none;" onchange="cdocRestaurarJSON(this)"></label>
         <button onclick="backupCompleto()" title="Baixar backup completo JSON" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📥 Backup</button>
+        <button onclick="_cdocDiag()" title="Diagnóstico: ver o que está carregado em memória" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔍 Diag</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
@@ -15973,34 +15897,6 @@ var _cdocEditId = null;
 // ── SUPABASE INTEGRATION — Controle de Documentos ────────────────────────────
 var _cdocSBCache = null; // cache em memória
 var _cdocSBReady = false;
-
-// ── CONTROLE DE EDIÇÃO (cadeado) ─────────────────────────────────────────────
-var _siderEditUnlocked = false;
-var _CDOC_SENHA = 'sidertec';
-
-function _siderToggleLock(){
-  var btns = document.querySelectorAll('.sider-lock-btn');
-  if(_siderEditUnlocked){
-    _siderEditUnlocked = false;
-    btns.forEach(function(b){ b.classList.add('locked'); b.innerHTML='🔒 Editar'; b.title='Clique para desbloquear edição'; });
-  } else {
-    var s = prompt('Digite a senha para habilitar edição:');
-    if(s === null) return;
-    if(s === _CDOC_SENHA){
-      _siderEditUnlocked = true;
-      btns.forEach(function(b){ b.classList.remove('locked'); b.innerHTML='🔓 Editando'; b.title='Edição ativa — clique para bloquear'; });
-    } else {
-      alert('Senha incorreta.');
-    }
-  }
-}
-
-function _siderRequireEdit(){
-  if(_siderEditUnlocked) return true;
-  _siderToggleLock();
-  return _siderEditUnlocked;
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 function _cdocSBStatus(msg, color){
   var el=document.getElementById('cdoc-sb-status'); if(!el) return;
@@ -16028,8 +15924,9 @@ async function _cdocSBLoad(){
       (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
       // sincroniza backup local
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
-      _cdocSBStatus('☁ Sincronizado — '+(((_cdocSBCache.basicos||[]).length)+' básicos / '+((_cdocSBCache.detalhados||[]).length)+' det.'),'#16a34a');
-      setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
+      var _nBas=(_cdocSBCache.basicos||[]).length; var _nDet=(_cdocSBCache.detalhados||[]).length;
+      _cdocSBStatus('☁ Sincronizado — '+_nBas+' básicos / '+_nDet+' det.','#16a34a');
+      setTimeout(function(){_cdocSBStatus('☁ Nuvem · '+_nBas+' bás / '+_nDet+' det','#94a3b8');},4000);
     } else {
       // nuvem vazia — sobe dados locais se existirem
       var local=null;
@@ -16038,8 +15935,9 @@ async function _cdocSBLoad(){
         _cdocSBCache=local;
         // publica dados locais para a nuvem
         await _cdocSBPush(_cdocSBCache);
-        _cdocSBStatus('☁ Dados locais publicados na nuvem','#16a34a');
-        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
+        var _nBasL=(_cdocSBCache.basicos||[]).length; var _nDetL=(_cdocSBCache.detalhados||[]).length;
+        _cdocSBStatus('☁ Dados locais publicados — '+_nBasL+' bás / '+_nDetL+' det','#16a34a');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem · '+_nBasL+' bás / '+_nDetL+' det','#94a3b8');},3000);
       } else {
         _cdocSBCache={basicos:[],detalhados:[],_ids:{bas:1,det:1}};
         _cdocSBStatus('☁ Nuvem vazia — sem dados','#f59e0b');
@@ -16092,7 +15990,7 @@ function cdocRestaurarJSON(input){
       }
       var nBas=(cdocData.basicos||[]).length;
       var nDet=(cdocData.detalhados||[]).length;
-      if(!confirm('Restaurar '+nBas+' docs básicos e '+nDet+' docs detalhados do arquivo "'+file.name+'"?\n\nAtenção: os dados atuais na nuvem serão substituídos.')) return;
+      if(!confirm('Restaurar '+nBas+' básicos e '+nDet+' detalhados do arquivo "'+file.name+'"?\n\nAtenção: dados atuais serão substituídos.')) return;
       _cdocSBCache=cdocData;
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(cdocData));}catch(ex){}
       _cdocSBStatus('Publicando restauração na nuvem...','#7c3aed');
@@ -16114,10 +16012,15 @@ function cdocRestaurarJSON(input){
 }
 
 function _cdocLoad(){
-  if(_cdocSBCache) return _cdocSBCache;
-  // cache ainda não carregado — usa localStorage como fallback imediato
-  try{ return JSON.parse(localStorage.getItem('sider_ctrldoc')||'null')||{basicos:[],detalhados:[],_ids:{bas:1,det:1}}; }
-  catch(e){ return {basicos:[],detalhados:[],_ids:{bas:1,det:1}}; }
+  var d=null;
+  if(_cdocSBCache) d=_cdocSBCache;
+  else { try{d=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){} }
+  // Normaliza estrutura para evitar crashes em render functions
+  if(!d||typeof d!=='object'||Array.isArray(d)) d={};
+  if(!Array.isArray(d.basicos)) d.basicos=[];
+  if(!Array.isArray(d.detalhados)) d.detalhados=[];
+  if(!d._ids||typeof d._ids!=='object') d._ids={bas:1,det:1};
+  return d;
 }
 
 function _cdocMergeSnapshots(remote,local){
@@ -16133,29 +16036,6 @@ function _cdocMergeSnapshots(remote,local){
   r._ids=r._ids||{};
   r._ids.bas=Math.max((remote._ids||{}).bas||1,(local._ids||{}).bas||1);
   r._ids.det=Math.max((remote._ids||{}).det||1,(local._ids||{}).det||1);
-  // Preserva campos extras do local que não existem no remote (GRDs, contadores, etc.)
-  ['_grds_bas','_grds','_grdCounters','_obras','_obrasOcultas','_subsCadastr'].forEach(function(k){
-    if(local[k]!==undefined){
-      if((k==='_grds_bas'||k==='_grds')&&Array.isArray(local[k])){
-        // Local é AUTORITATIVO para listas de GRD: exclusões devem persistir
-        r[k]=JSON.parse(JSON.stringify(local[k]));
-      } else if(Array.isArray(local[k])&&Array.isArray(r[k])){
-        // Mescla aditiva para outros arrays (nunca remove itens remotos)
-        (local[k]).forEach(function(item){
-          if(!item||!item.id) return;
-          var exists=r[k].find(function(x){return x.id===item.id;});
-          if(!exists) r[k].push(item);
-        });
-      } else if(r[k]===undefined||r[k]===null){
-        r[k]=local[k];
-      } else if(k==='_grdCounters'&&typeof local[k]==='object'){
-        r[k]=r[k]||{};
-        Object.keys(local[k]).forEach(function(p){
-          r[k][p]=Math.max(r[k][p]||0,local[k][p]||0);
-        });
-      }
-    }
-  });
   return r;
 }
 function _cdocSave(db){
@@ -16274,6 +16154,28 @@ async function backupCompleto(){
   }
 }
 function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;} document.getElementById('modal-ctrl-doc').classList.remove('show'); }
+function _cdocDiag(){
+  var cache=_cdocSBCache;
+  var ls=null; try{ls=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
+  var msg='=== DIAGNÓSTICO CDOC ===\n\n';
+  msg+='_cdocSBCache: '+(cache===null?'null (não carregado)':typeof cache)+'\n';
+  if(cache&&typeof cache==='object'){
+    msg+='  basicos: '+((cache.basicos||[]).length)+' registros\n';
+    msg+='  detalhados: '+((cache.detalhados||[]).length)+' registros\n';
+    msg+='  _ids: '+JSON.stringify(cache._ids||{})+'\n';
+    if((cache.basicos||[]).length>0){
+      var b0=cache.basicos[0];
+      msg+='  1º básico: id='+b0.id+', obraId='+JSON.stringify(b0.obraId)+', titulo='+JSON.stringify(b0.titulo)+'\n';
+    }
+  }
+  msg+='\nlocalStorage sider_ctrldoc: '+(ls===null?'vazio':typeof ls)+'\n';
+  if(ls&&typeof ls==='object'){
+    msg+='  basicos: '+((ls.basicos||[]).length)+' registros\n';
+    msg+='  detalhados: '+((ls.detalhados||[]).length)+' registros\n';
+  }
+  msg+='\nallCronSubobras: '+(typeof allCronSubobras==='undefined'?'undefined':(allCronSubobras.length+' registros'));
+  alert(msg);
+}
 
 function _cdocSyncGlobalFromTab(srcId){
   var v=(document.getElementById(srcId)||{}).value||'';
@@ -16403,7 +16305,14 @@ function cdocRenderVisao(){
       if(r.obraId&&obras2.indexOf(r.obraId)===-1) obras2.push(r.obraId);
     });
     if(fObra) obras2=obras2.filter(function(o){return o===fObra;});
-    if(!obras2.length){vEl.innerHTML='<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:12px;">Nenhuma obra cadastrada.</div>';return;}
+    // Corrige query de basicos para grupo "(sem obra)"
+    var _origBasicos=db.basicos; var _origDet=db.detalhados;
+    var _basForObra=function(o){return o==='(sem obra)'?_origBasicos.filter(function(b){return !b.obraId;}):_origBasicos.filter(function(b){return b.obraId===o;});};
+    var _detForObra=function(o){return o==='(sem obra)'?_origDet.filter(function(d){return !d.obraId;}):_origDet.filter(function(d){return d.obraId===o;});};
+    // Incluir grupo especial para registros sem obraId
+    var semObra=db.basicos.concat(db.detalhados).filter(function(r){return !r.obraId;});
+    if(!obras2.length&&!semObra.length){vEl.innerHTML='<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:12px;">Nenhuma obra cadastrada. <br><small>Se você tinha dados, use <strong>📥 Restaurar JSON</strong> para reimportar.</small></div>';return;}
+    if(!fObra&&semObra.length&&obras2.indexOf('(sem obra)')===-1) obras2.push('(sem obra)');
     // Status únicos dos detalhados
     var statusDetList=['EM EMISSÃO','EMITIDO','ENVIADO AO CLIENTE','APROVADO','EM REVISÃO','CERTIFICADO','AGUARDANDO PACOTE DE FABRICAÇÃO','AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM','ENVIAR AO CLIENTE'];
     vEl.innerHTML='<div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">'
@@ -16416,8 +16325,8 @@ function cdocRenderVisao(){
       +'<th style="font-size:9px;min-width:70px;">Ações</th>'
       +'</tr></thead><tbody>'
       +obras2.map(function(o){
-        var basO=db.basicos.filter(function(b){return b.obraId===o;});
-        var detO=db.detalhados.filter(function(d){return d.obraId===o;});
+        var basO=_basForObra(o);
+        var detO=_detForObra(o);
         var pb=basO.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
         var stCols=statusDetList.map(function(s){
           var cnt=detO.filter(function(d){return (d.statusGeral||'').toUpperCase()===s;}).length;
@@ -16442,101 +16351,6 @@ function cdocRenderVisao(){
   }
 }
 
-/* ── SISTEMA DE FILTRO / SORT POR COLUNA ── */
-var _cdocColFltsBas = {};  // {col: valorFiltro}
-var _cdocColFltsDet = {};
-var _cdocBasSort    = {col: null, dir: 1};  // dir: 1=asc, -1=desc
-var _cdocDetSort    = {col: null, dir: 1};
-
-function _cdocApplyColFlts(rows, tab){
-  var flts = (tab==='bas') ? _cdocColFltsBas : _cdocColFltsDet;
-  var cols = Object.keys(flts).filter(function(c){ return flts[c]; });
-  if(!cols.length) return rows;
-  return rows.filter(function(r){
-    return cols.every(function(col){
-      var rv = String(r[col]||'(vazio)');
-      var fv = flts[col];
-      // Filtro via checkbox (Set de valores exatos)
-      if(fv instanceof Set) return fv.has(rv);
-      // Filtro via texto (string — busca parcial)
-      return rv.toLowerCase().indexOf(String(fv).toLowerCase()) !== -1;
-    });
-  });
-}
-
-function _cdocApplySort(rows, sort){
-  if(!sort||!sort.col) return rows;
-  var col=sort.col, dir=sort.dir||1;
-  return rows.slice().sort(function(a,b){
-    var av=a[col]!=null?a[col]:'', bv=b[col]!=null?b[col]:'';
-    var an=parseFloat(String(av).replace(/\./g,'').replace(',','.')), bn=parseFloat(String(bv).replace(/\./g,'').replace(',','.'));
-    if(!isNaN(an)&&!isNaN(bn)) return dir*(an-bn);
-    return dir*String(av).localeCompare(String(bv),'pt-BR');
-  });
-}
-
-function _cdocUpdateSortBtns(tab){
-  var sort=(tab==='bas')?_cdocBasSort:_cdocDetSort;
-  var prefix=(tab==='bas')?'cdb-srt-':'cdd-srt-';
-  document.querySelectorAll('[id^="'+prefix+'"]').forEach(function(btn){
-    var col=btn.id.replace(prefix,'');
-    if(sort.col===col){ btn.textContent=(sort.dir===1?'▲':'▼'); btn.style.color='#0369a1'; }
-    else { btn.innerHTML='&#8693;'; btn.style.color=''; }
-  });
-}
-
-function _cdocSort(event, tab, col){
-  if(event) event.stopPropagation();
-  var sort=(tab==='bas')?_cdocBasSort:_cdocDetSort;
-  if(sort.col===col){ sort.dir=sort.dir===1?-1:1; } else { sort.col=col; sort.dir=1; }
-  if(tab==='bas') cdocRenderBas(); else cdocRenderDet();
-}
-
-function _cdocShowColFlt(event, tab, col){
-  if(event) event.stopPropagation();
-  var old=document.getElementById('_cdoc-col-flt-popup');
-  if(old){ var wasMe=(old._col===col&&old._tab===tab); old.remove(); if(wasMe) return; }
-  var flts=(tab==='bas')?_cdocColFltsBas:_cdocColFltsDet;
-  var db=_cdocDb();
-  var arr=(tab==='bas')?(db.basicos||[]):(db.detalhados||[]);
-  var vals=[];
-  var seen={};
-  arr.forEach(function(r){ var v=String(r[col]||''); if(v&&!seen[v]){seen[v]=true;vals.push(v);} });
-  vals.sort(function(a,b){return a.localeCompare(b,'pt-BR');});
-  var popup=document.createElement('div');
-  popup._col=col; popup._tab=tab; popup.id='_cdoc-col-flt-popup';
-  popup.style.cssText='position:fixed;z-index:99999;background:#fff;border:1.5px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:8px;min-width:170px;max-height:280px;overflow-y:auto;font-size:11px;';
-  var rect=event?event.target.getBoundingClientRect():{bottom:100,left:100};
-  popup.style.top=(rect.bottom+4)+'px'; popup.style.left=rect.left+'px';
-  var inp=document.createElement('input');
-  inp.placeholder='Filtrar...'; inp.value=flts[col]||'';
-  inp.style.cssText='width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:4px;padding:3px 6px;font-size:11px;margin-bottom:6px;';
-  inp.oninput=function(){ if(this.value) flts[col]=this.value; else delete flts[col]; if(tab==='bas') cdocRenderBas(); else cdocRenderDet(); };
-  popup.appendChild(inp);
-  if(flts[col]){
-    var cb=document.createElement('button');
-    cb.textContent='✕ Limpar filtro';
-    cb.style.cssText='display:block;width:100%;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;margin-bottom:6px;';
-    cb.onclick=function(){ delete flts[col]; popup.remove(); if(tab==='bas') cdocRenderBas(); else cdocRenderDet(); };
-    popup.appendChild(cb);
-  }
-  vals.slice(0,60).forEach(function(v){
-    var item=document.createElement('div');
-    item.textContent=v;
-    var isAct=(flts[col]===v);
-    item.style.cssText='padding:3px 7px;cursor:pointer;border-radius:3px;'+(isAct?'background:#dbeafe;font-weight:700;':'');
-    item.onmouseenter=function(){ if(flts[col]!==v) this.style.background='#f1f5f9'; };
-    item.onmouseleave=function(){ this.style.background=(flts[col]===v)?'#dbeafe':''; };
-    item.onclick=function(){ if(flts[col]===v) delete flts[col]; else flts[col]=v; popup.remove(); if(tab==='bas') cdocRenderBas(); else cdocRenderDet(); };
-    popup.appendChild(item);
-  });
-  document.body.appendChild(popup);
-  inp.focus();
-  var close=function(e){ if(!popup.contains(e.target)){popup.remove();document.removeEventListener('mousedown',close);} };
-  setTimeout(function(){ document.addEventListener('mousedown',close); },0);
-}
-/* ─────────────────────────────────────────────────────────────────────────── */
-
 /* ── PROJ. BÁSICO render ── */
 function cdocRenderBas(){
   cdocPopFilters();
@@ -16557,7 +16371,7 @@ function cdocRenderBas(){
   var tb=document.getElementById('cdb-tbody');
   if(!tb) return;
   rows=_cdocApplyColFlts(rows,'bas');
-  rows=_cdocApplySort(rows,_cdocBasSort);
+  rows=_cdocApplySort(rows,_cdocBasSort,'bas');
   _cdocUpdateSortBtns('bas');
   // Atualizar indicadores de filtro nos botões
   document.querySelectorAll('#cdoc-pane-basico .th-flt').forEach(function(btn){
@@ -16584,7 +16398,6 @@ function cdocRenderBas(){
         +'<td style="font-size:10px;">'+_esc(b.proj||'—')+'</td>'
         +'<td style="font-size:10px;white-space:nowrap;">'+_esc(b.rev||'—')+(b.revisoes&&b.revisoes.length?'<span title="Histórico: '+b.revisoes.length+' revisão(ões)" style="margin-left:3px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px;font-size:8px;font-weight:700;cursor:help;">'+b.revisoes.length+'</span>':'')+'</td>'
         +'<td style="font-family:Courier New,monospace;font-size:10px;">'+_fD2(b.data)+'</td>'
-        +'<td style="font-size:9px;font-family:Courier New,monospace;white-space:nowrap;">'+(b.grd_remessa?'<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:1px 5px;font-weight:700;">'+_esc(b.grd_remessa)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
         +'<td style="white-space:nowrap;">'
           +'<button onclick="cdocEditBas('+b.id+')" style="background:none;border:none;cursor:pointer;color:#0369a1;font-size:12px;padding:1px 4px;" title="Editar">✎</button>'
           +'<button onclick="cdocDelBas('+b.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
@@ -16600,7 +16413,6 @@ function cdocRenderBas(){
   var psEl=document.getElementById('cdb-peso-sel'); if(psEl) psEl.textContent=_cdocBasSel.size?'Selecionados ('+_cdocBasSel.size+'): '+fmt(selPesoB)+' kg':'';
   var bdelBtn=document.getElementById('cdb-btn-del-sel'); var bdelCnt=document.getElementById('cdb-del-count');
   if(bdelBtn){ bdelBtn.style.display=_cdocBasSel.size?'':'none'; if(bdelCnt) bdelCnt.textContent=_cdocBasSel.size; }
-  var bgrdBtn=document.getElementById('cdb-btn-grd-emit'); if(bgrdBtn) bgrdBtn.style.display=_cdocBasSel.size?'':'none';
   // ── Resumo por TAG ──
   var resumoEl=document.getElementById('cdb-resumo');
   if(resumoEl){
@@ -16712,7 +16524,7 @@ function cdocRenderDet(){
   var tb=document.getElementById('cdd-tbody');
   if(!tb) return;
   rows=_cdocApplyColFlts(rows,'det');
-  rows=_cdocApplySort(rows,_cdocDetSort);
+  rows=_cdocApplySort(rows,_cdocDetSort,'det');
   _cdocUpdateSortBtns('det');
   document.querySelectorAll('#cdoc-pane-detalhado .th-flt').forEach(function(btn){
     var col=btn.getAttribute('onclick').match(/'det','([^']+)'/); if(!col) return;
@@ -17724,40 +17536,6 @@ function cdocDetObraChange(){
 
 
 /* ── Inserção automática no Cronograma ao cadastrar Proj. Básico ── */
-// Sincroniza Projetista do CDOC com Equipe no Cronograma
-async function _cdocSyncEquipeCronograma(rec){
-  if(!rec.proj) return;
-  if(typeof allCronSubobras === 'undefined' || typeof sbClient === 'undefined') return;
-  // Busca sub-obra correspondente no cronograma (TAG + Obra)
-  var cronSub = allCronSubobras.find(function(s){
-    return (s.subobra||'').toUpperCase() === (rec.sub||'').toUpperCase() &&
-           (s.obra||'').toUpperCase() === (rec.obraId||'').toUpperCase();
-  });
-  if(!cronSub) return;
-  // Atualiza equipe (sempre, para refletir o projetista atual)
-  var novaEquipe = rec.proj.trim();
-  if(cronSub.equipe === novaEquipe) return; // Nenhuma mudança
-  cronSub.equipe = novaEquipe;
-  var updates = { equipe: novaEquipe, atualizado_em: new Date().toISOString() };
-  // Atualiza localStorage
-  var ls = _lsGet('cronograma_subobras');
-  ls = ls.map(function(r){ return String(r.id)===String(cronSub.id) ? Object.assign({},r,updates) : r; });
-  _lsSet('cronograma_subobras', ls);
-  // Atualiza array em memória
-  var idx = allCronSubobras.findIndex(function(x){ return x.id===cronSub.id; });
-  if(idx>=0) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], updates);
-  // Persiste no Supabase
-  try{
-    await sbClient.from('cronograma_subobras').eq('id', cronSub.id).update(updates).select();
-    // Garante que a equipe está na lista de equipes disponíveis (sessionStorage)
-    var extras = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
-    if(extras.indexOf(novaEquipe) === -1){ extras.push(novaEquipe); sessionStorage.setItem('sidertec_extra_equipes', JSON.stringify(extras)); }
-    _cdocToast('Equipe "'+novaEquipe+'" atualizada no Cronograma!');
-  } catch(e){
-    _cdocToast('Equipe atualizada localmente (Supabase offline).');
-  }
-}
-
 async function _cdocCriarNoCronograma(rec){
   if(typeof allCronSubobras==='undefined'||typeof sbClient==='undefined') return;
   // Verifica se já existe sub-obra com a mesma TAG e Obra
@@ -17831,8 +17609,6 @@ function cdocSalvar(){
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
-    // Atualiza Equipe no Cronograma quando Projetista é preenchido
-    _cdocSyncEquipeCronograma(rec);
     document.getElementById('cdoc-edit-overlay').classList.remove('show');
     cdocRenderBas(); cdocRenderVisao();
     _cdocToast('Registro salvo com sucesso!');
@@ -17900,294 +17676,6 @@ function _cdocToast(msg){
 }
 
 /* ── Export CSV ── */
-/* ── Utilitário de download CSV ── */
-function _cdocDownload(text, filename){
-  var bom='\uFEFF';
-  var blob=new Blob([bom+text],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url; a.download=filename; a.style.display='none';
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
-}
-/* ═══════════════════════════════════════════════════════════
-   GRD DE REMESSA — PROJETO BÁSICO
-   ═══════════════════════════════════════════════════════════ */
-function cdocEmitirGrdBas(){
-  if(!_siderRequireEdit()) return;
-  var db=_cdocDb();
-  var sels=[];
-  _cdocBasSel.forEach(function(id){
-    var doc=db.basicos.find(function(b){return b.id===id;});
-    if(doc) sels.push(doc);
-  });
-  if(!sels.length){alert('Selecione pelo menos um registro de Projeto Básico para emitir a GRD.');return;}
-
-  // Montar opções de subobra do cronograma filtradas pela obra dos selecionados
-  var _obrasSels=[]; sels.forEach(function(b){if(b.obraId&&_obrasSels.indexOf(b.obraId)<0)_obrasSels.push(b.obraId);});
-  var _cronOpts=(typeof allCronSubobras!=='undefined'?allCronSubobras:[])
-    .filter(function(s){return _obrasSels.length===0||_obrasSels.indexOf(s.obra)>=0;})
-    .sort(function(a,b){return (a.obra+a.subobra).localeCompare(b.obra+b.subobra);});
-  var _cronCbHtml=_cronOpts.map(function(s){
-    return '<label style="display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:3px;cursor:pointer;font-size:11px;color:#1e293b;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'\'">'
-      +'<input type="checkbox" class="grd-bas-cron-cb" value="'+s.id+'" style="accent-color:#7c3aed;cursor:pointer;">'
-      +'<span><strong style="color:#4c1d95;">'+_esc(s.obra)+' · '+_esc(s.subobra)+'</strong>'+(s.descricao?' <span style="color:#64748b;">— '+_esc(s.descricao)+'</span>':'')+'</span>'
-      +'</label>';
-  }).join('');
-
-  // Mini-modal para número manual + destino
-  var overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:420px;max-width:94vw;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
-    +'<div style="font-size:15px;font-weight:700;color:#4c1d95;margin-bottom:14px;">📋 Emitir GRD de Remessa — Projeto Básico</div>'
-    +'<div style="margin-bottom:12px;">'
-    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº da GRD <span style="color:#dc2626;">*</span> <span style="font-size:9px;font-weight:400;color:#94a3b8;">(obrigatório — inserir manualmente)</span></label>'
-    +'<input id="grd-bas-num" placeholder="Ex: S176-EP.031" style="width:100%;box-sizing:border-box;font-size:14px;font-weight:700;font-family:Courier New,monospace;padding:7px 10px;border:2px solid #7c3aed;border-radius:5px;color:#4c1d95;"></div>'
-    +(_cronOpts.length?'<div style="margin-bottom:12px;">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
-    +'<label style="font-size:11px;font-weight:700;color:#475569;">Subobras do Cronograma <span style="font-size:9px;font-weight:400;color:#94a3b8;">(selecione as que serão atualizadas)</span></label>'
-    +'<button type="button" onclick="(function(){var cbs=document.querySelectorAll(\'.grd-bas-cron-cb\');var anyUnchecked=[].some.call(cbs,function(c){return!c.checked;});cbs.forEach(function(c){c.checked=anyUnchecked;});})()" style="font-size:9px;padding:2px 7px;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:3px;cursor:pointer;">Selecionar todas</button>'
-    +'</div>'
-    +'<div id="grd-bas-cron-list" style="max-height:130px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:5px;padding:4px 2px;background:#fafafa;">'
-    +_cronCbHtml+'</div></div>':'')
-    +'<div style="margin-bottom:12px;">'
-    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">Destino da remessa <span style="font-size:9px;font-weight:400;color:#94a3b8;">(atualiza etapas no Cronograma)</span></label>'
-    +'<div style="display:flex;flex-direction:column;gap:6px;">'
-    +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;"><input type="checkbox" id="grd-bas-dest-proj" checked style="accent-color:#7c3aed;"> Enviado ao Projetista p/ Detalhamento</label>'
-    +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;"><input type="checkbox" id="grd-bas-dest-mp" style="accent-color:#7c3aed;"> Enviado p/ Verificação de MP</label>'
-    +'</div></div>'
-    +'<div style="margin-bottom:12px;">'
-    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Tipo de Emissão</label>'
-    +'<select id="grd-bas-tipo" style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<option>Para Detalhamento</option><option>Para Verificação de MP</option><option>Para Aprovação</option><option>Para Informação</option></select></div>'
-    +'<div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
-    +'<textarea id="grd-bas-obs" rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;resize:vertical;"></textarea></div>'
-    +'<div style="display:flex;gap:10px;justify-content:flex-end;">'
-    +'<button id="grd-bas-cancel" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:7px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
-    +'<button id="grd-bas-ok" style="background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">Gerar GRD</button>'
-    +'</div></div>';
-  document.body.appendChild(overlay);
-  document.getElementById('grd-bas-num').focus();
-  document.getElementById('grd-bas-cancel').onclick=function(){document.body.removeChild(overlay);};
-  document.getElementById('grd-bas-ok').onclick=function(){
-    var numGrd=(document.getElementById('grd-bas-num').value||'').trim();
-    if(!numGrd){alert('Informe o número da GRD.');document.getElementById('grd-bas-num').focus();return;}
-    var tipoEm=document.getElementById('grd-bas-tipo').value;
-    var obsGrd=document.getElementById('grd-bas-obs').value;
-    var destProj=document.getElementById('grd-bas-dest-proj').checked;
-    var destMp=document.getElementById('grd-bas-dest-mp').checked;
-    var cronSubIds=[];
-    document.querySelectorAll('.grd-bas-cron-cb:checked').forEach(function(cb){cronSubIds.push(cb.value);});
-    document.body.removeChild(overlay);
-    _cdocGerarGrdBasJanela(sels, numGrd, tipoEm, obsGrd, destProj, destMp, cronSubIds);
-  };
-}
-
-function _cdocGerarGrdBasJanela(sels, numGrd, tipoEm, obsGrd, destProj, destMp, cronSubIds){
-  var hoje=new Date(); var dStr=hoje.toLocaleDateString('pt-BR');
-  var dataISO=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
-  var db=_cdocLoad();
-  // Salva GRD no banco de GRDs de básico
-  db._grds_bas=db._grds_bas||[];
-  var grdRec={
-    id:Date.now(),numero:numGrd,data:dataISO,tipo:tipoEm,obs:obsGrd||'',
-    destProj:destProj,destMp:destMp,cronSubIds:Array.isArray(cronSubIds)&&cronSubIds.length?cronSubIds:null,
-    docs:sels.map(function(b){return {docId:b.id,obra:b.obraId,sub:b.sub,cli:b.cli,titulo:b.titulo,rev:b.rev,peso:b.peso,proj:b.proj};})
-  };
-  db._grds_bas.push(grdRec);
-  // Salva grd_remessa em cada básico selecionado — mutação in-place + reconstrói array
-  sels.forEach(function(s){
-    var idx=db.basicos.findIndex(function(x){return x.id===s.id;});
-    if(idx>=0){
-      db.basicos[idx]=Object.assign({},db.basicos[idx],{grd_remessa:numGrd,grd_remessa_data:dataISO});
-    }
-  });
-  // Garante cache atualizado antes de salvar e renderizar
-  _cdocSBCache=db;
-  _cdocSave(db);
-  // Atualiza etapas no Cronograma para cada subobra selecionada (cronSubIds = array de IDs)
-  if((destProj||destMp) && Array.isArray(cronSubIds) && cronSubIds.length && typeof allCronSubobras!=='undefined'){
-    var obsEntry='GRD: '+numGrd+' ('+tipoEm+') — '+dStr;
-    var _lsCron=_lsGet('cronograma_subobras');
-    cronSubIds.forEach(function(csId){
-      var cronSub=allCronSubobras.find(function(s){return String(s.id)===String(csId);});
-      if(!cronSub) return;
-      var updates={atualizado_em:dataISO};
-      if(destProj){
-        updates.prev_envio_detail = cronSub.prev_envio_detail || dataISO;
-        updates.real_envio_detail = dataISO;
-        updates.obs_envio_detail  = obsEntry;
-        updates.conc_envio_detail = 'S';
-      }
-      if(destMp){
-        updates.prev_materia_prima = cronSub.prev_materia_prima || dataISO;
-        updates.real_materia_prima = dataISO;
-        updates.obs_materia_prima  = obsEntry;
-        updates.conc_materia_prima = 'S';
-      }
-      Object.assign(cronSub, updates);
-      _lsCron=_lsCron.map(function(r){return String(r.id)===String(cronSub.id)?Object.assign({},r,updates):r;});
-      if(typeof sbClient!=='undefined'){
-        sbClient.from('cronograma_subobras').eq('id',cronSub.id).update(updates).select()
-          .then(function(r){if(r.error) console.warn('[GRD-BAS-CRON]',r.error.message);})
-          .catch(function(e){console.warn('[GRD-BAS-CRON]',e.message);});
-      }
-    });
-    _lsSet('cronograma_subobras',_lsCron);
-  }
-  // Gera documento de GRD
-  var rows=sels.map(function(b,i){
-    return '<tr><td>'+(i+1)+'</td><td>'+_esc(b.obraId||'')+'</td><td>'+_esc(b.sub||'')+'</td>'
-      +'<td>'+_esc(b.cli||'')+'</td><td style="max-width:200px;">'+_esc(b.titulo||'')+'</td>'
-      +'<td>'+_esc(b.rev||'')+'</td><td>'+(b.peso?Number(b.peso).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—')+'</td>'
-      +'<td>'+_esc(b.proj||'')+'</td><td>&nbsp;</td></tr>';
-  }).join('');
-  var destiLabel=[];
-  if(destProj) destiLabel.push('Projetista (Detalhamento)');
-  if(destMp)   destiLabel.push('Verificação de MP');
-  var w=window.open('','_blank','width=1080,height=750');
-  if(!w){alert('Permita popups para gerar a GRD.');return;}
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>GRD Básico — '+numGrd+'</title>'
-    +'<style>body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;font-size:12px;}'
-    +'h2{color:#4c1d95;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 6px;}'
-    +'.meta{display:flex;gap:24px;margin-bottom:10px;font-size:11px;flex-wrap:wrap;}'
-    +'.grd-num{font-size:22px;font-weight:900;color:#4c1d95;letter-spacing:1px;margin-bottom:4px;}'
-    +'.tipo-badge{display:inline-block;padding:4px 14px;border-radius:4px;font-size:12px;font-weight:700;color:#5b21b6;background:#ede9fe;border:1px solid #c4b5fd;margin-bottom:8px;}'
-    +'.dest-badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;margin-right:6px;margin-bottom:10px;}'
-    +'table{width:100%;border-collapse:collapse;}thead th{background:#4c1d95;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}'
-    +'tbody td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;}'
-    +'tbody tr:nth-child(even){background:#f8fafc;}'
-    +'.assin{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:48px;}'
-    +'.assin div{border-top:1px solid #94a3b8;padding-top:8px;color:#64748b;font-size:11px;}'
-    +'@media print{.no-print{display:none;}}</style></head><body>'
-    +'<div class="grd-num">'+_esc(numGrd)+'</div>'
-    +'<h2>GRD &mdash; Guia de Remessa de Documentos &mdash; Projeto B&#225;sico</h2>'
-    +'<p class="sub">SIDERTEC ESTRUTURAS MET&#193;LICAS</p>'
-    +'<div class="tipo-badge">'+_esc(tipoEm)+'</div><br>'
-    +destiLabel.map(function(d){return '<span class="dest-badge">&#10148; '+_esc(d)+'</span>';}).join('')
-    +'<div class="meta" style="margin-top:8px;">'
-    +'<span>N&#186; GRD: <strong>'+_esc(numGrd)+'</strong></span>'
-    +'<span>Data: <strong>'+dStr+'</strong></span>'
-    +'<span>Total: <strong>'+sels.length+' doc(s)</strong></span>'
-    +(function(){var tot=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);return tot?'<span>Peso Total: <strong>'+tot.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</strong></span>':'';}())
-    +'</div>'
-    +(obsGrd?'<div style="margin-bottom:10px;padding:6px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><strong>Obs.:</strong> '+_esc(obsGrd)+'</div>':'')
-    +'<table><thead><tr><th>#</th><th>Obra</th><th>TAG</th><th>N&#186; Cliente</th>'
-    +'<th>T&#237;tulo / Descri&#231;&#227;o</th><th>Rev.</th><th>Peso</th><th>Projetista</th><th>Obs.</th></tr></thead>'
-    +'<tbody>'+rows+'</tbody>'
-    +(function(){var tot=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);return tot?'<tfoot><tr style="background:#f3e8ff;"><td colspan="6" style="text-align:right;font-weight:700;padding:5px 8px;font-size:11px;border-top:2px solid #c4b5fd;">Peso Total:</td><td style="font-weight:700;padding:5px 8px;font-size:11px;border-top:2px solid #c4b5fd;">'+tot.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td><td colspan="2" style="border-top:2px solid #c4b5fd;"></td></tr></tfoot>':'';}())
-    +'</table>'
-    +'<div class="assin"><div>Emitido por: ________________________<br><br>Data: ___/___/______</div>'
-    +'<div>Recebido por: ________________________<br><br>Data: ___/___/______</div></div>'
-    +'<br><div class="no-print" style="margin-top:16px;">'
-    +'<button onclick="window.print()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;margin-right:8px;">&#128438; Imprimir / PDF</button>'
-    +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
-    +'</div></body></html>');
-  w.document.close();
-  _cdocBasSel.clear();
-  cdocRenderBas();
-  cdocRenderVisao();
-  showToast('GRD emitida','Nº '+numGrd+' registrada nos documentos selecionados.','success');
-}
-
-function cdocAbrirGrdsBas(){
-  var db=_cdocLoad();
-  var grds=(db._grds_bas||[]).slice().reverse();
-  var overlay=document.createElement('div');
-  overlay.id='grd-bas-list-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
-  var rows=grds.length?grds.map(function(g){
-    var docs=(g.docs||[]).map(function(d){return _esc(d.sub||'')+(d.cli?' / '+_esc(d.cli):'');}).join(', ');
-    var dest=[];
-    if(g.destProj) dest.push('Projetista');
-    if(g.destMp)   dest.push('MP');
-    return '<tr>'
-      +'<td style="font-weight:700;font-family:Courier New;color:#4c1d95;">'+_esc(g.numero)+'</td>'
-      +'<td>'+_esc(g.data||'')+'</td>'
-      +'<td>'+_esc(g.tipo||'')+'</td>'
-      +'<td>'+dest.join(' + ')+'</td>'
-      +'<td style="font-size:9px;">'+_esc(docs)+'</td>'
-      +'<td style="font-size:9px;color:#64748b;">'+_esc(g.obs||'')+'</td>'
-      +'<td style="text-align:center;"><button onclick="cdocExcluirGrdBas('+g.id+')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 7px;font-size:11px;cursor:pointer;" title="Excluir GRD e reverter dados">🗑</button></td>'
-      +'</tr>';
-  }).join('')
-  :'<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">Nenhuma GRD de Básico emitida ainda.</td></tr>';
-  overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:20px 24px;min-width:700px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
-    +'<span style="font-size:14px;font-weight:700;color:#4c1d95;">📄 GRDs de Remessa — Projeto Básico</span>'
-    +'<button id="grds-bas-close" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;">✕</button>'
-    +'</div>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:11px;">'
-    +'<thead><tr style="background:#4c1d95;color:#fff;">'
-    +'<th style="padding:6px 8px;">Nº GRD</th><th style="padding:6px 8px;">Data</th><th style="padding:6px 8px;">Tipo</th>'
-    +'<th style="padding:6px 8px;">Destino</th><th style="padding:6px 8px;">Documentos</th><th style="padding:6px 8px;">Obs.</th>'
-    +'<th style="padding:6px 8px;"></th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table>'
-    +'</div>';
-  document.body.appendChild(overlay);
-  document.getElementById('grds-bas-close').onclick=function(){document.body.removeChild(overlay);};
-  overlay.addEventListener('click',function(e){if(e.target===overlay)document.body.removeChild(overlay);});
-}
-
-function cdocExcluirGrdBas(grdId){
-  if(!_siderRequireEdit()) return;
-  var db=_cdocLoad();
-  var grd=db._grds_bas&&db._grds_bas.find(function(g){return g.id===grdId;});
-  if(!grd){alert('GRD não encontrada.');return;}
-  var nDocs=(grd.docs||[]).length;
-  if(!confirm('Excluir GRD '+grd.numero+'?\n\nIsso vai:\n• Remover a GRD da lista\n• Limpar o campo "GRD Remessa" nos '+nDocs+' documento(s)\n• Reverter etapas do Cronograma marcadas por esta GRD')){return;}
-
-  // 1. Limpar grd_remessa nos básicos vinculados a esta GRD
-  (grd.docs||[]).forEach(function(doc){
-    var idx=db.basicos.findIndex(function(b){return b.id===doc.docId;});
-    if(idx>=0&&db.basicos[idx].grd_remessa===grd.numero){
-      db.basicos[idx]=Object.assign({},db.basicos[idx],{grd_remessa:null,grd_remessa_data:null});
-    }
-  });
-
-  // 2. Reverter etapas do Cronograma marcadas por esta GRD (cronSubIds = array, com fallback para cronSubId legado)
-  var _delCronIds=Array.isArray(grd.cronSubIds)&&grd.cronSubIds.length?grd.cronSubIds
-    :(grd.cronSubId?[grd.cronSubId]:[]);
-  if(typeof allCronSubobras!=='undefined'&&_delCronIds.length){
-    var _lsCron2=_lsGet('cronograma_subobras');
-    var pattern='GRD: '+grd.numero;
-    _delCronIds.forEach(function(csId){
-      var cronSub=allCronSubobras.find(function(s){return String(s.id)===String(csId);});
-      if(!cronSub) return;
-      var updates={atualizado_em:new Date().toISOString()};
-      if(grd.destProj&&cronSub.obs_envio_detail&&String(cronSub.obs_envio_detail).indexOf(pattern)===0){
-        updates.real_envio_detail=null; updates.obs_envio_detail=null; updates.conc_envio_detail=null;
-      }
-      if(grd.destMp&&cronSub.obs_materia_prima&&String(cronSub.obs_materia_prima).indexOf(pattern)===0){
-        updates.real_materia_prima=null; updates.obs_materia_prima=null; updates.conc_materia_prima=null;
-      }
-      if(Object.keys(updates).length>1){
-        Object.assign(cronSub,updates);
-        _lsCron2=_lsCron2.map(function(r){return String(r.id)===String(cronSub.id)?Object.assign({},r,updates):r;});
-        if(typeof sbClient!=='undefined'){
-          sbClient.from('cronograma_subobras').eq('id',cronSub.id).update(updates).select()
-            .then(function(r){if(r.error)console.warn('[DEL-GRD-BAS-CRON]',r.error.message);})
-            .catch(function(e){console.warn('[DEL-GRD-BAS-CRON]',e.message);});
-        }
-      }
-    });
-    _lsSet('cronograma_subobras',_lsCron2);
-  }
-
-  // 3. Remover GRD da lista e salvar
-  db._grds_bas=db._grds_bas.filter(function(g){return g.id!==grdId;});
-  _cdocSBCache=db;
-  _cdocSave(db);
-  cdocRenderBas();
-  cdocRenderVisao();
-  showToast('GRD excluída','Nº '+grd.numero+' removida e dados revertidos.','success');
-
-  // 4. Fechar e reabrir a lista atualizada
-  var ov=document.getElementById('grd-bas-list-overlay');
-  if(ov) document.body.removeChild(ov);
-  cdocAbrirGrdsBas();
-}
-
 function cdocExportBas(){
   var db=_cdocDb();
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
@@ -18260,204 +17748,71 @@ function cdocExportDetSel(){
   var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='detalhado_selecionados.csv';a.click();URL.revokeObjectURL(url);
 }
-
-/* ── RELATÓRIO PROJETO BÁSICO ── */
-function cdocRelatorioBas(){
-  var db=_cdocDb();
-  var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
-  var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
-  var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
-  var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
-  var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
-  var rows=(db.basicos||[]).filter(function(b){
-    if(fObra&&b.obraId!==fObra) return false;
-    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
-    if(fSt&&b.status!==fSt) return false;
-    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
-    if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
-    return true;
-  });
-  if(typeof _cdocApplyColFlts==='function') rows=_cdocApplyColFlts(rows,'bas');
-  if(typeof _cdocApplySort==='function') rows=_cdocApplySort(rows,_cdocBasSort||{});
-  var fmt=function(v){return (v!=null&&v!=='')?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'\u2014';};
-  var fmtD=function(v){if(!v)return'\u2014';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v;};
-  var totalPeso=rows.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
-  var obra=fObra||'Todas as obras';
-  var geradoEm=new Date().toLocaleString('pt-BR');
-  var statMap={};
-  rows.forEach(function(b){var s=b.status||'\u2014';statMap[s]=(statMap[s]||0)+1;});
-  var tagMap={};
-  rows.forEach(function(b){
-    var t=b.sub||'(sem TAG)';
-    if(!tagMap[t]) tagMap[t]={count:0,peso:0,areas:[]};
-    tagMap[t].count++;
-    tagMap[t].peso+=(parseFloat(b.peso)||0);
-    if(b.area&&tagMap[t].areas.indexOf(b.area)===-1) tagMap[t].areas.push(b.area);
-  });
-  var statusBadge=function(s){
-    var cor={LD:'#0369a1','Em andamento':'#d97706','Conclu\u00eddo':'#16a34a'}[s]||'#64748b';
-    return '<span style="background:'+cor+'20;color:'+cor+';border:1px solid '+cor+'55;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">'+_esc(s||'\u2014')+'</span>';
-  };
-  var revHistHtml=function(b){
-    if(!b.revisoes||!b.revisoes.length) return '<span style="color:#94a3b8;font-size:9px;">\u2014</span>';
-    return b.revisoes.map(function(r){
-      return '<div style="display:flex;gap:6px;font-size:9px;border-bottom:1px solid #f1f5f9;padding:1px 0;">'
-        +'<span style="font-weight:700;color:#0369a1;min-width:32px;">'+_esc(r.rev||'')+'</span>'
-        +'<span style="color:#64748b;min-width:72px;">'+fmtD(r.data||'')+'</span>'
-        +'<span style="color:#475569;">'+_esc(r.obs||'')+'</span>'
-        +'</div>';
-    }).join('');
-  };
-  var rowsHtml=rows.map(function(b,i){
-    var bg=(i%2===0)?'#ffffff':'#f8fafc';
-    return '<tr style="background:'+bg+';border-bottom:1px solid #e2e8f0;">'
-      +'<td style="padding:5px 7px;font-size:9px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(b.obraId||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;font-weight:700;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(b.sub||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;white-space:nowrap;">'+_esc(b.cli||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;max-width:220px;">'+_esc(b.titulo||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;color:#2563eb;">'+_esc(b.area||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;text-align:right;font-family:Courier New,monospace;">'+fmt(b.peso)+'</td>'
-      +'<td style="padding:5px 7px;text-align:center;">'+statusBadge(b.status)+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;text-align:center;">'+_esc(b.m3d||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;text-align:center;">'+_esc(b.diag||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;">'+_esc(b.proj||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;font-family:Courier New,monospace;text-align:center;font-weight:700;">'+_esc(b.rev||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;white-space:nowrap;">'+_esc(b.det||'\u2014')+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;font-family:Courier New,monospace;white-space:nowrap;">'+fmtD(b.data)+'</td>'
-      +'<td style="padding:5px 7px;font-size:9px;">'+revHistHtml(b)+'</td>'
-      +'</tr>';
-  }).join('');
-  var statHtml=Object.keys(statMap).map(function(s){
-    var cor={LD:'#0369a1','Em andamento':'#d97706','Conclu\u00eddo':'#16a34a'}[s]||'#64748b';
-    return '<span style="display:inline-flex;align-items:center;gap:4px;background:'+cor+'15;border:1px solid '+cor+'44;border-radius:4px;padding:3px 10px;font-size:10px;margin:2px;">'
-      +'<span style="font-weight:700;color:'+cor+';">'+_esc(s)+'</span>'
-      +'<span style="color:#64748b;">'+statMap[s]+' doc(s)</span></span>';
-  }).join('');
-  var tagHtml=Object.keys(tagMap).sort().map(function(t){
-    var g=tagMap[t];
-    return '<tr><td style="padding:3px 8px;font-family:Courier New,monospace;font-size:9px;font-weight:700;color:#0369a1;">'+_esc(t)+'</td>'
-      +'<td style="padding:3px 8px;font-size:9px;text-align:center;">'+g.count+'</td>'
-      +'<td style="padding:3px 8px;font-size:9px;color:#2563eb;">'+g.areas.join(', ')+'</td>'
-      +'<td style="padding:3px 8px;font-size:9px;text-align:right;font-family:Courier New,monospace;">'+(g.peso?g.peso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'\u2014')+'</td>'
-      +'</tr>';
-  }).join('');
-  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
-    +'<title>Relat\u00f3rio Projeto B\u00e1sico \u2014 '+_esc(obra)+'</title>'
-    +'<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b;margin:0;padding:20px;}'
-    +'@media print{body{padding:8px;}.no-print{display:none!important;}@page{margin:12mm;}}'
-    +'.header{background:linear-gradient(135deg,#0c4a6e,#0369a1);color:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px;}'
-    +'.header h1{margin:0;font-size:16px;font-weight:700;}.header p{margin:4px 0 0;font-size:10px;opacity:.8;}'
-    +'.cards{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}'
-    +'.card{background:#fff;border:1.5px solid #e2e8f0;border-radius:6px;padding:10px 16px;min-width:120px;}'
-    +'.card .val{font-size:20px;font-weight:700;color:#0369a1;}.card .lbl{font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;}'
-    +'.section{background:#fff;border:1.5px solid #e2e8f0;border-radius:6px;margin-bottom:16px;overflow:hidden;}'
-    +'.sec-hdr{background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:8px 14px;font-size:11px;font-weight:700;color:#334155;}'
-    +'.sec-body{padding:12px 14px;}'
-    +'table{width:100%;border-collapse:collapse;}th{background:#0c4a6e;color:#fff;padding:6px 7px;font-size:9px;font-weight:700;text-align:left;white-space:nowrap;}'
-    +'tr:hover{background:#f0f9ff!important;}'
-    +'.btn-print{background:#0369a1;color:#fff;border:none;border-radius:5px;padding:8px 20px;font-size:12px;cursor:pointer;font-weight:700;margin-right:8px;}'
-    +'.btn-close{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:8px 20px;font-size:12px;cursor:pointer;font-weight:700;}'
-    +'</style></head><body>'
-    +'<div class="no-print" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">'
-    +'<button class="btn-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>'
-    +'<button class="btn-close" onclick="window.close()">✕ Fechar</button>'
-    +'<span style="font-size:10px;color:#94a3b8;">Dica: no di\u00e1logo de impress\u00e3o selecione "Salvar como PDF".</span></div>'
-    +'<div class="header"><h1>📋 Relat\u00f3rio \u2014 Projeto B\u00e1sico</h1>'
-    +'<p>Obra: <strong>'+_esc(obra)+'</strong>'+(fSub?' \u00b7 TAG: '+_esc(fSub):'')+(fSt?' \u00b7 Status: '+_esc(fSt):'')+'</p>'
-    +'<p>Gerado em: '+geradoEm+' \u00b7 '+rows.length+' documento(s)</p></div>'
-    +'<div class="cards">'
-    +'<div class="card"><div class="val">'+rows.length+'</div><div class="lbl">Total Docs</div></div>'
-    +'<div class="card"><div class="val">'+totalPeso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</div><div class="lbl">Peso Total</div></div>'
-    +'<div class="card"><div class="val">'+Object.keys(tagMap).length+'</div><div class="lbl">TAGs</div></div>'
-    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='Conclu\u00eddo';}).length+'</div><div class="lbl">Conclu\u00eddos</div></div>'
-    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='Em andamento';}).length+'</div><div class="lbl">Em andamento</div></div>'
-    +'<div class="card"><div class="val">'+rows.filter(function(b){return b.status==='LD';}).length+'</div><div class="lbl">LD</div></div>'
-    +'</div>'
-    +'<div class="section"><div class="sec-hdr">📊 Distribui\u00e7\u00e3o por Status</div><div class="sec-body">'+statHtml+'</div></div>'
-    +'<div class="section"><div class="sec-hdr">🏷 Resumo por TAG</div>'
-    +'<table><thead><tr><th>TAG / Sub-obra</th><th style="text-align:center;">Qtd</th><th>\u00c1rea(s)</th><th style="text-align:right;">Peso B\u00e1sico</th></tr></thead>'
-    +'<tbody>'+tagHtml+'</tbody></table></div>'
-    +'<div class="section"><div class="sec-hdr">📄 Listagem Completa ('+rows.length+' registros)</div>'
-    +'<div style="overflow-x:auto;"><table><thead><tr>'
-    +'<th>Obra</th><th>TAG</th><th>N\u00ba Cliente</th><th>T\u00edtulo / Descri\u00e7\u00e3o</th>'
-    +'<th>\u00c1rea</th><th style="text-align:right;">Peso (kg)</th><th>Status</th>'
-    +'<th>3D</th><th>Diag.</th><th>Projetista</th><th>Rev.</th>'
-    +'<th>Tipo Det.</th><th>Data</th><th>Hist. Revis\u00f5es</th>'
-    +'</tr></thead><tbody>'+rowsHtml+'</tbody>'
-    +'<tfoot><tr style="background:#0c4a6e;color:#fff;">'
-    +'<td colspan="5" style="padding:5px 7px;font-size:9px;font-weight:700;">TOTAL</td>'
-    +'<td style="padding:5px 7px;font-size:9px;font-weight:700;text-align:right;font-family:Courier New,monospace;">'+totalPeso.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td>'
-    +'<td colspan="8" style="padding:5px 7px;font-size:9px;">'+rows.length+' documento(s)</td>'
-    +'</tr></tfoot></table></div></div></body></html>';
-  var w=window.open('','_blank','width=1200,height=800,scrollbars=yes');
-  if(w){w.document.open();w.document.write(html);w.document.close();}
-  else{alert('Pop-up bloqueado. Permita pop-ups para este site.');}
-}
-
 function cdocImportBas(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
-  var isXlsx=/\.(xlsx|xls)$/i.test(file.name);
-  function _normData(v){
-    if(!v) return '';
-    if(v instanceof Date){var y=v.getFullYear(),m=String(v.getMonth()+1).padStart(2,'0'),d=String(v.getDate()).padStart(2,'0');return y+'-'+m+'-'+d;}
-    var s=String(v).trim();
-    if(/^\d{4,5}$/.test(s)){var ep=new Date(Date.UTC(1899,11,30));ep.setUTCDate(ep.getUTCDate()+parseInt(s));return ep.toISOString().slice(0,10);}
-    if(s.includes('/')){var dp=s.split('/');if(dp.length===3)return dp[2].length===4?dp[2]+'-'+dp[1]+'-'+dp[0]:dp[0]+'-'+dp[1]+'-'+dp[2];}
-    return s;
-  }
-  function _processar(rowObjs){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
+    if(!lines.length){alert('Arquivo vazio.');return;}
+    var sep=lines[0].includes(';')?';':',';
+    var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
     var db=_cdocDb(); var added=0; var updated=0; var erros=[];
-    rowObjs.forEach(function(row,idx){
-      var obra=String(row['Obra']||row['obra']||'').trim();
-      var sub=String(row['TAG']||row['sub']||row['TAG Sub-obra']||'').trim();
-      var titulo=String(row['T\u00edtulo']||row['Titulo']||row['T\u00edtulo / Descri\u00e7\u00e3o']||row['titulo']||'').trim();
-      var cli=String(row['N\u00ba Cliente']||row['No Cliente']||row['N\u00ba CLIENTE']||'').trim();
-      if(!cli&&(!obra||!titulo)){erros.push('Linha '+(idx+2)+': N\u00ba Cliente obrigat\u00f3rio');return;}
-      var pesoRaw=String(row['Peso (kg)']||row['Peso']||'').replace(/\./g,'').replace(',','.');
-      var revVal=String(row['Revis\u00e3o']||row['Rev.']||row['Revisao']||'').trim();
-      var dataVal=_normData(row['Data']||'');
-      var newData={obraId:obra,sub:sub,titulo:titulo,cli:cli,
-        proj:String(row['Projetista']||'').trim(),
-        status:String(row['Status']||'LD').trim(),
-        area:String(row['\u00c1rea']||row['Area']||'').trim(),
-        peso:pesoRaw?parseFloat(pesoRaw)||null:null,
-        m3d:String(row['3D']||'2D').trim(),
-        diag:String(row['Diagramas']||row['Diag.']||'2D').trim(),
-        det:String(row['Tipo Detalhamento']||'').trim(),
-        rev:revVal, data:dataVal};
-      var revEntry=null;
-      if(revVal||dataVal){ revEntry={rev:revVal,data:dataVal,obs:'Importado via arquivo',timestamp:new Date().toISOString()}; }
+    for(var i=1;i<lines.length;i++){
+      var cols=_cdocParseCsvLine(lines[i],sep);
+      var row={}; headers.forEach(function(h,idx){row[h]=cols[idx]||'';});
+      var obra=row['Obra']||row['obra']||'';
+      var sub=row['TAG']||row['sub']||row['TAG Sub-obra']||'';
+      var titulo=row['Título']||row['Titulo']||row['Título / Descrição']||row['titulo']||'';
+      var cli=(row['Nº Cliente']||row['No Cliente']||'').trim();
+      // Nº Cliente é o único identificador válido — Obra+TAG não é único
+      if(!cli&&(!obra||!titulo)){erros.push('Linha '+(i+1)+': Nº Cliente (ou Obra+Título) obrigatórios'); continue;}
+      // Upsert apenas por Nº Cliente; sem fallback por obra+TAG para não sobrescrever registros distintos
       var existing=cli?db.basicos.find(function(b){return b.cli===cli;}):null;
+      var newData={
+        obraId:obra,sub:sub,titulo:titulo,cli:cli,
+        proj:row['Projetista']||'',
+        status:row['Status']||'LD',
+        area:row['Área']||row['Area']||'',
+        peso:(function(){var v=row['Peso (kg)']||row['Peso']||'';v=v.replace(/\./g,'').replace(',','.');return v?parseFloat(v)||null:null;})(),
+        m3d:row['3D']||'2D',
+        diag:row['Diagramas']||row['Diag.']||'2D',
+        det:row['Tipo Detalhamento']||'',
+        rev:row['Revisão']||row['Rev.']||row['Revisao']||'',
+        data:row['Data']||''};
+      if(newData.data&&newData.data.includes('/')){var dp=newData.data.split('/');if(dp.length===3)newData.data=dp[2]+'-'+dp[1]+'-'+dp[0];}
+      // Montar entrada de revisão se Rev. ou Data estiverem preenchidos
+      var revEntry=null;
+      if(newData.rev||newData.data){
+        revEntry={rev:newData.rev||'',data:newData.data||'',obs:'Importado via CSV',user:'CSV',timestamp:new Date().toISOString()};
+      }
       if(existing){
-        var prevRev=existing.revisoes||[];
-        Object.assign(existing,newData); existing.revisoes=prevRev;
-        if(revEntry){var jaEx=prevRev.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});if(!jaEx)existing.revisoes.push(revEntry);}
+        // Atualizar preservando históricos e id
+        var prevRevisoes=existing.revisoes||[];
+        Object.assign(existing,newData);
+        existing.revisoes=prevRevisoes;
+        // Adicionar entrada de revisão se ainda não existe (por rev+data)
+        if(revEntry){
+          var jaExiste=prevRevisoes.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});
+          if(!jaExiste) existing.revisoes.push(revEntry);
+        }
         updated++;
       } else {
-        newData.id=_cdocGenId(db,'bas'); newData.revisoes=revEntry?[revEntry]:[];
-        db.basicos.push(newData); added++;
+        newData.id=_cdocGenId(db,'bas');
+        newData.revisoes=revEntry?[revEntry]:[];
+        db.basicos.push(newData);
+        added++;
       }
-    });
+    }
     _cdocSave(db);
     var msg=added+' novo(s) + '+updated+' atualizado(s).';
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
-    showToast('Importa\u00e7\u00e3o conclu\u00edda',msg,'success');
+    alert(msg);
     cdocRenderBas(); cdocRenderVisao();
-  }
-  if(isXlsx){
-    if(typeof XLSX==='undefined'){showToast('SheetJS n\u00e3o carregado','Aguarde e tente novamente.','error');return;}
-    var reader=new FileReader();
-    reader.onload=function(e){try{var data=new Uint8Array(e.target.result);var wb=XLSX.read(data,{type:'array',cellDates:true});var ws=wb.Sheets[wb.SheetNames[0]];var rowObjs=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false,dateNF:'yyyy-mm-dd'});if(!rowObjs.length){showToast('Arquivo vazio','','error');return;}_processar(rowObjs);}catch(err){showToast('Erro ao ler XLSX',err.message,'error');}};
-    reader.readAsArrayBuffer(file);
-  } else {
-    var reader=new FileReader();
-    reader.onload=function(e){var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});if(!lines.length){showToast('Arquivo vazio','','error');return;}var sep=lines[0].includes(';')?';':',';var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});var rowObjs=[];for(var i=1;i<lines.length;i++){var cols=_cdocParseCsvLine(lines[i],sep);var row={};headers.forEach(function(h,idx){row[h]=cols[idx]||'';});rowObjs.push(row);}_processar(rowObjs);};
-    reader.readAsText(file,'UTF-8');
-  }
+  };
+  reader.readAsText(file,'UTF-8');
 }
-
 function cdocImportDet(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
@@ -18894,6 +18249,94 @@ function _cdocColApply(){
   var btnSel=tbl==='bas'?'cdb':'cdd';
   if(tbl==='bas') cdocRenderBas(); else cdocRenderDet();
 }
+</script>
+
+<script>
+// Sistema de bloqueio de edicao
+var _siderEditUnlocked = false;
+var _CDOC_SENHA = 'sidertec';
+
+function _siderToggleLock(){
+  var btns = document.querySelectorAll('.sider-lock-btn');
+  if(_siderEditUnlocked){
+    _siderEditUnlocked = false;
+    btns.forEach(function(b){ b.classList.add('locked'); b.innerHTML='🔒 Editar'; b.title='Clique para desbloquear edição'; });
+  } else {
+    _siderShowPwdDlg();
+  }
+}
+
+function _siderShowPwdDlg(){
+  if(document.getElementById('sider-pwd-ov')) return;
+  var ov = document.createElement('div');
+  ov.id = 'sider-pwd-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML =
+    '<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:290px;box-shadow:0 8px 32px rgba(0,0,0,.35);">' +
+    '<div style="font-size:14px;font-weight:700;color:#1a1714;margin-bottom:14px;">🔒 Senha de Edição</div>' +
+    '<input id="sider-pwd-inp" type="password" placeholder="Digite a senha" autocomplete="off" ' +
+    'style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;margin-bottom:14px;box-sizing:border-box;" ' +
+    'onkeydown="if(event.key===\'Enter\')_siderConfirmPwd();if(event.key===\'Escape\')_siderCancelPwd();">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+    '<button onclick="_siderCancelPwd()" style="padding:6px 18px;border:1px solid #e2e8f0;background:#f1f5f9;border-radius:5px;cursor:pointer;font-size:12px;">Cancelar</button>' +
+    '<button onclick="_siderConfirmPwd()" style="padding:6px 18px;background:#1e3a5f;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;">Confirmar</button>' +
+    '</div></div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){ var i=document.getElementById('sider-pwd-inp'); if(i) i.focus(); },50);
+}
+
+function _siderConfirmPwd(){
+  var inp = document.getElementById('sider-pwd-inp');
+  var s = inp ? inp.value : '';
+  _siderCancelPwd();
+  if(s === _CDOC_SENHA){
+    _siderEditUnlocked = true;
+    document.querySelectorAll('.sider-lock-btn').forEach(function(b){
+      b.classList.remove('locked');
+      b.innerHTML='🔓 Editando';
+      b.title='Clique para bloquear edição';
+    });
+  } else {
+    setTimeout(function(){
+      var msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:700;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.3);';
+      msg.textContent = '❌ Senha incorreta';
+      document.body.appendChild(msg);
+      setTimeout(function(){ msg.remove(); }, 2500);
+    }, 100);
+  }
+}
+
+function _siderCancelPwd(){
+  var ov = document.getElementById('sider-pwd-ov');
+  if(ov) ov.remove();
+}
+
+function _siderRequireEdit(){
+  if(_siderEditUnlocked) return true;
+  _siderToggleLock();
+  return _siderEditUnlocked;
+}
+
+// Pré-carrega dados CDOC do Supabase silenciosamente ao abrir o arquivo
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    try{
+      if(typeof _sbUrl !== 'function' || typeof _SB_H === 'undefined') return;
+      var url = _sbUrl('cdoc_database?key=eq.main&select=data');
+      if(!url || url.indexOf('undefined') !== -1 || url.indexOf('null') !== -1) return;
+      fetch(url, {headers: _SB_H}).then(function(r){
+        if(!r.ok) return;
+        return r.json();
+      }).then(function(rows){
+        if(rows && rows.length && rows[0].data){
+          _cdocSBCache = rows[0].data;
+          try{ localStorage.setItem('sider_ctrldoc', JSON.stringify(_cdocSBCache)); }catch(e){}
+        }
+      }).catch(function(){});
+    }catch(e){}
+  }, 3000);
+});
 </script>
 </body>
 </html>
