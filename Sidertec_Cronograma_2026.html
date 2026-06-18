@@ -16162,10 +16162,9 @@ function _cdocDiag(){
   if(cache&&typeof cache==='object'){
     msg+='  basicos: '+((cache.basicos||[]).length)+' registros\n';
     msg+='  detalhados: '+((cache.detalhados||[]).length)+' registros\n';
-    msg+='  _ids: '+JSON.stringify(cache._ids||{})+'\n';
     if((cache.basicos||[]).length>0){
       var b0=cache.basicos[0];
-      msg+='  1º básico: id='+b0.id+', obraId='+JSON.stringify(b0.obraId)+', titulo='+JSON.stringify(b0.titulo)+'\n';
+      msg+='  1º básico: id='+b0.id+', obraId='+JSON.stringify(b0.obraId)+', titulo='+JSON.stringify(b0.titulo)+', status='+JSON.stringify(b0.status)+'\n';
     }
   }
   msg+='\nlocalStorage sider_ctrldoc: '+(ls===null?'vazio':typeof ls)+'\n';
@@ -16174,9 +16173,18 @@ function _cdocDiag(){
     msg+='  detalhados: '+((ls.detalhados||[]).length)+' registros\n';
   }
   msg+='\nallCronSubobras: '+(typeof allCronSubobras==='undefined'?'undefined':(allCronSubobras.length+' registros'));
+  // Testa cdocRenderBas
+  var tb=document.getElementById('cdb-tbody');
+  msg+='\n\ncdb-tbody: '+(tb?'encontrado ('+tb.children.length+' linhas)':'NÃO ENCONTRADO');
+  try{
+    cdocRenderBas();
+    var tb2=document.getElementById('cdb-tbody');
+    msg+='\nApos cdocRenderBas(): '+(tb2?tb2.children.length+' linhas':'tb nulo');
+  }catch(e){
+    msg+='\nERRO em cdocRenderBas(): '+e.message;
+  }
   alert(msg);
 }
-
 function _cdocSyncGlobalFromTab(srcId){
   var v=(document.getElementById(srcId)||{}).value||'';
   var g=document.getElementById('cdoc-g-obra'); if(g) g.value=v;
@@ -16198,7 +16206,12 @@ function cdocTab(t){
   else if(t==='diario'){cdocDiarioPeriodo(_cdocDiarioPeriodo||'hoje');}
 }
 
-function cdocRefreshAll(){ cdocRenderVisao(); cdocRenderBas(); cdocRenderDet(); cdocPopFilters(); }
+function cdocRefreshAll(){
+  try{ cdocRenderVisao(); }catch(e){ console.error('[CDOC] RenderVisao error:',e); }
+  try{ cdocRenderBas(); }catch(e){ console.error('[CDOC] RenderBas error:',e); }
+  try{ cdocRenderDet(); }catch(e){ console.error('[CDOC] RenderDet error:',e); }
+  try{ cdocPopFilters(); }catch(e){ console.error('[CDOC] PopFilters error:',e); }
+}
 
 function cdocPopFilters(){
   var obras=_cdocObras();
@@ -18265,6 +18278,45 @@ function _siderToggleLock(){
     _siderShowPwdDlg();
   }
 }
+
+// ── Funções restauradas (perdidas na truncagem) ──────────────────────────
+
+function _cdocApplyColFlts(rows, tbl){
+  var flts = tbl==='bas' ? _cdocColFltsBas : _cdocColFltsDet;
+  return rows.filter(function(r){
+    return Object.keys(flts).every(function(col){
+      if(!flts[col]||!flts[col].size) return true;
+      return flts[col].has((r[col]||'(vazio)').toString());
+    });
+  });
+}
+
+function cdocEditarObra(obraEnc, e){
+  if(e) e.stopPropagation();
+  if(!_siderRequireEdit()) return;
+  var obraOld = decodeURIComponent(obraEnc);
+  var obraNova = prompt('Renomear obra "'+obraOld+'" para:', obraOld);
+  if(!obraNova || obraNova === obraOld) return;
+  var db = _cdocLoad();
+  db.basicos.forEach(function(b){ if(b.obraId===obraOld) b.obraId=obraNova; });
+  db.detalhados.forEach(function(d){ if(d.obraId===obraOld) d.obraId=obraNova; });
+  if(db._obras){ var io=db._obras.indexOf(obraOld); if(io!==-1) db._obras[io]=obraNova; }
+  _cdocSave(db);
+  cdocRefreshAll();
+}
+
+function cdocExcluirObra(obraEnc, e){
+  if(e) e.stopPropagation();
+  if(!_siderRequireEdit()) return;
+  var obra = decodeURIComponent(obraEnc);
+  if(!confirm('Ocultar a obra "'+obra+'" da Visão Geral?\n\nOs documentos não serão excluídos.')) return;
+  var db = _cdocLoad();
+  db._obrasOcultas = db._obrasOcultas||[];
+  if(db._obrasOcultas.indexOf(obra)===-1) db._obrasOcultas.push(obra);
+  _cdocSave(db);
+  cdocRefreshAll();
+}
+
 
 function _siderShowPwdDlg(){
   if(document.getElementById('sider-pwd-ov')) return;
