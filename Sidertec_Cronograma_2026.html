@@ -15762,6 +15762,7 @@ function cotExportarCSV(){
             <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
           </select>
           <input id="cdb-f-txt" placeholder="Buscar..." oninput="cdocRenderBas()" style="max-width:130px;">
+          <input id="cdb-f-grd" placeholder="GRD..." oninput="cdocRenderBas()" style="max-width:90px;">
           <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
           <div style="margin-left:auto;display:flex;gap:.4rem;">
             <button onclick="cdocNovoBas()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
@@ -15769,13 +15770,20 @@ function cotExportarCSV(){
             <button onclick="cdocExportBasSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
             <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV">&#8593; CSV</button>
             <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
+            <button onclick="cdocEmitirGrdBas()" id="cdb-btn-grd" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Emitir GRD de Remessa para selecionados">📋 GRD</button>
+            <button onclick="cdocAbrirGrdsBas()" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Ver GRDs emitidas">📄 GRDs</button>
           </div>
+        </div>
+        <div style="padding:2px 0 4px 0;display:flex;align-items:center;gap:.5rem;">
+          <span id="cdb-peso-total" style="font-size:10px;color:#475569;font-weight:600;"></span>
+          <span id="cdb-peso-sel" style="font-size:10px;color:#7c3aed;font-weight:700;"></span>
+          <button id="cdb-btn-del-sel" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;" onclick="cdocDelBasSel()">🗑 Excluir (<span id="cdb-del-count">0</span>)</button>
         </div>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
         <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
           <table class="cdoc-tbl">
             <thead><tr>
-              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="width:54px;"></th>
+              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="min-width:90px;"><div class="th-inner">GRD Remessa<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','remessaGRD')">&#9660;</button></div></th><th style="width:54px;"></th>
             </tr></thead>
             <tbody id="cdb-tbody"></tbody>
           </table>
@@ -16373,12 +16381,14 @@ function cdocRenderBas(){
   var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
   var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
   var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
+  var fGrd=((document.getElementById('cdb-f-grd')||{}).value||'').toLowerCase();
   var rows=db.basicos.filter(function(b){
     if(fObra&&b.obraId!==fObra) return false;
     if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
     if(fSt&&b.status!==fSt) return false;
     if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
     if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
+    if(fGrd&&!(b.remessaGRD||'').toLowerCase().includes(fGrd)) return false;
     return true;
   });
   var tb=document.getElementById('cdb-tbody');
@@ -16391,7 +16401,7 @@ function cdocRenderBas(){
     var col=btn.getAttribute('onclick').match(/'bas','([^']+)'/); if(!col) return;
     btn.classList.toggle('active',!!_cdocColFltsBas[col[1]]);
   });
-  if(!rows.length){tb.innerHTML='<tr><td colspan="13" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum projeto básico. Clique em + Novo.</td></tr>';}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum projeto básico. Clique em + Novo.</td></tr>';}
   else{
     var fmt=function(v){return v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
     tb.innerHTML=rows.map(function(b){
@@ -16411,6 +16421,7 @@ function cdocRenderBas(){
         +'<td style="font-size:10px;">'+_esc(b.proj||'—')+'</td>'
         +'<td style="font-size:10px;white-space:nowrap;">'+_esc(b.rev||'—')+(b.revisoes&&b.revisoes.length?'<span title="Histórico: '+b.revisoes.length+' revisão(ões)" style="margin-left:3px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px;font-size:8px;font-weight:700;cursor:help;">'+b.revisoes.length+'</span>':'')+'</td>'
         +'<td style="font-family:Courier New,monospace;font-size:10px;">'+_fD2(b.data)+'</td>'
+        +'<td style="font-size:10px;white-space:nowrap;">'+(b.remessaGRD?'<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;cursor:pointer;" title="'+(b.remessaData?_fD2(b.remessaData):'')+'" onclick="cdocAbrirGrdsBas()">'+_esc(b.remessaGRD)+'</span>':'<span style="color:#cbd5e1;font-size:9px;">—</span>')+'</td>'
         +'<td style="white-space:nowrap;">'
           +'<button onclick="cdocEditBas('+b.id+')" style="background:none;border:none;cursor:pointer;color:#0369a1;font-size:12px;padding:1px 4px;" title="Editar">✎</button>'
           +'<button onclick="cdocDelBas('+b.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
@@ -17233,6 +17244,235 @@ function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom){
   _cdocDetSel.clear();
   cdocRenderDet();
   cdocRenderVisao();
+}
+/* ── GRD de Remessa — Projeto Básico ── */
+function cdocEmitirGrdBas(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocLoad();
+  var sels=[];
+  var _fObraSel=(document.getElementById('cdb-f-obra')||{}).value||'';
+  _cdocBasSel.forEach(function(id){
+    var doc=db.basicos.find(function(b){return b.id===id;});
+    if(doc&&(!_fObraSel||doc.obraId===_fObraSel)) sels.push(doc);
+  });
+  if(!sels.length){alert('Selecione projetos básicos para emitir a GRD.');return;}
+  var totalPeso=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+  var fmtP=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var tiposGrd=['Para Aprovação','Para Certificação','Para Informação'];
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  var hoje=new Date(); var hISO=hoje.toISOString().slice(0,10);
+  overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.22);">'
+    +'<div style="font-size:15px;font-weight:700;color:#5b21b6;margin-bottom:14px;">📋 Emitir GRD de Remessa — Projeto Básico</div>'
+    +'<div style="background:#f3e8ff;border:1px solid #c4b5fd;border-radius:5px;padding:7px 10px;margin-bottom:12px;font-size:11px;color:#5b21b6;">'
+    +'<strong>'+sels.length+' projeto(s) selecionado(s)</strong> &nbsp;·&nbsp; Peso total: <strong>'+fmtP(totalPeso)+' kg</strong></div>'
+    +'<div style="margin-bottom:12px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº da GRD <span style="font-size:9px;color:#94a3b8;">(obrigatório — inserir manualmente)</span></label>'
+    +'<input id="grdb-num-input" placeholder="Ex: S176-GRD-BASICO-001" style="width:100%;box-sizing:border-box;font-size:14px;font-weight:700;font-family:Courier New,monospace;padding:7px 10px;border:2px solid #7c3aed;border-radius:5px;color:#5b21b6;"></div>'
+    +'<div style="margin-bottom:12px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da GRD</label>'
+    +'<input type="date" id="grdb-data-input" value="'+hISO+'" style="font-size:12px;padding:5px 8px;border:1px solid #c4b5fd;border-radius:4px;"></div>'
+    +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">Tipo de Emissão</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">'
+    +tiposGrd.map(function(t,i){return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="radio" name="grdb-tipo" value="'+t+'"'+(i===0?' checked':'')+' style="accent-color:#7c3aed;"> '+t+'</label>';}).join('')
+    +'</div>'
+    +'<div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
+    +'<textarea id="grdb-obs-input" rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;resize:vertical;"></textarea></div>'
+    +'<div style="background:#ecfdf5;border:1px solid #86efac;border-radius:5px;padding:7px 10px;margin-bottom:14px;font-size:10px;color:#166534;">'
+    +'⚙️ Após confirmar, o número da GRD será vinculado aos projetos e a etapa "Envio Detalhamento" no cronograma será marcada como concluída.</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +'<button onclick="this.closest(\'div[style*=inset]\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
+    +'<button onclick="'
+      +'var num=(document.getElementById(\'grdb-num-input\')||{}).value||\'\';'
+      +'if(!num.trim()){alert(\'Informe o número da GRD.\');return;}'
+      +'var tipo=document.querySelector(\'input[name=grdb-tipo]:checked\');'
+      +'var tipoEm=tipo?tipo.value:\'Para Aprovação\';'
+      +'var obs=(document.getElementById(\'grdb-obs-input\')||{}).value||\'\';'
+      +'var dt=(document.getElementById(\'grdb-data-input\')||{}).value||\'\';'
+      +'this.closest(\'div[style*=inset]\').remove();'
+      +'_cdocGerarGrdJanelaBas('+JSON.stringify(sels.map(function(s){return s.id;}))+',num.trim(),tipoEm,obs,dt);'
+    +'" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:6px 20px;font-size:12px;font-weight:700;cursor:pointer;">📋 Gerar GRD</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function(){var el=document.getElementById('grdb-num-input');if(el)el.focus();},100);
+}
+
+function _cdocGerarGrdJanelaBas(selIds,numGrd,tipoEm,obsGrd,dataGrd){
+  var db=_cdocLoad();
+  var sels=selIds.map(function(id){return db.basicos.find(function(b){return b.id===id;});}).filter(Boolean);
+  if(!sels.length) return;
+  var hoje=new Date();
+  var dStr=dataGrd?new Date(dataGrd+'T12:00:00').toLocaleDateString('pt-BR'):hoje.toLocaleDateString('pt-BR');
+  var dataISO=dataGrd||hoje.toISOString().slice(0,10);
+  var obraRef=(document.getElementById('cdb-f-obra')||{}).value||sels[0].obraId||'';
+  var totalPeso=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+  var fmtP=function(v){return v?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
+  // Salvar GRD no banco
+  db._grds=db._grds||[];
+  db._ids=db._ids||{bas:1,det:1,grd:0};
+  db._ids.grd=(db._ids.grd||0)+1;
+  var grdId=db._ids.grd;
+  var grdRec={id:grdId,numero:numGrd,data:dataISO,tipo:tipoEm,obs:obsGrd||'',obra:obraRef,modulo:'bas',
+    docs:sels.map(function(b){return {docId:b.id,sub:b.sub||'',cli:b.cli||'',titulo:b.titulo||'',peso:b.peso||0};})};
+  grdRec.status='rascunho';
+  db._grds.push(grdRec);
+  // Atualizar cada básico com o número da GRD
+  sels.forEach(function(b){
+    var idx=db.basicos.findIndex(function(x){return x.id===b.id;});
+    if(idx>=0){
+      db.basicos[idx].remessaGRD=numGrd;
+      db.basicos[idx].remessaData=dataISO;
+      db.basicos[idx].remessaHist=db.basicos[idx].remessaHist||[];
+      db.basicos[idx].remessaHist.push({grd:numGrd,data:dataISO,tipo:tipoEm});
+    }
+  });
+  _cdocSave(db);
+  // Atualizar cronograma: marcar envio_detail como concluído para os SUBs/TAGs afetados
+  _cdocGrdBasAtualizarCronograma(sels,dataISO,numGrd);
+  // Gerar janela de impressão
+  var rows=sels.map(function(b,i){
+    var cronTag='—';
+    if(typeof allCronSubobras!=='undefined'){
+      var cr=allCronSubobras.find(function(s){return s.subobra===b.sub&&(!obraRef||s.obra===obraRef);});
+      if(cr&&cr.subobra) cronTag=cr.subobra;
+    }
+    return '<tr><td>'+(i+1)+'</td>'
+      +'<td>'+_esc(b.obraId||'')+'</td>'
+      +'<td>'+_esc(b.sub||'')+'</td>'
+      +'<td>'+_esc(b.cli||'')+'</td>'
+      +'<td style="max-width:250px;">'+_esc(b.titulo||'')+'</td>'
+      +'<td style="text-align:right;">'+fmtP(parseFloat(b.peso)||0)+'</td>'
+      +'<td>&nbsp;</td></tr>';
+  }).join('');
+  var w=window.open('','_blank','width=1050,height=760');
+  if(!w){alert('Permita popups para gerar a GRD.');return;}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+numGrd+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;font-size:12px;}'
+    +'h2{color:#5b21b6;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 6px;}'
+    +'.meta{display:flex;gap:24px;margin-bottom:10px;font-size:11px;flex-wrap:wrap;}'
+    +'.grd-num{font-size:20px;font-weight:900;color:#5b21b6;letter-spacing:1px;margin-bottom:4px;}'
+    +'.tipo-badge{display:inline-block;padding:4px 14px;border-radius:4px;font-size:12px;font-weight:700;color:#5b21b6;background:#f3e8ff;border:1px solid #c4b5fd;margin-bottom:12px;}'
+    +'table{width:100%;border-collapse:collapse;}thead th{background:#5b21b6;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}'
+    +'tbody td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;}'
+    +'tbody tr:nth-child(even){background:#f8fafc;}'
+    +'.total-row{background:#f3e8ff!important;font-weight:700;color:#5b21b6;}'
+    +'.assin{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:48px;}'
+    +'.assin div{border-top:1px solid #94a3b8;padding-top:8px;color:#64748b;font-size:11px;}'
+    +'@media print{.no-print{display:none;}}</style></head><body>'
+    +'<div class="grd-num">'+numGrd+'</div>'
+    +'<h2>GRD &mdash; Guia de Remessa de Documentos</h2>'
+    +'<p class="sub">SIDERTEC ESTRUTURAS MET&#193;LICAS &mdash; PROJETO B&#193;SICO</p>'
+    +'<div class="tipo-badge">'+tipoEm+'</div>'
+    +'<div class="meta">'
+    +'<span>N&#186; GRD: <strong>'+numGrd+'</strong></span>'
+    +'<span>Data: <strong>'+dStr+'</strong></span>'
+    +'<span>Obra: <strong>'+_esc(obraRef)+'</strong></span>'
+    +'<span>Total: <strong>'+sels.length+' projeto(s)</strong></span>'
+    +'<span>Peso Total: <strong>'+fmtP(totalPeso)+' kg</strong></span>'
+    +'</div>'
+    +(obsGrd?'<div style="margin-bottom:10px;padding:6px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><strong>Obs.:</strong> '+_esc(obsGrd)+'</div>':'')
+    +'<table><thead><tr><th>#</th><th>Obra</th><th>TAG</th><th>N&#186; Cliente</th>'
+    +'<th>T&#237;tulo / Descri&#231;&#227;o</th><th class="r" style="text-align:right;">Peso (kg)</th><th>Obs.</th></tr></thead>'
+    +'<tbody>'+rows
+    +'<tr class="total-row"><td colspan="5" style="text-align:right;padding-right:12px;">PESO TOTAL:</td>'
+    +'<td style="text-align:right;">'+fmtP(totalPeso)+' kg</td><td></td></tr>'
+    +'</tbody></table>'
+    +'<div class="assin"><div>Emitido por: ________________________<br><br>Data: ___/___/______</div>'
+    +'<div>Recebido por: ________________________<br><br>Data: ___/___/______</div></div>'
+    +'<br><div class="no-print" style="margin-top:16px;">'
+    +'<button onclick="window.print()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;margin-right:8px;">&#128438; Imprimir / PDF</button>'
+    +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
+    +'</div></body></html>');
+  w.document.close();
+  _cdocBasSel.clear();
+  cdocRenderBas();
+  cdocRenderVisao();
+}
+
+function _cdocGrdBasAtualizarCronograma(sels,dataISO,numGrd){
+  // Para cada TAG (sub) dos projetos selecionados, atualizar envio_detail no cronograma
+  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length) return;
+  var fObraRef=(document.getElementById('cdb-f-obra')||{}).value||'';
+  var obraRef=fObraRef||(sels[0]&&sels[0].obraId)||'';
+  var tagsAfetadas=[];
+  sels.forEach(function(b){if(b.sub&&tagsAfetadas.indexOf(b.sub)===-1) tagsAfetadas.push(b.sub);});
+  tagsAfetadas.forEach(function(tag){
+    var cronRec=allCronSubobras.find(function(s){
+      return s.subobra===tag&&(!obraRef||s.obra===obraRef);
+    });
+    if(!cronRec) return;
+    var upd={real_envio_detail:dataISO,conc_envio_detail:'S',atualizado_em:new Date().toISOString()};
+    var idx=allCronSubobras.findIndex(function(x){return x.id===cronRec.id;});
+    if(idx>=0) allCronSubobras[idx]=Object.assign({},allCronSubobras[idx],upd);
+    try{
+      sbClient.from('cronograma_subobras').update(upd).eq('id',cronRec.id).select()
+        .then(function(r){if(r.error) console.warn('[GRD-BAS→Cron]',r.error.message);})
+        .catch(function(e){console.warn('[GRD-BAS→Cron]',e.message);});
+    }catch(e){console.warn('[GRD-BAS→Cron]',e.message);}
+  });
+}
+
+function cdocAbrirGrdsBas(){
+  var db=_cdocLoad();
+  var _fObraGrd=(document.getElementById('cdb-f-obra')||{}).value||'';
+  var grds=(db._grds||[]).filter(function(g){
+    if(g.modulo&&g.modulo!=='bas') return false;
+    if(!_fObraGrd) return true;
+    return g.obra===_fObraGrd;
+  }).slice().reverse();
+  var box=document.createElement('div');
+  box.id='cdoc-grdsb-overlay';
+  box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  var rows=grds.length?grds.map(function(g){
+    var dStr=g.data?new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+    var qtd=(g.docs||[]).length;
+    var peso=(g.docs||[]).reduce(function(a,d){return a+(parseFloat(d.peso)||0);},0);
+    var fmtP=function(v){return v?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
+    return '<tr>'
+      +'<td style="font-weight:700;font-family:Courier New,monospace;font-size:11px;color:#5b21b6;">'+_esc(g.numero)+'</td>'
+      +'<td style="font-size:11px;">'+dStr+'</td>'
+      +'<td style="font-size:11px;">'+_esc(g.obra||'—')+'</td>'
+      +'<td style="font-size:11px;">'+_esc(g.tipo||'—')+'</td>'
+      +'<td style="text-align:center;font-size:11px;">'+qtd+'</td>'
+      +'<td style="text-align:right;font-family:Courier New,monospace;font-size:11px;">'+fmtP(peso)+'</td>'
+      +'<td><button onclick="_cdocExcluirGrdBas('+g.id+',\''+_esc(g.numero)+'\')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 4px;" title="Excluir GRD">✕</button></td>'
+      +'</tr>';
+  }).join('')
+  :'<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;">Nenhuma GRD de Básico emitida'+((_fObraGrd)?' para '+_fObraGrd:'')+' ainda.</td></tr>';
+  box.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px;min-width:680px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'
+    +'<div style="font-size:15px;font-weight:700;color:#5b21b6;">📄 GRDs de Remessa — Projeto Básico</div>'
+    +'<button onclick="document.getElementById(\'cdoc-grdsb-overlay\').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;">&times;</button>'
+    +'</div>'
+    +'<table class="cdoc-tbl"><thead><tr>'
+    +'<th>Nº GRD</th><th>Data</th><th>Obra</th><th>Tipo</th><th style="text-align:center;">Projetos</th><th style="text-align:right;">Peso Total</th><th style="width:32px;"></th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:12px;text-align:right;">'
+    +'<button onclick="document.getElementById(\'cdoc-grdsb-overlay\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;">Fechar</button>'
+    +'</div></div>';
+  document.body.appendChild(box);
+}
+
+function _cdocExcluirGrdBas(grdId,numGrd){
+  if(!_siderRequireEdit()) return;
+  if(!confirm('Excluir a GRD "'+numGrd+'"?\n\nOs projetos básicos terão o número de GRD removido.')) return;
+  var db=_cdocLoad();
+  var grd=(db._grds||[]).find(function(g){return g.id===grdId;});
+  if(grd){
+    // Reverter remessaGRD nos básicos
+    (grd.docs||[]).forEach(function(d){
+      var idx=db.basicos.findIndex(function(b){return b.id===d.docId;});
+      if(idx>=0&&db.basicos[idx].remessaGRD===numGrd){
+        db.basicos[idx].remessaGRD='';
+        db.basicos[idx].remessaData='';
+      }
+    });
+    db._grds=(db._grds||[]).filter(function(g){return g.id!==grdId;});
+  }
+  _cdocSave(db);
+  document.getElementById('cdoc-grdsb-overlay').remove();
+  cdocAbrirGrdsBas();
+  cdocRenderBas();
 }
 /* ── Gestão de GRDs emitidas ── */
 function cdocAbrirGrds(){
