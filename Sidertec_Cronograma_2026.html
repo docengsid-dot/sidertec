@@ -1979,16 +1979,16 @@ ALTER TABLE medicao_terceiros
           <input type="number" class="field-input" id="cm-prior-det" placeholder="0" min="0" max="100" step="1"></div>
         <div class="field-group">
           <label class="field-label">Peso Básico (kg)</label>
-          <input type="number" class="field-input" id="cm-peso" placeholder="0,00" min="0" step="0.01">
+          <input type="text" inputmode="decimal" class="field-input" id="cm-peso" placeholder="0,00">
         </div>
         <div class="field-group">
           <label class="field-label">Peso Detalhado (kg)</label>
-          <input type="number" class="field-input" id="cm-peso-detalhado" placeholder="0,00" min="0" step="0.01">
+          <input type="text" inputmode="decimal" class="field-input" id="cm-peso-detalhado" placeholder="0,00">
           <span class="field-hint" id="cm-peso-det-info" style="color:var(--blue);"></span>
         </div>
         <div class="field-group">
           <label class="field-label">Peso PCP (kg)</label>
-          <input type="number" class="field-input" id="cm-peso-pcp" placeholder="0,00" min="0" step="0.01">
+          <input type="text" inputmode="decimal" class="field-input" id="cm-peso-pcp" placeholder="0,00">
           <span class="field-hint" style="color:var(--orange);">Peso utilizado pelo PCP</span>
         </div>
         <div class="field-group" style="align-self:end;grid-column:span 2;">
@@ -4149,6 +4149,13 @@ function renderEtapasDinamicas(){
         else if(sLate) sPillHtml = '<span class="cron-etapa-status-pill late" style="font-size:9px;padding:1px 6px;">⚠</span>';
         else if(sst.real) sPillHtml = '<span class="cron-etapa-status-pill pend" style="font-size:9px;padding:1px 6px;">🔄</span>';
         else sPillHtml = '<span class="cron-etapa-status-pill na" style="font-size:9px;padding:1px 6px;">—</span>';
+        // Override for Projeto de Telha N/A
+        if(sub.extra==='telha'){
+          var _tvSim=(JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}')[editingCronId]||{}).sim;
+          if(_tvSim==='NA'){
+            sPillHtml='<span style="background:#e2e8f0;color:#475569;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">N/A</span>';
+          }
+        }
 
         var sAction = sConc
           ? '<button onclick="etapaDesmarcarConcluido(\''+sub.key+'\')" style="background:none;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;font-size:8px;color:#6b7280;padding:1px 4px;">↩</button>'
@@ -4479,33 +4486,39 @@ function _renderTelhaBlock(divId, cronId){
   if(!el) return;
   var telhaVal = JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}')[cronId]||{sim:'NAO',prev:'',conc:''};
   var simChecked = telhaVal.sim==='SIM' ? 'checked' : '';
-  var naoChecked = (telhaVal.sim!=='SIM') ? 'checked' : '';
+  var naoChecked = telhaVal.sim==='NAO' ? 'checked' : '';
+  var naChecked  = telhaVal.sim==='NA'  ? 'checked' : '';
+  var isNA = telhaVal.sim==='NA';
   var concSim = telhaVal.conc==='SIM' ? 'selected' : '';
   var concNao = telhaVal.conc==='NAO' ? 'selected' : '';
   var concPend = (!telhaVal.conc) ? 'selected' : '';
   el.innerHTML = [
-    '<div style="padding:.5rem;background:#f8fafc;border-radius:4px;border:1px solid #e2e8f0;margin-bottom:.3rem;">',
+    '<div style="padding:.5rem;background:'+(isNA?'#f8fafc':'#f8fafc')+';border-radius:4px;border:1px solid #e2e8f0;margin-bottom:.3rem;">',
     '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.4rem;">',
     '<span style="font-size:9px;color:#64748b;font-weight:600;">Possui Projeto de Telha:</span>',
     '<label style="display:flex;align-items:center;gap:3px;font-size:9px;cursor:pointer;">',
     '<input type="radio" name="ptl-'+cronId+'" value="SIM" '+simChecked+'> Sim</label>',
     '<label style="display:flex;align-items:center;gap:3px;font-size:9px;cursor:pointer;">',
     '<input type="radio" name="ptl-'+cronId+'" value="NAO" '+naoChecked+'> Não</label>',
+    '<label style="display:flex;align-items:center;gap:3px;font-size:9px;cursor:pointer;">',
+    '<input type="radio" name="ptl-'+cronId+'" value="NA" '+naChecked+'> <span style="background:#e2e8f0;color:#475569;border-radius:3px;padding:0 5px;font-size:8px;font-weight:700;">N/A</span></label>',
     '</div>',
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">',
-    '<div><label style="font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;">Previsão Entrega</label>',
-    '<input type="date" id="ptl-prev-'+cronId+'" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(telhaVal.prev||'')+'"></div>',
-    '<div><label style="font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;">Concluído</label>',
-    '<select id="ptl-conc-'+cronId+'" class="field-input" style="font-size:16px;padding:3px 5px;">',
-    '<option value="" '+concPend+'>Pendente</option>',
-    '<option value="SIM" '+concSim+'>✅ Sim</option>',
-    '<option value="NAO" '+concNao+'>❌ Não</option>',
-    '</select></div>',
-    '</div></div>'
+    (isNA ? '<div style="background:#f1f5f9;border-radius:4px;padding:4px 8px;font-size:9px;color:#64748b;font-weight:600;">⛔ Não aplicável para esta TAG</div>' :
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">'+
+    '<div><label style="font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;">Previsão Entrega</label>'+
+    '<input type="date" id="ptl-prev-'+cronId+'" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(telhaVal.prev||'')+'"></div>'+
+    '<div><label style="font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;">Concluído</label>'+
+    '<select id="ptl-conc-'+cronId+'" class="field-input" style="font-size:16px;padding:3px 5px;">'+
+    '<option value="" '+concPend+'>Pendente</option>'+
+    '<option value="SIM" '+concSim+'>✅ Sim</option>'+
+    '<option value="NAO" '+concNao+'>❌ Não</option>'+
+    '</select></div>'+
+    '</div>'),
+    '</div>'
   ].join('');
   // Wire up events
   var radios = el.querySelectorAll('input[type=radio]');
-  radios.forEach(function(r){ r.addEventListener('change', function(){ etapaTelhaSet('sim', this.value); }); });
+  radios.forEach(function(r){ r.addEventListener('change', function(){ etapaTelhaSet('sim', this.value); _renderTelhaBlock(divId, cronId); }); });
   var prevIn = document.getElementById('ptl-prev-'+cronId);
   if(prevIn) prevIn.addEventListener('change', function(){ etapaTelhaSet('prev', this.value); });
   var concSel = document.getElementById('ptl-conc-'+cronId);
@@ -6092,7 +6105,7 @@ async function abrirCronModal(id){
     sv('cm-obra',s.obra); sv('cm-subobra',s.subobra); sv('cm-descricao',s.descricao);
     sv('cm-area',s.area);
     sv('cm-escopo',s.escopo_fornecimento);
-    sv('cm-equipe',s.equipe); sv('cm-peso',s.peso_previsto);
+    sv('cm-equipe',s.equipe); (function(){ var _el=document.getElementById('cm-peso'); if(_el) _el.value=_fmtPesoInput(s.peso_previsto); })();
     // Garante que o status atual existe no select antes de setar
     (function(){
       var sel = document.getElementById('cm-status');
@@ -6105,8 +6118,8 @@ async function abrirCronModal(id){
     })();
     sv('cm-status',s.status);
     sv('cm-prior',s.prioridade); sv('cm-prior-det',s.prior_det!=null?s.prior_det:''); sv('cm-num-proj-basico',s.num_proj_basico);
-    sv('cm-peso-detalhado',s.peso_detalhado);
-    sv('cm-peso-pcp',s.peso_pcp);
+    (function(){ var _d=document.getElementById('cm-peso-detalhado'); if(_d) _d.value=_fmtPesoInput(s.peso_detalhado); })();
+    (function(){ var _p=document.getElementById('cm-peso-pcp'); if(_p) _p.value=_fmtPesoInput(s.peso_pcp); })();
     sv('cm-data-limite-fab',s.data_limite_fab);
     // Guardar valor atual como referência para histórico
     var _elfab = document.getElementById('cm-data-limite-fab');
@@ -6259,6 +6272,18 @@ function carregarPesoPcpLocal(){
 // ── SALVAR SUB-OBRA ───────────────────────────────────────────────────
 function getCronV(id){const el=document.getElementById(id);return el?el.value||null:null;}
 function getCronN(id){const v=parseFloat(document.getElementById(id)?.value);return isNaN(v)?0:v;}
+function _parsePesoCron(id){
+  var raw=(document.getElementById(id)?.value||'').trim();
+  if(!raw) return 0;
+  // Aceita "472.65", "472,65", "1.472,65" (pt-BR)
+  var parsed=parseFloat(raw.replace(/\./g,'').replace(',','.'));
+  return isNaN(parsed)?0:parsed;
+}
+function _fmtPesoInput(v){
+  var n=Number(v);
+  if((!v&&v!==0)||isNaN(n)||n===0) return '';
+  return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
 
 async function salvarCronSubobra(){
   const obra    = getCronV('cm-obra');
@@ -6309,7 +6334,7 @@ async function salvarCronSubobra(){
   // até que o SQL seja executado (botão "Copiar SQL" no Guia CSV)
   const payload = {
     obra, subobra: subobra.trim(), descricao: getCronV('cm-descricao'),
-    equipe: getCronV('cm-equipe'), peso_previsto: getCronN('cm-peso'),
+    equipe: getCronV('cm-equipe'), peso_previsto: _parsePesoCron('cm-peso'),
     status: statusNovo||'AG. PROJ. BÁSICO', prioridade: getCronV('cm-prior')||'NORMAL',
     prior_det: (getCronV('cm-prior-det')!==''&&getCronV('cm-prior-det')!==null) ? (parseInt(getCronV('cm-prior-det'))||0) : null,
     atualizado_em: new Date().toISOString(),
@@ -6444,8 +6469,8 @@ async function salvarCronSubobra(){
     }
   }
 
-  const pesoDetInput = getCronN('cm-peso-detalhado') || 0;
-  const pesoPcpInput = getCronN('cm-peso-pcp') || 0;
+  const pesoDetInput = _parsePesoCron('cm-peso-detalhado') || 0;
+  const pesoPcpInput = _parsePesoCron('cm-peso-pcp') || 0;
   const limFabInput  = getCronV('cm-data-limite-fab') || null;
   // Inclui sempre no payload principal (colunas já existem após SQL_COLUNAS_NOVAS.sql)
   if(pesoDetInput > 0) payload.peso_detalhado = pesoDetInput;
@@ -6895,9 +6920,9 @@ function toggleCsvGuide(){
 
 // ── COMPARATIVO PESO ──────────────────────────────────────────────────
 function atualizarComparativoPeso(){
-  const basico=parseFloat(document.getElementById('cm-peso')?.value)||0;
-  const detalhado=parseFloat(document.getElementById('cm-peso-detalhado')?.value)||0;
-  const pcp=parseFloat(document.getElementById('cm-peso-pcp')?.value)||0;
+  const basico=_parsePesoCron('cm-peso');
+  const detalhado=_parsePesoCron('cm-peso-detalhado');
+  const pcp=_parsePesoCron('cm-peso-pcp');
   const fmt=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const el=document.getElementById('cm-peso-comparativo');
   if(el){
@@ -15977,6 +16002,7 @@ function cotExportarCSV(){
           </div>
         </div>
         <div id="cdb-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
+        <script>function _cdocPainelToggle(){var p=document.getElementById('cdb-peso-painel');if(!p)return;var t=p.querySelector('#cdb-peso-tags');var b=p.querySelector('#cdb-peso-toggle');if(!t||!b)return;var col=p.dataset.collapsed==='1';if(col){t.style.display='';p.dataset.collapsed='0';b.textContent='▲ Recolher';}else{t.style.display='none';p.dataset.collapsed='1';b.textContent='▼ Expandir';}}</script>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
         <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
           <table class="cdoc-tbl">
@@ -16750,14 +16776,21 @@ function cdocRenderBas(){
         +'<div style="font-size:9px;color:#64748b;">kg</div>'
         +'</div>';
     }).join('');
+    var _painelWasCollapsed = document.getElementById('cdb-peso-painel')&&document.getElementById('cdb-peso-painel').dataset.collapsed==='1';
     painel.style.display='';
-    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">'
+    painel.dataset.collapsed = _painelWasCollapsed ? '1' : '0';
+    var _tagsDisplayStyle = _painelWasCollapsed ? 'none' : '';
+    var _toggleLabel = _painelWasCollapsed ? '▼ Expandir' : '▲ Recolher';
+    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;padding:10px 16px;">'
+      +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">'
       +'<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:7px;padding:8px 20px;min-width:120px;">'
       +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
       +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalFmtB+'</span>'
       +'<span style="font-size:11px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.filter(function(b){return !b._virtual;}).length+' doc(s)</span>'
       +'</div>'
-      +(tagCards?'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+tagCards+'</div>':'')
+      +(tagCards?'<div id="cdb-peso-tags" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;'+_tagsDisplayStyle+'">'+tagCards+'</div>':'')
+      +'<button id="cdb-peso-toggle" onclick="_cdocPainelToggle()" style="margin-left:auto;background:none;border:1px solid #0369a1;border-radius:5px;color:#0369a1;font-size:10px;font-weight:700;padding:4px 10px;cursor:pointer;white-space:nowrap;">'+_toggleLabel+'</button>'
+      +'</div>'
       +'</div>';
   })();
   // ── Resumo por TAG ──
@@ -18449,7 +18482,7 @@ function cdocExportBasSel(){
 
 function cdocExportDet(){
   var db=_cdocDb();
-  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
+  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
   var rows=[hdr];
   db.detalhados.forEach(function(d){
     var lh=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
@@ -18465,7 +18498,7 @@ function cdocExportDet(){
     var enReal=eh?eh.retornoReal||'':'';
     var enSf=eh?eh.statusFinal||'':'';
     var enObs=eh?eh.obs||'':'';
-    rows.push([d.obraId,d.sub,d.num,d.cli||'',d.tipo||'',d.desc||'',d.peca||'',d.peso||'',d.rev||'',d.statusGeral||'',d.engResp||'',d.data||'',lfSt,lfDt,enSt,enDt,enRev,enFin,enGrd,enPrev,enReal,enSf,enObs].join(';'));
+    rows.push([d.obraId,d.sub,d.num,d.cli||'',d.titulo||'',d.tipo||'',d.desc||'',d.peca||'',d.peso||'',d.rev||'',d.statusGeral||'',d.engResp||'',d.data||'',lfSt,lfDt,enSt,enDt,enRev,enFin,enGrd,enPrev,enReal,enSf,enObs].join(';'));
   });
   _cdocDownload(rows.join('\n'),'proj_detalhado.csv');
 }
@@ -18473,12 +18506,12 @@ function cdocExportDet(){
 function cdocExportDetSel(){
   if(!_cdocDetSel||!_cdocDetSel.size){alert('Selecione ao menos um documento na tabela.');return;}
   var db=_cdocDb();
-  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
+  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
   var rows=db.detalhados.filter(function(d){return _cdocDetSel.has(d.id);}).map(function(d){
     var lf=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
     var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
     function q(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}
-    return [q(d.obraId),q(d.sub),q(d.num),q(d.cli),q(d.tipo),q(d.desc),q(d.peca),
+    return [q(d.obraId),q(d.sub),q(d.num),q(d.cli),q(d.titulo),q(d.tipo),q(d.desc),q(d.peca),
       (d.peso||''),q(d.rev),q(d.statusGeral),q(d.engResp),q(d.data),
       q(lf?lf.status:''),q(lf?lf.data:''),
       q(eh?'Sim':''),q(eh?eh.data:''),q(eh?eh.rev:''),
