@@ -10847,10 +10847,10 @@ function atualizarAlerteLimiteFab(){
     var dias = Math.round((prev-lim)/86400000);
     var fmtL = lim.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
     var fmtP = prev.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
-    return "<span style=\"display:inline-flex;align-items:center;gap:4px;background:#fda4af;color:#9f1239;border-radius:3px;padding:1px 7px;font-weight:700;margin:.15rem .2rem .15rem 0;cursor:pointer;\" onclick=\"abrirCronModal(\+s.id+)\" title=\"Clique para abrir\">"
-      + (s.subobra||"—")+" ("+s.obra+")"
-      + " — Lim.: "+fmtL+" · Prev. Fab.: "+fmtP+" ("+dias+"d atrás do limite)"
-      + " ↗</span>";
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fda4af;color:#9f1239;border-radius:3px;padding:1px 7px;font-weight:700;margin:.15rem .2rem .15rem 0;cursor:pointer;" onclick="abrirCronModal(\'' + s.id + '\')" title="Clique para abrir e atualizar datas">'
+      + (s.subobra||'—') + ' (' + s.obra + ')'
+      + ' — Lim.: ' + fmtL + ' · Prev. Fab.: ' + fmtP + ' (' + dias + 'd atrás do limite)'
+      + ' ↗</span>';
   }).join("");
 }
 
