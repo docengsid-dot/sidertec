@@ -3672,7 +3672,10 @@ function probeColunasSupabase(){
     'prev_inspecao_fab','real_inspecao_fab','obs_inspecao_fab',
     'prev_pintura','real_pintura','obs_pintura',
     'prev_expedicao','real_expedicao','obs_expedicao',
-    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na'
+    'prev_montagem','real_montagem','obs_montagem','conc_montagem','regs_montagem','montagem_na',
+    'prev_desenhos_fab','real_desenhos_fab','obs_desenhos_fab','conc_desenhos_fab',
+    'prev_diagrama_mont','real_diagrama_mont','obs_diagrama_mont','conc_diagrama_mont',
+    'prev_proj_telha','real_proj_telha','obs_proj_telha','conc_proj_telha'
   ]);
   return Promise.resolve();
 }
@@ -6345,12 +6348,16 @@ async function salvarCronSubobra(){
     payload.obs_inspecao_interna  = _v('inspecao_interna','obs');
   }
   // Sub-etapas de Documentos — colunas próprias (não conflitam com fluxo principal)
-  payload.prev_desenhos_fab  = _v('resumo_mp_doc','prev')   || null;
-  payload.real_desenhos_fab  = _v('resumo_mp_doc','real')   || null;
-  payload.obs_desenhos_fab   = _v('resumo_mp_doc','obs')    || null;
-  payload.prev_diagrama_mont = _v('diagrama_mont','prev')   || null;
-  payload.real_diagrama_mont = _v('diagrama_mont','real')   || null;
-  payload.obs_diagrama_mont  = _v('diagrama_mont','obs')    || null;
+  if(_opt.has('prev_desenhos_fab')){
+    payload.prev_desenhos_fab = _v('resumo_mp_doc','prev') || null;
+    payload.real_desenhos_fab = _v('resumo_mp_doc','real') || null;
+    payload.obs_desenhos_fab  = _v('resumo_mp_doc','obs')  || null;
+  }
+  if(_opt.has('prev_diagrama_mont')){
+    payload.prev_diagrama_mont = _v('diagrama_mont','prev') || null;
+    payload.real_diagrama_mont = _v('diagrama_mont','real') || null;
+    payload.obs_diagrama_mont  = _v('diagrama_mont','obs')  || null;
+  }
 
   // Etapa 6 Fabricação — pesos e datas de expedição
   if(_opt.has('peso_executado')){
