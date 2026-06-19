@@ -4157,9 +4157,17 @@ function renderEtapasDinamicas(){
           }
         }
 
-        var sAction = sConc
+        var _isTelhaNA = sub.extra==='telha' && (JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}')[editingCronId]||{}).sim==='NA';
+        var sAction = _isTelhaNA
+          ? '<button onclick="_telhaToggleNA(\''+editingCronId+'\')" style="background:#e2e8f0;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">N/A ↩</button>'
+          : sConc
           ? '<button onclick="etapaDesmarcarConcluido(\''+sub.key+'\')" style="background:none;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;font-size:8px;color:#6b7280;padding:1px 4px;">↩</button>'
-          : '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">✓</button>';
+          : (sub.extra==='telha'
+            ? '<span style="display:flex;gap:2px;">'
+              + '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;">✓</button>'
+              + '<button onclick="_telhaToggleNA(\''+editingCronId+'\')" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;" title="Marcar como Não Aplicável">N/A</button>'
+              + '</span>'
+            : '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">✓</button>');
 
         // GRD for rec_modelo
         var extraInline = '';
@@ -4525,6 +4533,13 @@ function _renderTelhaBlock(divId, cronId){
   if(concSel) concSel.addEventListener('change', function(){ etapaTelhaSet('conc', this.value); });
 }
 
+function _telhaToggleNA(cronId){
+  var store=JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}');
+  if(!store[cronId]) store[cronId]={sim:'NAO',prev:'',conc:''};
+  store[cronId].sim = store[cronId].sim==='NA' ? 'NAO' : 'NA';
+  localStorage.setItem('sidertec_proj_telha',JSON.stringify(store));
+  if(typeof renderEtapasDinamicas==='function') renderEtapasDinamicas();
+}
 function etapaMarcarConcluido(key){
   if(!_etapasState[key]) return;
   var hoje = new Date().toISOString().split('T')[0];
