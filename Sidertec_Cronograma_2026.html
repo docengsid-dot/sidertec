@@ -6496,6 +6496,28 @@ async function salvarCronSubobra(){
     carregarPesoDetLocal();
     carregarLimiteFabLocal();
     showToast('✓ Salvo',subobra+' atualizado.','success');
+    // ── SYNC: Cronograma equipe → CDOC Projeto Básico proj ─────────
+    (function(){
+      var _eqVal=getCronV('cm-equipe'); if(!_eqVal) return;
+      if(typeof _cdocDb!=='function') return;
+      try{
+        var _cdb=_cdocDb();
+        if(!_cdb||!_cdb.basicos) return;
+        var _subUp=(subobra||'').trim().toUpperCase();
+        var _obraUp=(obra||'').toUpperCase();
+        var _cbas=_cdb.basicos.find(function(b){
+          return (b.sub||'').toUpperCase()===_subUp &&
+                 (b.obraId||'').toUpperCase()===_obraUp;
+        });
+        if(!_cbas||_cbas.proj===_eqVal) return;
+        _cbas.proj=_eqVal;
+        _cdocSave(_cdb);
+        // Atualiza campo visual se modal CDOC estiver aberto com o mesmo registro
+        var _elProj=document.getElementById('cef-proj');
+        if(_elProj && typeof _cdocEditId!=='undefined' && _cdocEditId===_cbas.id)
+          _elProj.value=_eqVal;
+      }catch(_er){}
+    })();
     // Renderiza depois do toast para não travar a UI
     requestAnimationFrame(()=>renderCronograma());
   }catch(e){
@@ -18042,7 +18064,7 @@ async function _cdocCriarNoCronograma(rec){
     area:rec.area||'',
     num_proj_basico:rec.cli||'',
     peso_previsto:rec.peso?parseFloat(rec.peso)||null:null,
-    equipe:'',status:'Planejado',prioridade:'',
+    equipe:rec.proj||'',status:'Planejado',prioridade:'',
     prev_lib_fab:null,real_lib_fab:null,data_limite_fab:null,
     peso_detalhado:null,peso_pcp:null,
     criado_em:new Date().toISOString(),
@@ -18085,6 +18107,34 @@ function cdocSalvar(){
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
+    // ── SYNC: CDOC Projeto Básico → Cronograma equipe ──────────────
+    (function(){
+      if(!rec.proj || typeof allCronSubobras==='undefined') return;
+      var _subUp=(rec.sub||'').toUpperCase(), _obraUp=(rec.obraId||'').toUpperCase();
+      var _cronS = allCronSubobras.find(function(s){
+        return (s.subobra||'').toUpperCase()===_subUp &&
+               (s.obra||'').toUpperCase()===_obraUp;
+      });
+      if(!_cronS) return;
+      _cronS.equipe = rec.proj;
+      var _lsc = _lsGet('cronograma_subobras');
+      var _lsi = _lsc.findIndex(function(s){ return String(s.id)===String(_cronS.id); });
+      if(_lsi>=0){ _lsc[_lsi].equipe=rec.proj; _lsSet('cronograma_subobras',_lsc); }
+      if(typeof sbClient!=='undefined'){
+        sbClient.from('cronograma_subobras').eq('id',_cronS.id)
+          .update({equipe:rec.proj,atualizado_em:new Date().toISOString()})
+          .select().catch(function(){});
+      }
+      // Atualiza o select do modal cronograma se estiver aberto na mesma TAG
+      var _elEq=document.getElementById('cm-equipe');
+      if(_elEq && typeof editingCronId!=='undefined' && editingCronId===_cronS.id){
+        if(![..._elEq.options].some(function(o){return o.value===rec.proj;})){
+          var _op=document.createElement('option'); _op.value=rec.proj; _op.textContent=rec.proj;
+          _elEq.appendChild(_op);
+        }
+        _elEq.value=rec.proj;
+      }
+    })();
     document.getElementById('cdoc-edit-overlay').classList.remove('show');
     cdocRenderBas(); cdocRenderVisao();
     _cdocToast('Registro salvo com sucesso!');
