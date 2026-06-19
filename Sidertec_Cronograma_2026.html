@@ -1619,15 +1619,25 @@ ALTER TABLE medicao_terceiros
         </div>
       </div>
 
-      <!-- Linha 2c: Desconto / Débito / Obs Ajuste / Valor Líquido -->
-      <div class="med-row" style="grid-template-columns:1fr 1fr 1.6fr 1fr;">
+      <!-- Linha 2c: Acréscimo Retrabalho -->
+      <div class="med-row" style="grid-template-columns:1fr 1.6fr;">
+        <div class="field-group">
+          <label class="field-label">🔧 Acréscimo Retrabalho de Engenharia (R$)</label>
+          <input type="number" class="field-input" id="med-acrescimo-retrabalho" placeholder="0,00" step="0.01" min="0"
+            oninput="recalcularMedicao()"
+            style="color:#7c3aed;font-weight:700;">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📋 Obs. Retrabalho / Ocorrência</label>
+          <input type="text" class="field-input" id="med-obs-retrabalho" placeholder="Descreva a ocorrência ou motivo do retrabalho…">
+        </div>
+      </div>
+
+      <!-- Linha 2d: Desconto / Obs Ajuste / Valor Líquido -->
+      <div class="med-row" style="grid-template-columns:1fr 1.6fr 1fr;">
         <div class="field-group">
           <label class="field-label">🏷 Desconto (R$)</label>
           <input type="number" class="field-input" id="med-desconto" placeholder="0,00" step="0.01" min="0" oninput="recalcularMedicao()" style="color:#dc2626;">
-        </div>
-        <div class="field-group">
-          <label class="field-label">➖ Valor a Debitado (R$)</label>
-          <input type="number" class="field-input" id="med-valor-debito" placeholder="0,00" step="0.01" min="0" oninput="recalcularMedicao()" style="color:#b45309;">
         </div>
         <div class="field-group">
           <label class="field-label">📝 Obs. do Ajuste</label>
@@ -1798,6 +1808,8 @@ ALTER TABLE medicao_terceiros
             <th style="background:#0c4a6e;color:#fff;padding:5px 7px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;min-width:100px;">Obra</th>
             <th style="background:#0c4a6e;color:#fff;padding:5px 7px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;min-width:90px;">Status Cron.</th>
             <th style="background:#0c4a6e;color:#fff;padding:5px 7px;text-align:right;font-size:8px;font-weight:700;text-transform:uppercase;">Peso Ref.</th>
+            <th style="background:#0f5132;color:#d1fae5;padding:5px 7px;text-align:right;font-size:8px;font-weight:700;text-transform:uppercase;min-width:80px;">⚖ Peso<br>Medido</th>
+            <th style="background:#1e3a5f;color:#bae6fd;padding:5px 7px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;min-width:130px;">📋 BMs · Valor</th>
             <!-- Etapas -->
             <th style="background:#0e7490;color:#cffafe;padding:5px 7px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;min-width:100px;">🔷 Modelo<br><span style="font-size:7px;opacity:.8;">40%</span></th>
             <th style="background:#4c1d95;color:#ede9fe;padding:5px 7px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;min-width:100px;">📦 Pacote Fab.<br><span style="font-size:7px;opacity:.8;">40%</span></th>
@@ -1808,6 +1820,7 @@ ALTER TABLE medicao_terceiros
           </tr>
         </thead>
         <tbody id="sit-tbody"></tbody>
+        <tfoot id="sit-tfoot"></tfoot>
       </table>
     </div>
 
@@ -7282,6 +7295,24 @@ async function processarImportacao(rows, tipo){
         if(i>=0){ allCronSubobras[i]={...allCronSubobras[i],...payload}; }
         if(limFabRow){ allCronSubobras[i>=0?i:0].data_limite_fab=limFabRow; salvarLimiteFabLocal(exists.id, limFabRow); }
         if(pesoDetRow!=null){ salvarPesoDetLocal(exists.id, pesoDetRow); if(i>=0) allCronSubobras[i].peso_detalhado=pesoDetRow; }
+        // SYNC: equipe → CDOC basico proj
+        if(payload.equipe){
+          (function(){
+            var _cdb=_cdocDb(); if(!_cdb||!_cdb.basicos) return;
+            var _subUp=(row.subobra||'').toUpperCase(), _obraUp=(row.obra||'').toUpperCase();
+            var _cbas=_cdb.basicos.find(function(b){
+              return (b.sub||'').toUpperCase()===_subUp&&(b.obraId||'').toUpperCase()===_obraUp;
+            });
+            if(!_cbas||_cbas.proj===payload.equipe) return;
+            _cbas.proj=payload.equipe;
+            _cdocSave(_cdb);
+            if(typeof sbClient!=='undefined'){
+              sbClient.from('cdoc_database').eq('key','main')
+                .update({value:JSON.stringify(_cdb),atualizado_em:new Date().toISOString()})
+                .select().catch(function(){});
+            }
+          })();
+        }
       }
     } else {
       const pesoDetRow = row.peso_detalhado != null ? Number(row.peso_detalhado) : null;
@@ -9259,27 +9290,30 @@ function imprimirMedicao(id){
   const dataFmt = m.data ? m.data.split('-').reverse().join('/') : '—';
   // vt: bruto real das TAGs (calculado abaixo) ou valor_total do banco
   // Lê adj do modal se estiver aberto para este registro (valores mais recentes)
-  let _vtAcrescimo=0, _vtDesconto=0, _vtDebito=0, _obsAjuste='', _obsTelhas='';
+  let _vtAcrescimo=0, _vtRetrabalho=0, _vtDesconto=0, _vtDebito=0, _obsAjuste='', _obsTelhas='', _obsRetrabalho='';
   const _modalAberto = typeof editingMedicaoId!=='undefined' && editingMedicaoId===id &&
     document.getElementById('modal-medicao')?.classList.contains('show');
   if(_modalAberto){
     _vtAcrescimo = parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+    _vtRetrabalho= parseFloat(document.getElementById('med-acrescimo-retrabalho')?.value)||0;
     _vtDesconto  = parseFloat(document.getElementById('med-desconto')?.value)||0;
-    _vtDebito    = parseFloat(document.getElementById('med-valor-debito')?.value)||0;
     _obsAjuste   = document.getElementById('med-obs-ajuste')?.value||'';
     _obsTelhas   = document.getElementById('med-obs-telhas')?.value||'';
+    _obsRetrabalho=document.getElementById('med-obs-retrabalho')?.value||'';
   } else {
     const _adj = _parseAjuste(m);
-    _vtAcrescimo = _adj.acr; _vtDesconto = _adj.des; _vtDebito = _adj.deb;
-    _obsAjuste = _adj.obs_a; _obsTelhas = _adj.obs_t;
+    _vtAcrescimo = _adj.acr; _vtRetrabalho = _adj.ret||0; _vtDesconto = _adj.des; _vtDebito = _adj.deb||0;
+    _obsAjuste = _adj.obs_a; _obsTelhas = _adj.obs_t; _obsRetrabalho = _adj.obs_r||'';
   }
-  const vtAcrescimo = _vtAcrescimo;
-  const vtDesconto  = _vtDesconto;
-  const vtDebito    = _vtDebito;
-  const obsAjuste   = _obsAjuste;
-  const obsTelhas   = _obsTelhas;
-  const vtLiquido   = vt + vtAcrescimo - vtDesconto - vtDebito;
-  const temAjusteRel = vtAcrescimo > 0 || vtDesconto > 0 || vtDebito > 0;
+  const vtAcrescimo  = _vtAcrescimo;
+  const vtRetrabalho = _vtRetrabalho;
+  const vtDesconto   = _vtDesconto;
+  const vtDebito     = _vtDebito;
+  const obsAjuste    = _obsAjuste;
+  const obsTelhas    = _obsTelhas;
+  const obsRetrabalho= _obsRetrabalho;
+  const vtLiquido    = vt + vtAcrescimo + vtRetrabalho - vtDesconto;
+  const temAjusteRel = vtAcrescimo > 0 || vtRetrabalho > 0 || vtDesconto > 0;
   const fmtR = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   // Anexos
@@ -9338,7 +9372,14 @@ function imprimirMedicao(id){
             '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px 12px;text-align:center;">' +
               '<div style="font-size:8px;color:#1d4ed8;text-transform:uppercase;font-weight:700;">🏗 Acréscimo Telhas/Coberta</div>' +
               '<div style="font-size:14px;font-weight:800;color:#1d4ed8;font-family:monospace;">+' + fmtR(vtAcrescimo) + '</div>' +
-              (m.obs_telhas ? '<div style="font-size:8px;color:#475569;margin-top:3px;">' + m.obs_telhas + '</div>' : '') +
+              (obsTelhas ? '<div style="font-size:8px;color:#475569;margin-top:3px;">' + obsTelhas + '</div>' : '') +
+            '</div>'
+          : '') +
+          (vtRetrabalho > 0 ?
+            '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:8px 12px;text-align:center;">' +
+              '<div style="font-size:8px;color:#7c3aed;text-transform:uppercase;font-weight:700;">🔧 Acréscimo Retrabalho Eng.</div>' +
+              '<div style="font-size:14px;font-weight:800;color:#7c3aed;font-family:monospace;">+' + fmtR(vtRetrabalho) + '</div>' +
+              (obsRetrabalho ? '<div style="font-size:8px;color:#6d28d9;margin-top:3px;">' + obsRetrabalho + '</div>' : '') +
             '</div>'
           : '') +
           (vtDesconto > 0 ?
@@ -9347,20 +9388,14 @@ function imprimirMedicao(id){
               '<div style="font-size:14px;font-weight:800;color:#dc2626;font-family:monospace;">−' + fmtR(vtDesconto) + '</div>' +
             '</div>'
           : '') +
-          (vtDebito > 0 ?
-            '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;text-align:center;">' +
-              '<div style="font-size:8px;color:#b45309;text-transform:uppercase;font-weight:700;">➖ Valor a Debitado</div>' +
-              '<div style="font-size:14px;font-weight:800;color:#b45309;font-family:monospace;">−' + fmtR(vtDebito) + '</div>' +
-            '</div>'
-          : '') +
           '<div style="background:' + (vtLiquido < 0 ? '#fef2f2' : '#f0fdf4') + ';border:2px solid ' + (vtLiquido < 0 ? '#fca5a5' : '#86efac') + ';border-radius:6px;padding:8px 12px;text-align:center;">' +
             '<div style="font-size:8px;color:' + (vtLiquido < 0 ? '#dc2626' : '#166534') + ';text-transform:uppercase;font-weight:700;">✅ Valor Líquido</div>' +
             '<div style="font-size:14px;font-weight:800;color:' + (vtLiquido < 0 ? '#dc2626' : '#166534') + ';font-family:monospace;">' + (vtLiquido < 0 ? '−' : '') + fmtR(vtLiquido) + '</div>' +
           '</div>' +
         '</div>' +
-        ((m.obs_ajuste || m.obs_telhas) ?
+        ((obsAjuste || obsTelhas || obsRetrabalho) ?
           '<div style="margin-top:8px;font-size:10px;color:#475569;background:#fff;border-radius:4px;padding:6px 10px;border:1px solid #e2e8f0;">📝 ' +
-            [m.obs_ajuste, m.obs_telhas].filter(Boolean).join(' | ') +
+            [obsAjuste, obsTelhas, obsRetrabalho].filter(Boolean).join(' | ') +
           '</div>'
         : '') +
       '</div>'
@@ -9443,19 +9478,20 @@ function recalcularMedicao(){
     el.style.color = total > 0 ? 'var(--green)' : 'var(--ink3)';
   }
 
-  // Valor líquido = total bruto + acréscimo telhas − desconto − débito
-  const acrescimoTelhas = parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+  // Valor líquido = total bruto + acréscimo telhas + acréscimo retrabalho − desconto
+  const acrescimoTelhas     = parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+  const acrescimoRetrabalho = parseFloat(document.getElementById('med-acrescimo-retrabalho')?.value)||0;
   const desconto   = parseFloat(document.getElementById('med-desconto')?.value)||0;
-  const debito     = parseFloat(document.getElementById('med-valor-debito')?.value)||0;
-  const liquido    = total + acrescimoTelhas - desconto - debito;
+  const debito     = 0; // campo removido da interface
+  const liquido    = total + acrescimoTelhas + acrescimoRetrabalho - desconto;
   const elLiq      = document.getElementById('med-valor-liquido');
   if(elLiq){
-    const temAjuste = acrescimoTelhas > 0 || desconto > 0 || debito > 0;
+    const temAjuste = acrescimoTelhas > 0 || acrescimoRetrabalho > 0 || desconto > 0;
     if(total > 0 || temAjuste){
       elLiq.textContent = fmtBRL(liquido);
       elLiq.style.color = liquido < 0 ? '#dc2626' : (temAjuste ? '#d97706' : 'var(--green)');
       elLiq.title = temAjuste
-        ? `Bruto: ${fmtBRL(total)}  |  Telhas: +${fmtBRL(acrescimoTelhas)}  |  Desconto: −${fmtBRL(desconto)}  |  Débito: −${fmtBRL(debito)}`
+        ? `Bruto: ${fmtBRL(total)}  |  Telhas: +${fmtBRL(acrescimoTelhas)}  |  Retrabalho: +${fmtBRL(acrescimoRetrabalho)}  |  Desconto: −${fmtBRL(desconto)}`
         : '';
     } else {
       elLiq.textContent = '—';
@@ -9737,7 +9773,7 @@ function _buildSituacaoData(){
       var ets = Array.isArray(en.etapas) ? en.etapas : (en.etapas ? [...en.etapas] : []);
       ets.forEach(e => tagMap[sid].etapas.add(e));
       if(m.bm && !tagMap[sid].bms.includes(m.bm)) tagMap[sid].bms.push(m.bm);
-      tagMap[sid].medicoes.push({data: m.data, bm: m.bm, ps: m.num_ps});
+      tagMap[sid].medicoes.push({data: m.data, bm: m.bm, ps: m.num_ps, pct: Number(en.pct)||0, pesoMedEn: Number(en.peso_med)||0, valorKg: Number(m.valor_kg)||0, numPs: m.num_ps||''});
     });
   });
 
@@ -9748,13 +9784,27 @@ function _buildSituacaoData(){
     var etapasMedidas = info ? info.etapas : new Set();
     var pctMedido = MED_ETAPAS.filter(e=>etapasMedidas.has(e.key)).reduce((a,e)=>a+e.pct, 0);
     var pctFalta  = 100 - pctMedido;
+    var _pesoRef2 = Number(s.peso_detalhado)||Number(s.peso_previsto)||0;
+    // Calcular peso medido e valor por BM
+    var _bmMap = {};
+    if(info) info.medicoes.forEach(function(med){
+      if(!med.bm) return;
+      if(!_bmMap[med.bm]) _bmMap[med.bm]={bm:med.bm, ps:med.numPs||'', pesoMed:0, val:0};
+      var _pMed = med.pesoMedEn>0 ? med.pesoMedEn : _pesoRef2;
+      _bmMap[med.bm].pesoMed += _pMed * (med.pct/100);
+      _bmMap[med.bm].val     += _pMed * med.valorKg * (med.pct/100);
+    });
+    var _bmDetails = Object.values(_bmMap);
+    var _valTotal  = _bmDetails.reduce(function(a,b){return a+b.val;},0);
     return {
       tag: s,
       info: info,
       etapasMedidas: etapasMedidas,
       pctMedido: pctMedido,
       pctFalta: pctFalta,
-      pesoRef: Number(s.peso_detalhado)||Number(s.peso_previsto)||0
+      pesoRef: _pesoRef2,
+      bmDetails: _bmDetails,
+      valTotal: _valTotal
     };
   });
 
@@ -9770,6 +9820,7 @@ function _buildSituacaoData(){
 function renderSituacaoMedicao(){
   var data = _buildSituacaoData();
   var tbody = document.getElementById('sit-tbody');
+  var tfoot = document.getElementById('sit-tfoot');
   var kpisEl = document.getElementById('sit-kpis');
   var rodapeEl = document.getElementById('sit-rodape');
   if(!tbody) return;
@@ -9782,6 +9833,7 @@ function renderSituacaoMedicao(){
   var totalPeso= data.reduce((a,r)=>a+r.pesoRef,0);
   var mediPeso = data.reduce((a,r)=>a+(r.pesoRef*(r.pctMedido/100)),0);
   var pctPeso  = totalPeso>0 ? Math.round(mediPeso/totalPeso*100) : 0;
+  var totalVal = data.reduce((a,r)=>a+(r.valTotal||0),0);
 
   if(kpisEl){
     var kpis=[
@@ -9799,7 +9851,7 @@ function renderSituacaoMedicao(){
   }
 
   if(!data.length){
-    tbody.innerHTML=`<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;font-style:italic;">Nenhuma TAG encontrada com os filtros selecionados.</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="12" style="text-align:center;padding:2rem;color:#94a3b8;font-style:italic;">Nenhuma TAG encontrada com os filtros selecionados.</td></tr>`;
     if(rodapeEl) rodapeEl.textContent='';
     return;
   }
@@ -9856,6 +9908,8 @@ function renderSituacaoMedicao(){
       <td style="padding:3px 7px;font-size:9px;color:#1d4ed8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;" title="${s.obra||''}">${(s.obra||'—').split(' ').slice(0,3).join(' ')}</td>
       <td style="padding:3px 7px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">${cfg.icon} ${s.status||'—'}</span></td>
       <td style="padding:3px 7px;text-align:right;font-family:'Courier New',monospace;font-size:9px;font-weight:600;">${pesoStr}</td>
+      <td style="padding:3px 7px;text-align:right;font-family:'Courier New',monospace;font-size:9px;font-weight:700;color:#166534;">${r.pesoRef>0?(r.pesoRef*(r.pctMedido/100)).toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg':'—'}</td>
+      <td style="padding:3px 7px;font-size:8px;line-height:1.4;">${(r.bmDetails&&r.bmDetails.length?r.bmDetails.map(b=>`<span style="display:block;white-space:nowrap;"><b style="color:#0c4a6e;">${b.bm||b.ps||'—'}</b>${b.val>0?' · <span style="color:#166534;font-weight:700;">R$ '+b.val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':''}</span>`).join(''):'<span style="color:#94a3b8;">—</span>')}</td>
       ${etCells}
       <td style="padding:3px 6px;text-align:center;background:${barBg};">
         <div style="font-size:13px;font-weight:800;color:${barColor};">${r.pctMedido}%</div>
@@ -9870,7 +9924,25 @@ function renderSituacaoMedicao(){
     </tr>`;
   }).join('');
 
-  if(rodapeEl) rodapeEl.textContent = `${data.length} TAGs · ${completo} completas · ${parcial} parciais · ${nenhum} não medidas · Peso medido: ${Math.round(mediPeso).toLocaleString('pt-BR')} kg de ${Math.round(totalPeso).toLocaleString('pt-BR')} kg (${pctPeso}%)`;
+  // Tfoot totals row
+  if(tfoot){
+    var _fmtKg2 = function(v){ return v>0?Math.round(v).toLocaleString('pt-BR')+' kg':'—'; };
+    var _fmtR2  = function(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+    var _totalPesoMed = data.reduce(function(a,r){return a+(r.pesoRef*(r.pctMedido/100));},0);
+    var _totalValPago = data.reduce(function(a,r){return a+(r.valTotal||0);},0);
+    tfoot.innerHTML = '<tr style="background:#0c4a6e;">' +
+      '<td colspan="5" style="padding:6px 10px;text-align:right;font-size:9px;font-weight:800;color:#e0f2fe;text-transform:uppercase;letter-spacing:.04em;">TOTAIS</td>' +
+      '<td style="padding:6px 10px;text-align:right;font-family:monospace;font-size:12px;font-weight:800;color:#6ee7b7;">' + _fmtKg2(_totalPesoMed) + '</td>' +
+      '<td style="padding:6px 10px;text-align:center;">' +
+        (_totalValPago>0 ?
+          '<span style="display:inline-block;background:#166534;color:#d1fae5;border-radius:5px;padding:3px 10px;font-family:monospace;font-size:13px;font-weight:900;">&#x1F4B0; ' + _fmtR2(_totalValPago) + '</span>'
+        : '<span style="color:#94a3b8;font-size:9px;">—</span>') +
+      '</td>' +
+      '<td colspan="5" style="padding:6px 8px;text-align:center;font-size:8px;color:#93c5fd;">' + data.length + ' TAGs · ' + pctPeso + '% do peso medido</td>' +
+    '</tr>';
+  }
+
+  if(rodapeEl) rodapeEl.textContent = `${data.length} TAGs · ${completo} completas · ${parcial} parciais · ${nenhum} não medidas · Peso medido: ${Math.round(mediPeso).toLocaleString('pt-BR')} kg de ${Math.round(totalPeso).toLocaleString('pt-BR')} kg (${pctPeso}%)${totalVal>0?' · Total pago: R$ '+totalVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):''}`;
 }
 
 function gerarPDFSituacaoMedicao(){
@@ -10319,20 +10391,20 @@ function _buildMedHistoricoMap(){
 
 function _parseAjuste(m){
   // PRIORIDADE 1: _adjLive — valores do modal em tempo real (antes de salvar)
-  if(m._adjLive && (m._adjLive.acr||m._adjLive.des||m._adjLive.deb||m._adjLive.obs_t||m._adjLive.obs_a)){
+  if(m._adjLive && (m._adjLive.acr||m._adjLive.des||m._adjLive.deb||m._adjLive.ret||m._adjLive.obs_t||m._adjLive.obs_a||m._adjLive.obs_r)){
     return m._adjLive;
   }
   // PRIORIDADE 2: colunas do DB (após migração SQL)
-  if(m.acrescimo_telhas!=null||m.desconto!=null||m.valor_debito!=null){
-    return {acr:Number(m.acrescimo_telhas)||0,des:Number(m.desconto)||0,deb:Number(m.valor_debito)||0,obs_t:m.obs_telhas||'',obs_a:m.obs_ajuste||''};
+  if(m.acrescimo_telhas!=null||m.desconto!=null||m.valor_debito!=null||m.acrescimo_retrabalho!=null){
+    return {acr:Number(m.acrescimo_telhas)||0,des:Number(m.desconto)||0,deb:Number(m.valor_debito)||0,ret:Number(m.acrescimo_retrabalho)||0,obs_t:m.obs_telhas||'',obs_a:m.obs_ajuste||'',obs_r:m.obs_retrabalho||''};
   }
   // PRIORIDADE 3: dado embutido em subobras_ids
   try{
     const arr=JSON.parse(m.subobras_ids||'[]');
     const a=arr.find(x=>x._adj);
-    if(a) return {acr:a.acr||0,des:a.des||0,deb:a.deb||0,obs_t:a.obs_t||'',obs_a:a.obs_a||''};
+    if(a) return {acr:a.acr||0,des:a.des||0,deb:a.deb||0,ret:a.ret||0,obs_t:a.obs_t||'',obs_a:a.obs_a||'',obs_r:a.obs_r||''};
   }catch(e){}
-  return {acr:0,des:0,deb:0,obs_t:'',obs_a:''};
+  return {acr:0,des:0,deb:0,ret:0,obs_t:'',obs_a:''};
 }
 
 function getMedTagsIds(){
@@ -10461,7 +10533,7 @@ function abrirModalMedicao(id){
   // Reset todos os campos
   ['med-data','med-valor-kg','med-peso-previsto','med-peso-detalhado',
    'med-num-ps','med-bm','med-bm-conferido-por','med-bm-motivo','med-data-pagamento','med-nf','med-obs-contrato','med-tags-busca'
-  ,'med-acrescimo-telhas','med-obs-telhas','med-desconto','med-valor-debito','med-obs-ajuste'
+  ,'med-acrescimo-telhas','med-obs-telhas','med-acrescimo-retrabalho','med-obs-retrabalho','med-desconto','med-obs-ajuste'
   ].forEach(fid=>{ const el=document.getElementById(fid); if(el) el.value=''; });
   _medTagsMap = new Map();
   document.getElementById('med-status-contrato').value = 'ATIVO';
@@ -10495,8 +10567,9 @@ function abrirModalMedicao(id){
     const _adjM = _parseAjuste(m);
     sv('med-acrescimo-telhas', _adjM.acr > 0 ? _adjM.acr : '');
     sv('med-obs-telhas', _adjM.obs_t);
+    sv('med-acrescimo-retrabalho', _adjM.ret > 0 ? _adjM.ret : '');
+    sv('med-obs-retrabalho', _adjM.obs_r);
     sv('med-desconto', _adjM.des > 0 ? _adjM.des : '');
-    sv('med-valor-debito', _adjM.deb > 0 ? _adjM.deb : '');
     sv('med-obs-ajuste', _adjM.obs_a);
     sv('med-status-contrato', m.status_contrato||'ATIVO');
     carregarMedTagsSalvas(m.subobras_ids||'');
@@ -10622,22 +10695,24 @@ async function salvarMedicao(){
     obs_contrato:    gv('med-obs-contrato'),
     // Campos de ajuste opcionais (se colunas existirem no Supabase após migração SQL)
     ...(_colAjusteExiste ? {
-      acrescimo_telhas: parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||null,
-      obs_telhas:      gv('med-obs-telhas'),
-      desconto:        parseFloat(document.getElementById('med-desconto')?.value)||null,
-      valor_debito:    parseFloat(document.getElementById('med-valor-debito')?.value)||null,
-      obs_ajuste:      gv('med-obs-ajuste'),
+      acrescimo_telhas:    parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||null,
+      obs_telhas:          gv('med-obs-telhas'),
+      acrescimo_retrabalho: parseFloat(document.getElementById('med-acrescimo-retrabalho')?.value)||null,
+      obs_retrabalho:      gv('med-obs-retrabalho'),
+      desconto:            parseFloat(document.getElementById('med-desconto')?.value)||null,
+      obs_ajuste:          gv('med-obs-ajuste'),
     } : {}),
     status_contrato: gv('med-status-contrato')||'ATIVO',
     subobras_ids: (()=>{
       let _sRaw = getMedTagsIds();
       const _aAcr=parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||0;
+      const _aRet=parseFloat(document.getElementById('med-acrescimo-retrabalho')?.value)||0;
       const _aDes=parseFloat(document.getElementById('med-desconto')?.value)||0;
-      const _aDeb=parseFloat(document.getElementById('med-valor-debito')?.value)||0;
       const _aObsT=gv('med-obs-telhas')||'';
+      const _aObsR=gv('med-obs-retrabalho')||'';
       const _aObsA=gv('med-obs-ajuste')||'';
-      if(_aAcr||_aDes||_aDeb||_aObsT||_aObsA){
-        try{ const _arr=JSON.parse(_sRaw||'[]'); _arr.push({_adj:true,acr:_aAcr,des:_aDes,deb:_aDeb,obs_t:_aObsT,obs_a:_aObsA}); _sRaw=JSON.stringify(_arr); }catch(e){}
+      if(_aAcr||_aRet||_aDes||_aObsT||_aObsR||_aObsA){
+        try{ const _arr=JSON.parse(_sRaw||'[]'); _arr.push({_adj:true,acr:_aAcr,ret:_aRet,des:_aDes,obs_t:_aObsT,obs_r:_aObsR,obs_a:_aObsA}); _sRaw=JSON.stringify(_arr); }catch(e){}
       }
       return _sRaw||null;
     })(),
@@ -15887,6 +15962,8 @@ function cotExportarCSV(){
           </select>
           <input id="cdb-f-txt" placeholder="Buscar..." oninput="cdocRenderBas()" style="max-width:130px;">
           <input id="cdb-f-grd" placeholder="GRD..." oninput="cdocRenderBas()" style="max-width:90px;">
+          <select id="cdb-f-proj" onchange="cdocRenderBas()" style="max-width:130px;"><option value="">Todos projetistas</option></select>
+          <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="cdocRenderBas()" style="max-width:130px;" maxlength="10">
           <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
           <div style="margin-left:auto;display:flex;gap:.4rem;">
             <button onclick="cdocNovoBas()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
@@ -15899,6 +15976,7 @@ function cotExportarCSV(){
             <button onclick="cdocRelBas()" style="background:#0f172a;color:#e2e8f0;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Relatório de Projetos Básicos">📊 Relatório</button>
           </div>
         </div>
+        <div id="cdb-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
         <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
           <table class="cdoc-tbl">
@@ -16222,9 +16300,11 @@ function _cdocObras(){
   (db._obras||[]).forEach(function(o){ if(o&&!seen[o]&&ocultas.indexOf(o)===-1){seen[o]=true;set.push(o);} });
   return set.sort();
 }
-function _cdocSubs(obra){
+function _cdocSubs(obra, equipe){
   if(typeof allCronSubobras==='undefined') return [];
-  return [...new Set(allCronSubobras.filter(function(s){return !obra||s.obra===obra;}).map(function(s){return s.subobra||'';}).filter(Boolean))].sort();
+  return [...new Set(allCronSubobras.filter(function(s){
+    return (!obra||s.obra===obra) && (!equipe||s.equipe===equipe);
+  }).map(function(s){return s.subobra||'';}).filter(Boolean))].sort();
 }
 
 var _cdocAutoRefreshTimer=null;
@@ -16367,6 +16447,18 @@ function cdocPopFilters(){
     sel.innerHTML=(id==='cdoc-g-obra'?'<option value="">— Todas as obras —</option>':'<option value="">Todas obras</option>');
     obras.forEach(function(o){ var op=document.createElement('option');op.value=o;op.textContent=o;if(o===cur)op.selected=true;sel.appendChild(op); });
   });
+  // Popula filtro Projetista com equipes únicas do cronograma + CDOC
+  (function(){
+    var sel=document.getElementById('cdb-f-proj'); if(!sel) return;
+    var cur=sel.value;
+    var set={};
+    if(typeof allCronSubobras!=='undefined') allCronSubobras.forEach(function(s){if(s.equipe) set[s.equipe]=true;});
+    var db2=_cdocDb();
+    (db2.basicos||[]).forEach(function(b){if(b.proj) set[b.proj]=true;});
+    var list=Object.keys(set).sort();
+    sel.innerHTML='<option value="">Todos projetistas</option>';
+    list.forEach(function(e){var op=document.createElement('option');op.value=e;op.textContent=e;if(e===cur)op.selected=true;sel.appendChild(op);});
+  })();
   // Atualiza info de obras no filtro global
   _cdocGlobalObraInfo();
 }
@@ -16510,6 +16602,26 @@ function cdocRenderVisao(){
 }
 
 /* ── PROJ. BÁSICO render ── */
+function _cdocCriarBasDeCronEl(el){
+  _cdocCriarBasDeCron(el.dataset.obra||'',el.dataset.sub||'',el.dataset.proj||'');
+}
+function _cdocCriarBasDeCron(obraId, sub, proj){
+  if(!_siderRequireEdit()) return;
+  _cdocMode='bas'; _cdocEditId=null;
+  var db=_cdocDb();
+  var cronRec=(typeof allCronSubobras!=='undefined'?allCronSubobras.find(function(s){return s.obra===obraId&&s.subobra===sub;}):null);
+  var preRec={obraId:obraId,sub:sub,proj:proj,titulo:cronRec&&cronRec.descricao?cronRec.descricao:'',area:cronRec&&cronRec.area?cronRec.area:'',peso:cronRec&&cronRec.peso_basico?cronRec.peso_basico:null,status:'LD',m3d:'2D',diag:'2D'};
+  _cdocAbrirFormBas(preRec);
+}
+function _cdocGetProj(b){
+  var p=b.proj||'';
+  if(!p&&typeof allCronSubobras!=='undefined'){
+    var _su=(b.sub||'').toUpperCase(), _ou=(b.obraId||'').toUpperCase();
+    var s=allCronSubobras.find(function(x){return (x.subobra||'').toUpperCase()===_su&&(x.obra||'').toUpperCase()===_ou;});
+    if(s&&s.equipe) p=s.equipe;
+  }
+  return p;
+}
 function cdocRenderBas(){
   cdocPopFilters();
   var db=_cdocDb();
@@ -16519,6 +16631,13 @@ function cdocRenderBas(){
   var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
   var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
   var fGrd=((document.getElementById('cdb-f-grd')||{}).value||'').toLowerCase();
+  var fProj=(document.getElementById('cdb-f-proj')||{}).value||'';
+  var fDataRaw=((document.getElementById('cdb-f-data')||{}).value||'').trim();
+  // converte dd/mm/aaaa → aaaa-mm-dd para comparar com b.data (ISO)
+  var fData='';
+  if(fDataRaw.length===10&&fDataRaw[2]==='/'&&fDataRaw[5]==='/'){
+    var _dp=fDataRaw.split('/'); fData=_dp[2]+'-'+_dp[1]+'-'+_dp[0];
+  }
   var rows=db.basicos.filter(function(b){
     if(fObra&&b.obraId!==fObra) return false;
     if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
@@ -16526,12 +16645,27 @@ function cdocRenderBas(){
     if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
     if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
     if(fGrd&&!(b.remessaGRD||'').toLowerCase().includes(fGrd)) return false;
+    if(fProj){ var _ep=_cdocGetProj(b); if(_ep!==fProj) return false; }
+    if(fData&&(b.data||'')!==fData) return false;
     return true;
   });
+  // Quando filtro projetista ativo: incluir TAGs do cronograma sem CDOC como linhas virtuais
+  if(fProj&&typeof allCronSubobras!=='undefined'){
+    var _cdocSubs_set=new Set(db.basicos.map(function(b){return (b.obraId||'').toUpperCase()+'|'+(b.sub||'').toUpperCase();}));
+    allCronSubobras.forEach(function(s){
+      if(s.equipe!==fProj) return;
+      if(fObra&&s.obra!==fObra) return;
+      if(fSub&&!(s.subobra||'').toLowerCase().includes(fSub.toLowerCase())) return;
+      var key=(s.obra||'').toUpperCase()+'|'+(s.subobra||'').toUpperCase();
+      if(_cdocSubs_set.has(key)) return; // já tem CDOC
+      rows.push({id:'__cron__'+s.id,obraId:s.obra,sub:s.subobra,titulo:s.descricao||'',proj:s.equipe||'',status:'',area:s.area||'',peso:s.peso_basico||null,_virtual:true});
+    });
+  }
   var tb=document.getElementById('cdb-tbody');
   if(!tb) return;
   rows=_cdocApplyColFlts(rows,'bas');
   rows=_cdocApplySort(rows,_cdocBasSort,'bas');
+  _cdocBasRows=rows; // track visible rows for select-all
   _cdocUpdateSortBtns('bas');
   // Atualizar indicadores de filtro nos botões
   document.querySelectorAll('#cdoc-pane-basico .th-flt').forEach(function(btn){
@@ -16542,6 +16676,30 @@ function cdocRenderBas(){
   else{
     var fmt=function(v){return v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
     tb.innerHTML=rows.map(function(b){
+      if(b._virtual){
+        // Linha virtual do cronograma sem CDOC cadastrado
+        var _vObraEnc=encodeURIComponent(b.obraId||'');
+        var _vSubEnc=encodeURIComponent(b.sub||'');
+        var _vProjEnc=encodeURIComponent(b.proj||'');
+        return '<tr style="background:#f8fafc;opacity:.8;font-style:italic;">'
+          +'<td style="text-align:center;"><span style="color:#94a3b8;font-size:10px;">—</span></td>'
+          +'<td style="font-weight:700;font-family:Courier New,monospace;font-size:10px;color:#64748b;">'+_esc(b.obraId||'—')+'</td>'
+          +'<td style="font-weight:700;font-size:10px;font-family:Courier New,monospace;color:#0369a1;">'+_esc(b.sub||'—')+'</td>'
+          +'<td style="font-size:10px;color:#94a3b8;">—</td>'
+          +'<td style="font-size:10px;color:#64748b;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(b.titulo||'')+'">'+_esc(b.titulo||'(sem CDOC cadastrado)')+'</td>'
+          +'<td style="text-align:right;font-family:Courier New,monospace;font-size:10px;">'+fmt(b.peso)+'</td>'
+          +'<td style="font-size:10px;color:#2563eb;">'+_esc(b.area||'—')+'</td>'
+          +'<td><span style="background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 6px;font-size:9px;">—</span></td>'
+          +'<td style="font-size:10px;text-align:center;color:#94a3b8;">—</td>'
+          +'<td style="font-size:10px;text-align:center;color:#94a3b8;">—</td>'
+          +'<td style="font-size:10px;color:#64748b;">'+_esc(b.proj||'—')+'</td>'
+          +'<td style="font-size:10px;color:#94a3b8;">—</td>'
+          +'<td style="font-size:10px;color:#94a3b8;">—</td>'
+          +'<td style="font-size:10px;color:#94a3b8;">—</td>'
+          +'<td style="white-space:nowrap;">'
+            +'<button data-obra="'+_esc(b.obraId||'')+'" data-sub="'+_esc(b.sub||'')+'" data-proj="'+_esc(b.proj||'')+'" onclick="_cdocCriarBasDeCronEl(this)" style="background:#dbeafe;border:1px solid #93c5fd;color:#1e40af;border-radius:3px;cursor:pointer;font-size:10px;padding:1px 6px;font-weight:700;" title="Cadastrar no CDOC">➕ Criar</button>'
+          +'</td></tr>';
+      }
       var isSel=_cdocBasSel.has(b.id);
       return '<tr class="'+(isSel?'cdoc-selected':'')+'"'
         +' onclick="_cdocToggleSelBas('+b.id+',event)" style="cursor:pointer;">'
@@ -16555,7 +16713,7 @@ function cdocRenderBas(){
         +'<td>'+_cdocBadgeHtml(b.status)+'</td>'
         +'<td style="font-size:10px;text-align:center;">'+_esc(b.m3d||'—')+'</td>'
         +'<td style="font-size:10px;text-align:center;">'+_esc(b.diag||'—')+'</td>'
-        +'<td style="font-size:10px;">'+_esc(b.proj||'—')+'</td>'
+        +'<td style="font-size:10px;">'+_esc(_cdocGetProj(b)||'—')+'</td>'
         +'<td style="font-size:10px;white-space:nowrap;">'+_esc(b.rev||'—')+(b.revisoes&&b.revisoes.length?'<span title="Histórico: '+b.revisoes.length+' revisão(ões)" style="margin-left:3px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px;font-size:8px;font-weight:700;cursor:help;">'+b.revisoes.length+'</span>':'')+'</td>'
         +'<td style="font-family:Courier New,monospace;font-size:10px;">'+_fD2(b.data)+'</td>'
         +'<td style="font-size:10px;white-space:nowrap;">'+(b.remessaGRD?'<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;cursor:pointer;" title="'+(b.remessaData?_fD2(b.remessaData):'')+'" onclick="cdocAbrirGrdsBas()">'+_esc(b.remessaGRD)+'</span>':'<span style="color:#cbd5e1;font-size:9px;">—</span>')+'</td>'
@@ -16574,6 +16732,34 @@ function cdocRenderBas(){
   var psEl=document.getElementById('cdb-peso-sel'); if(psEl) psEl.textContent=_cdocBasSel.size?'Selecionados ('+_cdocBasSel.size+'): '+fmt(selPesoB)+' kg':'';
   var bdelBtn=document.getElementById('cdb-btn-del-sel'); var bdelCnt=document.getElementById('cdb-del-count');
   if(bdelBtn){ bdelBtn.style.display=_cdocBasSel.size?'':'none'; if(bdelCnt) bdelCnt.textContent=_cdocBasSel.size; }
+  // ── Painel de peso ──
+  (function(){
+    var painel=document.getElementById('cdb-peso-painel'); if(!painel) return;
+    if(!rows.length){painel.style.display='none';painel.innerHTML='';return;}
+    var fmtB=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+    var totalPesoB=rows.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+    var totalFmtB=fmtB(totalPesoB);
+    // chips por TAG (somente quando filtro ativo ou poucos resultados)
+    var byTagMap={};
+    rows.forEach(function(b){ var k=b.sub||'(sem TAG)'; byTagMap[k]=(byTagMap[k]||0)+(parseFloat(b.peso)||0); });
+    var tagKeys=Object.keys(byTagMap).sort();
+    var tagCards=tagKeys.map(function(k){
+      return '<div style="background:#fff;border:1px solid #bae6fd;border-radius:5px;padding:6px 12px;text-align:center;min-width:110px;">'
+        +'<div style="font-size:9px;font-weight:700;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">'+_esc(k)+'</div>'
+        +'<div style="font-size:14px;font-weight:800;color:#0369a1;">'+fmtB(byTagMap[k])+'</div>'
+        +'<div style="font-size:9px;color:#64748b;">kg</div>'
+        +'</div>';
+    }).join('');
+    painel.style.display='';
+    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:7px;padding:8px 20px;min-width:120px;">'
+      +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
+      +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalFmtB+'</span>'
+      +'<span style="font-size:11px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.filter(function(b){return !b._virtual;}).length+' doc(s)</span>'
+      +'</div>'
+      +(tagCards?'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+tagCards+'</div>':'')
+      +'</div>';
+  })();
   // ── Resumo por TAG ──
   var resumoEl=document.getElementById('cdb-resumo');
   if(resumoEl){
@@ -16786,7 +16972,7 @@ function cdocRenderDet(){
 }
 
 /* ── Limpar filtros ── */
-function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
+function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli','cdb-f-grd','cdb-f-proj','cdb-f-data'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
 function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
 
 /* ── Formulário Básico ── */
@@ -16813,6 +16999,8 @@ function _cdocAbrirFormBas(rec){
   if(rec&&rec.sub&&subs.indexOf(rec.sub)===-1) subs.unshift(rec.sub);
   var oO=obras.map(function(o){return '<option value="'+o+'"'+(rec&&rec.obraId===o?' selected':'')+'>'+o+'</option>';}).join('');
   var sO=subs.map(function(s){return '<option value="'+s+'"'+(rec&&rec.sub===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var equipes=[...new Set((typeof allCronSubobras!=='undefined'?allCronSubobras:[]).filter(function(s){return !rec||!rec.obraId||s.obra===rec.obraId;}).map(function(s){return s.equipe||'';}).filter(Boolean))].sort();
+  var eqO=equipes.map(function(e){return '<option value="'+e+'"'+(rec&&rec.proj===e?' selected':'')+'>'+e+'</option>';}).join('');
   var v=function(f){return rec&&rec[f]!=null?String(rec[f]):'';};
   document.getElementById('cdoc-edit-body').innerHTML=
     '<div class="cdoc-ef">'
@@ -16822,7 +17010,7 @@ function _cdocAbrirFormBas(rec){
     +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+v('titulo').replace(/"/g,'&quot;')+'"></div></div>'
     +'<div class="cdoc-ef">'
     +'<div><label>Nº Cliente</label><input id="cef-cli" value="'+v('cli')+'"></div>'
-    +'<div><label>Projetista</label><input id="cef-proj" value="'+v('proj')+'"></div>'
+    +'<div><label>Projetista</label><select id="cef-proj" onchange="cdocBasEquipeChange()"><option value="">-- Selecione --</option>'+eqO+'</select></div>'
     +'</div>'
     +'<div class="cdoc-ef tri">'
     +'<div><label>Status</label><select id="cef-status"><option>LD</option><option>Em andamento</option><option>Concluído</option></select></div>'
@@ -16928,7 +17116,24 @@ function cdocSubirRev(){var el=document.getElementById('cef-rev');if(el)el.value
 function cdocDescerRev(){var el=document.getElementById('cef-rev');if(el)el.value=_cdocIncrRev(el.value.trim(),-1);}
 function cdocBasObraChange(){
   var obra=(document.getElementById('cef-obra')||{}).value||'';
-  var subs=_cdocSubs(obra); var dl=document.getElementById('cef-sub-dl'); if(dl) dl.innerHTML=subs.map(function(s){return '<option value="'+s+'">';}).join('');
+  // atualiza select de equipe (projetista)
+  var eqSel=document.getElementById('cef-proj');
+  if(eqSel&&eqSel.tagName==='SELECT'){
+    var curEq=eqSel.value;
+    var equipes=[...new Set((typeof allCronSubobras!=='undefined'?allCronSubobras:[]).filter(function(s){return !obra||s.obra===obra;}).map(function(s){return s.equipe||'';}).filter(Boolean))].sort();
+    eqSel.innerHTML='<option value="">-- Selecione --</option>'+equipes.map(function(e){return '<option value="'+e+'"'+(curEq===e?' selected':'')+'>'+e+'</option>';}).join('');
+    if(equipes.indexOf(curEq)<0) eqSel.value='';
+  }
+  // atualiza datalist de TAGs
+  var equipe=(eqSel&&eqSel.tagName==='SELECT'?eqSel.value:'');
+  var subs=_cdocSubs(obra,equipe);
+  var dl=document.getElementById('cef-sub-dl'); if(dl) dl.innerHTML=subs.map(function(s){return '<option value="'+s+'">';}).join('');
+}
+function cdocBasEquipeChange(){
+  var obra=(document.getElementById('cef-obra')||{}).value||'';
+  var equipe=(document.getElementById('cef-proj')||{}).value||'';
+  var subs=_cdocSubs(obra,equipe);
+  var dl=document.getElementById('cef-sub-dl'); if(dl) dl.innerHTML=subs.map(function(s){return '<option value="'+s+'">';}).join('');
 }
 function cdocBasSubChange(){
   var obra=(document.getElementById('cef-obra')||{}).value||'';
@@ -16941,7 +17146,12 @@ function cdocBasSubChange(){
   if(pesoEl&&!pesoEl.value&&rec.peso_basico) pesoEl.value=rec.peso_basico;
   // auto-preenche projetista se disponível
   var projEl=document.getElementById('cef-proj');
-  if(projEl&&!projEl.value&&rec.engenheiro) projEl.value=rec.engenheiro;
+  if(projEl&&rec.equipe){
+    if(projEl.tagName==='SELECT'){
+      if([...projEl.options].some(function(o){return o.value===rec.equipe;})) projEl.value=rec.equipe;
+    } else { projEl.value=rec.equipe; }
+    cdocBasEquipeChange();
+  }
 }
 
 /* ── Formulário Detalhado ── */
@@ -16969,6 +17179,8 @@ function _cdocAbrirFormDet(rec){
   if(rec&&rec.sub&&subs.indexOf(rec.sub)===-1) subs.unshift(rec.sub);
   var oO=obras.map(function(o){return '<option value="'+o+'"'+(rec&&rec.obraId===o?' selected':'')+'>'+o+'</option>';}).join('');
   var sO=subs.map(function(s){return '<option value="'+s+'"'+(rec&&rec.sub===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var equipes=[...new Set((typeof allCronSubobras!=='undefined'?allCronSubobras:[]).filter(function(s){return !rec||!rec.obraId||s.obra===rec.obraId;}).map(function(s){return s.equipe||'';}).filter(Boolean))].sort();
+  var eqO=equipes.map(function(e){return '<option value="'+e+'"'+(rec&&rec.proj===e?' selected':'')+'>'+e+'</option>';}).join('');
   var v=function(f){return rec&&rec[f]!=null?String(rec[f]):'';};
   document.getElementById('cdoc-edit-body').innerHTML=
     '<div class="cdoc-ef">'
@@ -18209,35 +18421,32 @@ function _cdocToast(msg){
 }
 
 /* ── Export CSV ── */
+function _cdocDownload(text, filename){
+  var blob=new Blob(['﻿'+text],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);
+}
 function cdocExportBas(){
-  var db=_cdocDb();
+  var exportRows=_cdocBasRows.length?_cdocBasRows:_cdocDb().basicos;
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
-  db.basicos.forEach(function(b){rows.push([b.obraId,b.sub,b.cli,b.titulo,b.area||'',b.peso||'',b.status,b.m3d,b.diag,b.proj,b.rev,b.data].join(';'));});
+  exportRows.forEach(function(b){
+    if(b._virtual) return; // pular linhas virtuais
+    rows.push([b.obraId,b.sub,b.cli||'',b.titulo||'',b.area||'',b.peso||'',b.status||'',b.m3d||'',b.diag||'',_cdocGetProj(b)||'',b.rev||'',b.data||''].join(';'));
+  });
   _cdocDownload(rows.join('\n'),'proj_basico.csv');
 }
 function cdocExportBasSel(){
-  if(!_cdocBasSel.size){alert('Nenhuma linha selecionada. Use as caixas de seleção na tabela.');return;}
-  var db=_cdocDb();
-  // aplica os mesmos filtros ativos da tabela antes de cruzar com a seleção
-  var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
-  var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
-  var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
-  var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
-  var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
-  var visible=db.basicos.filter(function(b){
-    if(fObra&&b.obraId!==fObra) return false;
-    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
-    if(fSt&&b.status!==fSt) return false;
-    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
-    if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
-    return true;
-  });
-  var sel=visible.filter(function(b){return _cdocBasSel.has(b.id);});
-  if(!sel.length){alert('Nenhuma linha selecionada está visível com os filtros atuais.');return;}
+  var sel=_cdocBasRows.filter(function(b){return !b._virtual&&_cdocBasSel.has(b.id);});
+  if(!sel.length){alert('Nenhuma linha selecionada. Use as caixas de seleção na tabela.');return;}
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
-  sel.forEach(function(b){rows.push([b.obraId,b.sub,b.cli,b.titulo,b.area||'',b.peso||'',b.status,b.m3d,b.diag,b.proj,b.rev,b.data].join(';'));});
-  _cdocDownload(rows.join('\n'),'proj_basico_sel_'+sel.length+'.csv');
+  sel.forEach(function(b){
+    rows.push([b.obraId,b.sub,b.cli||'',b.titulo||'',b.area||'',b.peso||'',b.status||'',b.m3d||'',b.diag||'',_cdocGetProj(b)||'',b.rev||'',b.data||''].join(';'));
+  });
+  _cdocDownload(rows.join('\n'),'proj_basico_sel.csv');
 }
+
 function cdocExportDet(){
   var db=_cdocDb();
   var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
@@ -18713,6 +18922,7 @@ function _cdocUpdateSortBtns(tbl){
   });
 }
 var _cdocBasSel=new Set(), _cdocDetSel=new Set();
+var _cdocBasRows=[];
 var _cdocColFltsBas={}, _cdocColFltsDet={};
 function _cdocToggleSelBas(id,e){
   if(e&&e.target&&e.target.tagName==='BUTTON') return;
@@ -18725,8 +18935,8 @@ function _cdocToggleSelDet(id,e){
   cdocRenderDet();
 }
 function _cdocBasSelAll(cb){
-  var db=_cdocDb(); _cdocBasSel.clear();
-  if(cb.checked) db.basicos.forEach(function(b){_cdocBasSel.add(b.id);});
+  _cdocBasSel.clear();
+  if(cb.checked) _cdocBasRows.forEach(function(b){if(!(String(b.id)).startsWith('__cron__')) _cdocBasSel.add(b.id);});
   cdocRenderBas();
 }
 function _cdocDetSelAll(cb){
