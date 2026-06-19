@@ -4099,6 +4099,10 @@ function renderEtapasDinamicas(){
       var _bcM=_avg>=100?'#166534':_avg>=50?'#d97706':'#2563eb';
       return '<div style="display:flex;align-items:center;gap:.3rem;margin-top:2px;"><div style="flex:1;background:#e2e8f0;border-radius:3px;height:6px;overflow:hidden;"><div style="width:'+_avg+'%;height:100%;background:'+_bcM+';border-radius:3px;"></div></div><span style="font-size:9px;font-weight:700;color:'+_bcM+';">'+_avg+'% (méd.)</span></div>';
     }())+'</td>';
+    var _diasMapE=_getEtapaDias(); var _diasValE=_diasMapE[etapa.key]||'';
+    rows += etapa.col_prev
+      ? '<td style="width:60px;text-align:center;"><input type="number" min="0" max="999" style="width:48px;text-align:center;border:1px solid #e2e8f0;border-radius:3px;padding:2px 3px;font-size:10px;background:#f8fafc;" value="'+_diasValE+'" placeholder="—" title="Prazo em dias" data-key="'+(etapa.key)+'" oninput="_onDiasInput(this)"></td>'
+      : '<td style="width:60px;text-align:center;color:#cbd5e1;font-size:10px;">—</td>';
     if(etapa.col_prev && !(etapa.extra==='montagem' && st.montagem_na)){
     rows += '<td class="num" style="width:110px;">';
     var _prevInput = '<input type="date" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)">';
@@ -4186,6 +4190,10 @@ function renderEtapasDinamicas(){
         rows += '<tr class="'+sTrClass+'" id="etapa-row-'+sub.key+'" style="background:'+(sConc?'#f0fdf4':sLate?'#fff7f0':'#fafafe')+';">';
         rows += '<td style="text-align:center;"><span style="color:#94a3b8;font-size:10px;">↳</span></td>';
         rows += '<td style="padding-left:1.5rem;"><span style="font-size:11px;color:'+(sub.opcional?'#64748b':'var(--ink2)')+';font-style:'+(sub.opcional?'italic':'normal')+';">'+sub.label+extraInline+'</span></td>';
+        var _diasSub=(_getEtapaDias()[sub.key]||'');
+        rows += sub.col_prev
+          ? '<td style="width:60px;text-align:center;"><input type="number" min="0" max="999" style="width:44px;text-align:center;border:1px solid #e2e8f0;border-radius:3px;padding:1px 3px;font-size:9px;background:#f8fafc;" value="'+_diasSub+'" placeholder="—" title="Prazo em dias" data-key="'+(sub.key)+'" oninput="_onDiasInput(this)"></td>'
+          : '<td style="width:60px;"></td>';
         if(sub.col_prev){
         var _sPrevInput = '<input type="date" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)">';
         rows += '<td class="num">' + _dtHistWrap(_sPrevInput, sub.key, 'prev', sub.label) + '</td>';
@@ -4231,6 +4239,7 @@ function renderEtapasDinamicas(){
   tableWrap.innerHTML = '<table class="cron-etapas-table"><thead><tr>'
     + '<th style="width:28px;">#</th>'
     + '<th>Etapa</th>'
+    + '<th class="num" style="width:60px;text-align:center;">⏳ Prazo</th>'
     + '<th class="num" style="width:110px;">📅 Previsto</th>'
     + '<th class="num" style="width:110px;">✅ Realizado</th>'
     + '<th class="num" style="width:90px;">⏱ Δ Dias</th>'
@@ -4533,6 +4542,117 @@ function _renderTelhaBlock(divId, cronId){
   if(concSel) concSel.addEventListener('change', function(){ etapaTelhaSet('conc', this.value); });
 }
 
+// ── PRAZO POR ETAPA (dias) ─────────────────────────────────────────
+function _getEtapaDias(){
+  if(!editingCronId) return {};
+  try{ return JSON.parse(localStorage.getItem('sidertec_etapa_dias_'+editingCronId)||'{}'); }catch(e){ return {}; }
+}
+function _setEtapaDias(etapaKey, val){
+  if(!editingCronId) return;
+  var d=_getEtapaDias();
+  if(val>0) d[etapaKey]=val; else delete d[etapaKey];
+  localStorage.setItem('sidertec_etapa_dias_'+editingCronId, JSON.stringify(d));
+}
+function _addDias(dateStr, dias){
+  if(!dateStr) return '';
+  var d=new Date(dateStr+'T12:00:00');
+  if(isNaN(d.getTime())) return '';
+  d.setDate(d.getDate()+dias);
+  var y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), dy=String(d.getDate()).padStart(2,'0');
+  return y+'-'+mo+'-'+dy;
+}
+function _calcPrevistosFromDias(){
+  var diasMap=_getEtapaDias();
+  if(!Object.keys(diasMap).some(function(k){ return (diasMap[k]||0)>0; })) return;
+  // Lê data base direto do DOM (mais confiável que _etapasState)
+  var elReal=document.getElementById('cm-real-basico');
+  var elPrev=document.getElementById('cm-prev-basico');
+  var elFab=document.getElementById('cm-data-limite-fab');
+  var realBasico=(elReal&&elReal.value)||(_etapasState.basico||{}).real||'';
+  var dataFab=(elFab&&elFab.value)||'';
+  var prevBasico=(elPrev&&elPrev.value)||(_etapasState.basico||{}).prev||'';
+  var basicoConcl=!!(realBasico);
+  var basicoEffDate=realBasico||dataFab||prevBasico;
+  if(!basicoEffDate) return;
+  var runDate=basicoEffDate;
+  ETAPAS_CONFIG.forEach(function(etapa){
+    var etapaEffDate;
+    if(etapa.key==='basico'){
+      if(basicoConcl){
+        etapaEffDate=basicoEffDate; // já concluído, não altera previsto
+      } else {
+        var d0=parseInt(diasMap.basico||0)||0;
+        if(d0>0&&etapa.col_prev){ runDate=_addDias(runDate,d0); etapaSet('basico','prev',runDate); }
+        etapaEffDate=runDate;
+      }
+    } else {
+      var diasMain=parseInt(diasMap[etapa.key]||0)||0;
+      if(diasMain>0&&etapa.col_prev){ runDate=_addDias(runDate,diasMain); etapaSet(etapa.key,'prev',runDate); }
+      etapaEffDate=(_etapasState[etapa.key]||{}).prev||runDate;
+    }
+    // Sub-etapas: cada uma relativa à data efetiva da etapa pai
+    if(etapaEffDate&&etapa.sub&&etapa.sub.length){
+      etapa.sub.forEach(function(sub){
+        if(!sub.col_prev) return;
+        var ds=parseInt(diasMap[sub.key]||0)||0;
+        if(ds>0) etapaSet(sub.key,'prev',_addDias(etapaEffDate,ds));
+      });
+    }
+  });
+}
+
+function _setDateInRow(key, dateVal){
+  if(!_etapasState[key]) _etapasState[key]={};
+  _etapasState[key].prev=dateVal;
+  var row=document.getElementById('etapa-row-'+key);
+  if(row){
+    var inp=row.querySelector('input[type="date"]');
+    if(inp) inp.value=dateVal;
+  }
+}
+function _applyDiasToDOM(){
+  var diasMap=_getEtapaDias();
+  if(!Object.keys(diasMap).some(function(k){ return (diasMap[k]||0)>0; })) return;
+  var elReal=document.getElementById('cm-real-basico');
+  var elFab=document.getElementById('cm-data-limite-fab');
+  var elPrev=document.getElementById('cm-prev-basico');
+  var baseDate=(elReal&&elReal.value)||(_etapasState.basico||{}).real||
+               (elFab&&elFab.value)||
+               (elPrev&&elPrev.value)||(_etapasState.basico||{}).prev||'';
+  if(!baseDate) return;
+  var basicoConcl=!!(elReal&&elReal.value)||!!((_etapasState.basico||{}).real);
+  var runDate=baseDate;
+  ETAPAS_CONFIG.forEach(function(etapa){
+    var etapaEffDate;
+    if(etapa.key==='basico'){
+      if(basicoConcl){
+        etapaEffDate=baseDate;
+      } else {
+        var d0=parseInt(diasMap.basico||0)||0;
+        if(d0>0&&etapa.col_prev){ runDate=_addDias(runDate,d0); _setDateInRow('basico',runDate); }
+        etapaEffDate=runDate;
+      }
+    } else {
+      var dm=parseInt(diasMap[etapa.key]||0)||0;
+      if(dm>0&&etapa.col_prev){ runDate=_addDias(runDate,dm); _setDateInRow(etapa.key,runDate); }
+      etapaEffDate=(_etapasState[etapa.key]||{}).prev||runDate;
+    }
+    if(etapaEffDate&&etapa.sub&&etapa.sub.length){
+      etapa.sub.forEach(function(sub){
+        if(!sub.col_prev) return;
+        var ds=parseInt(diasMap[sub.key]||0)||0;
+        if(ds>0) _setDateInRow(sub.key,_addDias(etapaEffDate,ds));
+      });
+    }
+  });
+}
+function _onDiasInput(el){
+  var key=el.dataset.key;
+  var val=parseInt(el.value)||0;
+  _setEtapaDias(key,val);
+  _applyDiasToDOM();
+}
+
 function _telhaToggleNA(cronId){
   var store=JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}');
   if(!store[cronId]) store[cronId]={sim:'NAO',prev:'',conc:''};
@@ -4562,6 +4682,7 @@ function etapaMarcarConcluido(key){
   }
   // Salva imediatamente no localStorage
   _salvarEtapaImediato(key, novoStatus);
+  if(key==='basico') _calcPrevistosFromDias();
   renderEtapasDinamicas();
 }
 
