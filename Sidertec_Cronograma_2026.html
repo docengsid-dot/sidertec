@@ -9220,11 +9220,11 @@ async function carregarMedicoes(){
     if(!allMedicoes.length) window._colAjusteExiste = false;
     // Detectar se colunas BM existem
     if(allMedicoes.length > 0 && (!('bm_conferido_por' in allMedicoes[0]) || !('data_pagamento' in allMedicoes[0]))){
-      setTimeout(_mostrarMigracaoBM, 1500);
+      if(!localStorage.getItem('sider_mig_bm_done')) setTimeout(_mostrarMigracaoBM, 1500);
     }
     // Detectar se colunas de ajuste existem
     window._colAjusteExiste = allMedicoes.length > 0 && ('acrescimo_telhas' in allMedicoes[0]);
-    if(!window._colAjusteExiste){ setTimeout(_mostrarMigracaoAjuste, 2000); }
+    if(!window._colAjusteExiste && !localStorage.getItem('sider_mig_ajuste_done')){ setTimeout(_mostrarMigracaoAjuste, 2000); }
   }catch(e){ allMedicoes=[]; }
 }
 
@@ -10775,6 +10775,7 @@ ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS data_pagamento date;`;
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button onclick="navigator.clipboard.writeText(document.getElementById('bm-sql-pre').textContent).then(()=>{this.textContent='✓ Copiado!';this.style.background='#16a34a';setTimeout(()=>{this.textContent='📋 Copiar SQL';this.style.background='#0e7490';},2000);})" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;">📋 Copiar SQL</button>
           <a href="https://supabase.com/dashboard" target="_blank" style="background:#7c3aed;color:#fff;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;text-decoration:none;">🔗 Abrir Supabase</a>
+          <button onclick="localStorage.setItem('sider_mig_bm_done','1');document.getElementById('bm-migration-banner').remove();showToast&&showToast('Migração marcada','Banner não será mais exibido.','success');" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;">✔ Já executei</button>
           <button onclick="document.getElementById('bm-migration-banner').remove()" style="background:#475569;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:10px;cursor:pointer;">✕ Fechar</button>
         </div>
       </div>
@@ -14177,6 +14178,7 @@ ALTER TABLE medicao_terceiros ADD COLUMN IF NOT EXISTS data_pagamento date;`;
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button onclick="navigator.clipboard.writeText(document.getElementById('bm-sql-pre').textContent).then(()=>{this.textContent='✓ Copiado!';this.style.background='#16a34a';setTimeout(()=>{this.textContent='📋 Copiar SQL';this.style.background='#0e7490';},2000);})" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;">📋 Copiar SQL</button>
           <a href="https://supabase.com/dashboard" target="_blank" style="background:#7c3aed;color:#fff;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;text-decoration:none;">🔗 Abrir Supabase</a>
+          <button onclick="localStorage.setItem('sider_mig_bm_done','1');document.getElementById('bm-migration-banner').remove();showToast&&showToast('Migração marcada','Banner não será mais exibido.','success');" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;">✔ Já executei</button>
           <button onclick="document.getElementById('bm-migration-banner').remove()" style="background:#475569;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:10px;cursor:pointer;">✕ Fechar</button>
         </div>
       </div>
