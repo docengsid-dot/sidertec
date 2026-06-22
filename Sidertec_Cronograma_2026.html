@@ -9407,17 +9407,7 @@ function imprimirMedicao(id){
       'EM COTAÇÃO ENG.': {bg:'#fef3c7',color:'#92400e',icon:'💰'},
     }[s.status] || {bg:'#f1f5f9',color:'#475569',icon:'•'};
     const statusCellRel = '<span style="background:'+sRCfg.bg+';color:'+sRCfg.color+';border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;white-space:nowrap;">'+sRCfg.icon+' '+(s.status||'—')+'</span>';
-    return '<tr>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-family:monospace;font-weight:700;color:#1d4ed8;">'+s.subobra+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;">'+( s.descricao||'—')+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;">'+statusCellRel+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#166534;">'+fmtKg(pesoB)+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#1d4ed8;">'+fmtKg(pesoD)+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;'+medBg+'">'+fmtKg(pesoRef)+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-size:10px;">'+etapas+'</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-weight:700;color:#475569;">'+pct+'%</td>'+
-      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;font-weight:700;color:#166534;">'+(val>0?'R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'</td>'+
-    (function(){
+    var _stPesoCell=(function(){
       var _st=entry.status_peso||'';
       var _ob=entry.obs_correcao||'';
       var _dp=!s.real_diagramas&&!s.real_diagrama_mont;
@@ -9426,7 +9416,18 @@ function imprimirMedicao(id){
                   '<span style="color:#94a3b8;font-size:9px;">—</span>';
       var _etHtml=_dp?'<div style="margin-top:2px;"><span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">⏳ Et.11 pend.</span></div>':'';
       return '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;">'+_stHtml+_etHtml+'</td>';
-    })()+
+    })();
+    return '<tr>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-family:monospace;font-weight:700;color:#1d4ed8;">'+s.subobra+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;">'+( s.descricao||'—')+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;">'+statusCellRel+'</td>'+
+      _stPesoCell+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#166534;">'+fmtKg(pesoB)+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#1d4ed8;">'+fmtKg(pesoD)+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;'+medBg+'">'+fmtKg(pesoRef)+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-size:10px;">'+etapas+'</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;font-weight:700;color:#475569;">'+pct+'%</td>'+
+      '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;font-weight:700;color:#166534;">'+(val>0?'R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'</td>'+
     '</tr>';
   }).join('');
 
@@ -9438,7 +9439,7 @@ function imprimirMedicao(id){
   // Usar sumVal como bruto real (independente do valor salvo no banco)
   if(sumVal > 0) vt = sumVal;
   const tagFooter = tagEntradas.length ? '<tfoot><tr style="background:#0c4a6e;font-weight:700;color:#fff;">'+
-    '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:11px;" colspan="3">TOTAL ('+tagEntradas.length+' TAGs)</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:11px;" colspan="4">TOTAL ('+tagEntradas.length+' TAGs)</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#a7f3d0;">'+fmtKg2(sumPesoB)+'</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#bfdbfe;">'+fmtKg2(sumPesoD)+'</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#fde68a;">'+fmtKg2(sumPesoMed)+'</td>'+
@@ -17003,7 +17004,7 @@ function cdocRenderBas(){
       }
       var isSel=_cdocBasSel.has(b.id);
       return '<tr class="'+(isSel?'cdoc-selected':'')+'"'
-        +' onclick="_cdocToggleSelBas('+b.id+',event)" style="cursor:pointer;">'
+        +' ondblclick="_cdocToggleSelBas('+b.id+',event)" onclick="cdocEditBas('+b.id+')" style="cursor:pointer;">'
         +'<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="cdb-row-chk" data-id="'+b.id+'" '+(isSel?'checked':'')+' onchange="_cdocToggleSelBas('+b.id+',event)" style="cursor:pointer;"></td>'
         +'<td style="font-weight:700;font-family:Courier New,monospace;font-size:10px;color:#0369a1;">'+_esc(b.obraId||'—')+'</td>'
         +'<td style="font-weight:700;font-size:10px;font-family:Courier New,monospace;">'+_esc(b.sub||'—')+'</td>'
