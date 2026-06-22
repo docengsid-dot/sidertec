@@ -17873,7 +17873,7 @@ function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd){
   // Garante que a obra salva corresponde ao prefixo do número
   var _obraFinal=_cdocObraDeGrd(grdNum,obraRef)||obraRef;
   var grdRec={id:grdId,numero:grdNum,data:dataISO,tipo:tipoEm,obs:obsGrd||'',obra:_obraFinal,modulo:'det',prevRetorno:prevRetGrd||'',
-    docs:sels.map(function(d){return {docId:d.id,num:d.num||'',sub:d.sub||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||''};}) };
+    docs:sels.map(function(d){return {docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||''};}) };
   grdRec.status='rascunho'; // salva como rascunho; 'enviado' só ao clicar Enviar
   db._grds.push(grdRec);
   // ── Atualizar envioHist de cada documento selecionado ──
@@ -17892,7 +17892,7 @@ function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd){
   _cdocSave(db);
   var rows=sels.map(function(d,i){
     return '<tr><td>'+(i+1)+'</td><td>'+_esc(d.obraId||'')+'</td><td>'+_esc(d.sub||'')+'</td>'
-      +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
+      +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.cli||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
       +'<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(d.titulo||'')+'</td>'
       +'<td>'+_esc(d.desc||'')+'</td>'
       +'<td>'+_esc(d.peca||'')+'</td><td>'+_esc(d.rev||'')+'</td><td>&nbsp;</td></tr>';
@@ -17922,7 +17922,7 @@ function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd){
     +'<span>Total: <strong>'+sels.length+' doc(s)</strong></span>'
     +'</div>'
     +(obsGrd?'<div style="margin-bottom:10px;padding:6px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><strong>Obs.:</strong> '+_esc(obsGrd)+'</div>':'')
-    +'<table><thead><tr><th>#</th><th>Obra</th><th>TAG</th><th>N&#186; Sidertec</th>'
+    +'<table><thead><tr><th>#</th><th>Obra</th><th>TAG</th><th>N&#186; Sidertec</th><th>N&#186; Cliente</th>'
     +'<th>Tipo</th><th>T&#237;tulo</th><th>Descri&#231;&#227;o</th><th>Pe&#231;a</th><th>Rev.</th><th>Obs.</th></tr></thead>'
     +'<tbody>'+rows+'</tbody></table>'
     +'<div class="assin"><div>Emitido por: ________________________<br><br>Data: ___/___/______</div>'
@@ -18741,12 +18741,14 @@ function cdocEditarGrd(grdId){
       return '<tr style="border-bottom:1px solid #e2e8f0;">'
         +'<td style="padding:5px 8px;font-family:Courier New,monospace;font-size:11px;font-weight:700;color:#0369a1;">'+_esc(d.num||'')+'</td>'
         +'<td style="padding:5px 8px;font-size:11px;">'+_esc(d.sub||'')+'</td>'
+        +'<td style="padding:5px 8px;"><input data-grd-cli="'+i+'" value="'+_esc(d.cli||'')+'" placeholder="Nº cliente" '
+        +'style="font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:3px;width:110px;"></td>'
         +'<td style="padding:5px 8px;font-size:11px;">'+_esc(d.desc||'')+'</td>'
         +'<td style="padding:5px 8px;font-size:11px;">'+_esc(d.rev||'')+'</td>'
         +'<td style="padding:5px 8px;">'
         +'<button onclick="_cdocGrdRemoveDoc('+grdId+','+i+')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:10px;cursor:pointer;">✕ Remover</button>'
         +'</td></tr>';
-    }).join('')||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:1rem;font-style:italic;">Sem documentos.</td></tr>';
+    }).join('')||'<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:1rem;font-style:italic;">Sem documentos.</td></tr>';
     var availDocs=db2.detalhados.filter(function(d){
       return (!g2.docs||!g2.docs.find(function(x){return x.docId===d.id;}))&&(!g2.obra||d.obraId===g2.obra);
     });
@@ -18774,7 +18776,7 @@ function cdocEditarGrd(grdId){
       +'<div style="font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:8px;">Documentos incluídos ('+((g2.docs||[]).length)+'):</div>'
       +'<div style="border:1px solid #e2e8f0;border-radius:6px;margin-bottom:14px;overflow:hidden;">'
       +'<table style="width:100%;border-collapse:collapse;">'
-      +'<thead><tr style="background:#f1f5f9;"><th style="padding:6px 8px;font-size:11px;text-align:left;">Nº Sidertec</th><th style="padding:6px 8px;font-size:11px;text-align:left;">TAG</th><th style="padding:6px 8px;font-size:11px;text-align:left;">Descrição</th><th style="padding:6px 8px;font-size:11px;">Rev.</th><th></th></tr></thead>'
+      +'<thead><tr style="background:#f1f5f9;"><th style="padding:6px 8px;font-size:11px;text-align:left;">Nº Sidertec</th><th style="padding:6px 8px;font-size:11px;text-align:left;">TAG</th><th style="padding:6px 8px;font-size:11px;text-align:left;">Nº Cliente</th><th style="padding:6px 8px;font-size:11px;text-align:left;">Descrição</th><th style="padding:6px 8px;font-size:11px;">Rev.</th><th></th></tr></thead>'
       +'<tbody>'+docRows+'</tbody></table></div>'
       +(availDocs.length?'\
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:14px;">'
@@ -18847,7 +18849,7 @@ function _cdocGrdAddDoc(grdId){
   var doc=db.detalhados.find(function(d){return d.id===docId;}); if(!doc) return;
   g.docs=g.docs||[];
   if(g.docs.find(function(x){return x.docId===docId;})){alert('Documento já incluído.');return;}
-  g.docs.push({docId:docId,num:doc.num||'',sub:doc.sub||'',desc:doc.desc||'',rev:doc.rev||'',peca:doc.peca||'',tipo:doc.tipo||''});
+  g.docs.push({docId:docId,num:doc.num||'',sub:doc.sub||'',cli:doc.cli||'',desc:doc.desc||'',rev:doc.rev||'',peca:doc.peca||'',tipo:doc.tipo||''});
   _cdocSave(db);
   cdocEditarGrd(grdId);
 }
@@ -18860,8 +18862,13 @@ function _cdocGrdSaveEdit(grdId){
   var obsEl=document.getElementById('grd-edit-obs');
   if(tipoEl) g.tipo=tipoEl.value;
   if(obsEl) g.obs=obsEl.value;
+  // Salvar Nº Cliente editados por doc
+  document.querySelectorAll('[data-grd-cli]').forEach(function(inp){
+    var idx=parseInt(inp.getAttribute('data-grd-cli'));
+    if(!isNaN(idx)&&g.docs&&g.docs[idx]) g.docs[idx].cli=inp.value||'';
+  });
   _cdocSave(db);
-  alert('GRD salva!');
+  showToast('GRD salva','Alterações salvas com sucesso.','success');
 }
 
 function cdocVerGrd(grdId){
@@ -18875,7 +18882,9 @@ function cdocVerGrd(grdId){
     var tipo=(docAtual&&docAtual.tipo)||d.tipo||'';
     var peca=(docAtual&&docAtual.peca)||d.peca||'';
     var rev=(docAtual&&docAtual.rev)||d.rev||'';
+    var cli=(docAtual&&docAtual.cli)||d.cli||'';
     return '<tr><td>'+(i+1)+'</td><td>'+_esc(d.num||'')+'</td><td>'+_esc(d.sub||'')+'</td>'
+      +'<td>'+_esc(cli)+'</td>'
       +'<td>'+_esc(tipo)+'</td>'
       +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(titulo)+'">'+_esc(titulo)+'</td>'
       +'<td>'+_esc(desc)+'</td><td>'+_esc(peca)+'</td><td>'+_esc(rev)+'</td></tr>';
@@ -18884,6 +18893,7 @@ function cdocVerGrd(grdId){
   var w=window.open('','_blank','width=1050,height=720');
   if(!w){alert('Permita popups.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+g.numero+'</title>'
+    +'<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></'+'script>'
     +'<style>'
     +'*{box-sizing:border-box;}'
     +'body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#1e293b;font-size:12px;}'
@@ -18920,7 +18930,7 @@ function cdocVerGrd(grdId){
     +'</div>'
     +(g.obs?'<div style="margin-bottom:10px;padding:6px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><strong>Obs.:</strong> '+_esc(g.obs)+'</div>':'')
     +'<table><thead><tr>'
-    +'<th>#</th><th>N&#186; Sidertec</th><th>TAG</th><th>Tipo</th><th>T&#237;tulo</th><th>Descri&#231;&#227;o</th><th>Pe&#231;a</th><th>Rev.</th>'
+    +'<th>#</th><th>N&#186; Sidertec</th><th>TAG</th><th>N&#186; Cliente</th><th>Tipo</th><th>T&#237;tulo</th><th>Descri&#231;&#227;o</th><th>Pe&#231;a</th><th>Rev.</th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table>'
     +(function(){
     var respVal=_esc(g.responsavel||'');
@@ -18943,28 +18953,28 @@ function cdocVerGrd(grdId){
       +'</div>';
   })()
     +(function(){
-      // Build CSV in main JS context — no string escaping nightmares
-      var Q=function(v){return '"'+String(v||'').replace(/"/g,'""')+'"';};
-      var S=';';
-      var csvLines=[
-        ['GRD',g.numero,'','Obra',_obraCorreta,'','Data',dBR].map(Q).join(S),
-        ['Tipo',g.tipo||'','','Responsável',g.responsavel||''].map(Q).join(S),
-        '',
-        ['#','Nº Sidertec','TAG','Tipo','Título','Descrição','Peça','Rev.'].map(Q).join(S)
-      ];
-      (g.docs||[]).forEach(function(d,i){
-        var da=db.detalhados.find(function(x){return x.id===d.docId;});
-        csvLines.push([i+1,d.num||'',(da&&da.sub)||d.sub||'',(da&&da.tipo)||d.tipo||'',(da&&da.titulo)||d.titulo||'',(da&&da.desc)||d.desc||'',(da&&da.peca)||d.peca||'',(da&&da.rev)||d.rev||''].map(Q).join(S));
-      });
-      var csvStr='\uFEFF'+csvLines.join('\n');
-      var csvHref='data:text/csv;charset=utf-8,'+encodeURIComponent(csvStr);
-      var dlName=g.numero+'.csv';
+      // Serialise GRD data for xlsx download inside popup
+      var _grdXlsxData=JSON.stringify({numero:g.numero,obra:_obraCorreta,data:dBR,tipo:g.tipo||'',responsavel:g.responsavel||'',docs:(g.docs||[]).map(function(d,i){var da=db.detalhados.find(function(x){return x.id===d.docId;});return {i:i+1,num:d.num||'',sub:(da&&da.sub)||d.sub||'',cli:(da&&da.cli)||d.cli||'',tipo:(da&&da.tipo)||d.tipo||'',titulo:(da&&da.titulo)||d.titulo||'',desc:(da&&da.desc)||d.desc||'',peca:(da&&da.peca)||d.peca||'',rev:(da&&da.rev)||d.rev||''};})});
       return '<br><div class="no-print" style="margin-top:20px;padding:12px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;display:flex;align-items:center;flex-wrap:wrap;gap:8px;">'
         +'<span style="font-size:11px;color:#64748b;flex:1;min-width:140px;">Preencha os campos antes de imprimir.</span>'
         +'<button onclick="window.print()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;">&#128438; PDF / Imprimir</button>'
-        +'<a href="'+csvHref+'" download="'+dlName+'" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;text-decoration:none;display:inline-block;">&#128202; Excel (CSV)</a>'
+        +'<button onclick="_grdDetDownloadXLSX()" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;font-weight:700;cursor:pointer;">&#128202; Excel (.xlsx)</button>'
         +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
-        +'</div>';
+        +'</div>'
+        +'<script>var _grdDetRaw='+_grdXlsxData.replace(/<\/script>/gi,'<\\/script>')+';'
+        +'function _grdDetDownloadXLSX(){'
+        +'  if(typeof XLSX===\'undefined\'){alert(\'SheetJS não carregado. Aguarde e tente novamente.\');return;}'
+        +'  var meta=[[\'GRD\',_grdDetRaw.numero,\'\',\'Obra\',_grdDetRaw.obra,\'\',\'Data\',_grdDetRaw.data],'
+        +'           [\'Tipo\',_grdDetRaw.tipo,\'\',\'Responsável\',_grdDetRaw.responsavel],[\'\'],'
+        +'           [\'#\',\'Nº Sidertec\',\'TAG\',\'Nº Cliente\',\'Tipo\',\'Título\',\'Descrição\',\'Peça\',\'Rev.\']]'
+        +'           .concat(_grdDetRaw.docs.map(function(d){return[d.i,d.num,d.sub,d.cli,d.tipo,d.titulo,d.desc,d.peca,d.rev];}));'
+        +'  var wb=XLSX.utils.book_new();'
+        +'  var ws=XLSX.utils.aoa_to_sheet(meta);'
+        +'  ws[\'!cols\']=[\'#\',\'Nº Sidertec\',\'TAG\',\'Nº Cliente\',\'Tipo\',\'Título\',\'Descrição\',\'Peça\',\'Rev.\'].map(function(h,i){return {wch:i===0?4:i<=3?18:i===6?30:16};});'
+        +'  XLSX.utils.book_append_sheet(wb,ws,\'GRD Detalhado\');'
+        +'  XLSX.writeFile(wb,_grdDetRaw.numero+\'.xlsx\');'
+        +'}'
+        +'<\/sc'+'ript>';
     })()
     +'</body></html>');
 
