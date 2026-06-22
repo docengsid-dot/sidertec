@@ -10884,19 +10884,44 @@ async function salvarMedicao(){
 
   const btn = document.getElementById('btn-salvar-medicao');
   btn.disabled=true; btn.textContent='Salvando…';
-  try{
+  // BM fields — strip if schema cache still doesn't know them
+  const _BM_FIELDS = ['bm_conferido_por','bm_status','bm_motivo','data_pagamento','acrescimo_telhas','obs_telhas','acrescimo_retrabalho','obs_retrabalho','desconto','obs_ajuste'];
+  const _isSchemaCacheErr = function(msg){ return msg&&(msg.includes('schema cache')||msg.includes('Could not find')||msg.includes('column')); };
+  const _stripBmFields = function(p){ var q=Object.assign({},p); _BM_FIELDS.forEach(function(k){delete q[k];}); return q; };
+  const _doSave = async function(p){
     if(editingMedicaoId){
-      const{data,error}=await sbClient.from('medicao_terceiros').eq('id',editingMedicaoId).update(payload).select();
-      if(error) throw new Error(error.message||JSON.stringify(error));
-      const idx=allMedicoes.findIndex(m=>m.id===editingMedicaoId);
-      if(idx>=0&&data?.[0]) allMedicoes[idx]=data[0];
-      showToast('✓ Atualizado','Medição salva.','success');
+      var r=await sbClient.from('medicao_terceiros').eq('id',editingMedicaoId).update(p).select();
+      if(r.error) throw new Error(r.error.message||JSON.stringify(r.error));
+      var idx=allMedicoes.findIndex(function(m){return m.id===editingMedicaoId;});
+      if(idx>=0&&r.data?.[0]) allMedicoes[idx]=r.data[0];
+      return 'updated';
     } else {
-      const{data,error}=await sbClient.from('medicao_terceiros').insert([Object.assign({id:_genId(),criado_em:new Date().toISOString()},payload)]).select();
-      if(error) throw new Error(error.message||JSON.stringify(error));
-      if(data?.[0]) allMedicoes.unshift(data[0]);
-      showToast('✓ Medição criada','Registro adicionado.','success');
+      var r2=await sbClient.from('medicao_terceiros').insert([Object.assign({id:_genId(),criado_em:new Date().toISOString()},p)]).select();
+      if(r2.error) throw new Error(r2.error.message||JSON.stringify(r2.error));
+      if(r2.data?.[0]) allMedicoes.unshift(r2.data[0]);
+      return 'created';
     }
+  };
+  const _dismissMigBanners = function(){
+    localStorage.setItem('sider_mig_bm_done','1');
+    localStorage.setItem('sider_mig_ajuste_done','1');
+    var _b1=document.getElementById('bm-migration-banner'); if(_b1) _b1.remove();
+    var _b2=document.getElementById('sider-mig-ajuste'); if(_b2) _b2.remove();
+  };
+  try{
+    var result;
+    try{
+      result = await _doSave(payload);
+    } catch(e1){
+      if(_isSchemaCacheErr(e1.message)){
+        // Retry without BM fields — columns not in schema cache yet
+        result = await _doSave(_stripBmFields(payload));
+        showToast('⚠ Salvo sem campos BM','Colunas ainda não reconhecidas pelo Supabase. Tente novamente em 1–2 min.','warn');
+      } else { throw e1; }
+    }
+    if(result==='updated') showToast('✓ Atualizado','Medição salva.','success');
+    else showToast('✓ Medição criada','Registro adicionado.','success');
+    _dismissMigBanners();
     fecharModalMedicao();
     renderMedicao();
   }catch(e){
