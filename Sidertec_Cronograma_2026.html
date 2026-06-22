@@ -16678,13 +16678,112 @@ var _cdocBadge={
   'AGUARDANDO PACOTE DE FABRICAÇÃO':{bg:'#ffedd5',c:'#9a3412'},
   'AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM':{bg:'#fce7f3',c:'#9d174d'},
   'ENVIAR AO CLIENTE':{bg:'#a855f7',c:'#ffffff'},
+  'AGUARDANDO EMISSÃO DE MC':{bg:'#f3e8ff',c:'#6b21a8'},
   'Pendente':{bg:'#fff7ed',c:'#c2410c'},'Encerrado':{bg:'#f1f5f9',c:'#475569'},
 };
+// Custom CDOC statuses (loaded from localStorage)
+var _cdocCustomStatuses = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
+function _carregarCdocCustomStatuses(){
+  _cdocCustomStatuses = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
+  _cdocCustomStatuses.forEach(function(cs){
+    if(!_cdocBadge[cs.nome]) _cdocBadge[cs.nome]={bg:cs.bg,c:cs.cor};
+  });
+}
+_carregarCdocCustomStatuses();
 function _cdocBadgeHtml(s){
   if(!s||s==='-'||s==='—') return '<span style="color:#94a3b8;">—</span>';
   var st=_cdocBadge[s]||{bg:'#f1f5f9',c:'#475569'};
   return '<span class="cdoc-badge" style="background:'+st.bg+';color:'+st.c+';">'+s+'</span>';
 }
+
+// ─── GERENCIAR STATUS CDOC DETALHADO ────────────────────────────────
+function _fecharCdocCustomStatusOv(){ var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove(); }
+function _abrirGerenciarCdocStatus(){
+  var existente = document.getElementById('cdoc-custom-status-ov');
+  if(existente) { existente.remove(); return; }
+  var ov = document.createElement('div');
+  ov.id = 'cdoc-custom-status-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;';
+  var CORES = [
+    {label:'Roxo',bg:'#f3e8ff',c:'#6b21a8'},
+    {label:'Azul',bg:'#dbeafe',c:'#1d4ed8'},
+    {label:'Verde',bg:'#dcfce7',c:'#166534'},
+    {label:'Amarelo',bg:'#fef9c3',c:'#92400e'},
+    {label:'Laranja',bg:'#ffedd5',c:'#9a3412'},
+    {label:'Vermelho',bg:'#fee2e2',c:'#991b1b'},
+    {label:'Rosa',bg:'#fce7f3',c:'#9d174d'},
+    {label:'Cinza',bg:'#f1f5f9',c:'#475569'},
+    {label:'Azul Escuro',bg:'#1e3a8a',c:'#ffffff'},
+    {label:'Verde Escuro',bg:'#166534',c:'#ffffff'},
+  ];
+  var listaHtml = _cdocCustomStatuses.length
+    ? _cdocCustomStatuses.map(function(cs){
+        return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">'
+          +'<span class="cdoc-badge" style="background:'+cs.bg+';color:'+cs.cor+';flex:1;">'+cs.nome+'</span>'
+          +'<button type="button" onclick="var n=this.dataset.nome;_excluirCdocCustomStatus(n);" data-nome="'+cs.nome+'" '
+          +'style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;">🗑</button></div>';
+      }).join('')
+    : '<div style="color:#94a3b8;font-size:11px;">Nenhum status personalizado</div>';
+  var corOpts = CORES.map(function(cr,i){
+    return '<option value="'+cr.bg+','+cr.c+'">'+(i===0?'★ ':'')+''+cr.label+'</option>';
+  }).join('');
+  ov.innerHTML = '<div style="background:#fff;border-radius:10px;width:400px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">'
+    +'<div style="background:#6b21a8;color:#fff;padding:10px 14px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between;">'
+    +'<span style="font-weight:700;font-size:13px;">⚙ Gerenciar Status</span>'
+    +'<button onclick="_fecharCdocCustomStatusOv()" style="background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:15px;">✕</button></div>'
+    +'<div style="padding:12px 14px;">'
+    +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">STATUS PERSONALIZADOS</div>'
+    +'<div id="cdoc-custom-st-list" style="margin-bottom:10px;">'+listaHtml+'</div>'
+    +'<div style="border-top:1px dashed #e2e8f0;padding-top:10px;">'
+    +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">+ NOVO STATUS</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;">'
+    +'<input id="cdoc-ns-nome" placeholder="Nome do status (ex: EM ANÁLISE CLIENTE)" maxlength="50" '
+    +'style="font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;" oninput="_prevCdocStatus()">'
+    +'<select id="cdoc-ns-cor" onchange="_prevCdocStatus()" style="font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;">'+corOpts+'</select>'
+    +'<div id="cdoc-ns-prev" style="display:none;padding:4px 0;"></div>'
+    +'<button type="button" onclick="_salvarNovoCdocStatus()" '
+    +'style="padding:6px 14px;font-size:12px;font-weight:700;background:#6b21a8;color:#fff;border:none;border-radius:4px;cursor:pointer;">Salvar Status</button>'
+    +'</div></div></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){if(e.target===ov) _fecharCdocCustomStatusOv();});
+}
+function _prevCdocStatus(){
+  var nome=(document.getElementById('cdoc-ns-nome')||{}).value||'';
+  var cor=((document.getElementById('cdoc-ns-cor')||{}).value||'#f3e8ff,#6b21a8').split(',');
+  var prev=document.getElementById('cdoc-ns-prev'); if(!prev) return;
+  if(nome.trim()){
+    prev.style.display='block';
+    prev.innerHTML='<span class="cdoc-badge" style="background:'+cor[0]+';color:'+cor[1]+';">'+nome.trim().toUpperCase()+'</span>';
+  } else { prev.style.display='none'; }
+}
+function _salvarNovoCdocStatus(){
+  var nome=((document.getElementById('cdoc-ns-nome')||{}).value||'').trim().toUpperCase();
+  if(!nome){ showToast('Campo obrigatório','Informe o nome do status.','error'); return; }
+  if(_cdocBadge[nome]||_cdocCustomStatuses.find(function(cs){return cs.nome===nome;})){
+    showToast('Já existe','Este status já está cadastrado.','warn'); return;
+  }
+  var parts=((document.getElementById('cdoc-ns-cor')||{}).value||'#f3e8ff,#6b21a8').split(',');
+  var cs={nome:nome, bg:parts[0]||'#f3e8ff', cor:parts[1]||'#6b21a8'};
+  _cdocCustomStatuses.push(cs);
+  localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
+  _cdocBadge[nome]={bg:cs.bg,c:cs.cor};
+  var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove();
+  // Reopen form with updated select
+  var sel=document.getElementById('cef-sg');
+  if(sel){
+    var op=document.createElement('option'); op.value=nome; op.textContent=nome; sel.appendChild(op);
+  }
+  showToast('Status criado','"'+nome+'" adicionado com sucesso.','success');
+}
+function _excluirCdocCustomStatus(nome){
+  if(!confirm('Excluir o status "'+nome+'"?')) return;
+  _cdocCustomStatuses=_cdocCustomStatuses.filter(function(cs){return cs.nome!==nome;});
+  localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
+  delete _cdocBadge[nome];
+  var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove();
+  showToast('Excluído','"'+nome+'" removido.','warn');
+}
+// ────────────────────────────────────────────────────────────────────
 function _fD2(v){ if(!v) return '—'; var p=v.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v; }
 
 /* ── VISÃO GERAL ── */
@@ -17414,12 +17513,19 @@ function _cdocAbrirFormDet(rec){
     +'</div></div>'
     +'</div>'
     +'<div class="cdoc-ef">'
-    +'<div><label>Status do Documento</label><select id="cef-sg">'
-    +'<option value="">-- Selecione --</option><option>EM EMISSÃO</option><option>EMITIDO</option>'
-    +'<option>ENVIADO AO CLIENTE</option><option>APROVADO</option><option>EM REVISÃO</option><option>CERTIFICADO</option>'
-    +'<option>AGUARDANDO PACOTE DE FABRICAÇÃO</option><option>AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM</option>'
-    +'<option>ENVIAR AO CLIENTE</option>'
-    +'</select></div>'
+    +(function(){
+  var fixos=['EM EMISSÃO','EMITIDO','ENVIADO AO CLIENTE','APROVADO','EM REVISÃO','CERTIFICADO',
+    'AGUARDANDO PACOTE DE FABRICAÇÃO','AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM','AGUARDANDO EMISSÃO DE MC','ENVIAR AO CLIENTE'];
+  var extras=_cdocCustomStatuses.map(function(cs){return cs.nome;});
+  var opts='<option value="">-- Selecione --</option>'+[...fixos,...extras].map(function(s){return '<option>'+s+'</option>';}).join('');
+  return '<div style="display:flex;flex-direction:column;gap:3px;">'
+    +'<label>Status do Documento</label>'
+    +'<div style="display:flex;gap:4px;align-items:center;">'
+    +'<select id="cef-sg" style="flex:1;">'+opts+'</select>'
+    +'<button type="button" onclick="_abrirGerenciarCdocStatus()" title="Gerenciar status personalizados" '
+    +'style="padding:3px 8px;font-size:11px;font-weight:700;background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:4px;cursor:pointer;white-space:nowrap;">&#9881; Status</button>'
+    +'</div></div>';
+})()
     +'<div><label>Data</label><input id="cef-data" type="date" value="'+v('data')+'"></div>'
     +'</div>'
     +'<div class="cdoc-sec">Histórico — Liberação para Fabricação</div>'
