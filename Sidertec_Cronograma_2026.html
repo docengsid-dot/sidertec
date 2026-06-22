@@ -9300,7 +9300,7 @@ function renderMedicao(){
 
           // ── Calcular pesos e status das TAGs do cronograma ──
           let tagEntradas = [];
-          try { const p=JSON.parse(m.subobras_ids||''); if(Array.isArray(p)) tagEntradas=p.map(x=>({id:String(x.id||x),etapa:x.etapa,pct:x.pct,peso_med:x.peso_med||null})); }
+          try { const p=JSON.parse(m.subobras_ids||''); if(Array.isArray(p)) tagEntradas=p.map(x=>({id:String(x.id||x),etapa:x.etapa,etapas:x.etapas||null,pct:x.pct,peso_med:x.peso_med||null,status_peso:x.status_peso||null,obs_correcao:x.obs_correcao||null})); }
           catch(e){ tagEntradas=(m.subobras_ids||'').split(',').map(s=>s.trim()).filter(Boolean).map(id=>({id,etapa:'modelo',pct:40,peso_med:null})); }
 
           const tagSubs = tagEntradas.map(e=>(allCronSubobras||[]).find(s=>String(s.id)===e.id)).filter(Boolean);
@@ -9407,21 +9407,28 @@ function imprimirMedicao(id){
       'EM COTAÇÃO ENG.': {bg:'#fef3c7',color:'#92400e',icon:'💰'},
     }[s.status] || {bg:'#f1f5f9',color:'#475569',icon:'•'};
     const statusCellRel = '<span style="background:'+sRCfg.bg+';color:'+sRCfg.color+';border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;white-space:nowrap;">'+sRCfg.icon+' '+(s.status||'—')+'</span>';
+    var _dp=!s.real_diagramas&&!s.real_diagrama_mont;
+    var _hasPend=_dp||(entry.status_peso==='correcao');
+    var _rowBg=_hasPend?'background:#fffbeb;':''
     var _stPesoCell=(function(){
       var _st=entry.status_peso||'';
-      var _ob=entry.obs_correcao||'';
-      var _dp=!s.real_diagramas&&!s.real_diagrama_mont;
       var _stHtml=_st==='aceito'?'<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:2px 5px;font-size:9px;font-weight:700;">✅ Aceito</span>':
-                  _st==='correcao'?'<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:2px 5px;font-size:9px;font-weight:700;">⚠ Corr.</span>'+(_ob?'<div style="font-size:8px;color:#78350f;margin-top:2px;">'+_ob+'</div>':''):
+                  _st==='correcao'?'<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:2px 5px;font-size:9px;font-weight:700;">⚠ Correção</span>':
                   '<span style="color:#94a3b8;font-size:9px;">—</span>';
       var _etHtml=_dp?'<div style="margin-top:2px;"><span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">⏳ Et.11 pend.</span></div>':'';
       return '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;">'+_stHtml+_etHtml+'</td>';
     })();
-    return '<tr>'+
+    var _correcaoCell=(function(){
+      var _ob=entry.obs_correcao||'';
+      if(!_ob) return '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:center;color:#94a3b8;font-size:9px;">—</td>';
+      return '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:9px;color:#78350f;background:#fffbeb;">'+_ob+'</td>';
+    })();
+    return '<tr style="'+_rowBg+'">'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-family:monospace;font-weight:700;color:#1d4ed8;">'+s.subobra+'</td>'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;">'+( s.descricao||'—')+'</td>'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;">'+statusCellRel+'</td>'+
       _stPesoCell+
+      _correcaoCell+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#166534;">'+fmtKg(pesoB)+'</td>'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;color:#1d4ed8;">'+fmtKg(pesoD)+'</td>'+
       '<td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-family:monospace;'+medBg+'">'+fmtKg(pesoRef)+'</td>'+
@@ -9439,7 +9446,7 @@ function imprimirMedicao(id){
   // Usar sumVal como bruto real (independente do valor salvo no banco)
   if(sumVal > 0) vt = sumVal;
   const tagFooter = tagEntradas.length ? '<tfoot><tr style="background:#0c4a6e;font-weight:700;color:#fff;">'+
-    '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:11px;" colspan="4">TOTAL ('+tagEntradas.length+' TAGs)</td>'+
+    '<td style="padding:6px 8px;border:1px solid #0a3d5c;font-size:11px;" colspan="5">TOTAL ('+tagEntradas.length+' TAGs)</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#a7f3d0;">'+fmtKg2(sumPesoB)+'</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#bfdbfe;">'+fmtKg2(sumPesoD)+'</td>'+
     '<td style="padding:6px 8px;border:1px solid #0a3d5c;text-align:right;font-family:monospace;color:#fde68a;">'+fmtKg2(sumPesoMed)+'</td>'+
@@ -9577,6 +9584,7 @@ function imprimirMedicao(id){
     (tagRows?
       '<table><thead><tr>'+
         '<th>TAG</th><th>Descrição</th><th>Status</th><th style="text-align:center;">Status Peso / Et.11</th>'+
+        '<th style="text-align:center;background:#7c2d12;">📝 Correção Solicitada</th>'+
         '<th style="text-align:right;background:#065f46;">⚖ Peso Básico</th>'+
         '<th style="text-align:right;background:#1e3a5f;">📐 Peso Detalhado</th>'+
         '<th style="text-align:right;background:#78350f;">📏 Peso na Medição</th>'+
