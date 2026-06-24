@@ -12755,7 +12755,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <div style="display:grid;grid-template-columns:1.5fr 120px 1fr 1fr;gap:.45rem;margin-bottom:.45rem;">
         <div class="field-group">
           <label class="field-label">🏢 Cliente *</label>
-          <input class="field-input" id="rev-m-cliente" placeholder="Ex: S169-VALMET">
+          <input class="field-input" id="rev-m-cliente" placeholder="Ex: S169-VALMET"
+            list="rev-m-cliente-list" autocomplete="off"
+            onfocus="revPopularClientes()" oninput="revPopularClientes()">
+          <datalist id="rev-m-cliente-list"></datalist>
         </div>
         <div class="field-group">
           <label class="field-label">📅 Data RP *</label>
@@ -13228,6 +13231,7 @@ function abrirModalNovaRevisao(){
     var el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('modal-revisao').classList.add('show');
+  revPopularClientes();
 }
 
 function editarRevisao(id){
@@ -13260,6 +13264,27 @@ function editarRevisao(id){
   if(elVc) elVc.value=r.valor_cobrar||'';
   document.getElementById('rev-m-obs').value=r.obs||'';
   document.getElementById('modal-revisao').classList.add('show');
+  revPopularClientes();
+}
+
+function revPopularClientes(){
+  var dl = document.getElementById('rev-m-cliente-list');
+  if(!dl) return;
+  // Obras do cronograma + clientes já usados em revisões anteriores
+  var obras = typeof allCronSubobras !== 'undefined'
+    ? [...new Set(allCronSubobras.map(function(s){ return s.obra; }).filter(Boolean))].sort()
+    : [];
+  var revClientes = typeof _revisoes !== 'undefined'
+    ? [...new Set(_revisoes.map(function(r){ return r.cliente; }).filter(Boolean))]
+    : [];
+  var todos = [...new Set([...obras, ...revClientes])].sort();
+  // Só recria se mudou (evita flicker)
+  var atual = [...dl.options].map(function(o){ return o.value; }).join('|');
+  var novo  = todos.join('|');
+  if(atual === novo) return;
+  dl.innerHTML = todos.map(function(v){
+    return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>';
+  }).join('');
 }
 
 function revCalcTotal(){
