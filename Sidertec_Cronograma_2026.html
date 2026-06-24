@@ -12741,7 +12741,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Modal Nova/Editar Revisão -->
 <div class="cron-modal-overlay" id="modal-revisao" onclick="if(event.target===this)fecharModalRevisao()">
-  <div class="cron-modal-box" onclick="event.stopPropagation()" style="width:700px;max-width:97vw;">
+  <div class="cron-modal-box" onclick="event.stopPropagation()" style="width:760px;max-width:97vw;">
     <div class="cron-mhd" style="background:linear-gradient(135deg,#3b0764,#7c3aed);">
       <div style="flex:1;">
         <div class="cron-mhd-title">📝 <span id="modal-rev-title">Nova Revisão</span></div>
@@ -12751,7 +12751,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <div class="cron-mbody" style="overflow-y:auto;">
 
-      <!-- Linha 1: Cliente / Data RP / Descrição / Valor RP -->
+      <!-- Linha 1: Cliente / Data RP / Descrição / 💼 Resp. pelo Custo -->
       <div style="display:grid;grid-template-columns:1.5fr 120px 1fr 1fr;gap:.45rem;margin-bottom:.45rem;">
         <div class="field-group">
           <label class="field-label">🏢 Cliente *</label>
@@ -12766,8 +12766,12 @@ document.addEventListener('DOMContentLoaded', function() {
           <input class="field-input" id="rev-m-descr" placeholder="Ex: 1263-004">
         </div>
         <div class="field-group">
-          <label class="field-label">💰 Valor RP (R$)</label>
-          <input class="field-input" id="rev-m-valor" type="number" step="0.01" placeholder="0,00">
+          <label class="field-label">💼 Resp. pelo Custo</label>
+          <select class="field-input" id="rev-m-resp-custo">
+            <option value="">—</option>
+            <option value="Cliente">Cliente</option>
+            <option value="Sidertec">Sidertec</option>
+          </select>
         </div>
       </div>
 
@@ -12783,17 +12787,39 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <!-- Seção Eng. Sidertec -->
+      <!-- Seção Valor RP: QTD HH × Valor HH = Total -->
+      <div style="border:1px solid #e9d5ff;border-radius:var(--r);overflow:hidden;margin-bottom:.45rem;">
+        <div style="background:#5b21b6;padding:.3rem .7rem;display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;">💰 Valor da Revisão (RP)</span>
+        </div>
+        <div style="padding:.5rem .7rem;background:#faf5ff;">
+          <div style="display:grid;grid-template-columns:1fr 16px 1fr 16px 1.2fr;gap:.4rem;align-items:end;">
+            <div class="field-group" style="margin:0;">
+              <label class="field-label">⏱ Qtde de HH</label>
+              <input class="field-input" id="rev-m-qtd-hh" type="number" step="0.5" min="0" placeholder="0" oninput="revCalcTotal()" style="text-align:right;">
+            </div>
+            <div style="text-align:center;font-size:16px;font-weight:700;color:#7c3aed;padding-bottom:4px;">×</div>
+            <div class="field-group" style="margin:0;">
+              <label class="field-label">💲 Valor por HH (R$)</label>
+              <input class="field-input" id="rev-m-valor-hh" type="number" step="0.01" min="0" placeholder="0,00" oninput="revCalcTotal()" style="text-align:right;">
+            </div>
+            <div style="text-align:center;font-size:16px;font-weight:700;color:#7c3aed;padding-bottom:4px;">=</div>
+            <div class="field-group" style="margin:0;">
+              <label class="field-label" style="color:#5b21b6;font-weight:700;">💰 Total RP (R$)</label>
+              <input class="field-input" id="rev-m-valor" type="number" step="0.01" readonly placeholder="0,00"
+                style="background:#ede9fe;color:#5b21b6;font-weight:700;text-align:right;cursor:default;" title="Calculado automaticamente">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção Eng. Sidertec — sem Equipe/Engenharia e sem Eng.Sid.Aprovada -->
       <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.45rem;">
         <div style="background:#1e3a5f;padding:.3rem .7rem;display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;">👷 Engenharia Sidertec</span>
         </div>
         <div style="padding:.5rem .7rem;background:#f8fafc;">
-          <div style="display:grid;grid-template-columns:1fr 120px 1fr 1fr;gap:.45rem;">
-            <div class="field-group">
-              <label class="field-label">👥 Equipe / Engenharia</label>
-              <input class="field-input" id="rev-m-eng" placeholder="Ex: TCH">
-            </div>
+          <div style="display:grid;grid-template-columns:150px 1fr;gap:.45rem;">
             <div class="field-group">
               <label class="field-label">📅 Data Revisão</label>
               <input class="field-input" id="rev-m-data-eng" type="date">
@@ -12806,36 +12832,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 <option value="NÃO">NÃO</option>
               </select>
             </div>
-            <div class="field-group">
-              <label class="field-label">✅ Eng. Sid. Aprovada?</label>
-              <select class="field-input" id="rev-m-eng-sid-aprov">
-                <option value="">—</option>
-                <option value="SIM">SIM</option>
-                <option value="NÃO">NÃO</option>
-              </select>
-            </div>
           </div>
+          <!-- Campos ocultos mantidos por compatibilidade com save/load -->
+          <input type="hidden" id="rev-m-eng" value="">
+          <input type="hidden" id="rev-m-eng-sid-aprov" value="">
         </div>
       </div>
 
-      <!-- Seção Lib. Fabricação -->
+      <!-- Seção Lib. Fabricação — sem Descr BM e sem Valor Lib. Fab. -->
       <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.45rem;">
         <div style="background:#1a3a1a;padding:.3rem .7rem;display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;">🏭 Liberação para Fabricação</span>
         </div>
         <div style="padding:.5rem .7rem;background:#f8fafc;">
-          <div style="display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:.45rem;">
+          <div style="display:grid;grid-template-columns:150px 1fr;gap:.45rem;">
             <div class="field-group">
               <label class="field-label">📅 Data Lib.</label>
               <input class="field-input" id="rev-m-data-lib" type="date">
-            </div>
-            <div class="field-group">
-              <label class="field-label">📋 Descrição BM</label>
-              <input class="field-input" id="rev-m-descr-lib" placeholder="Ex: BM-001">
-            </div>
-            <div class="field-group">
-              <label class="field-label">💵 Valor Lib. Fab. (R$)</label>
-              <input class="field-input" id="rev-m-valor-lib" type="number" step="0.01" placeholder="0,00">
             </div>
             <div class="field-group">
               <label class="field-label">✅ Status Lib. Fab.</label>
@@ -12847,41 +12860,48 @@ document.addEventListener('DOMContentLoaded', function() {
               </select>
             </div>
           </div>
+          <!-- Campos ocultos mantidos por compatibilidade -->
+          <input type="hidden" id="rev-m-descr-lib" value="">
+          <input type="hidden" id="rev-m-valor-lib" value="0">
         </div>
       </div>
 
-      <!-- Linha final: Aprov. Cliente / Resp. Custo / Faturado / OBS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:.45rem;margin-bottom:.45rem;">
-        <div class="field-group">
-          <label class="field-label">🤝 Aprov. Cliente?</label>
-          <select class="field-input" id="rev-m-aprov-cli">
-            <option value="">—</option>
-            <option value="SIM">SIM</option>
-            <option value="NÃO">NÃO</option>
-            <option value="N/A">N/A</option>
-          </select>
+      <!-- Seção Aprovação do Cliente -->
+      <div style="border:1px solid #d1fae5;border-radius:var(--r);overflow:hidden;margin-bottom:.45rem;">
+        <div style="background:#065f46;padding:.3rem .7rem;display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;">🤝 Aprovação do Cliente</span>
         </div>
-        <div class="field-group">
-          <label class="field-label">💼 Resp. pelo Custo</label>
-          <select class="field-input" id="rev-m-resp-custo">
-            <option value="">—</option>
-            <option value="Cliente">Cliente</option>
-            <option value="Sidertec">Sidertec</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">🧾 Faturado?</label>
-          <select class="field-input" id="rev-m-faturado">
-            <option value="">—</option>
-            <option value="SIM">SIM</option>
-            <option value="NÃO">NÃO</option>
-            <option value="N/A">N/A</option>
-            <option value="EM FATURAMENTO">EM FATURAMENTO</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">📝 OBS</label>
-          <input class="field-input" id="rev-m-obs" placeholder="Observações…">
+        <div style="padding:.5rem .7rem;background:#f0fdf4;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.45rem;">
+            <div class="field-group">
+              <label class="field-label">🤝 Aprov. Cliente?</label>
+              <select class="field-input" id="rev-m-aprov-cli">
+                <option value="">—</option>
+                <option value="SIM">SIM</option>
+                <option value="NÃO">NÃO</option>
+                <option value="N/A">N/A</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">🧾 Faturado?</label>
+              <select class="field-input" id="rev-m-faturado">
+                <option value="">—</option>
+                <option value="SIM">SIM</option>
+                <option value="NÃO">NÃO</option>
+                <option value="N/A">N/A</option>
+                <option value="EM FATURAMENTO">EM FATURAMENTO</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" style="color:#065f46;font-weight:700;">💵 Valor a Cobrar (R$)</label>
+              <input class="field-input" id="rev-m-valor-cobrar" type="number" step="0.01" min="0" placeholder="0,00"
+                style="text-align:right;">
+            </div>
+            <div class="field-group">
+              <label class="field-label">📝 OBS</label>
+              <input class="field-input" id="rev-m-obs" placeholder="Observações…">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -13152,7 +13172,7 @@ function renderRevisoes(){
   }
 
   tbody.innerHTML=filtered.map(function(r){
-    return '<tr>'+
+    return '<tr onclick="editarRevisao(\''+r.id+'\')" style="cursor:pointer;" onmouseover="this.style.background=\'#f5f0ff\'" onmouseout="this.style.background=\'\'">'+
       '<td><strong>'+r.cliente+'</strong></td>'+
       '<td style="white-space:nowrap;font-family:\'DM Mono\',monospace;font-size:10px;">'+_fmtDateBR(r.data_rp)+'</td>'+
       '<td style="font-family:\'DM Mono\',monospace;font-size:10px;">'+r.descr+'</td>'+
@@ -13170,7 +13190,7 @@ function renderRevisoes(){
       '<td style="text-align:center;font-size:10px;font-weight:600;color:'+(r.resp_custo==='Cliente'?'var(--blue)':r.resp_custo==='Sidertec'?'var(--accent)':'var(--ink3)')+';">'+( r.resp_custo||'—')+'</td>'+
       '<td style="text-align:center;">'+_badge(r.faturado)+'</td>'+
       '<td style="font-size:9px;color:var(--ink3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+r.obs+'">'+r.obs+'</td>'+
-      '<td style="white-space:nowrap;">'+
+      '<td style="white-space:nowrap;" onclick="event.stopPropagation()">'+
         '<button class="rev-edit-btn" onclick="editarRevisao(\''+r.id+'\')">✏</button> '+
         '<button class="rev-del-btn" onclick="deletarRevisao(\''+r.id+'\')" title="Excluir">🗑</button>'+
       '</td>'+
@@ -13195,13 +13215,13 @@ var _editingRevId = null;
 function abrirModalNovaRevisao(){
   _editingRevId=null;
   document.getElementById('modal-rev-title').textContent='Nova Revisão';
-  ['rev-m-cliente','rev-m-descr','rev-m-tag','rev-m-motivo','rev-m-eng','rev-m-obs','rev-m-descr-lib'].forEach(function(id){
+  ['rev-m-cliente','rev-m-descr','rev-m-tag','rev-m-motivo','rev-m-obs','rev-m-descr-lib'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
   ['rev-m-data-rp','rev-m-data-eng','rev-m-data-lib'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
-  ['rev-m-valor','rev-m-valor-lib'].forEach(function(id){
+  ['rev-m-qtd-hh','rev-m-valor-hh','rev-m-valor','rev-m-valor-lib','rev-m-valor-cobrar'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
   ['rev-m-aprov-eng','rev-m-eng-sid-aprov','rev-m-status-lib','rev-m-aprov-cli','rev-m-resp-custo','rev-m-faturado'].forEach(function(id){
@@ -13218,10 +13238,14 @@ function editarRevisao(id){
   document.getElementById('rev-m-cliente').value=r.cliente||'';
   document.getElementById('rev-m-data-rp').value=r.data_rp||'';
   document.getElementById('rev-m-descr').value=r.descr||'';
+  // HH fields: se existem, preenche; senão deixa valor_rp no total direto
+  var elQtd=document.getElementById('rev-m-qtd-hh');
+  var elVhh=document.getElementById('rev-m-valor-hh');
+  if(elQtd) elQtd.value=r.qtd_hh||'';
+  if(elVhh) elVhh.value=r.valor_hh||'';
   document.getElementById('rev-m-valor').value=r.valor_rp||'';
   document.getElementById('rev-m-tag').value=r.tag||'';
   document.getElementById('rev-m-motivo').value=r.motivo||'';
-  document.getElementById('rev-m-eng').value=r.eng||'';
   document.getElementById('rev-m-data-eng').value=r.data_eng||'';
   document.getElementById('rev-m-aprov-eng').value=r.aprov_eng||'';
   document.getElementById('rev-m-eng-sid-aprov').value=r.eng_sid_aprov||'';
@@ -13232,8 +13256,18 @@ function editarRevisao(id){
   document.getElementById('rev-m-aprov-cli').value=r.aprov_cli||'';
   document.getElementById('rev-m-resp-custo').value=r.resp_custo||'';
   document.getElementById('rev-m-faturado').value=r.faturado||'';
+  var elVc=document.getElementById('rev-m-valor-cobrar');
+  if(elVc) elVc.value=r.valor_cobrar||'';
   document.getElementById('rev-m-obs').value=r.obs||'';
   document.getElementById('modal-revisao').classList.add('show');
+}
+
+function revCalcTotal(){
+  var qtd = parseFloat(document.getElementById('rev-m-qtd-hh')?.value)||0;
+  var vhh = parseFloat(document.getElementById('rev-m-valor-hh')?.value)||0;
+  var total = qtd * vhh;
+  var elTotal = document.getElementById('rev-m-valor');
+  if(elTotal) elTotal.value = total > 0 ? total.toFixed(2) : '';
 }
 
 function fecharModalRevisao(){
@@ -13251,20 +13285,23 @@ function salvarRevisao(){
     cliente: cliente,
     data_rp: document.getElementById('rev-m-data-rp').value,
     descr: descr,
+    qtd_hh: parseFloat(document.getElementById('rev-m-qtd-hh')?.value)||0,
+    valor_hh: parseFloat(document.getElementById('rev-m-valor-hh')?.value)||0,
     valor_rp: parseFloat(document.getElementById('rev-m-valor').value)||0,
     tag: tag,
     motivo: document.getElementById('rev-m-motivo').value.trim(),
-    eng: document.getElementById('rev-m-eng').value.trim(),
+    eng: (document.getElementById('rev-m-eng')?.value||'').trim(),
     data_eng: document.getElementById('rev-m-data-eng').value,
     aprov_eng: document.getElementById('rev-m-aprov-eng').value,
-    eng_sid_aprov: document.getElementById('rev-m-eng-sid-aprov').value,
+    eng_sid_aprov: (document.getElementById('rev-m-eng-sid-aprov')?.value||''),
     data_lib: document.getElementById('rev-m-data-lib').value,
-    descr_lib: document.getElementById('rev-m-descr-lib').value.trim(),
-    valor_lib: parseFloat(document.getElementById('rev-m-valor-lib').value)||0,
+    descr_lib: (document.getElementById('rev-m-descr-lib')?.value||'').trim(),
+    valor_lib: parseFloat(document.getElementById('rev-m-valor-lib')?.value)||0,
     status_lib: document.getElementById('rev-m-status-lib').value,
     aprov_cli: document.getElementById('rev-m-aprov-cli').value,
     resp_custo: document.getElementById('rev-m-resp-custo').value,
     faturado: document.getElementById('rev-m-faturado').value,
+    valor_cobrar: parseFloat(document.getElementById('rev-m-valor-cobrar')?.value)||0,
     obs: document.getElementById('rev-m-obs').value.trim(),
   };
 
@@ -13299,9 +13336,9 @@ function limparFiltrosRevisoes(){
 }
 
 function exportarRevisoesCSV(){
-  var headers=['Cliente','Data RP','Descr.','Valor RP','TAG Sidertec','Motivo','Engenharia','Data Rev. Eng.','Aprov. Eng. Sidertec','Eng. Sid. Aprov','Data Lib. Fab.','Descr. Lib.','Valor Lib.','Status Lib.','Aprov. Cliente','Resp. Custo','Faturado','OBS'];
+  var headers=['Cliente','Data RP','Descr.','Qtd HH','Valor HH','Valor RP','TAG Sidertec','Motivo','Data Rev. Eng.','Aprov. Eng.','Data Lib. Fab.','Status Lib.','Aprov. Cliente','Resp. Custo','Faturado','Valor a Cobrar','OBS'];
   var rows=_revisoes.map(function(r){
-    return [r.cliente,_fmtDateBR(r.data_rp),r.descr,r.valor_rp||'',r.tag,r.motivo,r.eng,_fmtDateBR(r.data_eng),r.aprov_eng,r.eng_sid_aprov,_fmtDateBR(r.data_lib),r.descr_lib,r.valor_lib||'',r.status_lib,r.aprov_cli,r.resp_custo,r.faturado,r.obs]
+    return [r.cliente,_fmtDateBR(r.data_rp),r.descr,r.qtd_hh||'',r.valor_hh||'',r.valor_rp||'',r.tag,r.motivo,_fmtDateBR(r.data_eng),r.aprov_eng,_fmtDateBR(r.data_lib),r.status_lib,r.aprov_cli,r.resp_custo,r.faturado,r.valor_cobrar||'',r.obs]
       .map(function(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');
   });
   var csv='\uFEFF'+headers.map(function(h){return '"'+h+'"';}).join(',')+'\n'+rows.join('\n');
