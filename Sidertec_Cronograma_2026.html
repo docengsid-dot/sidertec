@@ -1331,14 +1331,22 @@ ALTER TABLE medicao_terceiros
   </div>
 
   <!-- ALERTA GLOBAL: Limite Fábrica < Planejado Fabricação -->
-  <div id="cron-alerta-limite-fab" style="display:none;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:var(--r2);padding:.35rem .75rem;margin-bottom:.3rem;gap:.5rem;align-items:flex-start;">
-    <div style="display:flex;align-items:center;gap:.5rem;">
-      <span style="font-size:14px;flex-shrink:0;">🚨</span>
-      <div style="flex:1;">
-        <div style="font-size:11px;font-weight:700;color:#9f1239;margin-bottom:.1rem;">ALERTA DE PRAZO — Limite Fábrica &lt; Data Planejada para Fabricação</div>
-        <div id="cron-alerta-limite-fab-lista" style="font-size:10px;color:#be123c;"></div>
+  <div id="cron-alerta-limite-fab" style="display:none;margin-bottom:.3rem;">
+    <!-- Pill recolhida (padrão) -->
+    <div id="cron-alerta-pill" onclick="cronAlertaToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#fda4af,#fecdd3);border:1.5px solid #f43f5e;border-radius:20px;padding:.2rem .75rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os itens em alerta">
+      <span style="font-size:13px;">🚨</span>
+      <span id="cron-alerta-pill-txt" style="font-size:11px;font-weight:700;color:#9f1239;white-space:nowrap;"></span>
+      <span id="cron-alerta-pill-chevron" style="font-size:10px;color:#9f1239;transition:transform .2s;">▼</span>
+    </div>
+    <!-- Painel expandido (oculto por padrão) -->
+    <div id="cron-alerta-painel" style="display:none;margin-top:.3rem;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:var(--r2);padding:.35rem .75rem;">
+      <div style="display:flex;align-items:flex-start;gap:.5rem;">
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:#9f1239;margin-bottom:.25rem;">ALERTA DE PRAZO — Limite Fábrica &lt; Data Planejada para Fabricação</div>
+          <div id="cron-alerta-limite-fab-lista" style="font-size:10px;color:#be123c;"></div>
+        </div>
+        <button onclick="cronAlertaToggle()" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);flex-shrink:0;">▲ Recolher</button>
       </div>
-      <button onclick="document.getElementById('cron-alerta-limite-fab').style.display='none'" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);flex-shrink:0;">x</button>
     </div>
   </div>
   <!-- Filtros + botão novo -->
@@ -2076,13 +2084,21 @@ ALTER TABLE medicao_terceiros
       </div>
 
       <!-- Resumo visual das etapas (sempre visível) -->
-      <div id="etapas-resumo" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem;" id="etapas-resumo">
+      <div id="etapas-resumo" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.4rem;" id="etapas-resumo">
         <!-- populated by renderEtapasResumo() -->
       </div>
 
-      <!-- Grid dinâmico de etapas -->
-      <div id="etapas-grid" style="display:block;">
-        <div id="etapas-dinamicas-container" style="margin-bottom:.75rem;"></div>
+      <!-- Header colapsável das etapas — recolhido por padrão -->
+      <div id="etapas-toggle-header" onclick="etapasToggleSection()" style="display:flex;align-items:center;gap:.5rem;background:var(--blue);color:#fff;border-radius:5px;padding:.3rem .65rem;cursor:pointer;user-select:none;margin-bottom:0;border:none;transition:border-radius .2s;" title="Clique para expandir / recolher as etapas detalhadas">
+        <span style="font-size:12px;">📋</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.03em;">ETAPAS DETALHADAS</span>
+        <span id="etapas-toggle-badge" style="margin-left:auto;font-size:9px;background:rgba(255,255,255,.18);border-radius:10px;padding:1px 8px;white-space:nowrap;"></span>
+        <span id="etapas-toggle-chevron" style="font-size:11px;transition:transform .2s;transform:rotate(-90deg);">▼</span>
+      </div>
+
+      <!-- Grid dinâmico de etapas — oculto por padrão -->
+      <div id="etapas-grid" style="display:none;border:2px solid var(--blue);border-top:none;border-radius:0 0 5px 5px;overflow:hidden;margin-bottom:.75rem;">
+        <div id="etapas-dinamicas-container" style="margin-bottom:0;"></div>
       </div><!-- fim etapas-grid -->
 
       <!-- REVISÃO DE PROJETO -->
@@ -4047,6 +4063,31 @@ function _diasBadgeInline(prev,real){
   return '<span style="font-size:9px;font-weight:700;color:#dc2626;">⚠ '+d+'d atraso</span>';
 }
 
+/* ── Colapsa / expande a seção de etapas detalhadas no modal ── */
+function etapasToggleSection(){
+  var grid    = document.getElementById('etapas-grid');
+  var chevron = document.getElementById('etapas-toggle-chevron');
+  var header  = document.getElementById('etapas-toggle-header');
+  if(!grid) return;
+  var aberto = grid.style.display !== 'none';
+  grid.style.display = aberto ? 'none' : 'block';
+  if(chevron) chevron.style.transform = aberto ? 'rotate(-90deg)' : 'rotate(0deg)';
+  if(header){
+    header.style.borderRadius = aberto ? '5px' : '5px 5px 0 0';
+  }
+}
+
+/* Atualiza badge do header com contagem de etapas concluídas / total */
+function _atualizarBadgeEtapas(){
+  var badge = document.getElementById('etapas-toggle-badge');
+  if(!badge || typeof _etapasState === 'undefined' || typeof ETAPAS_CONFIG === 'undefined') return;
+  var total = ETAPAS_CONFIG.length;
+  var conc  = ETAPAS_CONFIG.filter(function(e){ return (_etapasState[e.key]||{}).concluido; }).length;
+  var cor   = conc === total ? '#4ade80' : conc > 0 ? '#fbbf24' : 'rgba(255,255,255,.55)';
+  badge.style.color = cor;
+  badge.textContent = conc + '/' + total + ' concluídas';
+}
+
 function renderEtapasDinamicas(){
   var cont=document.getElementById('etapas-dinamicas-container');
   if(!cont) return;
@@ -4374,6 +4415,9 @@ function renderEtapasDinamicas(){
 
   diasSummary.innerHTML = sh + rows;
   cont.appendChild(diasSummary);
+
+  // Atualiza badge do header com progresso de etapas
+  _atualizarBadgeEtapas();
 
   // Atualiza botões 🕓 com estado do histórico
   setTimeout(_updateAllHistBtns, 0);
@@ -6333,6 +6377,15 @@ async function abrirCronModal(id){
   }
 
   modal.classList.add('show');
+  // Garante que as etapas abrem recolhidas a cada abertura do modal
+  (function(){
+    var g = document.getElementById('etapas-grid');
+    var ch = document.getElementById('etapas-toggle-chevron');
+    var hd = document.getElementById('etapas-toggle-header');
+    if(g)  g.style.display = 'none';
+    if(ch) ch.style.transform = 'rotate(-90deg)';
+    if(hd) hd.style.borderRadius = '5px';
+  })();
   // Atualizar botões 🕓 após modal abrir completamente
   setTimeout(_updateAllHistBtns, 120);
   // Recalculate dias after loading values
@@ -11462,19 +11515,32 @@ function atualizarBannerFiltros(){
 
 
 // ── ALERTA GLOBAL: Limite Fábrica < Planejado Lib. Fabricação ────────
+function cronAlertaToggle(){
+  var painel = document.getElementById('cron-alerta-painel');
+  var chevron = document.getElementById('cron-alerta-pill-chevron');
+  var btnRecolher = painel ? painel.querySelector('button') : null;
+  if(!painel) return;
+  var aberto = painel.style.display !== 'none';
+  painel.style.display = aberto ? 'none' : 'block';
+  if(chevron) chevron.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 function atualizarAlerteLimiteFab(){
-  var banner = document.getElementById("cron-alerta-limite-fab");
-  var lista  = document.getElementById("cron-alerta-limite-fab-lista");
+  var banner  = document.getElementById("cron-alerta-limite-fab");
+  var lista   = document.getElementById("cron-alerta-limite-fab-lista");
+  var pillTxt = document.getElementById("cron-alerta-pill-txt");
   if(!banner || !lista) return;
   var conflitos = (allCronSubobras||[]).filter(function(s){
     if(!s.data_limite_fab || !s.prev_lib_fab) return false;
-    if(s.real_lib_fab) return false; // já liberada, sem conflito
+    if(s.real_lib_fab) return false;
     var lim  = new Date(s.data_limite_fab+"T12:00:00");
     var prev = new Date(s.prev_lib_fab+"T12:00:00");
     return lim < prev;
   });
   if(!conflitos.length){ banner.style.display="none"; return; }
+  // Mostra só a pill — painel permanece recolhido
   banner.style.display="block";
+  if(pillTxt) pillTxt.textContent = conflitos.length + ' obra' + (conflitos.length>1?'s':'') + ' com alerta de prazo';
   lista.innerHTML = conflitos.map(function(s){
     var lim  = new Date(s.data_limite_fab+"T12:00:00");
     var prev = new Date(s.prev_lib_fab+"T12:00:00");
