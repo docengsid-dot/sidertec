@@ -12778,11 +12778,17 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <!-- Linha 2: TAG / Motivo -->
-      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:.45rem;margin-bottom:.45rem;">
+      <!-- Linha 2: TAG / Engenharia / Motivo -->
+      <div style="display:grid;grid-template-columns:1fr 140px 1.5fr;gap:.45rem;margin-bottom:.45rem;">
         <div class="field-group">
           <label class="field-label">🏷 TAG Sidertec *</label>
           <input class="field-input" id="rev-m-tag" placeholder="Ex: 4100-PB-PB001">
+        </div>
+        <div class="field-group">
+          <label class="field-label">👷 Engenharia</label>
+          <input class="field-input" id="rev-m-eng" placeholder="Ex: TCH"
+            list="rev-m-eng-list" autocomplete="off" onfocus="revPopularEngs()">
+          <datalist id="rev-m-eng-list"></datalist>
         </div>
         <div class="field-group">
           <label class="field-label">📌 Motivo da Revisão</label>
@@ -12837,7 +12843,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           </div>
           <!-- Campos ocultos mantidos por compatibilidade com save/load -->
-          <input type="hidden" id="rev-m-eng" value="">
           <input type="hidden" id="rev-m-eng-sid-aprov" value="">
         </div>
       </div>
@@ -13231,7 +13236,7 @@ function abrirModalNovaRevisao(){
     var el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('modal-revisao').classList.add('show');
-  revPopularClientes();
+  revPopularClientes(); revPopularEngs();
 }
 
 function editarRevisao(id){
@@ -13264,7 +13269,7 @@ function editarRevisao(id){
   if(elVc) elVc.value=r.valor_cobrar||'';
   document.getElementById('rev-m-obs').value=r.obs||'';
   document.getElementById('modal-revisao').classList.add('show');
-  revPopularClientes();
+  revPopularClientes(); revPopularEngs();
 }
 
 function revPopularClientes(){
@@ -13279,6 +13284,25 @@ function revPopularClientes(){
     : [];
   var todos = [...new Set([...obras, ...revClientes])].sort();
   // Só recria se mudou (evita flicker)
+  var atual = [...dl.options].map(function(o){ return o.value; }).join('|');
+  var novo  = todos.join('|');
+  if(atual === novo) return;
+  dl.innerHTML = todos.map(function(v){
+    return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>';
+  }).join('');
+}
+
+function revPopularEngs(){
+  var dl = document.getElementById('rev-m-eng-list');
+  if(!dl) return;
+  // Engenharias do cronograma (campo equipe) + engenharias já usadas em revisões
+  var engsSubobras = typeof allCronSubobras !== 'undefined'
+    ? [...new Set(allCronSubobras.map(function(s){ return (s.equipe||'').split('(')[0].trim(); }).filter(Boolean))].sort()
+    : [];
+  var engsRev = typeof _revisoes !== 'undefined'
+    ? [...new Set(_revisoes.map(function(r){ return r.eng; }).filter(Boolean))]
+    : [];
+  var todos = [...new Set([...engsSubobras, ...engsRev])].sort();
   var atual = [...dl.options].map(function(o){ return o.value; }).join('|');
   var novo  = todos.join('|');
   if(atual === novo) return;
