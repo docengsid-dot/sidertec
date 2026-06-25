@@ -17384,6 +17384,29 @@ function cdocRefreshAll(){
   try{ cdocPopFilters(); }catch(e){ console.error('[CDOC] PopFilters error:',e); }
 }
 
+// Garante valores mínimos para contadores de GRD de obras conhecidas.
+// Só eleva — nunca reduz um contador já maior.
+function _cdocSeedGrdCounters(seeds){
+  // seeds = { 'S176': 133, 'S178': 0, ... }
+  var db=_cdocLoad();
+  db._grdCounters=db._grdCounters||{};
+  var changed=false;
+  Object.keys(seeds).forEach(function(pfx){
+    var val=seeds[pfx];
+    if((db._grdCounters[pfx]||0)<val){
+      db._grdCounters[pfx]=val;
+      changed=true;
+    }
+  });
+  if(changed){
+    try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+    _cdocSBCache=db;
+  }
+}
+// Inicializa contadores das obras com histórico conhecido
+// (só eleva, nunca reduz — seguro rodar múltiplas vezes)
+_cdocSeedGrdCounters({'S176':133});
+
 function cdocPopFilters(){
   var obras=_cdocObras();
   ['cdoc-g-obra','cdb-f-obra','cdd-f-obra'].forEach(function(id){
@@ -18728,10 +18751,14 @@ function cdocEmitirGrd(){
   var _obraRefPrev=_fObraEmit||(sels[0]&&sels[0].obraId)||'';
   var _m2=(_obraRefPrev||'').match(/^([A-Z]\d+)/i);
   var _pfx2=_m2?_m2[1].toUpperCase():'GRD';
+  // Pré-visualiza o próximo número filtrando apenas GRDs desta obra (sem gravar ainda)
   var _dbPrev=_cdocLoad();
-  _dbPrev._grdCounters=_dbPrev._grdCounters||{};
-  var _nextPrev=(_dbPrev._grdCounters[_pfx2]||0)+1;
-  var _numPrev=_pfx2+'-GRD-'+String(_nextPrev).padStart(4,'0');
+  var _maxPrev=0;
+  (_dbPrev._grds||[]).forEach(function(g){ if(_cdocGrdPrefix(g.numero)===_pfx2){var n=_cdocParseGrdNum(g.numero);if(n>_maxPrev)_maxPrev=n;} });
+  (_dbPrev.detalhados||[]).forEach(function(d){(d.envioHist||[]).forEach(function(h){ if(_cdocGrdPrefix(h.grd)===_pfx2){var n=_cdocParseGrdNum(h.grd);if(n>_maxPrev)_maxPrev=n;} });});
+  var _legadoPrev=(_dbPrev._grdCounters||{})[_pfx2]||0;
+  if(_legadoPrev>_maxPrev) _maxPrev=_legadoPrev;
+  var _numPrev=_pfx2+'-GRD-'+String(_maxPrev+1).padStart(4,'0');
   overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.22);">'
     +'<div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-bottom:14px;">📋 Emitir GRD</div>'
     +'<div style="margin-bottom:12px;">'
@@ -18778,16 +18805,55 @@ function cdocEmitirGrd(){
   };
   return; // execução continua em _cdocGerarGrdJanela
 }
-// Gerar número de GRD baseado na obra
+// Gerar número de GRD baseado na obra — sequência independente por prefixo de obra
 function _cdocGenGrdNum(obraId){
   var m=(obraId||'').match(/^([A-Z]\d+)/i);
   var prefix=m?m[1].toUpperCase():'GRD';
   var db=_cdocLoad();
+
+  // Varre todas as GRDs existentes para encontrar o maior número JÁ USADO para este prefixo
+  var maxNum=0;
+
+  // Fonte 1: banco de GRDs emitidas (db._grds)
+  (db._grds||[]).forEach(function(g){
+    if(_cdocGrdPrefix(g.numero)===prefix){
+      var n=_cdocParseGrdNum(g.numero);
+      if(n>maxNum) maxNum=n;
+    }
+  });
+
+  // Fonte 2: histórico de envio dos documentos detalhados
+  (db.detalhados||[]).forEach(function(d){
+    (d.envioHist||[]).forEach(function(h){
+      if(_cdocGrdPrefix(h.grd)===prefix){
+        var n=_cdocParseGrdNum(h.grd);
+        if(n>maxNum) maxNum=n;
+      }
+    });
+  });
+
+  // Fonte 3: contador legado (localStorage) para este prefixo
   db._grdCounters=db._grdCounters||{};
-  var next=(db._grdCounters[prefix]||0)+1;
+  var legado=db._grdCounters[prefix]||0;
+  if(legado>maxNum) maxNum=legado;
+
+  var next=maxNum+1;
   db._grdCounters[prefix]=next;
   _cdocSave(db);
   return prefix+'-GRD-'+String(next).padStart(4,'0');
+}
+
+// Extrai o prefixo de obra de um número de GRD (ex: "S178-GRD-0042" → "S178")
+function _cdocGrdPrefix(grdStr){
+  var m=(grdStr||'').match(/^([A-Z]\d+)-GRD/i);
+  return m?m[1].toUpperCase():'GRD';
+}
+
+// Extrai o número sequencial de uma GRD (ex: "S178-GRD-0042" → 42)
+function _cdocParseGrdNum(grdStr){
+  if(!grdStr) return 0;
+  var m=(grdStr+'').match(/GRD[-_\s]*(\d+)$/i);
+  return m?parseInt(m[1],10):0;
 }
 function _cdocObraDeGrd(numero, fallback){
   // Tenta obter o nome completo da obra a partir do prefixo no número da GRD
