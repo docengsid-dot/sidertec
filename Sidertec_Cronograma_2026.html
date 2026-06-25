@@ -1184,6 +1184,7 @@ canvas{overflow:visible!important;}
       ⬆ Avanço Fab.
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarAvançoFabricacao(this)">
     </label>
+    <button class="ie-btn" onclick="downloadTemplateAvancoFab()" style="padding:3px 9px;font-size:10px;background:#fff7ed;color:#c2410c;border-color:#ea580c;" title="Baixar planilha modelo para preenchimento do Avanço Fab.">⬇ Template Fab.</button>
     <div class="fsep"></div>
     <button class="ie-btn" onclick="abrirRelatorioCron()" style="background:var(--purple2);color:var(--purple);border-color:var(--purple);padding:3px 9px;font-size:10px;">📊 Relatório</button>
   </div>
@@ -7473,6 +7474,69 @@ async function _importarAvançoBatch(resultados){
   renderCronograma();
 }
 
+
+function downloadTemplateAvancoFab(){
+  // Coleta as TAGs visíveis na tela (respeitando filtros ativos)
+  var subs = window._cronSubsFiltradas || allCronSubobras;
+  // Pega somente TAGs únicas, na ordem em que aparecem
+  var tags = [];
+  var seen = {};
+  subs.forEach(function(s){
+    var t = s.subobra ? s.subobra.trim() : null;
+    if(t && !seen[t]){ seen[t]=true; tags.push(t); }
+  });
+
+  if(!tags.length){ showToast('Sem TAGs','Nenhuma TAG visível para gerar o template.','warn'); return; }
+
+  // Monta a planilha: cada seção em bloco vertical
+  // Formato:
+  //   Linha 1 col A: "PREPARAÇÃO"   | col B..N: TAG1, TAG2, ...
+  //   Linha 2 col A: "Peso (kg)"    | col B..N: 0, 0, ...
+  //   (linha em branco)
+  //   Linha 4: "INSPEÇÃO"  ...etc
+  var SECOES = ['PREPARAÇÃO','INSPEÇÃO FAB','PINTURA','EXPEDIÇÃO'];
+  var rows = [];
+
+  // Linha de cabeçalho de referência (informativa)
+  rows.push(['=== TEMPLATE AVANÇO DE FABRICAÇÃO — ' + new Date().toLocaleDateString('pt-BR') + ' ==='].concat(tags.map(function(){return '';})));
+  rows.push(['Não altere os nomes das seções. Preencha os pesos em kg na linha "Peso (kg)".'].concat(tags.map(function(){return '';})));
+  rows.push([]); // linha em branco
+
+  SECOES.forEach(function(secao){
+    // Linha do nome da seção + TAGs
+    rows.push([secao].concat(tags));
+    // Linha "Peso (kg)" + zeros
+    rows.push(['Peso (kg)'].concat(tags.map(function(){return 0;})));
+    rows.push([]); // linha em branco separador
+  });
+
+  // Gera o XLSX usando SheetJS
+  if(typeof XLSX === 'undefined'){
+    // fallback: CSV simples
+    var csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+    var blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url;
+    a.download = 'template_avanco_fab.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Largura das colunas
+  var wscols = [{wch:28}]; // col A mais larga
+  for(var i=0;i<tags.length;i++) wscols.push({wch:Math.max(12, tags[i].length+2)});
+  ws['!cols'] = wscols;
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Avanço Fab');
+
+  var obra = (document.getElementById('f-obra')||{}).value || 'template';
+  XLSX.writeFile(wb, 'avanco_fab_'+obra.replace(/[^a-zA-Z0-9]/g,'_')+'.xlsx');
+  showToast('Template gerado', tags.length + ' TAGs incluídas no template.', 'success');
+}
 
 async function processarImportacao(rows, tipo){
   // Colunas base que sempre existem na tabela
