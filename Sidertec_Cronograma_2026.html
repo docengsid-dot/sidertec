@@ -5858,14 +5858,20 @@ function cronRenderTabela(subs){
     // Special: Fabricação % column (col 12)
     if(etapa.isFabPct){
       var _pPcpV=parseFloat(s.peso_pcp||s.peso_previsto||0)||0;
-      var _pPint=parseFloat(s.peso_pintura||0)||0;
-      var _pctFab=_pPcpV>0?Math.min(100,Math.round(_pPint/_pPcpV*100)):0;
+      var _fabKs=['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'];
+      var _fabVals=_fabKs.map(function(k){return parseFloat(s[k]||0)||0;});
+      var _fabTot=_fabVals.reduce(function(a,v){return a+v;},0);
+      var _pctFab=_pPcpV>0?Math.min(100,Math.round((_fabTot/_fabKs.length)/_pPcpV*100)):0;
       var _fcFab=_pctFab>=100?'#166534':_pctFab>=50?'#d97706':'#6b7280';
-      return '<td style="padding:2px 4px;text-align:center;border:1px solid #e2e8f0;min-width:75px;vertical-align:middle;" onclick="event.stopPropagation();abrirAndamentoNaEtapaById(\''+s.id+'\',\'pintura\')">'
+      var _pFmt=function(v){return _pPcpV>0?Math.min(100,Math.round(v/_pPcpV*100))+'%':'—';};
+      var _tip='Prep:'+_pFmt(_fabVals[0])+' Insp:'+_pFmt(_fabVals[1])+' Pint:'+_pFmt(_fabVals[2])+' Exped:'+_pFmt(_fabVals[3]);
+      return '<td title="'+_tip+'" style="padding:2px 4px;text-align:center;border:1px solid #e2e8f0;min-width:75px;vertical-align:middle;" onclick="event.stopPropagation();abrirAndamentoNaEtapaById(\''+s.id+'\',\'pintura\')">'
         +'<div style="display:flex;align-items:center;gap:2px;justify-content:center;">'
         +'<div style="width:35px;background:#e2e8f0;border-radius:2px;height:7px;"><div style="width:'+_pctFab+'%;height:7px;background:'+_fcFab+';border-radius:2px;"></div></div>'
         +'<span style="font-size:8px;font-weight:700;color:'+_fcFab+';">'+_pctFab+'%</span>'
-        +'</div></td>';
+        +'</div>'
+        +'<div style="font-size:6px;color:#94a3b8;line-height:1.2;">'+_tip+'</div>'
+        +'</td>';
     }
     const soReal = ETAPAS_SO_REAL.has(etapa.key);
     const prev = soReal ? null : s[etapa.prev];
