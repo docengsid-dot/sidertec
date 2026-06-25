@@ -16877,11 +16877,6 @@ function cotExportarCSV(){
           </select>
           <select id="cdd-f-status" onchange="cdocRenderDet()">
             <option value="">Todos status</option>
-            <option>EM EMISSÃO</option><option>EMITIDO</option><option>ENVIADO AO CLIENTE</option>
-            <option>APROVADO</option><option>EM REVISÃO</option><option>CERTIFICADO</option>
-            <option>AGUARDANDO PACOTE DE FABRICAÇÃO</option>
-            <option>AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM</option>
-            <option>ENVIAR AO CLIENTE</option>
           </select>
           <input id="cdd-f-num" placeholder="Nº Sidertec..." oninput="cdocRenderDet()" style="max-width:110px;">
           <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="cdocRenderDet()" style="max-width:100px;">
@@ -17157,22 +17152,11 @@ function _cdocSave(db){
   try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
   _cdocSBStatus('💾 Salvando...','#0369a1');
   (async function(){
-    try{
-      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
-      if(r.ok){
-        var rows=await r.json();
-        if(rows.length&&rows[0].data){
-          var merged=_cdocMergeSnapshots(rows[0].data,db);
-          _cdocSBCache=merged;
-          try{localStorage.setItem('sider_ctrldoc',JSON.stringify(merged));}catch(e){}
-          db=merged;
-        }
-      }
-    }catch(e){}
+    // Envia o estado local diretamente — sem merge com remoto
+    // O merge aditivo trazia de volta registros deletados
     await _cdocSBPush(db);
     _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
     setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
-    cdocRefreshAll();
   })().catch(function(e){
     _cdocSBStatus('⚠ Erro ao salvar na nuvem','#dc2626');
   });
@@ -17332,26 +17316,26 @@ function cdocRefreshAll(){
 
 function cdocPopFilters(){
   var obras=_cdocObras();
-  // Popula o filtro GLOBAL e os filtros por aba (sincronizados)
   ['cdoc-g-obra','cdb-f-obra','cdd-f-obra'].forEach(function(id){
     var sel=document.getElementById(id); if(!sel) return;
     var cur=sel.value;
     sel.innerHTML=(id==='cdoc-g-obra'?'<option value="">— Todas as obras —</option>':'<option value="">Todas obras</option>');
     obras.forEach(function(o){ var op=document.createElement('option');op.value=o;op.textContent=o;if(o===cur)op.selected=true;sel.appendChild(op); });
   });
-  // Popula filtro Projetista com equipes únicas do cronograma + CDOC
+  // Projetista
   (function(){
     var sel=document.getElementById('cdb-f-proj'); if(!sel) return;
     var cur=sel.value;
     var set={};
     if(typeof allCronSubobras!=='undefined') allCronSubobras.forEach(function(s){if(s.equipe) set[s.equipe]=true;});
-    var db2=_cdocDb();
+    var db2=_cdocSBCache||_cdocLoad();
     (db2.basicos||[]).forEach(function(b){if(b.proj) set[b.proj]=true;});
     var list=Object.keys(set).sort();
     sel.innerHTML='<option value="">Todos projetistas</option>';
     list.forEach(function(e){var op=document.createElement('option');op.value=e;op.textContent=e;if(e===cur)op.selected=true;sel.appendChild(op);});
   })();
-  // Atualiza info de obras no filtro global
+  // Status do filtro da tabela Proj. Detalhado — built-in + custom
+  _cdocPopStatusFiltro();
   _cdocGlobalObraInfo();
 }
 
@@ -17400,6 +17384,45 @@ var _cdocBadge={
 };
 // Custom CDOC statuses (loaded from localStorage)
 var _cdocCustomStatuses = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
+
+var _CDOC_STATUS_FIXOS = ['EM EMISSÃO','EMITIDO','ENVIADO AO CLIENTE','APROVADO','EM REVISÃO',
+  'CERTIFICADO','AGUARDANDO PACOTE DE FABRICAÇÃO','AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM',
+  'AGUARDANDO EMISSÃO DE MC','ENVIAR AO CLIENTE'];
+
+function _cdocTodosStatuses(){
+  _carregarCdocCustomStatuses();
+  var todos=[].concat(_CDOC_STATUS_FIXOS);
+  _cdocCustomStatuses.forEach(function(cs){ if(todos.indexOf(cs.nome)===-1) todos.push(cs.nome); });
+  return todos;
+}
+
+function _cdocPopStatusFiltro(){
+  var sel=document.getElementById('cdd-f-status'); if(!sel) return;
+  var cur=sel.value;
+  var lista=_cdocTodosStatuses();
+  // Só reconstrói se mudou
+  var atual=Array.from(sel.options).slice(1).map(function(o){return o.value;}).join('|');
+  if(atual===lista.join('|')){ if(cur) sel.value=cur; return; }
+  sel.innerHTML='<option value="">Todos status</option>';
+  lista.forEach(function(s){
+    var op=document.createElement('option'); op.value=s; op.textContent=s;
+    if(s===cur) op.selected=true;
+    sel.appendChild(op);
+  });
+}
+
+function _cdocPopStatusForm(){
+  var sel=document.getElementById('cef-sg'); if(!sel) return;
+  var cur=sel.value;
+  var lista=_cdocTodosStatuses();
+  sel.innerHTML='<option value="">-- Selecione --</option>';
+  lista.forEach(function(s){
+    var op=document.createElement('option'); op.value=s; op.textContent=s;
+    if(s===cur) op.selected=true;
+    sel.appendChild(op);
+  });
+}
+
 function _carregarCdocCustomStatuses(){
   _cdocCustomStatuses = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
   _cdocCustomStatuses.forEach(function(cs){
@@ -17485,11 +17508,11 @@ function _salvarNovoCdocStatus(){
   localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
   _cdocBadge[nome]={bg:cs.bg,c:cs.cor};
   var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove();
-  // Reopen form with updated select
-  var sel=document.getElementById('cef-sg');
-  if(sel){
-    var op=document.createElement('option'); op.value=nome; op.textContent=nome; sel.appendChild(op);
-  }
+  // Atualiza filtro da tabela e select do formulário
+  _cdocPopStatusFiltro();
+  _cdocPopStatusForm();
+  // Reopen gerenciar modal com lista atualizada
+  _abrirGerenciarCdocStatus();
   showToast('Status criado','"'+nome+'" adicionado com sucesso.','success');
 }
 function _excluirCdocCustomStatus(nome){
@@ -17498,6 +17521,11 @@ function _excluirCdocCustomStatus(nome){
   localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
   delete _cdocBadge[nome];
   var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove();
+  // Atualiza filtro da tabela e select do formulário
+  _cdocPopStatusFiltro();
+  _cdocPopStatusForm();
+  // Reopen gerenciar modal com lista atualizada
+  _abrirGerenciarCdocStatus();
   showToast('Excluído','"'+nome+'" removido.','warn');
 }
 // ────────────────────────────────────────────────────────────────────
@@ -18124,11 +18152,13 @@ function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocE
 function cdocEditBas(id){ var db=_cdocDb(); _cdocMode='bas'; _cdocEditId=id; _cdocAbrirFormBas(db.basicos.find(function(b){return b.id===id;})||null); }
 function cdocDelBas(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este projeto básico?')) return; var db=_cdocDb(); db.basicos=db.basicos.filter(function(b){return b.id!==id;}); _cdocSave(db); cdocRenderBas(); cdocRenderVisao(); }
 function cdocDelSelBas(){
+  if(!_siderRequireEdit()) return;
   if(!_cdocBasSel.size){alert('Nenhum registro selecionado.');return;}
   var ids=Array.from(_cdocBasSel);
   if(!confirm('Excluir '+ids.length+' projeto(s) básico(s) selecionado(s)?\nEsta ação não pode ser desfeita.')) return;
   var db=_cdocDb();
-  db.basicos=db.basicos.filter(function(b){return !_cdocBasSel.has(b.id);});
+  var idSet=new Set(ids.map(function(id){return String(id);}));
+  db.basicos=db.basicos.filter(function(b){return !idSet.has(String(b.id));});
   _cdocSave(db);
   _cdocBasSel.clear();
   cdocRenderBas();
@@ -18303,11 +18333,14 @@ function cdocNovoDet(){ if(!_siderRequireEdit()) return; _cdocMode='det'; _cdocE
 function cdocEditDet(id){ var db=_cdocDb(); _cdocMode='det'; _cdocEditId=id; _cdocAbrirFormDet(db.detalhados.find(function(d){return d.id===id;})||null); }
 function cdocDelDet(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este documento?')) return; var db=_cdocDb(); db.detalhados=db.detalhados.filter(function(d){return d.id!==id;}); _cdocSave(db); cdocRenderDet(); cdocRenderVisao(); }
 function cdocDelSelDet(){
+  if(!_siderRequireEdit()) return;
   if(!_cdocDetSel.size){alert('Nenhum registro selecionado.');return;}
   var ids=Array.from(_cdocDetSel);
   if(!confirm('Excluir '+ids.length+' documento(s) detalhado(s) selecionado(s)?\nEsta ação não pode ser desfeita.')) return;
   var db=_cdocDb();
-  db.detalhados=db.detalhados.filter(function(d){return !_cdocDetSel.has(d.id);});
+  // Normaliza para string para comparação segura (CSV importa IDs como string, form gera número)
+  var idSet=new Set(ids.map(function(id){return String(id);}));
+  db.detalhados=db.detalhados.filter(function(d){return !idSet.has(String(d.id));});
   _cdocSave(db);
   _cdocDetSel.clear();
   cdocRenderDet();
@@ -18360,14 +18393,10 @@ function _cdocAbrirFormDet(rec){
     +'</div>'
     +'<div class="cdoc-ef">'
     +(function(){
-  var fixos=['EM EMISSÃO','EMITIDO','ENVIADO AO CLIENTE','APROVADO','EM REVISÃO','CERTIFICADO',
-    'AGUARDANDO PACOTE DE FABRICAÇÃO','AGUARDAR EMISSÃO DE DIAGRAMA DE MONTAGEM','AGUARDANDO EMISSÃO DE MC','ENVIAR AO CLIENTE'];
-  var extras=_cdocCustomStatuses.map(function(cs){return cs.nome;});
-  var opts='<option value="">-- Selecione --</option>'+[...fixos,...extras].map(function(s){return '<option>'+s+'</option>';}).join('');
   return '<div style="display:flex;flex-direction:column;gap:3px;">'
     +'<label>Status do Documento</label>'
     +'<div style="display:flex;gap:4px;align-items:center;">'
-    +'<select id="cef-sg" style="flex:1;">'+opts+'</select>'
+    +'<select id="cef-sg" style="flex:1;"><option value="">-- Selecione --</option></select>'
     +'<button type="button" onclick="_abrirGerenciarCdocStatus()" title="Gerenciar status personalizados" '
     +'style="padding:3px 8px;font-size:11px;font-weight:700;background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:4px;cursor:pointer;white-space:nowrap;">&#9881; Status</button>'
     +'</div></div>';
@@ -18398,7 +18427,12 @@ function _cdocAbrirFormDet(rec){
     +'</div>';
   if(rec){
     var ss=function(id,val){var e=document.getElementById(id);if(e&&val!=null)e.value=val;};
-    ss('cef-obra',rec.obraId); ss('cef-sub',rec.sub); ss('cef-tipo',rec.tipo); ss('cef-sg',rec.statusGeral||'');
+    ss('cef-obra',rec.obraId); ss('cef-sub',rec.sub); ss('cef-tipo',rec.tipo);
+    // Popula o select de status (built-in + custom) antes de setar o valor
+    _cdocPopStatusForm();
+    ss('cef-sg',rec.statusGeral||'');
+  } else {
+    _cdocPopStatusForm();
   }
   _cdocPendingLibfab=[];_cdocPendingEnvio=[];
   document.getElementById('cdoc-edit-overlay').classList.add('show');
@@ -20616,25 +20650,79 @@ var _cdocColFltsBas={}, _cdocColFltsDet={};
 function _cdocToggleSelBas(id,e){
   if(e&&e.target&&e.target.tagName==='BUTTON') return;
   if(_cdocBasSel.has(id)) _cdocBasSel.delete(id); else _cdocBasSel.add(id);
-  cdocRenderBas();
+  // Atualiza apenas o checkbox e a classe da linha — sem re-render completo
+  var chk=document.querySelector('#cdb-tbody .cdb-row-chk[data-id="'+id+'"]');
+  if(chk){ chk.checked=_cdocBasSel.has(id); var tr=chk.closest('tr'); if(tr) tr.classList.toggle('cdoc-selected',_cdocBasSel.has(id)); }
+  _cdocAtualizarBarraSelBas();
 }
 function _cdocToggleSelDet(id,e){
   if(e&&e.target&&e.target.tagName==='BUTTON') return;
   if(_cdocDetSel.has(id)) _cdocDetSel.delete(id); else _cdocDetSel.add(id);
-  cdocRenderDet();
+  // Atualiza apenas o checkbox e a classe da linha — sem re-render completo
+  var chk=document.querySelector('#cdd-tbody .cdd-row-chk[data-id="'+id+'"]');
+  if(chk){ chk.checked=_cdocDetSel.has(id); var tr=chk.closest('tr'); if(tr) tr.classList.toggle('cdoc-selected',_cdocDetSel.has(id)); }
+  _cdocAtualizarBarraSelDet();
+}
+function _cdocAtualizarBarraSelBas(){
+  var fmtD=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var db=_cdocSBCache||_cdocLoad();
+  var selPeso=(db.basicos||[]).filter(function(b){return _cdocBasSel.has(b.id);}).reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+  var ps=document.getElementById('cdb-peso-sel'); if(ps) ps.textContent=_cdocBasSel.size?'Selecionados ('+_cdocBasSel.size+'): '+fmtD(selPeso)+' kg':'';
+  var btn=document.getElementById('cdb-btn-del-sel'); if(btn) btn.style.display=_cdocBasSel.size?'':'none';
+  var cnt=document.getElementById('cdb-del-count'); if(cnt) cnt.textContent=_cdocBasSel.size;
+  var bru=document.getElementById('cdb-btn-rev-up'); if(bru){bru.disabled=_cdocBasSel.size!==1;bru.style.opacity=_cdocBasSel.size===1?'1':'.45';}
+  var brd=document.getElementById('cdb-btn-rev-dn'); if(brd){brd.disabled=_cdocBasSel.size!==1;brd.style.opacity=_cdocBasSel.size===1?'1':'.45';}
+}
+function _cdocAtualizarBarraSelDet(){
+  var fmtD=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var db=_cdocSBCache||_cdocLoad();
+  var selPeso=(db.detalhados||[]).filter(function(d){return _cdocDetSel.has(d.id);}).reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+  var ps=document.getElementById('cdd-peso-sel'); if(ps) ps.textContent=_cdocDetSel.size?'Selecionados ('+_cdocDetSel.size+'): '+fmtD(selPeso)+' kg':'';
+  var btn=document.getElementById('cdd-btn-del-sel'); if(btn) btn.style.display=_cdocDetSel.size?'':'none';
+  var cnt=document.getElementById('cdd-del-count'); if(cnt) cnt.textContent=_cdocDetSel.size;
+  var grd=document.getElementById('cdd-btn-grd-emit'); if(grd) grd.style.display=_cdocDetSel.size?'':'none';
+  var dru=document.getElementById('cdd-btn-rev-up'); if(dru){dru.disabled=_cdocDetSel.size!==1;dru.style.opacity=_cdocDetSel.size===1?'1':'.45';}
+  var drd=document.getElementById('cdd-btn-rev-dn'); if(drd){drd.disabled=_cdocDetSel.size!==1;drd.style.opacity=_cdocDetSel.size===1?'1':'.45';}
 }
 function _cdocBasSelAll(cb){
   _cdocBasSel.clear();
   if(cb.checked) _cdocBasRows.forEach(function(b){if(!(String(b.id)).startsWith('__cron__')) _cdocBasSel.add(b.id);});
-  cdocRenderBas();
+  // Atualiza todos os checkboxes diretamente
+  document.querySelectorAll('#cdb-tbody .cdb-row-chk').forEach(function(chk){
+    var id=chk.dataset.id; var nid=isNaN(id)?id:Number(id);
+    chk.checked=_cdocBasSel.has(nid)||_cdocBasSel.has(id);
+    var tr=chk.closest('tr'); if(tr) tr.classList.toggle('cdoc-selected',chk.checked);
+  });
+  _cdocAtualizarBarraSelBas();
 }
 function _cdocDetSelAll(cb){
-  var db=_cdocDb(); _cdocDetSel.clear();
-  if(cb.checked) db.detalhados.forEach(function(d){_cdocDetSel.add(d.id);});
-  cdocRenderDet();
+  _cdocDetSel.clear();
+  if(cb.checked){
+    document.querySelectorAll('#cdd-tbody .cdd-row-chk').forEach(function(chk){
+      var id=chk.dataset.id; var nid=isNaN(id)?id:Number(id);
+      _cdocDetSel.add(nid);
+    });
+  }
+  // Atualiza todos os checkboxes diretamente
+  document.querySelectorAll('#cdd-tbody .cdd-row-chk').forEach(function(chk){
+    var id=chk.dataset.id; var nid=isNaN(id)?id:Number(id);
+    chk.checked=_cdocDetSel.has(nid);
+    var tr=chk.closest('tr'); if(tr) tr.classList.toggle('cdoc-selected',chk.checked);
+  });
+  _cdocAtualizarBarraSelDet();
 }
-function _cdocBasClearSel(){ _cdocBasSel.clear(); cdocRenderBas(); }
-function _cdocDetClearSel(){ _cdocDetSel.clear(); cdocRenderDet(); }
+function _cdocBasClearSel(){
+  _cdocBasSel.clear();
+  document.querySelectorAll('#cdb-tbody .cdb-row-chk').forEach(function(chk){ chk.checked=false; var tr=chk.closest('tr'); if(tr) tr.classList.remove('cdoc-selected'); });
+  var allChk=document.getElementById('cdb-chk-all'); if(allChk) allChk.checked=false;
+  _cdocAtualizarBarraSelBas();
+}
+function _cdocDetClearSel(){
+  _cdocDetSel.clear();
+  document.querySelectorAll('#cdd-tbody .cdd-row-chk').forEach(function(chk){ chk.checked=false; var tr=chk.closest('tr'); if(tr) tr.classList.remove('cdoc-selected'); });
+  var allChk=document.getElementById('cdd-chk-all'); if(allChk) allChk.checked=false;
+  _cdocAtualizarBarraSelDet();
+}
 
 /* ── Filtros de coluna (Excel-like) ── */
 var _cdocColFltCtx={tbl:null,col:null};
