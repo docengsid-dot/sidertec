@@ -17315,14 +17315,19 @@ function cdocRestaurarJSON(input){
 }
 
 function _cdocLoad(){
+  // Usa sempre o cache em memória se disponível — evita JSON.parse do localStorage a cada render
   var d=null;
-  if(_cdocSBCache) d=_cdocSBCache;
-  else { try{d=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){} }
-  // Normaliza estrutura para evitar crashes em render functions
+  if(_cdocSBCache && typeof _cdocSBCache==='object' && !Array.isArray(_cdocSBCache)){
+    d=_cdocSBCache;
+  } else {
+    try{d=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
+  }
   if(!d||typeof d!=='object'||Array.isArray(d)) d={};
   if(!Array.isArray(d.basicos)) d.basicos=[];
   if(!Array.isArray(d.detalhados)) d.detalhados=[];
   if(!d._ids||typeof d._ids!=='object') d._ids={bas:1,det:1};
+  // Garante que o cache sempre aponta para o objeto normalizado
+  if(!_cdocSBCache) _cdocSBCache=d;
   return d;
 }
 
@@ -17354,13 +17359,16 @@ function _cdocMergeSnapshots(remote,local){
   });
   return r;
 }
+var _cdocSaveTimer=null;
 function _cdocSave(db){
   _cdocSBCache=db;
-  try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+  // Debounce localStorage write — com 4766 docs JSON.stringify bloqueia a UI
+  clearTimeout(_cdocSaveTimer);
+  _cdocSaveTimer=setTimeout(function(){
+    try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+  },300);
   _cdocSBStatus('💾 Salvando...','#0369a1');
   (async function(){
-    // Envia o estado local diretamente — sem merge com remoto
-    // O merge aditivo trazia de volta registros deletados
     await _cdocSBPush(db);
     _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
     setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
@@ -18140,7 +18148,8 @@ function _cdocPopulateTipoFiltro(){
   if(cur) sel.value=cur;
 }
 function cdocRenderDet(){
-  cdocPopFilters();
+  // Popula filtros de forma assíncrona para não bloquear a renderização
+  setTimeout(cdocPopFilters, 0);
   _cdocPopulateTipoFiltro();
   var db=_cdocDb();
   var fObra=(document.getElementById('cdd-f-obra')||{}).value||'';
@@ -20888,33 +20897,43 @@ function cdocImportDet(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
+  showToast('Importando...','Lendo arquivo CSV...','info');
   var reader=new FileReader();
   reader.onload=function(e){
     var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
-    if(!lines.length){alert('Arquivo vazio.');return;}
+    if(!lines.length){showToast('Arquivo vazio','Nenhuma linha encontrada.','error');return;}
     var sep=lines[0].includes(';')?';':',';
     var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
-    var db=_cdocDb(); var added=0; var updated=0; var erros=[];
-    // Helper: normalizar data dd/mm/yyyy → yyyy-mm-dd
+
+    // Usa cache em memória diretamente — evita JSON.parse do localStorage
+    var db=_cdocSBCache||_cdocLoad();
+    if(!Array.isArray(db.detalhados)) db.detalhados=[];
+    if(!db._ids||typeof db._ids!=='object') db._ids={bas:1,det:1};
+
+    var added=0; var updated=0; var erros=[];
+
     function normData(v){
       if(!v) return '';
       if(v.includes('/')){var dp=v.split('/');if(dp.length===3)return dp[2]+'-'+dp[1]+'-'+dp[0];}
       return v;
     }
-    // Helper: upsert em array de histórico por data+status
     function upsertHist(hist,entry){
       if(!entry.data&&!entry.status) return hist;
       var idx=hist.findIndex(function(h){
         return h.data&&entry.data&&h.data===entry.data&&h.status===entry.status;
       });
-      if(idx>=0){
-        // Atualiza campos extras
-        Object.assign(hist[idx],entry);
-      } else {
-        hist.push(entry);
-      }
+      if(idx>=0){ Object.assign(hist[idx],entry); } else { hist.push(entry); }
       return hist;
     }
+
+    // Monta índice para lookup O(1) em vez de find() O(n) por linha
+    var numIdx={};   // num+obra → doc
+    var cliIdx={};   // cli+obra → doc
+    db.detalhados.forEach(function(d){
+      if(d.num&&d.obraId) numIdx[d.num+'|'+d.obraId]=d;
+      if(d.cli&&d.obraId) cliIdx[d.cli+'|'+d.obraId]=d;
+    });
+
     for(var i=1;i<lines.length;i++){
       var cols=_cdocParseCsvLine(lines[i],sep);
       var row={}; headers.forEach(function(h,hidx){row[h]=cols[hidx]||'';});
@@ -20923,12 +20942,10 @@ function cdocImportDet(input){
       var num=row['Nº Sidertec']||row['No Sidertec']||row['num']||'';
       if(!obra||!sub||!num){erros.push('Linha '+(i+1)+': Obra/TAG/Nº Sidertec obrigatórios'); continue;}
       var cli=row['Nº Cliente']||row['No Cliente']||'';
-      // --- Dados de Lib. Fab. do CSV ---
       var lfSt=row['Lib.Fab']||row['Status Lib. Fab.']||row['Lib. Fab.']||row['libfab']||'';
       var lfDt=normData(row['Data Lib.Fab']||row['Data Liberação']||row['data_libfab']||'');
       var lfGrd=row['GRD Lib.Fab']||row['GRD']||'';
       var lfObs=row['Obs Lib.Fab']||'';
-      // --- Dados de Envio do CSV ---
       var enSt=row['Envio']||row['Status Envio']||row['envio']||'';
       var enDt=normData(row['Data Envio']||row['data_envio']||'');
       var enRev=row['Rev Enviada']||row['Rev.Enviada']||'';
@@ -20938,9 +20955,11 @@ function cdocImportDet(input){
       var enRetReal=normData(row['Retorno Real']||row['Data Retorno Real']||row['Data Retorno']||'');
       var enSfinal=row['Status Final']||row['Status Final Aprovação']||row['Status Final Aprovacao']||'';
       var enObs=row['Obs Envio']||'';
-      // --- Chave de upsert ---
-      var existing=db.detalhados.find(function(d){return d.num===num&&d.obraId===obra;});
-      if(!existing&&cli) existing=db.detalhados.find(function(d){return d.cli===cli&&d.obraId===obra;});
+
+      // Lookup O(1)
+      var existing=numIdx[num+'|'+obra];
+      if(!existing&&cli) existing=cliIdx[cli+'|'+obra];
+
       var newData={
         obraId:obra,sub:sub,num:num,cli:cli,
         tipo:row['Tipo']||row['TIPO']||'',
@@ -20951,23 +20970,20 @@ function cdocImportDet(input){
         peso:(function(){var v=(row['Peso (kg)']||row['Peso']||'').trim().replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;})(),
         rev:row['Rev']||row['Rev.']||row['Revisão']||'',
         statusGeral:row['Status Geral']||row['Status']||null,
-        data:normData(row['Data']||'')};
+        data:normData(row['Data']||'')
+      };
       if(newData.tipo){
         var tipoMatch=(_cdocTipos||[]).find(function(t){return t.toLowerCase()===newData.tipo.toLowerCase();});
         if(tipoMatch) newData.tipo=tipoMatch;
       }
       if(existing){
-        // Atualizar campos escalares, preservar/atualizar históricos
         var lhist=existing.libfabHist||[];
         var ehist=existing.envioHist||[];
-        // Merge lib fab
         if(lfSt||lfDt) lhist=upsertHist(lhist,{status:lfSt||'Liberado',data:lfDt,grd:lfGrd,obs:lfObs});
-        // Merge envio
         if(enSt||enDt||enPrevRet||enRetReal||enSfinal) ehist=upsertHist(ehist,{status:enSt||'ENVIADO AO CLIENTE',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs});
         Object.assign(existing,newData);
         existing.libfabHist=lhist;
         existing.envioHist=ehist;
-        // Auto statusGeral
         if(!existing.statusGeral&&lfSt==='Liberado') existing.statusGeral='EMITIDO';
         if(enSfinal){var _sfMap={'APROVADO':'APROVADO','CERTIFICADO':'CERTIFICADO','COM COMENTÁRIOS':'EM REVISÃO','REPROVADO':'EM REVISÃO'};if(_sfMap[enSfinal]) existing.statusGeral=_sfMap[enSfinal];}
         updated++;
@@ -20981,14 +20997,21 @@ function cdocImportDet(input){
         newData.envioHist=ehistNew;
         if(!newData.statusGeral&&lfSt==='Liberado') newData.statusGeral='EMITIDO';
         db.detalhados.push(newData);
+        // Adiciona ao índice para evitar duplicatas na mesma importação
+        numIdx[num+'|'+obra]=newData;
+        if(cli) cliIdx[cli+'|'+obra]=newData;
         added++;
       }
     }
+
+    // Salva e renderiza — sem alert bloqueante
     _cdocSave(db);
-    var msg=added+' novo(s) + '+updated+' atualizado(s).';
-    if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
-    alert(msg);
-    cdocRenderDet(); cdocRenderVisao();
+    var msg=added+' novo(s) adicionado(s), '+updated+' atualizado(s).';
+    if(erros.length) msg+=' ('+erros.length+' linha(s) com erro)';
+    showToast('Importação concluída', msg, added+updated>0?'success':'warn');
+    if(erros.length) console.warn('[cdocImportDet] Erros:\n'+erros.join('\n'));
+    // Renderiza após microtask para garantir que _cdocSBCache já está atualizado
+    setTimeout(function(){ cdocRenderDet(); cdocRenderVisao(); }, 0);
   };
   reader.readAsText(file,'UTF-8');
 }
