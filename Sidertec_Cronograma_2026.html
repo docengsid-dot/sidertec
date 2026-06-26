@@ -140,6 +140,64 @@ header{background:var(--ink);padding:0 2rem;display:flex;align-items:center;gap:
 .sort-th:not(.asc):not(.desc) .sort-icon::after { content:'⇅'; }
 
 /* ── TABELA ESTILO EXCEL ─────────────────────────────────────── */
+/* ── BARRA DE ROLAGEM FLUTUANTE ─────────────────────────────────────── */
+/* Scrollbar sempre visível e com bom tamanho */
+.xl-table-wrap::-webkit-scrollbar,
+.tbl-wrap::-webkit-scrollbar,
+.lf-tbl-wrap::-webkit-scrollbar,
+.cdoc-pane::-webkit-scrollbar { width: 8px; height: 8px; }
+.xl-table-wrap::-webkit-scrollbar-track,
+.tbl-wrap::-webkit-scrollbar-track,
+.lf-tbl-wrap::-webkit-scrollbar-track,
+.cdoc-pane::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+.xl-table-wrap::-webkit-scrollbar-thumb,
+.tbl-wrap::-webkit-scrollbar-thumb,
+.lf-tbl-wrap::-webkit-scrollbar-thumb,
+.cdoc-pane::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+.xl-table-wrap::-webkit-scrollbar-thumb:hover,
+.tbl-wrap::-webkit-scrollbar-thumb:hover,
+.lf-tbl-wrap::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Barra de rolagem horizontal espelhada (flutuante no topo da viewport) */
+.scroll-mirror-x {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  height: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: rgba(241,245,249,.95);
+  border-top: 1px solid #e2e8f0;
+  z-index: 50;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.scroll-mirror-x::-webkit-scrollbar { height: 10px; }
+.scroll-mirror-x::-webkit-scrollbar-track { background: #f1f5f9; }
+.scroll-mirror-x::-webkit-scrollbar-thumb { background: #0369a1; border-radius: 4px; min-width: 40px; }
+.scroll-mirror-x::-webkit-scrollbar-thumb:hover { background: #0c4a6e; }
+.scroll-mirror-x-inner { height: 1px; pointer-events: none; }
+
+/* Barra vertical espelhada flutuante (lado direito da viewport) */
+.scroll-mirror-y {
+  position: fixed;
+  right: 6px;
+  width: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 9800;
+  border-radius: 6px;
+  background: rgba(241,245,249,.9);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  transition: opacity .2s;
+}
+.scroll-mirror-y::-webkit-scrollbar { width: 8px; }
+.scroll-mirror-y::-webkit-scrollbar-track { background: transparent; }
+.scroll-mirror-y::-webkit-scrollbar-thumb { background: #0369a1; border-radius: 4px; min-height: 30px; }
+.scroll-mirror-y::-webkit-scrollbar-thumb:hover { background: #0c4a6e; }
+.scroll-mirror-y-inner { width: 1px; pointer-events: none; }
+
 .xl-table-wrap {
   overflow-x: auto;
   overflow-y: auto;
@@ -2153,6 +2211,9 @@ ALTER TABLE medicao_terceiros
           </div>
         </div>
       </div>
+
+      <!-- Observações registradas -->
+      <div id="cm-obs-lista" style="margin-bottom:1rem;"></div>
 
       <!-- Adicionar Observação com anexo -->
       <div class="cron-add-obs">
@@ -4208,7 +4269,13 @@ function renderEtapasDinamicas(){
         var sTrClass = sConc ? 'etapa-row-done' : (sLate ? 'etapa-row-late' : '');
 
         var sPillHtml = '';
-        if(sConc) sPillHtml = '<span class="cron-etapa-status-pill done" style="font-size:9px;padding:1px 6px;">✅</span>';
+        if(sub.extra==='resultado' && sst.resultado){
+          // Mostra o resultado real (APR / APR c/com / REJ) em vez de genérico "Concluída"
+          var resVal = sst.resultado;
+          var resBg  = resVal==='APR'?'#166534': resVal==='APR c/com'?'#d97706':'#dc2626';
+          var resLbl = resVal==='APR'?'✅ Aprovado': resVal==='APR c/com'?'⚠ APR c/com':'❌ Rejeitado';
+          sPillHtml = '<span style="background:'+resBg+';color:#fff;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;white-space:nowrap;">'+resLbl+'</span>';
+        } else if(sConc) sPillHtml = '<span class="cron-etapa-status-pill done" style="font-size:9px;padding:1px 6px;">✅ Concluída</span>';
         else if(sLate) sPillHtml = '<span class="cron-etapa-status-pill late" style="font-size:9px;padding:1px 6px;">⚠</span>';
         else if(sst.real) sPillHtml = '<span class="cron-etapa-status-pill pend" style="font-size:9px;padding:1px 6px;">🔄</span>';
         else sPillHtml = '<span class="cron-etapa-status-pill na" style="font-size:9px;padding:1px 6px;">—</span>';
@@ -4491,7 +4558,37 @@ function etapaSet(key,campo,valor){
     }
   }
 }
-function etapaSetResultado(key,val){ if(!_etapasState[key])return; _etapasState[key].resultado=(_etapasState[key].resultado===val)?'':val; renderEtapasDinamicas(); }
+function etapaSetResultado(key,val){
+  if(!_etapasState[key]) return;
+  // Toggle: clicar no mesmo deseleciona
+  var novo = (_etapasState[key].resultado===val) ? '' : val;
+  _etapasState[key].resultado = novo;
+  // Persiste: o resultado é salvo na coluna col_obs da etapa (ex: obs_retorno_modelo)
+  // e também marca concluido quando APR ou APR c/com
+  var etapasDef = typeof _todasEtapas==='function' ? _todasEtapas() : [];
+  var eDef = etapasDef.find(function(e){ return e.key===key; }) ||
+    (function(){
+      var r=null;
+      etapasDef.forEach(function(e){ if(e.sub) e.sub.forEach(function(s){ if(s.key===key) r=s; }); });
+      return r;
+    })();
+  if(eDef && eDef.col_obs && editingCronId){
+    var upd = {atualizado_em: new Date().toISOString()};
+    upd[eDef.col_obs] = novo || null;
+    // Marca concluído automaticamente quando seleciona APR ou APR c/com
+    if(eDef.col_conc){
+      var conc = novo==='APR' || novo==='APR c/com';
+      upd[eDef.col_conc] = conc || null;
+      _etapasState[key].concluido = conc;
+    }
+    var i = allCronSubobras.findIndex(function(x){ return x.id===editingCronId; });
+    if(i>=0) allCronSubobras[i] = Object.assign({}, allCronSubobras[i], upd);
+    sbClient.from('cronograma_subobras').update(upd).eq('id', editingCronId).select()
+      .then(function(r){ if(r.error) console.warn('[etapaSetResultado]', r.error.message); })
+      .catch(function(e){ console.warn('[etapaSetResultado]', e.message); });
+  }
+  renderEtapasDinamicas();
+}
 function etapaToggleMontagemNA(){
   if(!_etapasState['montagem'])_etapasState['montagem']={};
   var novoVal = !_etapasState['montagem'].montagem_na;
@@ -4794,7 +4891,7 @@ function _salvarEtapaImediato(key, novoStatus){
   // Atualiza a coluna Avanço na tabela sem fechar o modal
   try{ if(typeof renderCronograma==='function') renderCronograma(); }catch(_){}
 }
-function svEtapas(s){ etapasStateFromSubobra(s); renderEtapasDinamicas(); }
+function svEtapas(s){ etapasStateFromSubobra(s); renderEtapasDinamicas(); setTimeout(renderObsLista,50); }
 
 document.addEventListener('DOMContentLoaded',function(){
   probeColunasSupabase();
@@ -6575,7 +6672,10 @@ async function salvarCronSubobra(){
     grd_modelo:          _v('rec_modelo','grd'),
     prev_retorno_modelo: _v('retorno_modelo','prev'),
     real_retorno_modelo: _v('retorno_modelo','real'),
-    obs_retorno_modelo:  _v('retorno_modelo','obs'),
+    // obs_retorno_modelo armazena o resultado (APR / APR c/com / REJ) — lê do resultado, não do obs
+    obs_retorno_modelo:  (_etapasState['retorno_modelo']||{}).resultado || _v('retorno_modelo','obs') || null,
+    // conc_retorno_modelo = true quando APR ou APR c/com
+    conc_retorno_modelo: (function(){ var r=(_etapasState['retorno_modelo']||{}).resultado; return (r==='APR'||r==='APR c/com') ? 'SIM' : null; })(),
     prev_pcte_fab:       _v('pcte_fab','prev'),
     real_pcte_fab:       _v('pcte_fab','real'),
     obs_pcte_fab:        _v('pcte_fab','obs'),
@@ -6794,6 +6894,42 @@ async function salvarCronSubobra(){
   }
 }
 
+// ── LISTAR OBSERVAÇÕES DO MODAL ───────────────────────────────────────
+function renderObsLista(){
+  var el = document.getElementById('cm-obs-lista'); if(!el) return;
+  var todas = _lsGet('cronograma_historico');
+  var lista = editingCronId ? todas.filter(function(h){ 
+    return String(h.subobra_id)===String(editingCronId) && h.autor !== 'Sistema';
+  }) : [];
+  if(!lista.length){
+    el.innerHTML='';
+    return;
+  }
+  var fmtDt = function(iso){
+    if(!iso) return '';
+    try{ var d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; }
+  };
+  el.innerHTML = '<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">📋 Observações registradas ('+lista.length+')</div>'
+    + lista.map(function(h){
+      return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0369a1;border-radius:6px;padding:8px 12px;margin-bottom:6px;position:relative;">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">'
+          + '<span style="font-size:11px;font-weight:700;color:#0369a1;">'+_esc(h.autor||'—')+'</span>'
+          + '<span style="font-size:10px;color:#94a3b8;">'+fmtDt(h.criado_em)+'</span>'
+          + (h.status_novo ? '<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 6px;font-weight:700;">'+_esc(h.status_novo)+'</span>' : '')
+          + '<button onclick="_excluirObs(\''+h.id+'\')" style="margin-left:auto;background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:13px;padding:0 2px;" title="Excluir observação">✕</button>'
+        + '</div>'
+        + '<div style="font-size:12px;color:#1e293b;line-height:1.5;">'+_esc(h.observacao||'')+'</div>'
+        + '</div>';
+    }).join('');
+}
+
+function _excluirObs(id){
+  if(!confirm('Excluir esta observação?')) return;
+  var todas = _lsGet('cronograma_historico');
+  _lsSet('cronograma_historico', todas.filter(function(h){ return String(h.id)!==String(id); }));
+  renderObsLista();
+}
+
 // ── ADICIONAR OBSERVAÇÃO (sem salvar o form inteiro) ──────────────────
 async function salvarObservacao(){
   if(!editingCronId){showToast('Salve primeiro','Salve a sub-obra antes de adicionar observações.','warn');return;}
@@ -6819,6 +6955,7 @@ async function salvarObservacao(){
     // Reset obs anexos
     _anexos.obs=[];
     renderAnexoList('obs');
+    renderObsLista();
     showToast('✓ Observação registrada','','success');
   }catch(e){showToast('Erro',e.message,'error');}
   finally{btn.disabled=false;btn.textContent='+ Registrar Observação';}
@@ -16925,7 +17062,7 @@ function cotExportarCSV(){
   }
 }</script>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
-        <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
+        <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
           <table class="cdoc-tbl">
             <thead><tr>
               <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="min-width:90px;"><div class="th-inner">GRD Remessa<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','remessaGRD')">&#9660;</button></div></th><th style="width:54px;"></th>
@@ -16977,7 +17114,7 @@ function cotExportarCSV(){
           </div>
         </div>
         <div id="cdd-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
-        <div style="overflow-x:auto;border:1.5px solid #bae6fd;border-radius:6px;">
+        <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
           <table class="cdoc-tbl">
             <thead><tr>
               <th style="width:28px;text-align:center;"><input type="checkbox" id="cdd-chk-all" onchange="_cdocDetSelAll(this)" style="cursor:pointer;"></th><th id="cdd-th-chk" style="width:24px;display:none;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'det','obraId')">&#9660;</button><button class="th-srt" id="cdd-srt-obraId" onclick="_cdocSort(event,'det','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'det','sub')">&#9660;</button><button class="th-srt" id="cdd-srt-sub" onclick="_cdocSort(event,'det','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'det','cli')">&#9660;</button><button class="th-srt" id="cdd-srt-cli" onclick="_cdocSort(event,'det','cli')">&#8693;</button></div></th><th><div class="th-inner">Nº Sidertec<button class="th-flt" onclick="_cdocShowColFlt(event,'det','num')">&#9660;</button><button class="th-srt" id="cdd-srt-num" onclick="_cdocSort(event,'det','num')">&#8693;</button></div></th><th><div class="th-inner">Tipo<button class="th-flt" onclick="_cdocShowColFlt(event,'det','tipo')">&#9660;</button><button class="th-srt" id="cdd-srt-tipo" onclick="_cdocSort(event,'det','tipo')">&#8693;</button></div></th><th style="min-width:180px;"><div class="th-inner">Título<button class="th-flt" onclick="_cdocShowColFlt(event,'det','titulo')">&#9660;</button><button class="th-srt" id="cdd-srt-titulo" onclick="_cdocSort(event,'det','titulo')">&#8693;</button></div></th><th style="min-width:150px;"><div class="th-inner">Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'det','desc')">&#9660;</button><button class="th-srt" id="cdd-srt-desc" onclick="_cdocSort(event,'det','desc')">&#8693;</button></div></th><th><div class="th-inner">Peça<button class="th-flt" onclick="_cdocShowColFlt(event,'det','peca')">&#9660;</button><button class="th-srt" id="cdd-srt-peca" onclick="_cdocSort(event,'det','peca')">&#8693;</button></div></th><th class="r"><div class="th-inner">Peso<button class="th-srt" id="cdd-srt-peso" onclick="_cdocSort(event,'det','peso')">&#8693;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'det','rev')">&#9660;</button><button class="th-srt" id="cdd-srt-rev" onclick="_cdocSort(event,'det','rev')">&#8693;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'det','statusGeral')">&#9660;</button><button class="th-srt" id="cdd-srt-statusGeral" onclick="_cdocSort(event,'det','statusGeral')">&#8693;</button></div></th><th><div class="th-inner">Lib. Fab.<button class="th-srt" id="cdd-srt-libData" onclick="_cdocSort(event,'det','libData')">&#8693;</button></div></th><th>Envio Cli.</th><th style="font-size:9px;white-space:nowrap;">Finalidade</th><th style="font-size:9px;white-space:nowrap;"><div class="th-inner">Prev. Ret.<button class="th-srt" id="cdd-srt-prevRetorno" onclick="_cdocSort(event,'det','prevRetorno')">&#8693;</button></div></th><th style="font-size:9px;white-space:nowrap;"><div class="th-inner">Ret. Real<button class="th-srt" id="cdd-srt-retornoReal" onclick="_cdocSort(event,'det','retornoReal')">&#8693;</button></div></th><th style="font-size:9px;white-space:nowrap;">Status Final</th><th><div class="th-inner">Eng.<button class="th-flt" onclick="_cdocShowColFlt(event,'det','engResp')">&#9660;</button><button class="th-srt" id="cdd-srt-engResp" onclick="_cdocSort(event,'det','engResp')">&#8693;</button></div></th><th style="width:54px;"></th>
@@ -17382,6 +17519,7 @@ function cdocRefreshAll(){
   try{ cdocRenderBas(); }catch(e){ console.error('[CDOC] RenderBas error:',e); }
   try{ cdocRenderDet(); }catch(e){ console.error('[CDOC] RenderDet error:',e); }
   try{ cdocPopFilters(); }catch(e){ console.error('[CDOC] PopFilters error:',e); }
+  setTimeout(function(){ if(typeof syncScrollMirrors==='function') syncScrollMirrors(); }, 200);
 }
 
 // Garante valores mínimos para contadores de GRD de obras conhecidas.
@@ -21192,4 +21330,107 @@ document.addEventListener('DOMContentLoaded', function(){
     }catch(e){}
   },3000);
 });
-</script></body></html>
+</script>
+
+<script>
+/* ── BARRAS DE ROLAGEM FLUTUANTES ─────────────────────────────────────
+   Barra horizontal espelhada (sticky bottom) e vertical (fixed right)
+   para .xl-table-wrap e .lf-tbl-wrap — sem precisar ir ao final.
+───────────────────────────────────────────────────────────────────── */
+(function(){
+  'use strict';
+  var SEL = '.xl-table-wrap, .lf-tbl-wrap';
+  var _attached = new WeakSet();
+  var _pairs = [];
+
+  function _px(v){ return Math.round(v)+'px'; }
+
+  function _attach(wrap){
+    if(_attached.has(wrap)) return;
+    _attached.add(wrap);
+
+    /* barra horizontal espelhada — inserida logo após o wrap */
+    var mx = document.createElement('div');
+    mx.className = 'scroll-mirror-x';
+    mx.innerHTML = '<div class="scroll-mirror-x-inner"></div>';
+    if(wrap.nextSibling) wrap.parentNode.insertBefore(mx, wrap.nextSibling);
+    else wrap.parentNode.appendChild(mx);
+    var mxi = mx.firstChild;
+
+    /* barra vertical — fixed na direita da viewport */
+    var my = document.createElement('div');
+    my.className = 'scroll-mirror-y';
+    my.style.cssText = 'display:none;position:fixed;right:6px;width:10px;overflow-y:auto;overflow-x:hidden;z-index:9800;';
+    my.innerHTML = '<div class="scroll-mirror-y-inner"></div>';
+    document.body.appendChild(my);
+    var myi = my.firstChild;
+
+    var p = {wrap:wrap, mx:mx, mxi:mxi, my:my, myi:myi, lx:false, ly:false};
+    _pairs.push(p);
+
+    /* barra horizontal TOPO espelhada */
+    var mt = document.createElement('div');
+    mt.className = 'scroll-mirror-x';
+    mt.style.cssText = 'border-top:none;border-bottom:1px solid #e2e8f0;';
+    mt.innerHTML = '<div class="scroll-mirror-x-inner"></div>';
+    wrap.parentNode.insertBefore(mt, wrap);
+    var mti = mt.firstChild;
+    p.mt = mt; p.mti = mti;
+
+    wrap.addEventListener('scroll', function(){
+      if(!p.lx){ p.ly=true; mx.scrollLeft=wrap.scrollLeft; mt.scrollLeft=wrap.scrollLeft; }
+      if(!p.ly){ p.lx=true; my.scrollTop=wrap.scrollTop;   }
+      p.lx=p.ly=false;
+      _posY(p);
+    }, {passive:true});
+    mx.addEventListener('scroll', function(){
+      if(p.ly){p.ly=false;return;} p.lx=true; wrap.scrollLeft=mx.scrollLeft; mt.scrollLeft=mx.scrollLeft; p.lx=false;
+    }, {passive:true});
+    mt.addEventListener('scroll', function(){
+      if(p.ly){p.ly=false;return;} p.lx=true; wrap.scrollLeft=mt.scrollLeft; mx.scrollLeft=mt.scrollLeft; p.lx=false;
+    }, {passive:true});
+    my.addEventListener('scroll', function(){
+      if(p.lx){p.lx=false;return;} p.ly=true; wrap.scrollTop=my.scrollTop; p.ly=false;
+    }, {passive:true});
+
+    _resize(p);
+  }
+
+  function _posY(p){
+    var rect = p.wrap.getBoundingClientRect();
+    var vTop = Math.max(rect.top, 0);
+    var vBot = Math.min(rect.bottom, window.innerHeight);
+    var h = vBot - vTop - 4;
+    if(h > 30 && p.wrap.scrollHeight > p.wrap.clientHeight + 4){
+      p.my.style.top    = _px(vTop);
+      p.my.style.height = _px(h);
+      p.my.style.display = 'block';
+    } else {
+      p.my.style.display = 'none';
+    }
+  }
+
+  function _resize(p){
+    if(!document.body.contains(p.wrap)) return;
+    p.mxi.style.width = _px(p.wrap.scrollWidth);
+    p.mx.style.width  = _px(p.wrap.offsetWidth);
+    if(p.mt){ p.mti.style.width=_px(p.wrap.scrollWidth); p.mt.style.width=_px(p.wrap.offsetWidth); }
+    p.myi.style.height = _px(p.wrap.scrollHeight);
+    _posY(p);
+  }
+
+  function _scan(){
+    document.querySelectorAll(SEL).forEach(_attach);
+    _pairs.forEach(_resize);
+  }
+
+  window.addEventListener('scroll',   function(){ _pairs.forEach(function(p){_posY(p);}); }, {passive:true});
+  window.addEventListener('resize',   function(){ _pairs.forEach(_resize); });
+  document.addEventListener('DOMContentLoaded', function(){ _scan(); setInterval(_scan, 800); });
+  setTimeout(function(){ _scan(); }, 200);
+  setTimeout(function(){ _scan(); }, 1200);
+  window.syncScrollMirrors = _scan;
+})();
+</script>
+
+</body></html>
