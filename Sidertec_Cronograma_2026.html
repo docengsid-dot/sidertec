@@ -18730,80 +18730,229 @@ function cdocToggleGrdMode(){
 }
 function cdocEmitirGrd(){
   if(!_siderRequireEdit()) return;
-  var db=_cdocDb(); var sels=[];
-  // Usa a seleção normal de linhas, filtrada pela obra ativa
+  var db=_cdocDb();
   var _fObraSel=(document.getElementById('cdd-f-obra')||{}).value||'';
+  var sels=[];
   _cdocDetSel.forEach(function(id){
     var doc=db.detalhados.find(function(d){return d.id===id;});
     if(doc&&(!_fObraSel||doc.obraId===_fObraSel)) sels.push(doc);
   });
-  if(!sels.length){alert('Selecione documentos desta obra. Use o filtro de obra para ver apenas os documentos desejados.');return;}
-  // Perguntar tipo de emissão
-  var tiposGrd=['Para Aprovação','Para Certificação','Para Informação'];
-  var tipoIdx=0;
-  // Mini-modal inline para tipo de emissão
-  var tipoEm=null;
-  var overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
-    // Pré-calcular número sugerido (sem gravar ainda)
-  // Usa o filtro de obra ativo como referência principal
-  var _fObraEmit=(document.getElementById('cdd-f-obra')||{}).value||'';
-  var _obraRefPrev=_fObraEmit||(sels[0]&&sels[0].obraId)||'';
-  var _m2=(_obraRefPrev||'').match(/^([A-Z]\d+)/i);
+  if(!sels.length){alert('Selecione documentos desta obra.');return;}
+
+  // Calcular próximo número
+  var _fObraEmit=_fObraSel||(sels[0]&&sels[0].obraId)||'';
+  var _m2=(_fObraEmit||'').match(/^([A-Z]\d+)/i);
   var _pfx2=_m2?_m2[1].toUpperCase():'GRD';
-  // Pré-visualiza o próximo número filtrando apenas GRDs desta obra (sem gravar ainda)
   var _dbPrev=_cdocLoad();
   var _maxPrev=0;
-  (_dbPrev._grds||[]).forEach(function(g){ if(_cdocGrdPrefix(g.numero)===_pfx2){var n=_cdocParseGrdNum(g.numero);if(n>_maxPrev)_maxPrev=n;} });
-  (_dbPrev.detalhados||[]).forEach(function(d){(d.envioHist||[]).forEach(function(h){ if(_cdocGrdPrefix(h.grd)===_pfx2){var n=_cdocParseGrdNum(h.grd);if(n>_maxPrev)_maxPrev=n;} });});
+  (_dbPrev._grds||[]).forEach(function(g){if(_cdocGrdPrefix(g.numero)===_pfx2){var n=_cdocParseGrdNum(g.numero);if(n>_maxPrev)_maxPrev=n;}});
+  (_dbPrev.detalhados||[]).forEach(function(d){(d.envioHist||[]).forEach(function(h){if(_cdocGrdPrefix(h.grd)===_pfx2){var n=_cdocParseGrdNum(h.grd);if(n>_maxPrev)_maxPrev=n;}});});
   var _legadoPrev=(_dbPrev._grdCounters||{})[_pfx2]||0;
   if(_legadoPrev>_maxPrev) _maxPrev=_legadoPrev;
   var _numPrev=_pfx2+'-GRD-'+String(_maxPrev+1).padStart(4,'0');
-  overlay.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.22);">'
-    +'<div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-bottom:14px;">📋 Emitir GRD</div>'
-    +'<div style="margin-bottom:12px;">'
-    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº da GRD <span style="font-size:9px;color:#94a3b8;font-weight:400;">(automático — pode editar)</span></label>'
-    +'<input id="grd-num-input" value="'+_numPrev+'" style="width:100%;box-sizing:border-box;font-size:14px;font-weight:700;font-family:Courier New,monospace;padding:7px 10px;border:2px solid #0369a1;border-radius:5px;color:#0369a1;"></div>'
-    +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">Tipo de Emissão</div>'
-    +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">'
-    +(function(){
-      var tipoColors={'Para Aprovação':'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;',
-        'Para Certificação':'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;',
-        'Para Informação':'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;'};
-      return tiposGrd.map(function(t,i){
-        var cs=tipoColors[t]||'';
-        return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">'
-          +'<input type="radio" name="grd-tipo" value="'+t+'"'+(i===0?' checked':'')+' style="accent-color:#0369a1;">'
-          +'<span style="'+cs+'padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;">'+t+'</span>'
-          +'</label>';
-      }).join('');
-    })()
+
+  var tiposGrd=['Para Aprovação','Para Certificação','Para Informação'];
+  var tipoColors={'Para Aprovação':'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;',
+    'Para Certificação':'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;',
+    'Para Informação':'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;'};
+
+  var overlay=document.createElement('div');
+  overlay.id='grd-step1-ov';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML='<div style="background:#fff;border-radius:12px;padding:28px 32px;min-width:440px;max-width:96vw;box-shadow:0 12px 48px rgba(0,0,0,.28);">'
+    +'<div style="font-size:16px;font-weight:800;color:#0c4a6e;margin-bottom:18px;">📋 Emitir GRD</div>'
+    +'<div style="margin-bottom:14px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº da GRD <span style="font-size:9px;color:#94a3b8;">(automático — pode editar)</span></label>'
+    +'<input id="grd-num-input" value="'+_numPrev+'" style="width:100%;box-sizing:border-box;font-size:15px;font-weight:700;font-family:Courier New,monospace;padding:8px 10px;border:2px solid #0369a1;border-radius:6px;color:#0369a1;"></div>'
+    +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;">Tipo(s) de Emissão <span style="font-size:9px;color:#94a3b8;">(pode selecionar mais de um)</span></div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">'
+    +tiposGrd.map(function(t,i){
+      var cs=tipoColors[t]||'';
+      return '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;transition:background .1s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'
+        +'<input type="checkbox" name="grd-tipo-chk" value="'+t+'"'+(i===0?' checked':'')+' style="width:16px;height:16px;accent-color:#0369a1;cursor:pointer;">'
+        +'<span style="'+cs+'padding:3px 12px;border-radius:4px;font-size:12px;font-weight:700;">'+t+'</span>'
+        +'</label>';
+    }).join('')
     +'</div>'
-    +'<div style="margin-bottom:10px;display:flex;gap:12px;">'
-    +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Prev. Retorno (opcional)</label>'
-    +'<input id="grd-prev-ret-input" type="date" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;"></div>'
-    +'</div>'
-    +'<div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
+    +'<div style="margin-bottom:10px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Prev. Retorno (opcional)</label>'
+    +'<input id="grd-prev-ret-input" type="date" style="width:160px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;"></div>'
+    +'<div style="margin-bottom:18px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
     +'<textarea id="grd-obs-input" rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;resize:vertical;"></textarea></div>'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;">'
-    +'<button id="grd-tipo-cancel" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:7px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
-    +'<button id="grd-tipo-ok" style="background:#0369a1;color:#fff;border:none;border-radius:5px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">Gerar GRD</button>'
+    +'<button id="grd-s1-cancel" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:8px 20px;font-size:12px;cursor:pointer;">Cancelar</button>'
+    +'<button id="grd-s1-ok" style="background:#0369a1;color:#fff;border:none;border-radius:6px;padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;">Próximo ▶ Definir Documentos</button>'
     +'</div></div>';
   document.body.appendChild(overlay);
-  document.getElementById('grd-tipo-cancel').onclick=function(){document.body.removeChild(overlay);};
-  document.getElementById('grd-tipo-ok').onclick=function(){
-    var sel=overlay.querySelector('input[name=grd-tipo]:checked');
-    tipoEm=sel?sel.value:'Para Aprovação';
-    var obsEl=overlay.querySelector('#grd-obs-input');
-    var obsGrd=obsEl?obsEl.value:'';
-    var prevRetEl=overlay.querySelector('#grd-prev-ret-input');
-    var prevRetGrd=prevRetEl?prevRetEl.value:'';
-    var numEl=document.getElementById('grd-num-input');
-    var numCustom=numEl&&numEl.value.trim()?numEl.value.trim():null;
+
+  document.getElementById('grd-s1-cancel').onclick=function(){document.body.removeChild(overlay);};
+  document.getElementById('grd-s1-ok').onclick=function(){
+    var chks=Array.from(overlay.querySelectorAll('input[name=grd-tipo-chk]:checked')).map(function(c){return c.value;});
+    if(!chks.length){alert('Selecione ao menos um tipo de emissão.');return;}
+    var numCustom=(document.getElementById('grd-num-input')||{}).value||'';
+    numCustom=numCustom.trim()||null;
+    var obsGrd=(document.getElementById('grd-obs-input')||{}).value||'';
+    var prevRetGrd=(document.getElementById('grd-prev-ret-input')||{}).value||'';
     document.body.removeChild(overlay);
-    _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd);
+    _cdocGrdStep2(sels, chks, obsGrd, numCustom, prevRetGrd);
   };
-  return; // execução continua em _cdocGerarGrdJanela
+}
+
+// ── STEP 2: modal com filtros + finalidade por documento ────────────────────
+function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
+  var db=_cdocDb();
+  // Coleta todos os tipos de documento únicos presentes na seleção
+  var tiposDoc=[...new Set(sels.map(function(d){return d.tipo||'—';}))].sort();
+  // Estado: docs com finalidade individual (inicia com o primeiro tipo)
+  var docState=sels.map(function(d){return {doc:d, finalidade:tiposEm[0], incluir:true};});
+
+  var overlay2=document.createElement('div');
+  overlay2.id='grd-step2-ov';
+  overlay2.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;';
+
+  function render(){
+    var fTipo=(overlay2._fTipo||'');
+    var fBusca=(overlay2._fBusca||'').toLowerCase();
+    var tipoColors={'Para Aprovação':'#ede9fe;color:#6d28d9','Para Certificação':'#dbeafe;color:#1d4ed8','Para Informação':'#f1f5f9;color:#475569'};
+
+    var filtrados=docState.filter(function(ds){
+      if(fTipo&&ds.doc.tipo!==fTipo) return false;
+      if(fBusca){
+        var txt=((ds.doc.num||'')+(ds.doc.cli||'')+(ds.doc.titulo||'')+(ds.doc.desc||'')+(ds.doc.sub||'')).toLowerCase();
+        if(!txt.includes(fBusca)) return false;
+      }
+      return true;
+    });
+
+    var incl=docState.filter(function(ds){return ds.incluir;}).length;
+    var totalAll=docState.length;
+
+    var rows=filtrados.map(function(ds,i){
+      var d=ds.doc;
+      var bgRow=ds.incluir?'':'#fef2f2';
+      var tc=tipoColors[ds.finalidade]||'#f1f5f9;color:#475569';
+      var tcParts=tc.split(';color:');
+      return '<tr style="background:'+bgRow+';border-bottom:1px solid #f1f5f9;">'
+        +'<td style="text-align:center;padding:4px;"><input type="checkbox" data-grd2-idx="'+docState.indexOf(ds)+'" '+(ds.incluir?'checked':'')+' style="width:14px;height:14px;accent-color:#0369a1;cursor:pointer;" onchange="_grd2ToggleIncluir(this)"></td>'
+        +'<td style="padding:4px 6px;font-size:10px;font-family:Courier New,monospace;white-space:nowrap;color:#0369a1;">'+_esc(d.num||'')+'</td>'
+        +'<td style="padding:4px 6px;font-size:10px;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(d.sub||'')+'</td>'
+        +'<td style="padding:4px 6px;font-size:10px;font-family:Courier New,monospace;white-space:nowrap;color:#64748b;">'+_esc(d.cli||'')+'</td>'
+        +'<td style="padding:4px 6px;font-size:10px;">'+_esc(d.tipo||'')+'</td>'
+        +'<td style="padding:4px 6px;font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(d.titulo||d.desc||'')+'">'+_esc(d.titulo||d.desc||'—')+'</td>'
+        +'<td style="padding:4px 6px;font-size:10px;text-align:center;">'+_esc(d.rev||'')+'</td>'
+        +'<td style="padding:4px;">'
+          +'<select data-grd2-idx="'+docState.indexOf(ds)+'" onchange="_grd2SetFinalidade(this)" style="font-size:10px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;background:#'+tcParts[0]+';color:'+(tcParts[1]||'#475569')+';font-weight:700;">'
+          +tiposEm.map(function(t){return '<option value="'+t+'"'+(t===ds.finalidade?' selected':'')+'>'+t+'</option>';}).join('')
+          +'</select>'
+        +'</td>'
+      +'</tr>';
+    }).join('');
+
+    var html='<div style="background:#fff;border-radius:12px;width:1000px;max-width:100%;box-shadow:0 16px 60px rgba(0,0,0,.3);">'
+      // Header
+      +'<div style="background:#0c4a6e;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:12px;">'
+        +'<span style="font-size:15px;font-weight:800;">📋 GRD — Definir Documentos e Finalidade</span>'
+        +'<span style="font-size:11px;background:rgba(255,255,255,.15);padding:2px 10px;border-radius:10px;margin-left:auto;">'+(numCustom||'')+'</span>'
+        +'<button onclick="document.getElementById(\'grd-step2-ov\').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;margin-left:8px;">✕</button>'
+      +'</div>'
+      // Filtros
+      +'<div style="padding:12px 20px;border-bottom:1px solid #e2e8f0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'
+        +'<span style="font-size:11px;font-weight:700;color:#64748b;">'+incl+'/'+totalAll+' docs incluídos</span>'
+        +'<select id="grd2-f-tipo" onchange="_grd2Filter()" style="font-size:11px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:4px;">'
+          +'<option value="">Todos os tipos</option>'
+          +tiposDoc.map(function(t){return '<option value="'+t+'"'+(fTipo===t?' selected':'')+'>'+t+'</option>';}).join('')
+        +'</select>'
+        +'<input id="grd2-f-busca" placeholder="Buscar por Nº, Título, Descrição..." value="'+(overlay2._fBusca||'')+'" oninput="_grd2Filter()" style="font-size:11px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:4px;width:220px;">'
+        +'<button onclick="_grd2ToggleAll(true)" style="font-size:10px;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;padding:3px 10px;cursor:pointer;">☑ Todos</button>'
+        +'<button onclick="_grd2ToggleAll(false)" style="font-size:10px;background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:3px 10px;cursor:pointer;">☐ Nenhum</button>'
+        +(tiposEm.length>1?'<button onclick="_grd2SetAllFinalidade()" style="font-size:10px;background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:4px;padding:3px 10px;cursor:pointer;">↕ Aplicar finalidade a todos</button>':'')
+      +'</div>'
+      // Tabela
+      +'<div style="overflow-x:auto;max-height:55vh;">'
+        +'<table style="width:100%;border-collapse:collapse;">'
+          +'<thead><tr style="background:#f8fafc;font-size:10px;color:#64748b;">'
+            +'<th style="padding:6px 4px;text-align:center;width:30px;"><input type="checkbox" id="grd2-chk-all" checked onchange="_grd2ToggleAll(this.checked)" style="cursor:pointer;"></th>'
+            +'<th style="padding:6px;text-align:left;">Nº Sidertec</th>'
+            +'<th style="padding:6px;text-align:left;">TAG</th>'
+            +'<th style="padding:6px;text-align:left;">Nº Cliente</th>'
+            +'<th style="padding:6px;text-align:left;">Tipo</th>'
+            +'<th style="padding:6px;text-align:left;">Título / Descrição</th>'
+            +'<th style="padding:6px;text-align:center;">Rev.</th>'
+            +'<th style="padding:6px;text-align:left;min-width:160px;">Finalidade de Remessa</th>'
+          +'</tr></thead>'
+          +'<tbody>'+rows+'</tbody>'
+        +'</table>'
+      +'</div>'
+      // Footer
+      +'<div style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;align-items:center;">'
+        +'<span style="font-size:11px;color:#64748b;margin-right:auto;">'+obsGrd+'</span>'
+        +'<button onclick="document.getElementById(\'grd-step2-ov\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:8px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
+        +'<button onclick="_grd2Confirmar()" style="background:#0369a1;color:#fff;border:none;border-radius:6px;padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;">✅ Gerar GRD ('+incl+' docs)</button>'
+      +'</div>'
+    +'</div>';
+    overlay2.innerHTML=html;
+  }
+
+  // Expõe estado ao window para callbacks inline
+  window._grd2State=docState;
+  window._grd2Overlay=overlay2;
+  window._grd2Params={tiposEm,obsGrd,numCustom,prevRetGrd};
+
+  window._grd2ToggleIncluir=function(chk){
+    var idx=parseInt(chk.dataset.grd2Idx);
+    window._grd2State[idx].incluir=chk.checked;
+    // Só atualiza a linha visualmente sem re-render completo
+    var tr=chk.closest('tr');
+    if(tr) tr.style.background=chk.checked?'':'#fef2f2';
+    // Atualiza contador
+    var incl=window._grd2State.filter(function(ds){return ds.incluir;}).length;
+    var btn=document.querySelector('#grd-step2-ov button[onclick="_grd2Confirmar()"]');
+    if(btn) btn.textContent='✅ Gerar GRD ('+incl+' docs)';
+    var cnt=document.querySelector('#grd-step2-ov span[style*="margin-right:auto"]');
+    // update header counter
+    var headerSpan=document.querySelector('#grd-step2-ov span[style*="11px;font-weight:700;color:#64748b"]');
+    if(headerSpan) headerSpan.textContent=incl+'/'+window._grd2State.length+' docs incluídos';
+  };
+  window._grd2SetFinalidade=function(sel){
+    var idx=parseInt(sel.dataset.grd2Idx);
+    window._grd2State[idx].finalidade=sel.value;
+    // Atualiza cores do select
+    var tc={'Para Aprovação':'background:#ede9fe;color:#6d28d9','Para Certificação':'background:#dbeafe;color:#1d4ed8','Para Informação':'background:#f1f5f9;color:#475569'};
+    var style=tc[sel.value]||'background:#f1f5f9;color:#475569';
+    sel.setAttribute('style','font-size:10px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;'+style+';font-weight:700;');
+  };
+  window._grd2ToggleAll=function(v){
+    window._grd2State.forEach(function(ds){ds.incluir=v;});
+    render();
+    overlay2._fTipo=(document.getElementById('grd2-f-tipo')||{}).value||'';
+    overlay2._fBusca=(document.getElementById('grd2-f-busca')||{}).value||'';
+    render();
+  };
+  window._grd2SetAllFinalidade=function(){
+    var tiposEm2=window._grd2Params.tiposEm;
+    if(tiposEm2.length<2) return;
+    var escolha=prompt('Aplicar qual finalidade a todos os documentos visíveis?\n'+tiposEm2.map(function(t,i){return (i+1)+'. '+t;}).join('\n')+'\n\nDigite o número:');
+    var idx=parseInt(escolha)-1;
+    if(isNaN(idx)||idx<0||idx>=tiposEm2.length) return;
+    window._grd2State.forEach(function(ds){ds.finalidade=tiposEm2[idx];});
+    render();
+  };
+  window._grd2Filter=function(){
+    overlay2._fTipo=(document.getElementById('grd2-f-tipo')||{}).value||'';
+    overlay2._fBusca=(document.getElementById('grd2-f-busca')||{}).value||'';
+    render();
+  };
+  window._grd2Confirmar=function(){
+    var p=window._grd2Params;
+    var inclSels=window._grd2State.filter(function(ds){return ds.incluir;}).map(function(ds){return {doc:ds.doc,finalidade:ds.finalidade};});
+    if(!inclSels.length){alert('Nenhum documento selecionado para incluir na GRD.');return;}
+    document.getElementById('grd-step2-ov').remove();
+    _cdocGerarGrdJanela(inclSels, p.tiposEm, p.obsGrd, p.numCustom, p.prevRetGrd);
+  };
+
+  document.body.appendChild(overlay2);
+  render();
+  overlay2._fTipo='';
+  overlay2._fBusca='';
 }
 // Gerar número de GRD baseado na obra — sequência independente por prefixo de obra
 function _cdocGenGrdNum(obraId){
@@ -18873,48 +19022,77 @@ function _cdocObraDeGrd(numero, fallback){
 function _cdocHojeISO(){
   var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd){
+function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
+  // inclSels = [{doc, finalidade}]  (novo formato do step2)
+  // suporte ao formato antigo (array de docs simples)
+  if(inclSels.length && inclSels[0].doc===undefined){
+    inclSels=inclSels.map(function(d){return {doc:d, finalidade:tiposEm[0]||'Para Aprovação'};});
+  }
+  var sels=inclSels.map(function(ds){return ds.doc;});
   var hoje=new Date(); var dStr=hoje.toLocaleDateString('pt-BR');
   var dataISO=_cdocHojeISO();
-  // Gerar número de GRD (baseia no filtro de obra ativo ou no primeiro doc)
   var _fObraJan=(document.getElementById('cdd-f-obra')||{}).value||'';
   var obraRef=_fObraJan||(sels[0]?sels[0].obraId:'');
   var grdNum=numCustom||_cdocGenGrdNum(obraRef);
-  // Salvar GRD no banco e atualizar envioHist de cada doc
   var db=_cdocLoad();
   db._grds=db._grds||[];
   db._ids=db._ids||{bas:1,det:1,grd:0};
   db._ids.grd=(db._ids.grd||0)+1;
   var grdId=db._ids.grd;
-  // Garante que a obra salva corresponde ao prefixo do número
   var _obraFinal=_cdocObraDeGrd(grdNum,obraRef)||obraRef;
-  var grdRec={id:grdId,numero:grdNum,data:dataISO,tipo:tipoEm,obs:obsGrd||'',obra:_obraFinal,modulo:'det',prevRetorno:prevRetGrd||'',
-    docs:sels.map(function(d){return {docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||''};}) };
-  grdRec.status='rascunho'; // salva como rascunho; 'enviado' só ao clicar Enviar
+  var tiposStr=tiposEm.join(' + ');
+  var grdRec={id:grdId,numero:grdNum,data:dataISO,tipo:tiposStr,obs:obsGrd||'',obra:_obraFinal,modulo:'det',prevRetorno:prevRetGrd||'',
+    docs:inclSels.map(function(ds){var d=ds.doc; return {docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||'',finalidade:ds.finalidade};})};
+  grdRec.status='rascunho';
   db._grds.push(grdRec);
-  // ── Atualizar envioHist de cada documento selecionado ──
-  sels.forEach(function(sel){
-    var doc=db.detalhados.find(function(d){return d.id===sel.id;});
+  inclSels.forEach(function(ds){
+    var doc=db.detalhados.find(function(d){return d.id===ds.doc.id;});
     if(!doc) return;
     doc.envioHist=doc.envioHist||[];
-    doc.envioHist.push({rev:doc.rev||'',data:dataISO,finalidade:tipoEm,grd:grdNum,
+    doc.envioHist.push({rev:doc.rev||'',data:dataISO,finalidade:ds.finalidade,grd:grdNum,
       prevRetorno:prevRetGrd||'',retornoReal:'',statusFinal:'',obs:obsGrd||'',status:'Concluído'});
-    // A revisão registrada no envio = revisão atual do doc (sem alterá-la aqui)
-    // Atualizar statusGeral
-    if(!doc.statusGeral||doc.statusGeral===''||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO'){
+    if(!doc.statusGeral||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO'){
       doc.statusGeral='ENVIADO AO CLIENTE';
     }
   });
   _cdocSave(db);
-  // ── Vincula GRD ao Cronograma (Etapa 2 / Lista Resumo MP) ──────────────
-  _cdocGrdDetAtualizarCronograma(sels, dataISO, grdNum, tipoEm);
-  var rows=sels.map(function(d,i){
-    return '<tr><td>'+(i+1)+'</td><td>'+_esc(d.obraId||'')+'</td><td>'+_esc(d.sub||'')+'</td>'
-      +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.cli||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
-      +'<td style="font-size:9px;word-break:break-word;white-space:normal;overflow-wrap:break-word;">'+_esc(d.titulo||'')+'</td>'
-      +'<td>'+_esc(d.desc||'')+'</td>'
-      +'<td>'+_esc(d.peca||'')+'</td><td>'+_esc(d.rev||'')+'</td><td>&nbsp;</td></tr>';
+  _cdocGrdDetAtualizarCronograma(sels, dataISO, grdNum, tiposStr);
+
+  // Gera a janela de impressão agrupada por finalidade
+  var tipoColors={'Para Aprovação':'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd',
+    'Para Certificação':'background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe',
+    'Para Informação':'background:#f1f5f9;color:#475569;border:1px solid #e2e8f0'};
+
+  // Monta linhas agrupadas por finalidade
+  var grupos={};
+  inclSels.forEach(function(ds){
+    var f=ds.finalidade;
+    grupos[f]=grupos[f]||[];
+    grupos[f].push(ds.doc);
+  });
+
+  var rowsHtml='';
+  var counter=0;
+  tiposEm.forEach(function(finalidade){
+    var docs=grupos[finalidade];
+    if(!docs||!docs.length) return;
+    var tc=tipoColors[finalidade]||'background:#f1f5f9;color:#475569';
+    rowsHtml+='<tr><td colspan="10" style="padding:6px 8px;'+tc+';font-weight:700;font-size:11px;">📌 '+finalidade+' ('+docs.length+' doc(s))</td></tr>';
+    docs.forEach(function(d){
+      counter++;
+      rowsHtml+='<tr><td>'+counter+'</td><td>'+_esc(d.obraId||'')+'</td><td>'+_esc(d.sub||'')+'</td>'
+        +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.cli||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
+        +'<td style="font-size:9px;word-break:break-word;">'+_esc(d.titulo||'')+'</td>'
+        +'<td>'+_esc(d.desc||'')+'</td><td>'+_esc(d.peca||'')+'</td>'
+        +'<td>'+_esc(d.rev||'')+'</td></tr>';
+    });
+  });
+
+  var tipoBadges=tiposEm.map(function(t){
+    var tc=tipoColors[t]||'background:#f1f5f9;color:#475569';
+    return '<span style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;'+tc+';margin-right:6px;">'+t+'</span>';
   }).join('');
+
   var w=window.open('','_blank','width=1200,height=720');
   if(!w){alert('Permita popups para gerar a GRD.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+grdNum+'</title>'
@@ -18922,7 +19100,6 @@ function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd){
     +'h2{color:#0c4a6e;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 6px;}'
     +'.meta{display:flex;gap:28px;margin-bottom:10px;font-size:11px;flex-wrap:wrap;}'
     +'.grd-num{font-size:20px;font-weight:900;color:#0c4a6e;letter-spacing:1px;margin-bottom:4px;}'
-    +'.tipo-badge{display:inline-block;padding:4px 14px;border-radius:4px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;margin-bottom:12px;}'
     +'table{width:100%;border-collapse:collapse;}thead th{background:#0c4a6e;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}'
     +'tbody td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;}'
     +'tbody tr:nth-child(even){background:#f8fafc;}'
@@ -18932,17 +19109,19 @@ function _cdocGerarGrdJanela(sels,tipoEm,obsGrd,numCustom,prevRetGrd){
     +'<div class="grd-num">'+grdNum+'</div>'
     +'<h2>GRD &mdash; Guia de Remessa de Documentos</h2>'
     +'<p class="sub">SIDERTEC ESTRUTURAS MET&#193;LICAS</p>'
-    +'<div class="tipo-badge">'+tipoEm+'</div>'
+    +'<div style="margin-bottom:10px;">'+tipoBadges+'</div>'
     +'<div class="meta">'
     +'<span>N&#186; GRD: <strong>'+grdNum+'</strong></span>'
     +'<span>Data: <strong>'+dStr+'</strong></span>'
     +'<span>Obra: <strong>'+_esc(obraRef)+'</strong></span>'
     +'<span>Total: <strong>'+sels.length+' doc(s)</strong></span>'
+    +(prevRetGrd?'<span>Prev. Retorno: <strong>'+new Date(prevRetGrd+'T12:00:00').toLocaleDateString('pt-BR')+'</strong></span>':'')
     +'</div>'
     +(obsGrd?'<div style="margin-bottom:10px;padding:6px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><strong>Obs.:</strong> '+_esc(obsGrd)+'</div>':'')
-    +'<table><thead><tr><th style="width:25px">#</th><th style="white-space:nowrap">Obra</th><th style="white-space:nowrap">TAG</th><th style="white-space:nowrap">N&#186; Sidertec</th><th style="white-space:nowrap">N&#186; Cliente</th>'
-    +'<th style="white-space:nowrap">Tipo</th><th style="min-width:280px">T&#237;tulo</th><th style="min-width:120px">Descri&#231;&#227;o</th><th style="white-space:nowrap">Pe&#231;a</th><th style="white-space:nowrap">Rev.</th><th>Obs.</th></tr></thead>'
-    +'<tbody>'+rows+'</tbody></table>'
+    +'<table><thead><tr>'
+    +'<th style="width:25px">#</th><th>Obra</th><th>TAG</th><th>N&#186; Sidertec</th><th>N&#186; Cliente</th>'
+    +'<th>Tipo</th><th style="min-width:220px">T&#237;tulo</th><th style="min-width:100px">Descri&#231;&#227;o</th><th>Pe&#231;a</th><th>Rev.</th>'
+    +'</tr></thead><tbody>'+rowsHtml+'</tbody></table>'
     +'<div class="assin"><div>Emitido por: ________________________<br><br>Data: ___/___/______</div>'
     +'<div>Recebido por: ________________________<br><br>Data: ___/___/______</div></div>'
     +'<br><div class="no-print" style="margin-top:16px;">'
