@@ -17614,6 +17614,23 @@ var _cdocBadge={
   'Pendente':{bg:'#fff7ed',c:'#c2410c'},'Encerrado':{bg:'#f1f5f9',c:'#475569'},
 };
 // Custom CDOC statuses (loaded from localStorage)
+// _cdocSubMatch — busca inteligente por TAG/sub-obra
+// Se o termo termina com espaço → busca exata pelo prefixo (ex: "CB " só retorna "CB", não "S176CB")
+// Caso contrário → includes normal (ex: "CB" retorna "S176CB", "CBM", etc.)
+function _cdocSubMatch(sub, termo){
+  if(!termo) return true;
+  var t = termo;
+  var exact = t.endsWith(' ');
+  t = t.trim().toLowerCase();
+  if(!t) return true;
+  var s = (sub||'').toLowerCase();
+  if(exact){
+    // Exato: a sub deve ser exatamente t OU começar com t seguido de caractere não-alfanumérico
+    return s === t || s.startsWith(t) && (s.length===t.length || !/[a-z0-9]/i.test(s[t.length]));
+  }
+  return s.includes(t);
+}
+
 var _cdocCustomStatuses = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
 
 var _CDOC_STATUS_FIXOS = ['EM EMISSÃO','EMITIDO','ENVIADO AO CLIENTE','APROVADO','EM REVISÃO',
@@ -17890,7 +17907,7 @@ function cdocRenderBas(){
   }
   var rows=db.basicos.filter(function(b){
     if(fObra&&b.obraId!==fObra) return false;
-    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
+    if(fSub&&!_cdocSubMatch(b.sub||'',fSub)) return false;
     if(fSt&&b.status!==fSt) return false;
     if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
     if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
@@ -17905,7 +17922,7 @@ function cdocRenderBas(){
     allCronSubobras.forEach(function(s){
       if(s.equipe!==fProj) return;
       if(fObra&&s.obra!==fObra) return;
-      if(fSub&&!(s.subobra||'').toLowerCase().includes(fSub.toLowerCase())) return;
+      if(fSub&&!_cdocSubMatch(s.subobra||'',fSub)) return;
       var key=(s.obra||'').toUpperCase()+'|'+(s.subobra||'').toUpperCase();
       if(_cdocSubs_set.has(key)) return; // já tem CDOC
       rows.push({id:'__cron__'+s.id,obraId:s.obra,sub:s.subobra,titulo:s.descricao||'',proj:s.equipe||'',status:'',area:s.area||'',peso:s.peso_basico||null,_virtual:true});
@@ -18137,7 +18154,7 @@ function cdocRenderDet(){
   var fSf=(document.getElementById('cdd-f-statusfinal')||{}).value||'';
   var rows=db.detalhados.filter(function(d){
     if(fObra&&d.obraId!==fObra) return false;
-    if(fSub&&!(d.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
+    if(fSub&&!_cdocSubMatch(d.sub||'',fSub)) return false;
     if(fTipo&&(d.tipo||'').toLowerCase()!==fTipo.toLowerCase()) return false;
     if(fSt&&d.statusGeral!==fSt) return false;
     if(fNum&&!(d.num||'').toLowerCase().includes(fNum)&&!(d.cli||'').toLowerCase().includes(fNum)) return false;
@@ -18216,7 +18233,7 @@ function cdocRenderDet(){
     var painel=document.getElementById('cdd-peso-painel'); if(!painel) return;
     if(!rows.length){painel.style.display='none';return;}
     var fObra2=(document.getElementById('cdd-f-obra')||{}).value||'';
-    var fSub2=((document.getElementById('cdd-f-sub')||{}).value||'').trim();
+    var fSub2=((document.getElementById('cdd-f-sub')||{}).value||'');
     // Total geral dos filtrados
     var totalFmt=fmtD(totalPesoD);
     // Breakdown por sub-obra se obra selecionada
@@ -19282,7 +19299,7 @@ function cdocRelBas(){
   var fGrd=((document.getElementById('cdb-f-grd')||{}).value||'').toLowerCase();
   var rows=db.basicos.filter(function(b){
     if(fObra&&b.obraId!==fObra) return false;
-    if(fSub&&!(b.sub||'').toLowerCase().includes(fSub.toLowerCase())) return false;
+    if(fSub&&!_cdocSubMatch(b.sub||'',fSub)) return false;
     if(fSt&&b.status!==fSt) return false;
     if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
     if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
@@ -21060,7 +21077,7 @@ function cdocRenderDiario(){
     return docs.filter(function(d){
       if(fObra && d.obraId!==fObra) return false;
       if(fEng && !(d.engResp||'').toLowerCase().includes(fEng)) return false;
-      if(fSub && !(d.sub||'').toLowerCase().includes(fSub)) return false;
+      if(fSub && !_cdocSubMatch(d.sub||'',fSub)) return false;
       var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
       if(fFin && (!eh||( (eh.finalidade||'') !== fFin ))) return false;
       if(fGrd && (!eh||!((eh.grd||'').toLowerCase().includes(fGrd)))) return false;
