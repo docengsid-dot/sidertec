@@ -19399,7 +19399,7 @@ function cdocEmitirGrdBas(){
   if(!sels.length){alert('Selecione projetos básicos para emitir a GRD.');return;}
   var totalPeso=sels.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
   var fmtP=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-  var tiposGrd=['Para Detalhamento','Para Verificação de MP','Ambos'];
+  var tiposGrd=['Para Detalhamento','Para Verificação de MP','Ambos','Revisão de Básico'];
   var overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
   var hoje=new Date(); var hISO=hoje.toISOString().slice(0,10);
@@ -19415,12 +19415,17 @@ function cdocEmitirGrdBas(){
     +'<input type="date" id="grdb-data-input" value="'+hISO+'" style="font-size:12px;padding:5px 8px;border:1px solid #c4b5fd;border-radius:4px;"></div>'
     +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">Tipo de Emissão</div>'
     +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">'
-    +tiposGrd.map(function(t,i){return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="radio" name="grdb-tipo" value="'+t+'"'+(i===0?' checked':'')+' style="accent-color:#7c3aed;"> '+t+'</label>';}).join('')
+    +tiposGrd.map(function(t,i){
+      var extra=t==='Revisão de Básico'?' <span style="font-size:9px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:3px;padding:1px 6px;margin-left:4px;font-weight:700;">Não atualiza cronograma</span>':'';
+      return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:3px 6px;border-radius:4px;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'
+        +'<input type="radio" name="grdb-tipo" value="'+t+'"'+(i===0?' checked':'')
+        +' style="accent-color:#7c3aed;" onchange="_grdbTipoChange()"> '+t+extra+'</label>';
+    }).join('')
     +'</div>'
     +'<div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
     +'<textarea id="grdb-obs-input" rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;resize:vertical;"></textarea></div>'
     +'<div style="background:#ecfdf5;border:1px solid #86efac;border-radius:5px;padding:7px 10px;margin-bottom:14px;font-size:10px;color:#166534;">'
-    +'⚙️ Após confirmar, o número da GRD será vinculado aos projetos e as etapas do cronograma serão atualizadas conforme o tipo selecionado.</div>'
+    +'<div id="grdb-cron-aviso" style="background:#ecfdf5;border:1px solid #86efac;border-radius:5px;padding:7px 10px;margin-bottom:12px;font-size:10px;color:#166534;">'    +'⚙️ Após confirmar, o número da GRD será vinculado aos projetos e as etapas do cronograma serão atualizadas conforme o tipo selecionado.</div>'
     +'<div style="display:flex;gap:8px;justify-content:flex-end;">'
     +'<button onclick="this.closest(\'div[style*=inset]\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
     +'<button onclick="'
@@ -19521,7 +19526,8 @@ function _cdocGerarGrdJanelaBas(selIds,numGrd,tipoEm,obsGrd,dataGrd){
     +(function(){
       var tColors={'Para Detalhamento':'background:#f3e8ff;color:#5b21b6;border:1px solid #c4b5fd;',
         'Para Verificação de MP':'background:#ecfdf5;color:#166534;border:1px solid #86efac;',
-        'Ambos':'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;'};
+        'Ambos':'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;',
+        'Revisão de Básico':'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;'};
       return '<div style="display:inline-block;padding:3px 14px;border-radius:4px;font-size:12px;font-weight:700;'+(tColors[tipoEm]||tColors['Para Detalhamento'])+'">'+_esc(tipoEm)+'</div><br>';
     })()
     +'<div class="workflow"><strong>&#10148; Projetista (Detalhamento)</strong> &nbsp;&#10148;&nbsp; <strong>Verifica&ccedil;&atilde;o de MP</strong></div>'
@@ -19601,7 +19607,23 @@ function _cdocGerarGrdJanelaBas(selIds,numGrd,tipoEm,obsGrd,dataGrd){
   cdocRenderVisao();
 }
 
+function _grdbTipoChange(){
+  var sel=document.querySelector('input[name=grdb-tipo]:checked');
+  var tipo=sel?sel.value:'';
+  var aviso=document.getElementById('grdb-cron-aviso');
+  if(!aviso) return;
+  if(tipo==='Revisão de Básico'){
+    aviso.style.background='#fef3c7'; aviso.style.borderColor='#fcd34d'; aviso.style.color='#92400e';
+    aviso.innerHTML='⚠️ <strong>Revisão de Básico:</strong> o número da GRD será vinculado aos projetos mas <strong>nenhuma etapa do cronograma será atualizada</strong>.';
+  } else {
+    aviso.style.background='#ecfdf5'; aviso.style.borderColor='#86efac'; aviso.style.color='#166534';
+    aviso.innerHTML='⚙️ Após confirmar, o número da GRD será vinculado aos projetos e as etapas do cronograma serão atualizadas conforme o tipo selecionado.';
+  }
+}
+
 function _cdocGrdBasAtualizarCronograma(sels,dataISO,numGrd,tipoEm){
+  // Revisão de Básico: não atualiza nenhuma etapa do cronograma
+  if(tipoEm==='Revisão de Básico') return;
   if(typeof allCronSubobras==='undefined'||!allCronSubobras.length) return;
   var fObraRef=(document.getElementById('cdb-f-obra')||{}).value||'';
   var obraRef=fObraRef||(sels[0]&&sels[0].obraId)||'';
@@ -19771,7 +19793,8 @@ function cdocVerGrdBas(grdId){
     +(function(){
       var tColors={'Para Detalhamento':'background:#f3e8ff;color:#5b21b6;border:1px solid #c4b5fd;',
         'Para Verificação de MP':'background:#ecfdf5;color:#166534;border:1px solid #86efac;',
-        'Ambos':'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;'};
+        'Ambos':'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;',
+        'Revisão de Básico':'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;'};
       return '<div style="display:inline-block;padding:3px 14px;border-radius:4px;font-size:12px;font-weight:700;'+(tColors[tipoEm]||tColors['Para Detalhamento'])+'">'+_esc(tipoEm)+'</div><br>';
     })()
     +'<div class="workflow"><strong>&#10148; Projetista (Detalhamento)</strong> &nbsp;&#10148;&nbsp; <strong>Verifica&ccedil;&atilde;o de MP</strong></div>'
