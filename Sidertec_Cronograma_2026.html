@@ -15552,14 +15552,12 @@ function _dkpi(label, val, color, icon){
 }
 
 // _esc: escapa para conteúdo HTML (texto visível)
-function _esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace_escAttr(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+function _esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // _escAttr: escapa para atributos HTML (value="...", title="...", placeholder="...")
-// Suporta todos os caracteres especiais: ç, ~, ^, $, @, &, ', ", \, etc.
-function _escAttr(s){ return String(s==null?'':s).replace_escAttr(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// _escJs: escapa para uso dentro de strings JS em atributos onclick (ex: onclick="fn('...')")
-// Garante que ç, ~, ^, $, @, &, \, ' não quebrem o JS
+// _escJs: escapa para uso dentro de strings JS em atributos onclick
 function _escJs(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\r/g,'').replace(/\n/g,'\\n'); }
 
 function _dcts_docBadge(st){
@@ -17215,19 +17213,8 @@ async function _cdocSBLoad(){
     }
     var rows=await r.json();
     if(rows.length&&rows[0].data){
-      var remoteData=rows[0].data;
-      // Tenta mesclar com dados locais mais recentes para não perder saves pendentes
-      var localData=null;
-      try{localData=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
-      if(localData&&((localData.detalhados||[]).length+(localData.basicos||[]).length) >
-         ((remoteData.detalhados||[]).length+(remoteData.basicos||[]).length)){
-        // Local tem mais dados — faz merge e republica para Supabase
-        _cdocSBCache=_cdocMergeSnapshots(remoteData,localData);
-        console.warn('[CDOC] Local tem mais dados que Supabase — fazendo merge e republicando.');
-        await _cdocSBPush(_cdocSBCache);
-      } else {
-        _cdocSBCache=remoteData;
-      }
+      // Supabase é sempre a fonte da verdade — nunca sobrescrever com localStorage
+      _cdocSBCache=rows[0].data;
       // Sanitiza pesos armazenados como string ou NaN
       (_cdocSBCache.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
       (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
@@ -18088,7 +18075,7 @@ function _cdocGetProj(b){
   return p;
 }
 function cdocRenderBas(){
-  cdocPopFilters();
+  setTimeout(cdocPopFilters, 0);
   var db=_cdocDb();
   var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
   var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
@@ -21604,7 +21591,7 @@ function _cdocShowColFlt(e,tbl,col){
   sorted.forEach(function(v){
     var chk=curFlt.size===0||curFlt.has(v);
     html+='<label style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;white-space:nowrap;">'
-      +'<input type="checkbox" '+(chk?'checked':'')+' onchange="_cdocFltToggle(\''+tbl+'\',\''+col+'\',this.value,this.checked)" value="'+v.replace_escAttr(/&/g,'&amp;')+'" style="cursor:pointer;">'
+      +'<input type="checkbox" '+(chk?'checked':'')+' onchange="_cdocFltToggle(\''+tbl+'\',\''+col+'\',this.value,this.checked)" value="'+v.replace(/&/g,'&amp;')+'" style="cursor:pointer;">'
       +'<span>'+_esc(v)+'<span style="color:#94a3b8;margin-left:3px;font-size:9px;">('+vals[v]+')</span></span>'
       +'</label>';
   });
