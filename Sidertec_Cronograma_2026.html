@@ -17326,6 +17326,40 @@ function cdocRestaurarJSON(input){
   reader.readAsText(file,'utf-8');
 }
 
+// Corrige caracteres corrompidos (Windows-1252 interpretado como Latin-1)
+// ç → ç, ã → ã, ô → ô, etc.
+function _cdocSanitizeStrings(obj){
+  if(!obj||typeof obj!=='object') return;
+  var stringFields=['titulo','desc','descricao','sub','obraId','num','cli','tipo','peca','engResp','obs','area','proj','status','statusGeral','rev'];
+  stringFields.forEach(function(f){
+    if(typeof obj[f]==='string' && obj[f]) obj[f]=_cdocFixEncoding(obj[f]);
+  });
+}
+
+// Mapa de conversão Windows-1252/Latin-1 → UTF-8 para caracteres comuns em Português
+var _w1252map = {
+  '\xc3\xa7':'ç','\xc3\xa3':'ã','\xc3\xa2':'â','\xc3\xaa':'ê','\xc3\xb4':'ô',
+  '\xc3\xb5':'õ','\xc3\xa1':'á','\xc3\xa9':'é','\xc3\xad':'í','\xc3\xb3':'ó',
+  '\xc3\xba':'ú','\xc3\x87':'Ç','\xc3\x83':'Ã','\xc3\x82':'Â','\xc3\x8a':'Ê',
+  '\xc3\x94':'Ô','\xc3\x95':'Õ','\xc3\x81':'Á','\xc3\x89':'É','\xc3\x8d':'Í',
+  '\xc3\x93':'Ó','\xc3\x9a':'Ú','\xc3\xb1':'ñ','\xc3\x91':'Ñ',
+  // Padrão comum de dupla codificação: ç aparece como Ã§
+  'Ã§':'ç','Ã£':'ã','Ã¢':'â','Ãª':'ê','Ã´':'ô','Ãµ':'õ',
+  'Ã¡':'á','Ã©':'é','Ã­':'í','Ã³':'ó','Ãº':'ú',
+  'Ã‡':'Ç','Ãƒ':'Ã','Ã‚':'Â','ÃŠ':'Ê','Ã"':'Ô','Ã•':'Õ',
+  'Ã':'Á','Ã‰':'É','Ã':'Í','Ã"':'Ó','Ãš':'Ú',
+  '♦':'ç' // fallback para o símbolo específico reportado
+};
+
+function _cdocFixEncoding(str){
+  if(!str) return str;
+  // Substitui padrões de dupla codificação
+  Object.keys(_w1252map).forEach(function(bad){
+    if(str.indexOf(bad)>=0) str=str.split(bad).join(_w1252map[bad]);
+  });
+  return str;
+}
+
 function _cdocLoad(){
   // Usa sempre o cache em memória se disponível — evita JSON.parse do localStorage a cada render
   var d=null;
@@ -18359,10 +18393,15 @@ function cdocRenderDet(){
     var col=btn.getAttribute('onclick').match(/'det','([^']+)'/); if(!col) return;
     btn.classList.toggle('active',!!_cdocColFltsDet[col[1]]);
   });
-  if(!rows.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum documento. Clique em + Novo.</td></tr>';}
-  else{
+
+  // ── PAGINAÇÃO: renderiza em lotes de 150 para não travar com 4000+ docs ──
+  var PAGE = 150;
+  window._cdocDetAllRows = rows;
+  window._cdocDetPage = 0;
+
+  function renderPage(pageRows){
     var fmt=function(v){var n=Number(v);return (v!==null&&v!==''&&!isNaN(n))?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
-    tb.innerHTML=rows.map(function(d){
+    return pageRows.map(function(d){
       var isSel=_cdocDetSel.has(d.id);
       return '<tr class="'+(isSel?'cdoc-selected':'')+'" ondblclick="_cdocToggleSelDet('+d.id+',event)" onclick="cdocEditDet('+d.id+')" style="cursor:pointer;">'
         +'<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="cdd-row-chk" data-id="'+d.id+'" '+(isSel?'checked':'')+' onchange="_cdocToggleSelDet('+d.id+',event)" style="cursor:pointer;"></td>'
@@ -18379,7 +18418,6 @@ function cdocRenderDet(){
         +'<td style="font-size:10px;">'+_esc(d.rev||'—')+'</td>'
         +'<td>'+_cdocBadgeHtml(d.statusGeral)+'</td>'
         +(function(){
-          // Coluna Lib. Fab.: último hist
           var lh=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
           if(!lh&&d.libfab&&d.libfab!=='Pendente') lh={status:d.libfab,data:d.libfabData||'',grd:''};
           var lbBadge=lh?_cdocBadgeHtml(lh.status):_cdocBadgeHtml(d.libfab||null);
@@ -18389,7 +18427,6 @@ function cdocRenderDet(){
           return '<td style="min-width:90px;">'+lbBadge+lbCnt+lbDate+lbGrd+'</td>';
         })()
         +(function(){
-          // Coluna Envio CLI: último hist
           var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
           if(!eh&&d.envioData) eh={rev:d.envioRev||'',data:d.envioData,grd:d.envioGRD||'',status:'Concluído'};
           var evLabel=eh?(eh.status==='Concluído'||eh.data?'Concluído':'Pendente'):(d.envio||null);
@@ -18402,11 +18439,38 @@ function cdocRenderDet(){
         })()
         +(function(){var eh2=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;var fin=eh2&&eh2.finalidade?eh2.finalidade:'';var finMap={'PARA APROVAÇÃO':'background:#ede9fe;color:#6d28d9;','CERTIFICAÇÃO':'background:#e0f2fe;color:#0369a1;','INFORMAÇÃO':'background:#f1f5f9;color:#475569;'};var sfMap={'APROVADO':'background:#dcfce7;color:#166534;','CERTIFICADO':'background:#f0fdf4;color:#14532d;','COM COMENTÁRIOS':'background:#fef3c7;color:#92400e;','REPROVADO':'background:#fee2e2;color:#991b1b;'};var sf=eh2&&eh2.statusFinal?eh2.statusFinal:'';var pr=eh2&&eh2.prevRetorno?eh2.prevRetorno:'';var rr=eh2&&eh2.retornoReal?eh2.retornoReal:'';return '<td style="min-width:90px;">'+(fin?'<span style="'+finMap[fin]+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(fin)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>')+'</td>'+'<td style="font-family:Courier New,monospace;font-size:9px;color:#64748b;white-space:nowrap;">'+(pr?pr.split('-').reverse().join('/'):'<span style="color:#cbd5e1;">—</span>')+'</td>'+'<td style="font-family:Courier New,monospace;font-size:9px;color:#059669;font-weight:700;white-space:nowrap;">'+(rr?rr.split('-').reverse().join('/'):'<span style="color:#cbd5e1;">—</span>')+'</td>'+'<td style="min-width:90px;">'+(sf?'<span style="'+sfMap[sf]+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(sf)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>')+'</td>';})()
         +'<td style="font-size:10px;">'+_esc(d.engResp||'—')+'</td>'
-        +'<td style="white-space:nowrap;">'
+        +'<td style="white-space:nowrap;" onclick="event.stopPropagation()">'
           +'<button onclick="cdocEditDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#0369a1;font-size:12px;padding:1px 4px;" title="Editar">✎</button>'
-          +'<button onclick="cdocDelDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
+          +'<button onclick="event.stopPropagation();cdocDelDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
         +'</td></tr>';
     }).join('');
+  }
+
+  if(!rows.length){
+    tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum documento. Clique em + Novo.</td></tr>';
+  } else {
+    tb.innerHTML = renderPage(rows.slice(0, PAGE));
+    // Botão "Carregar mais" se houver mais páginas
+    var wrap = tb.closest('.xl-table-wrap');
+    var oldMore = document.getElementById('cdd-load-more');
+    if(oldMore) oldMore.remove();
+    if(rows.length > PAGE){
+      var moreBtn = document.createElement('div');
+      moreBtn.id = 'cdd-load-more';
+      moreBtn.style.cssText = 'text-align:center;padding:8px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;cursor:pointer;color:#0369a1;font-weight:700;';
+      moreBtn.textContent = 'Mostrando '+PAGE+' de '+rows.length+' — clique para carregar mais';
+      moreBtn.onclick = function(){
+        window._cdocDetPage = (window._cdocDetPage||0) + 1;
+        var start = (window._cdocDetPage) * PAGE;
+        var nextRows = window._cdocDetAllRows.slice(start, start + PAGE);
+        tb.innerHTML += renderPage(nextRows);
+        var loaded = Math.min((window._cdocDetPage+1)*PAGE, rows.length);
+        if(loaded >= rows.length){ moreBtn.remove(); }
+        else { moreBtn.textContent = 'Mostrando '+loaded+' de '+rows.length+' — clique para carregar mais'; }
+      };
+      if(wrap) wrap.parentNode.insertBefore(moreBtn, wrap.nextSibling);
+      else tb.parentNode.parentNode.appendChild(moreBtn);
+    }
   }
   var info=document.getElementById('cdd-info');
   var fmtD=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
@@ -18615,7 +18679,7 @@ function _cdocAbrirFormBas(rec){
     +'<div><label>Obra *</label><select id="cef-obra" onchange="cdocBasObraChange()"><option value="">-- Selecione --</option>'+oO+'</select></div>'
     +'<div><label>TAG Sub-obra *</label><div style="display:flex;gap:4px;align-items:center;"><input id="cef-sub" list="cef-sub-dl" placeholder="Selecione ou digite..." oninput="cdocBasSubChange()" autocomplete="off" value="'+(rec&&rec.sub?rec.sub:'')+'" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"><datalist id="cef-sub-dl">'+sO.replace(/ selected/g,'')+'</datalist></div></div>'
     +'</div>'
-    +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+v_escAttr('titulo')+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+_escAttr(v('titulo'))+'"></div></div>'
     +'<div class="cdoc-ef">'
     +'<div><label>Nº Cliente</label><input id="cef-cli" value="'+v('cli')+'"></div>'
     +'<div><label>Projetista</label><select id="cef-proj" onchange="cdocBasEquipeChange()"><option value="">-- Selecione --</option>'+eqO+'</select></div>'
@@ -18813,8 +18877,8 @@ function _cdocAbrirFormDet(rec){
     +'</div></div>'
     +'<div><label>Eng. Responsável</label><input id="cef-eng" value="'+v('engResp')+'"></div>'
     +'</div>'
-    +'<div class="cdoc-ef full"><div><label>Título</label><input id="cef-titulo-det" value="'+v_escAttr('titulo')+'"></div></div>'
-    +'<div class="cdoc-ef full"><div><label>Descrição</label><input id="cef-desc" value="'+v_escAttr('desc')+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Título</label><input id="cef-titulo-det" value="'+_escAttr(v('titulo'))+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Descrição</label><input id="cef-desc" value="'+_escAttr(v('desc'))+'"></div></div>'
     +'<div class="cdoc-ef tri">'
     +'<div><label>Peça</label><input id="cef-peca" value="'+v('peca')+'"></div>'
     +'<div><label>Peso Det. (kg)</label><input id="cef-peso" type="number" step="0.01" value="'+v('peso')+'"></div>'
@@ -21039,9 +21103,24 @@ function cdocImportBas(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
+  // Detecta encoding automático (UTF-8, Windows-1252, ISO-8859-1)
+  var readerBuf=new FileReader();
+  readerBuf.onload=function(ev){
+    var buf=ev.target.result;
+    var bytes=new Uint8Array(buf);
+    var hasUtf8Bom=bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF;
+    var text=''; var enc='UTF-8';
+    try{
+      text=new TextDecoder('utf-8',{fatal:true}).decode(buf);
+      if(!hasUtf8Bom&&text.includes('\uFFFD')) throw new Error('replacement chars');
+    }catch(e2){
+      enc='windows-1252';
+      try{ text=new TextDecoder('windows-1252').decode(buf); }
+      catch(e3){ enc='iso-8859-1'; text=new TextDecoder('iso-8859-1').decode(buf); }
+    }
+    if(hasUtf8Bom&&text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+    console.log('[cdocImportBas] Encoding:',enc);
+    var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
     if(!lines.length){alert('Arquivo vazio.');return;}
     var sep=lines[0].includes(';')?';':',';
     var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
@@ -21095,19 +21174,44 @@ function cdocImportBas(input){
     _cdocSave(db);
     var msg=added+' novo(s) + '+updated+' atualizado(s).';
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
-    alert(msg);
+    showToast('Importação concluída',msg,added+updated>0?'success':'warn');
     cdocRenderBas(); cdocRenderVisao();
   };
-  reader.readAsText(file,'UTF-8');
+  readerBuf.readAsArrayBuffer(file);
 }
 function cdocImportDet(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
   showToast('Importando...','Lendo arquivo CSV...','info');
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
+
+  // Detecta encoding: UTF-8 (com/sem BOM), Windows-1252 (Excel Brasil), ISO-8859-1
+  var readerBuf=new FileReader();
+  readerBuf.onload=function(ev){
+    var buf=ev.target.result;
+    var bytes=new Uint8Array(buf);
+    var hasUtf8Bom=bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF;
+    var text=''; var enc='UTF-8';
+    try{
+      text=new TextDecoder('utf-8',{fatal:true}).decode(buf);
+      // UTF-8 "funcionou" mas pode ter chars substituídos se era Windows-1252
+      if(!hasUtf8Bom&&text.includes('\uFFFD')) throw new Error('has replacement chars');
+    }catch(e2){
+      enc='windows-1252';
+      try{ text=new TextDecoder('windows-1252').decode(buf); }
+      catch(e3){ enc='iso-8859-1'; text=new TextDecoder('iso-8859-1').decode(buf); }
+    }
+    console.log('[cdocImportDet] Encoding:',enc,'BOM:',hasUtf8Bom);
+    // Remove BOM se presente
+    if(hasUtf8Bom&&text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+    _cdocImportDetProcess(text);
+  };
+  readerBuf.readAsArrayBuffer(file);
+}
+
+function _cdocImportDetProcess(rawText){
+  var db=_cdocSBCache||_cdocLoad();
+    var lines=rawText.split(/\r?\n/).filter(function(l){return l.trim();});
     if(!lines.length){showToast('Arquivo vazio','Nenhuma linha encontrada.','error');return;}
     var sep=lines[0].includes(';')?';':',';
     var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
@@ -21219,8 +21323,6 @@ function cdocImportDet(input){
     if(erros.length) console.warn('[cdocImportDet] Erros:\n'+erros.join('\n'));
     // Renderiza após microtask para garantir que _cdocSBCache já está atualizado
     setTimeout(function(){ cdocRenderDet(); cdocRenderVisao(); }, 0);
-  };
-  reader.readAsText(file,'UTF-8');
 }
 function _cdocParseCsvLine(line,sep){
   // suporta campos entre aspas
