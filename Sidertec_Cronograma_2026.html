@@ -3141,7 +3141,7 @@ function renderKanban(pac){
     return `<div class="kanban-col">
       <div class="kanban-col-hd" style="color:${cfg.color}">${cfg.label}<span class="cnt">${cards.length}</span></div>
       ${cards.slice(0,30).map(p=>`
-        <div class="kanban-card" onclick="abrirPacote(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+        <div class="kanban-card" onclick="abrirPacote(${JSON.stringify(p)})">
           <div class="kc-obra">${p.obra}</div>
           <div class="kc-tag" title="${p.tag_projeto||''}">${p.tag_projeto||'—'}</div>
           <div class="kc-desc" title="${p.descricao||''}">${p.descricao||'—'}</div>
@@ -3219,7 +3219,7 @@ function renderCronTabela(pac){
       <th>Básico</th><th>Análise</th><th>Envio</th>
     </tr></thead>
     <tbody>
-      ${pac.length?pac.map(p=>`<tr onclick="abrirPacote(${JSON.stringify(p).replace(/"/g,'&quot;')})" style="cursor:pointer;">
+      ${pac.length?pac.map(p=>`<tr onclick="abrirPacote(${JSON.stringify(p)})" style="cursor:pointer;">
         <td><span class="badge-obra">${p.obra}</span></td>
         <td style="font-family:'Courier New',monospace,monospace;font-size:16px;color:var(--blue);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;">${p.tag_projeto||'—'}</td>
         <td style="font-size:16px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.descricao||''}">${p.descricao||'—'}</td>
@@ -4048,7 +4048,7 @@ function _renderSubEtapa(sub,isLast){
     // GRD na sub-etapa (Enviado p/ Aprovação)
   if(sub.extra==='grd'){
     html+='<div class="field-group" style="margin-bottom:.3rem;"><label class="field-label" style="font-size:9px;">GRD / Nº Documento</label>';
-    html+='<input type="text" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+((st.grd||'').replace(/"/g,'&quot;'))+'" placeholder="Ex: GRD-2025-047" oninput="etapaSet(\''+sub.key+'\',\'grd\',this.value)"></div>';
+    html+='<input type="text" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(_escAttr(st.grd||''))+'" placeholder="Ex: GRD-2025-047" oninput="etapaSet(\''+sub.key+'\',\'grd\',this.value)"></div>';
   }
   // Resultado APR/REJ
   if(sub.extra==='resultado'){
@@ -4095,16 +4095,16 @@ function _renderSubEtapa(sub,isLast){
   html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;">';
   html+='<div><label class="field-label" style="font-size:9px;">Previsto</label><input type="date" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(st.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)"></div>';
   html+='<div><label class="field-label" style="font-size:9px;">Realizado</label><input type="date" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(st.real||'')+'" onchange="etapaSet(\''+sub.key+'\',\'real\',this.value)"></div>';
-  html+='<div><label class="field-label" style="font-size:9px;">Obs.</label><input type="text" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+((st.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></div>';
+  html+='<div><label class="field-label" style="font-size:9px;">Obs.</label><input type="text" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(_escAttr(st.obs||''))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></div>';
   html+='</div>'+_diasBadge(st.prev,st.real); }
   if(sub.extra==='expedicao'){
   html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;">';
   html+='<div><label class="field-label" style="font-size:9px;">Previsto Expedição</label><input type="date" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(st.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)"></div>';
   html+='<div><label class="field-label" style="font-size:9px;">Realizado Expedição</label><input type="date" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(st.real||'')+'" onchange="etapaSet(\''+sub.key+'\',\'real\',this.value)"></div>';
-  html+='<div><label class="field-label" style="font-size:9px;">Obs.</label><input type="text" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+((st.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></div>';
+  html+='<div><label class="field-label" style="font-size:9px;">Obs.</label><input type="text" class="field-input" style="font-size:16px;padding:3px 5px;" value="'+(_escAttr(st.obs||''))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></div>';
   html+='</div>'+_diasBadge(st.prev,st.real); }
   if(sub.extra==='sem_data'){
-    html+='<div style="margin-top:.25rem;"><label class="field-label" style="font-size:9px;">Obs.</label><input type="text" class="field-input" style="font-size:16px;padding:3px 5px;width:100%;" value="'+((st.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></div>';
+    html+='<div style="margin-top:.25rem;"><label class="field-label" style="font-size:9px;">Obs.</label><input type="text" class="field-input" style="font-size:16px;padding:3px 5px;width:100%;" value="'+(_escAttr(st.obs||''))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></div>';
   }
   html+='</div>';
   return html;
@@ -4256,7 +4256,7 @@ function renderEtapasDinamicas(){
       });
       return sm;
     }()):'')+
-      '<input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:11px;'+(etapa.extra==='peso_exec'?'width:calc(100% - 90px);':'width:100%;')+'background:'+(conc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+((st.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Observação…" oninput="etapaSet(\''+etapa.key+'\',\'obs\',this.value)"></td>';
+      '<input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:11px;'+(etapa.extra==='peso_exec'?'width:calc(100% - 90px);':'width:100%;')+'background:'+(conc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+(_escAttr(st.obs||''))+'" placeholder="Observação…" oninput="etapaSet(\''+etapa.key+'\',\'obs\',this.value)"></td>';
     rows += '<td style="width:44px;text-align:center;">'+actionBtns+'</td>';
     rows += '</tr>';
 
@@ -4302,7 +4302,7 @@ function renderEtapasDinamicas(){
         // GRD for rec_modelo
         var extraInline = '';
         if(sub.extra==='grd'){
-          extraInline = ' <input type="text" style="border:1px solid #bfdbfe;border-radius:3px;padding:1px 4px;font-size:10px;width:80px;margin-left:4px;" value="'+((sst.grd||'').replace(/"/g,'&quot;'))+'" placeholder="GRD…" oninput="etapaSet(\''+sub.key+'\',\'grd\',this.value)">';
+          extraInline = ' <input type="text" style="border:1px solid #bfdbfe;border-radius:3px;padding:1px 4px;font-size:10px;width:80px;margin-left:4px;" value="'+(_escAttr(sst.grd||''))+'" placeholder="GRD…" oninput="etapaSet(\''+sub.key+'\',\'grd\',this.value)">';
         }
         if(sub.extra==='resultado'){
           var res = sst.resultado||'';
@@ -4341,7 +4341,7 @@ function renderEtapasDinamicas(){
           var _bcSub=_pctSub>=100?'#166534':_pctSub>=50?'#d97706':'#2563eb';
           _pesoInput='<input type="number" style="border:1px solid #bfdbfe;border-radius:3px;padding:2px 4px;font-size:10px;width:75px;background:#f0f9ff;" value="'+(_peSub||'')+'" placeholder="kg exec." min="0" step="0.01" oninput="etapaSet(\''+sub.key+'\',\'peso_exec\',this.value)" onblur="renderEtapasDinamicas()">&nbsp;<span style="font-size:9px;font-weight:700;color:'+_bcSub+';">'+_pctSub+'%</span>&nbsp;';
         }
-        rows += '<td>'+_pesoInput+'<input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:10px;width:100%;background:'+(sConc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+((sst.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></td>';
+        rows += '<td>'+_pesoInput+'<input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:10px;width:100%;background:'+(sConc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+(_escAttr(sst.obs||''))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></td>';
         rows += '<td style="text-align:center;">'+sAction+'</td>';
         rows += '</tr>';
       });
@@ -5694,7 +5694,7 @@ function xlPopulateFilter(col){
       <strong>(Selecionar Tudo)</strong>
     </label>`,
     ...sorted.map(v => `<label class="xl-filter-item">
-      <input type="checkbox" value="${v.replace(/"/g,'&quot;')}" ${!sel||sel.has(v)?'checked':''} onchange="xlToggleVal('${col}',this)">
+      <input type="checkbox" value="${_escAttr(v)}" ${!sel||sel.has(v)?'checked':''} onchange="xlToggleVal('${col}',this)">
       <span title="${v}">${v||'(vazio)'}</span>
     </label>`)
   ].join('');
@@ -6067,7 +6067,7 @@ function cronRenderTabela(subs){
         })()}
       </td>
       <td style="padding:3px 5px;font-size:10px;color:#7c3aed;font-family:'Courier New',monospace,monospace;font-weight:800;white-space:nowrap;border:1px solid #e2e8f0;letter-spacing:.02em;">${s.num_proj_basico||'—'}</td>
-      <td style="padding:3px 5px;font-size:9px;color:var(--ink2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #e2e8f0;" title="${(s.descricao||'').replace(/"/g,'&quot;')}">${s.descricao||'—'}</td>
+      <td style="padding:3px 5px;font-size:9px;color:var(--ink2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #e2e8f0;" title="${_escAttr(s.descricao||'')}">${s.descricao||'—'}</td>
       <td style="padding:3px 5px;font-size:8px;color:var(--blue);white-space:nowrap;border:1px solid #e2e8f0;">${s.area||'—'}</td>
       <td style="padding:3px 5px;font-size:8px;color:#6d28d9;white-space:nowrap;border:1px solid #e2e8f0;">${(()=>{var e=s.escopo_fornecimento||'';if(!e)return '—';if(e==='Fornecimento')return '<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:600;">Forn.</span>';if(e==='Montagem')return '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:600;">Mont.</span>';return '<span style="background:#ede9fe;color:#6d28d9;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:600;">F+M</span>';})()}</td>
       <td style="padding:3px 5px;text-align:center;border:1px solid #e2e8f0;">${(()=>{var pd=s.prior_det;if(pd===null||pd===undefined||pd==='')return '<span style="color:#94a3b8;font-size:8px;">—</span>';var n=Number(pd);var bg=n>=80?'#fca5a5':n>=50?'#fcd34d':n>=20?'#86efac':'#e2e8f0';var fg=n>=80?'#991b1b':n>=50?'#92400e':n>=20?'#166534':'#94a3b8';return '<span style="background:'+bg+';color:'+fg+';border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">'+n+'</span>';})()}</td>
@@ -8179,7 +8179,7 @@ function medXlPopulate(col){
   var allChk = (!sel) ? 'checked' : '';
   list.innerHTML = sorted.reduce(function(h, v){
     var c = (!sel || sel.has(v)) ? 'checked' : '';
-    return h + '<label class="xl-filter-item"><input type="checkbox" value="' + v.replace(/"/g,'&quot;') + '" ' + c + ' onchange="medXlToggleVal(\'' + col + '\',this)"><span>' + v + '</span></label>';
+    return h + '<label class="xl-filter-item"><input type="checkbox" value="' + _escAttr(v) + '" ' + c + ' onchange="medXlToggleVal(\'' + col + '\',this)"><span>' + v + '</span></label>';
   }, '<label class="xl-filter-item"><input type="checkbox" id="med-xl-all-' + col + '" ' + allChk + ' onchange="medXlToggleAll(\'' + col + '\',this)"><strong>(Selecionar Tudo)</strong></label>');
   var se = dd.querySelector('input[type=text]');
   if(se) se.oninput = function(){
@@ -8283,7 +8283,7 @@ function revXlPopulate(col){
   var allChk = (!sel) ? 'checked' : '';
   list.innerHTML = sorted.reduce(function(h, v){
     var c = (!sel || sel.has(v)) ? 'checked' : '';
-    return h + '<label class="xl-filter-item"><input type="checkbox" value="' + v.replace(/"/g,'&quot;') + '" ' + c + ' onchange="revXlToggleVal(\'' + col + '\',this)"><span>' + v + '</span></label>';
+    return h + '<label class="xl-filter-item"><input type="checkbox" value="' + _escAttr(v) + '" ' + c + ' onchange="revXlToggleVal(\'' + col + '\',this)"><span>' + v + '</span></label>';
   }, '<label class="xl-filter-item"><input type="checkbox" id="rev-xl-all-' + col + '" ' + allChk + ' onchange="revXlToggleAll(\'' + col + '\',this)"><strong>(Selecionar Tudo)</strong></label>');
   var se = dd.querySelector('input[type=text]');
   if(se) se.oninput = function(){
@@ -13534,7 +13534,7 @@ function revPopularClientes(){
   var novo  = todos.join('|');
   if(atual === novo) return;
   dl.innerHTML = todos.map(function(v){
-    return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>';
+    return '<option value="'+_escAttr(v)+'"></option>';
   }).join('');
 }
 
@@ -13553,7 +13553,7 @@ function revPopularEngs(){
   var novo  = todos.join('|');
   if(atual === novo) return;
   dl.innerHTML = todos.map(function(v){
-    return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>';
+    return '<option value="'+_escAttr(v)+'"></option>';
   }).join('');
 }
 
@@ -14032,7 +14032,7 @@ function _lfSecao(tipo,subs,titulo,descr,bgC,txC,mes,ano,hoje){
       var bC=tipo==='atrasado'?'var(--red)':tipo==='mes'?'var(--blue)':tipo==='liberado'?'var(--green)':'var(--ink3)';
       h+='<tr class="'+rC+'" onclick="abrirCronModal(\''+s.id+'\')">';
       h+='<td style="border-left:3px solid '+bC+';"><span style="font-family:\'Courier New\',monospace;font-size:10px;font-weight:700;color:var(--blue);">'+(s.subobra||'—')+'</span></td>';
-      h+='<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="'+(s.descricao||'').replace(/"/g,'&quot;')+'">'+(s.descricao||'—')+'</td>';
+      h+='<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="'+_escAttr(s.descricao||'')+'">'+(s.descricao||'—')+'</td>';
       h+='<td><span style="background:'+st.bg+';color:'+st.c+';border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">'+st.i+' '+(s.status||'—')+'</span></td>';
       h+='<td style="font-size:9px;max-width:110px;overflow:hidden;text-overflow:ellipsis;">'+(s.equipe?s.equipe.split('(')[0].trim():'—')+'</td>';
       h+='<td>'+pvH+'</td><td><span style="font-family:\'Courier New\',monospace;font-size:9px;color:var(--green);font-weight:700;">'+(s.real_lib_fab?_lfFmtD(s.real_lib_fab):'—')+'</span></td>';
@@ -14454,7 +14454,7 @@ function _exSecao(tipo, subs, titulo, descr, bgC, txC, mes, ano, hoje){
       if(tipo==='atrasado'&&s.prev_expedicao){var pv=new Date(s.prev_expedicao+'T12:00:00');var df=Math.round((p1-pv)/86400000);if(df>0)dA='<span style="background:#fee2e2;color:#991b1b;border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">+'+df+'d</span>';}
       h += '<tr class="'+rC+'" onclick="abrirCronModal(\''+s.id+'\')">';
       h += '<td style="border-left:3px solid '+bC+';"><span style="font-family:\'Courier New\',monospace;font-size:10px;font-weight:700;color:var(--blue);">'+(s.subobra||'—')+'</span></td>';
-      h += '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="'+(s.descricao||'').replace(/"/g,'&quot;')+'">'+(s.descricao||'—')+'</td>';
+      h += '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="'+_escAttr(s.descricao||'')+'">'+(s.descricao||'—')+'</td>';
       h += '<td><span style="background:'+st.bg+';color:'+st.c+';border-radius:3px;font-size:8px;font-weight:700;padding:1px 5px;">'+st.i+' '+(s.status||'—')+'</span></td>';
       h += '<td style="font-size:9px;max-width:100px;overflow:hidden;text-overflow:ellipsis;">'+(s.equipe?s.equipe.split('(')[0].trim():'—')+'</td>';
       h += '<td style="text-align:right;font-family:\'Courier New\',monospace;font-size:9px;">'+(pesoPcp?Number(pesoPcp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
@@ -15551,7 +15551,16 @@ function _dkpi(label, val, color, icon){
     + '</div>';
 }
 
-function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// _esc: escapa para conteúdo HTML (texto visível)
+function _esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace_escAttr(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+
+// _escAttr: escapa para atributos HTML (value="...", title="...", placeholder="...")
+// Suporta todos os caracteres especiais: ç, ~, ^, $, @, &, ', ", \, etc.
+function _escAttr(s){ return String(s==null?'':s).replace_escAttr(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// _escJs: escapa para uso dentro de strings JS em atributos onclick (ex: onclick="fn('...')")
+// Garante que ç, ~, ^, $, @, &, \, ' não quebrem o JS
+function _escJs(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\r/g,'').replace(/\n/g,'\\n'); }
 
 function _dcts_docBadge(st){
   if(!st || st === '') return '<span style="font-size:9px;color:#94a3b8;">—</span>';
@@ -15600,13 +15609,13 @@ function _popularFiltrosDCTS(){
   var obrasSel = (document.getElementById('dcts-f-obra')||{}).value||'';
   var eqSel = (document.getElementById('dcts-f-equipe')||{}).value||'';
   var obraEl = document.getElementById('dcts-f-obra');
-  if(obraEl){ obraEl.innerHTML = '<option value="">Todas</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'"'+(o===obrasSel?' selected':'')+'>'+_esc(o)+'</option>';}).join(''); }
+  if(obraEl){ obraEl.innerHTML = '<option value="">Todas</option>'+obras.map(function(o){return '<option value="'+_escAttr(o)+'"'+(o===obrasSel?' selected':'')+'>'+_esc(o)+'</option>';}).join(''); }
   var eqEl = document.getElementById('dcts-f-equipe');
-  if(eqEl){ eqEl.innerHTML = '<option value="">Todas</option>'+equipes.map(function(e){return '<option value="'+_esc(e)+'"'+(e===eqSel?' selected':'')+'>'+_esc(e)+'</option>';}).join(''); }
+  if(eqEl){ eqEl.innerHTML = '<option value="">Todas</option>'+equipes.map(function(e){return '<option value="'+_escAttr(e)+'"'+(e===eqSel?' selected':'')+'>'+_esc(e)+'</option>';}).join(''); }
   // Popular select do modal
   var dObra = document.getElementById('dcts-obra');
   if(dObra && dObra.options.length <= 1){
-    dObra.innerHTML = '<option value="">Selecione…</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'">'+_esc(o)+'</option>';}).join('');
+    dObra.innerHTML = '<option value="">Selecione…</option>'+obras.map(function(o){return '<option value="'+_escAttr(o)+'">'+_esc(o)+'</option>';}).join('');
   }
 }
 
@@ -16595,14 +16604,14 @@ function cotRender(){
     var rowBg=l.status==='Contratado'?'background:#f0fdf4;':l.status==='Declinado'?'background:#fff5f5;':'';
     return '<tr style="'+rowBg+'">'
       +'<td><select onchange="cotUpd('+l.id+',\x27obra\x27,this.value)"><option value=""> -- </option>'+oO+'</select></td>'
-      +'<td><input type="text" value="'+l.descricao.replace(/"/g,'&quot;')+'" placeholder="Descrição" oninput="cotUpd('+l.id+',\x27descricao\x27,this.value)"></td>'
+      +'<td><input type="text" value="'+_escAttr(l.descricao)+'" placeholder="Descrição" oninput="cotUpd('+l.id+',\x27descricao\x27,this.value)"></td>'
       +'<td><input type="number" value="'+(l.peso_basico||'')+'" placeholder="0" min="0" step="0.01" style="text-align:right;" oninput="cotUpd('+l.id+',\x27peso_basico\x27,this.value)"></td>'
       +'<td><select onchange="cotUpd('+l.id+',\x27engenharia\x27,this.value)"><option value=""> -- </option>'+eO+'</select></td>'
       +'<td><input id="cot-rkg-'+l.id+'" type="number" value="'+rKg+'" placeholder="0.0000" min="0" step="0.0001" style="text-align:right;" oninput="cotUpd('+l.id+',\x27r_por_kg\x27,this.value)"></td>'
       +'<td><input id="cot-rtot-'+l.id+'" type="number" value="'+rTot+'" placeholder="0.00" min="0" step="0.01" style="text-align:right;font-weight:700;" oninput="cotUpd('+l.id+',\x27r_total\x27,this.value)"></td>'
       +'<td><input type="date" value="'+(l.prazo||'')+'" style="font-size:10px;" onchange="cotUpd('+l.id+',\x27prazo\x27,this.value)"></td>'
       +'<td><select style="'+stSty+'" onchange="cotUpd('+l.id+',\x27status\x27,this.value)">'+stO+'</select></td>'
-      +'<td><input type="text" value="'+((l.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Observação..." oninput="cotUpd('+l.id+',\x27obs\x27,this.value)" style="font-size:10px;"></td>'
+      +'<td><input type="text" value="'+(_escAttr(l.obs||''))+'" placeholder="Observação..." oninput="cotUpd('+l.id+',\x27obs\x27,this.value)" style="font-size:10px;"></td>'
       +'<td style="text-align:center;"><button onclick="cotRem('+l.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:13px;padding:0 2px;">&#x2715;</button></td>'
       +'</tr>';
   }).join('');
@@ -16729,7 +16738,7 @@ function cotRender(){
     var isBestPrazo=l.prazo&&l.prazo===minPrazo;
     var rowBg=l.status==='Contratado'?'background:#f0fdf4;':l.status==='Declinado'?'background:#fff5f5;':'';
     return '<tr id="cot-row-'+l.id+'" style="'+rowBg+'">'
-      +'<td><input type="text" value="'+l.fornecedor.replace(/"/g,'&quot;')+'" placeholder="Fornecedor / empresa" onchange="cotField('+l.id+',\x27fornecedor\x27,this.value)" style="font-weight:600;font-size:11px;"></td>'
+      +'<td><input type="text" value="'+_escAttr(l.fornecedor)+'" placeholder="Fornecedor / empresa" onchange="cotField('+l.id+',\x27fornecedor\x27,this.value)" style="font-weight:600;font-size:11px;"></td>'
       +'<td><input id="cot-rkg-'+l.id+'" type="number" value="'+rKg+'" placeholder="0.00" min="0" step="0.01"'
       +' style="text-align:right;font-weight:700;'+(isBestKg?'color:#166534;background:#dcfce7;':'')+'"'
       +' onblur="cotFieldKg('+l.id+',this.value)"></td>'
@@ -16740,7 +16749,7 @@ function cotRender(){
       +' style="font-size:10px;'+(isBestPrazo?'background:#fef9c3;font-weight:700;':'')+'"'
       +' onchange="cotField('+l.id+',\x27prazo\x27,this.value)"></td>'
       +'<td><select style="'+stSty+'" onchange="cotField('+l.id+',\x27status\x27,this.value)">'+stO+'</select></td>'
-      +'<td><input type="text" value="'+((l.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Observação..."'
+      +'<td><input type="text" value="'+(_escAttr(l.obs||''))+'" placeholder="Observação..."'
       +' onchange="cotField('+l.id+',\x27obs\x27,this.value)" style="font-size:10px;"></td>'
       +'<td style="text-align:center;"><button onclick="cotRem('+l.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;padding:0 3px;">&#x2715;</button></td>'
       +'</tr>';
@@ -17247,6 +17256,8 @@ async function _cdocSBLoad(){
     _cdocSBReady=true;
     // Recupera dados perdidos por race condition (ex: S176BAD + GRD-0143)
     setTimeout(_cdocRecoverLostData, 500);
+    // Recupera atualização de cronograma para GRD-0147 (S176AAU) e GRD-0148 (S176ABA)
+    setTimeout(_cdocRecoverGrdCronograma, 1500);
   } catch(e) {
     console.error('_cdocSBLoad error:',e);
     // fallback para localStorage
@@ -17576,9 +17587,57 @@ function _cdocSeedGrdCounters(seeds){
 }
 // Inicializa contadores das obras com histórico conhecido
 // (só eleva, nunca reduz — seguro rodar múltiplas vezes)
-_cdocSeedGrdCounters({'S176':143});
+_cdocSeedGrdCounters({'S176':148});
 
-// ── RECUPERAÇÃO: S176BAD + GRD-0143 (perdidos por race condition de auto-refresh) ──
+// ── RECUPERAÇÃO: Atualização do cronograma para GRDs 0147 (S176AAU) e 0148 (S176ABA) ──
+// Estas GRDs foram emitidas mas a etapa 2 (envio_modelo + lista_resumo_mp) e status
+// não foram atualizados por bug na função _cdocGrdDetAtualizarCronograma (tiposStr vs array)
+function _cdocRecoverGrdCronograma(){
+  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length) return;
+
+  var tagsToFix=[
+    {tag:'S176AAU', grd:'S176-GRD-0147', data:'2026-06-29'},
+    {tag:'S176ABA', grd:'S176-GRD-0148', data:'2026-06-29'}
+  ];
+
+  tagsToFix.forEach(function(item){
+    var cronRec=allCronSubobras.find(function(s){
+      return s.subobra===item.tag;
+    });
+    if(!cronRec) return;
+
+    // Verifica se já está atualizado
+    if(cronRec.conc_envio_modelo==='S'&&cronRec.real_envio_modelo) {
+      console.log('[RecoverGrd] '+item.tag+' já atualizado. OK.');
+      return;
+    }
+
+    console.warn('[RecoverGrd] Atualizando cronograma para '+item.tag+' / '+item.grd);
+    var upd={
+      atualizado_em: new Date().toISOString(),
+      grd_modelo:    item.grd,
+      real_envio_modelo: item.data,
+      conc_envio_modelo: 'S',
+      real_rec_modelo:   item.data,
+      conc_rec_modelo:   'S',
+      real_resumo_mp:    item.data,
+      conc_resumo_mp:    'S',
+      status:            'AG. MODELO PARA APROV.'
+    };
+
+    var idx=allCronSubobras.findIndex(function(x){return x.id===cronRec.id;});
+    if(idx>=0) allCronSubobras[idx]=Object.assign({},allCronSubobras[idx],upd);
+
+    sbClient.from('cronograma_subobras').update(upd).eq('id',cronRec.id).select()
+      .then(function(r){
+        if(r.error) console.warn('[RecoverGrd] Erro Supabase:',r.error.message);
+        else console.log('[RecoverGrd] '+item.tag+' atualizado no Supabase.');
+      })
+      .catch(function(e){ console.warn('[RecoverGrd]',e.message); });
+  });
+
+  if(typeof renderCronograma==='function') setTimeout(renderCronograma,500);
+}
 // Roda após Supabase carregar. Injeta o doc e a GRD no cache E no Supabase.
 function _cdocRecoverLostData(){
   // Usa _cdocSBCache diretamente — é o estado atual do Supabase
@@ -18478,7 +18537,7 @@ function cdocBumpRev(modulo, dir){
     +'<div style="text-align:center;">'
     +'<div style="font-size:9px;font-weight:700;letter-spacing:.07em;margin-bottom:3px;color:'+dirColor+';">NOVA</div>'
     +'<div style="font-family:Courier New,monospace;font-size:20px;font-weight:900;background:'+dirBg+';color:'+dirColor+';border:2px solid '+dirBorder+';border-radius:6px;padding:6px 16px;">'
-    +'<input id="_rv-inp" type="text" value="'+_esc(revNova)+'" style="font-family:Courier New,monospace;font-size:18px;font-weight:900;color:'+dirColor+';background:transparent;border:none;outline:none;width:80px;text-align:center;" oninput="this.value=this.value.toUpperCase();" maxlength="8">'
+    +'<input id="_rv-inp" type="text" value="'+_escAttr(revNova)+'" style="font-family:Courier New,monospace;font-size:18px;font-weight:900;color:'+dirColor+';background:transparent;border:none;outline:none;width:80px;text-align:center;" oninput="this.value=this.value.toUpperCase();" maxlength="8">'
     +'</div>'
     +'</div>'
     +'</div>'
@@ -18569,7 +18628,7 @@ function _cdocAbrirFormBas(rec){
     +'<div><label>Obra *</label><select id="cef-obra" onchange="cdocBasObraChange()"><option value="">-- Selecione --</option>'+oO+'</select></div>'
     +'<div><label>TAG Sub-obra *</label><div style="display:flex;gap:4px;align-items:center;"><input id="cef-sub" list="cef-sub-dl" placeholder="Selecione ou digite..." oninput="cdocBasSubChange()" autocomplete="off" value="'+(rec&&rec.sub?rec.sub:'')+'" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"><datalist id="cef-sub-dl">'+sO.replace(/ selected/g,'')+'</datalist></div></div>'
     +'</div>'
-    +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+v('titulo').replace(/"/g,'&quot;')+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+v_escAttr('titulo')+'"></div></div>'
     +'<div class="cdoc-ef">'
     +'<div><label>Nº Cliente</label><input id="cef-cli" value="'+v('cli')+'"></div>'
     +'<div><label>Projetista</label><select id="cef-proj" onchange="cdocBasEquipeChange()"><option value="">-- Selecione --</option>'+eqO+'</select></div>'
@@ -18761,14 +18820,14 @@ function _cdocAbrirFormDet(rec){
     +'<div style="display:flex;gap:4px;align-items:center;">'
     +'<input id="cef-tipo" list="cdoc-tipo-list" placeholder="Selecione ou digite..." style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<datalist id="cdoc-tipo-list">'
-    +(_cdocTipos||[]).map(function(t){return '<option value="'+_esc(t)+'">'+_esc(t)+'</option>';}).join('')
+    +(_cdocTipos||[]).map(function(t){return '<option value="'+_escAttr(t)+'">'+_esc(t)+'</option>';}).join('')
     +'</datalist>'
     +'<button type="button" onclick="cdocAddTipoCustom()" title="Adicionar tipo personalizado" style="padding:3px 8px;font-size:11px;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;border-radius:4px;cursor:pointer;white-space:nowrap;">+ Tipo</button>'
     +'</div></div>'
     +'<div><label>Eng. Responsável</label><input id="cef-eng" value="'+v('engResp')+'"></div>'
     +'</div>'
-    +'<div class="cdoc-ef full"><div><label>Título</label><input id="cef-titulo-det" value="'+v('titulo').replace(/"/g,'&quot;')+'"></div></div>'
-    +'<div class="cdoc-ef full"><div><label>Descrição</label><input id="cef-desc" value="'+v('desc').replace(/"/g,'&quot;')+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Título</label><input id="cef-titulo-det" value="'+v_escAttr('titulo')+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Descrição</label><input id="cef-desc" value="'+v_escAttr('desc')+'"></div></div>'
     +'<div class="cdoc-ef tri">'
     +'<div><label>Peça</label><input id="cef-peca" value="'+v('peca')+'"></div>'
     +'<div><label>Peso Det. (kg)</label><input id="cef-peso" type="number" step="0.01" value="'+v('peso')+'"></div>'
@@ -19351,7 +19410,7 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
     }
   });
   _cdocSave(db);
-  _cdocGrdDetAtualizarCronograma(sels, dataISO, grdNum, tiposStr);
+  _cdocGrdDetAtualizarCronograma(sels, dataISO, grdNum, tiposEm);
 
   // Gera a janela de impressão agrupada por finalidade
   var tipoColors={'Para Aprovação':'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd',
@@ -19817,71 +19876,101 @@ function _cdocGrdDetAtualizarCronograma(sels, dataISO, numGrd, tipoEm){
   if(typeof allCronSubobras==='undefined'||!allCronSubobras.length) return;
   var _fObraRef=(document.getElementById('cdd-f-obra')||{}).value||'';
   var obraRef=_fObraRef||(sels[0]&&sels[0].obraId)||'';
-  var atualizaAprov=(tipoEm==='Para Aprovação'||tipoEm==='Ambos'||!tipoEm);
-  var atualizaMP=(tipoEm==='Para Verificação de MP'||tipoEm==='Ambos');
+
+  // Para Aprovação → atualiza Etapa 2 (envio_modelo) + Etapa 4 (rec_modelo) + Lista Resumo MP + status
+  // Para Verificação de MP → atualiza somente Lista Resumo MP
+  // Para Certificação / Para Informação → atualiza Etapa 2 (envio_modelo) + status
+  var tipos = Array.isArray(tipoEm) ? tipoEm : (tipoEm||'Para Aprovação').split(' + ');
+  var atualizaAprov = tipos.some(function(t){ return t==='Para Aprovação'||t==='Ambos'; });
+  var atualizaMP    = tipos.some(function(t){ return t==='Para Verificação de MP'||t==='Ambos'; });
+  var atualizaEnvio = atualizaAprov || tipos.some(function(t){ return t==='Para Certificação'||t==='Para Informação'; });
+
+  // Mapeia o status para cada tipo de emissão
+  var novoStatus = null;
+  if(atualizaAprov)                novoStatus = 'AG. MODELO PARA APROV.';
+  else if(atualizaMP)              novoStatus = null; // não muda status
+  else if(tipos.some(function(t){ return t==='Para Certificação'; })) novoStatus = 'AG. CERTIFICAÇÃO';
+  else if(tipos.some(function(t){ return t==='Para Informação'; }))   novoStatus = null;
+
   // Coleta TAGs únicas dos documentos selecionados
   var tagsAfetadas=[];
   sels.forEach(function(d){if(d.sub&&tagsAfetadas.indexOf(d.sub)===-1) tagsAfetadas.push(d.sub);});
+
   tagsAfetadas.forEach(function(tag){
     var cronRec=allCronSubobras.find(function(s){
       return s.subobra===tag&&(!obraRef||s.obra===obraRef);
     });
     if(!cronRec) return;
     var upd={atualizado_em:new Date().toISOString()};
+
+    // Etapa 4 — Rec. Modelo (só Para Aprovação)
     if(atualizaAprov){
       upd.grd_modelo=numGrd;
       upd.real_rec_modelo=dataISO;
       upd.conc_rec_modelo='S';
     }
-    if(atualizaMP){
+
+    // Etapa 2 — Enviado p/ Aprovação do Cliente (Para Aprovação, Certificação, Informação)
+    if(atualizaEnvio){
+      upd.grd_modelo=upd.grd_modelo||numGrd; // grd_modelo é compartilhado entre envio e rec
+      upd.real_envio_modelo=dataISO;
+      upd.conc_envio_modelo='S';
+    }
+
+    // Sub-etapa Lista Resumo MP (Para Aprovação ou Para Verificação de MP)
+    if(atualizaAprov||atualizaMP){
       upd.real_resumo_mp=dataISO;
       upd.conc_resumo_mp='S';
     }
+
+    // Status do cronograma
+    if(novoStatus) upd.status=novoStatus;
+
     var idx=allCronSubobras.findIndex(function(x){return x.id===cronRec.id;});
     if(idx>=0) allCronSubobras[idx]=Object.assign({},allCronSubobras[idx],upd);
+
     try{
       sbClient.from('cronograma_subobras').update(upd).eq('id',cronRec.id).select()
         .then(function(r){if(r.error) console.warn('[GRD-DET→Cron]',r.error.message);})
         .catch(function(e){console.warn('[GRD-DET→Cron]',e.message);});
     }catch(e){console.warn('[GRD-DET→Cron]',e.message);}
+
     // Atualiza _etapasState em memória se o modal do cronograma estiver aberto para esta TAG
     try{
       if(typeof _etapasState!=='undefined'&&typeof _cronModalTag!=='undefined'&&_cronModalTag===tag){
         if(atualizaAprov){
-          _etapasState['rec_modelo']=_etapasState['rec_modelo']||{};
-          _etapasState['rec_modelo'].grd=numGrd;
-          _etapasState['rec_modelo'].real=dataISO;
-          _etapasState['rec_modelo'].concluido=true;
-          if(!_etapasState['envio_modelo']) _etapasState['envio_modelo']={};
-          _etapasState['envio_modelo'].grd=numGrd;
-          _etapasState['envio_modelo'].real=dataISO;
-          // Atualizar campos DOM do modal cronograma diretamente
-          var elGrd=document.getElementById('cm-grd-modelo');
-          if(elGrd) elGrd.value=numGrd;
-          var elReal=document.getElementById('cm-real-rec-modelo');
-          if(elReal) elReal.value=dataISO;
-          var elRealEnvio=document.getElementById('cm-real-envio-modelo');
-          if(elRealEnvio&&!elRealEnvio.value) elRealEnvio.value=dataISO;
+          _etapasState['rec_modelo']=Object.assign(_etapasState['rec_modelo']||{},{grd:numGrd,real:dataISO,concluido:true});
+          var elGrd=document.getElementById('cm-grd-modelo'); if(elGrd) elGrd.value=numGrd;
+          var elReal=document.getElementById('cm-real-rec-modelo'); if(elReal) elReal.value=dataISO;
         }
-        if(atualizaMP){
-          _etapasState['lista_resumo_mp']=_etapasState['lista_resumo_mp']||{};
-          _etapasState['lista_resumo_mp'].real=dataISO;
-          _etapasState['lista_resumo_mp'].concluido=true;
-          // Atualizar campo DOM do modal cronograma diretamente
-          var elRealMP=document.getElementById('cm-real-resumo-mp');
-          if(elRealMP) elRealMP.value=dataISO;
+        if(atualizaEnvio){
+          _etapasState['envio_modelo']=Object.assign(_etapasState['envio_modelo']||{},{grd:numGrd,real:dataISO,concluido:true});
+          var elRealEnvio=document.getElementById('cm-real-envio-modelo'); if(elRealEnvio&&!elRealEnvio.value) elRealEnvio.value=dataISO;
+          var elGrdEnvio=document.getElementById('cm-grd-envio-modelo'); if(elGrdEnvio&&!elGrdEnvio.value) elGrdEnvio.value=numGrd;
+        }
+        if(atualizaAprov||atualizaMP){
+          _etapasState['lista_resumo_mp']=Object.assign(_etapasState['lista_resumo_mp']||{},{real:dataISO,concluido:true});
+          var elRealMP=document.getElementById('cm-real-resumo-mp'); if(elRealMP) elRealMP.value=dataISO;
         }
         if(typeof renderEtapasDinamicas==='function') renderEtapasDinamicas();
+        // Atualiza o select de status se estiver aberto
+        if(novoStatus){
+          var stSel=document.getElementById('cm-status');
+          if(stSel) stSel.value=novoStatus;
+        }
       }
     }catch(eM){console.warn('[GRD-DET→Cron mem]',eM.message);}
   });
+
   // Toast de confirmação
   if(typeof showToast==='function'){
     var etapasAtualizadas=[];
-    if(atualizaAprov) etapasAtualizadas.push('Etapa 2 — Modelo p/ Aprovação');
-    if(atualizaMP)    etapasAtualizadas.push('Lista Resumo MP');
+    if(atualizaAprov)  etapasAtualizadas.push('Etapa 4 (Rec. Modelo)');
+    if(atualizaEnvio)  etapasAtualizadas.push('Etapa 2 (Enviado p/ Aprovação)');
+    if(atualizaAprov||atualizaMP) etapasAtualizadas.push('Lista Resumo MP');
+    if(novoStatus)     etapasAtualizadas.push('Status → '+novoStatus);
     if(etapasAtualizadas.length){
-      showToast('Cronograma atualizado',etapasAtualizadas.join(' e ')+' vinculadas à GRD '+numGrd+'.','success');
+      showToast('Cronograma atualizado', etapasAtualizadas.join(' · ')+' — GRD '+numGrd, 'success');
     }
   }
 }
@@ -20134,9 +20223,9 @@ function cdocEditarGrdBas(grdId){
       // Responsável
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">'
         +'<div><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pelo Envio</label>'
-          +'<input id="grdb-edit-resp" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #c4b5fd;border-radius:5px;"></div>'
+          +'<input id="grdb-edit-resp" value="'+_escAttr(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #c4b5fd;border-radius:5px;"></div>'
         +'<div><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações</label>'
-          +'<input id="grdb-edit-obs" value="'+_esc(g.obs||'')+'" placeholder="Observações..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:5px;"></div>'
+          +'<input id="grdb-edit-obs" value="'+_escAttr(g.obs||'')+'" placeholder="Observações..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:5px;"></div>'
       +'</div>'
       // Documentos incluídos
       +'<div style="margin-bottom:14px;">'
@@ -20246,7 +20335,7 @@ function cdocEnviarGrdBas(grdId){
     +'<div style="font-size:14px;font-weight:700;color:#5b21b6;margin-bottom:4px;">📤 Finalizar Envio — '+_esc(g.numero)+'</div>'
     +'<div style="font-size:11px;color:#64748b;margin-bottom:14px;">Tipo: <strong>'+_esc(g.tipo||'')+'</strong> &nbsp;|&nbsp; Projetos: <strong>'+(g.docs||[]).length+'</strong></div>'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pelo Envio</label>'
-    +'<input id="grdb-env-resp" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:10px;">'
+    +'<input id="grdb-env-resp" value="'+_escAttr(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:10px;">'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de Envio</label>'
     +'<input id="grdb-env-data" type="date" value="'+_cdocHojeISO()+'" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:14px;">'
     +'<div style="background:#f3e8ff;border:1px solid #c4b5fd;border-radius:5px;padding:7px 10px;margin-bottom:14px;font-size:10px;color:#5b21b6;">'
@@ -20434,7 +20523,7 @@ function cdocEnviarGrd(grdId){
     var _selsFin2=(g2.docs||[]).map(function(gDoc){
       return db2.detalhados.find(function(d){return d.id===gDoc.docId;})||{sub:gDoc.sub,obraId:g2.obra||''};
     }).filter(Boolean);
-    _cdocGrdDetAtualizarCronograma(_selsFin2, dataEnvio, g2.numero, g2.tipo);
+    _cdocGrdDetAtualizarCronograma(_selsFin2, dataEnvio, g2.numero, (g2.tipo||'Para Aprovação').split(' + '));
     cdocRenderDet();
     cdocRenderVisao();
     var ov=document.getElementById('cdoc-grds-overlay');
@@ -20464,7 +20553,7 @@ function cdocEditarGrd(grdId){
       return '<tr style="border-bottom:1px solid #e2e8f0;">'
         +'<td style="padding:5px 8px;font-family:Courier New,monospace;font-size:11px;font-weight:700;color:#0369a1;">'+_esc(d.num||'')+'</td>'
         +'<td style="padding:5px 8px;font-size:11px;">'+_esc(d.sub||'')+'</td>'
-        +'<td style="padding:5px 8px;"><input data-grd-cli="'+i+'" value="'+_esc(d.cli||'')+'" placeholder="Nº cliente" '
+        +'<td style="padding:5px 8px;"><input data-grd-cli="'+i+'" value="'+_escAttr(d.cli||'')+'" placeholder="Nº cliente" '
         +'style="font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:3px;width:110px;"></td>'
         +'<td style="padding:5px 8px;font-size:11px;">'+_esc(d.desc||'')+'</td>'
         +'<td style="padding:5px 8px;font-size:11px;">'+_esc(d.rev||'')+'</td>'
@@ -20486,7 +20575,7 @@ function cdocEditarGrd(grdId){
       +'<div style="overflow:auto;padding:20px;">'
       +'<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">'
       +'<div><label style="font-size:11px;font-weight:700;color:#475569;">Nº da GRD</label><br>'
-      +'<input id="grd-edit-num" value="'+_esc(g2.numero||'')+'" style="font-size:13px;font-weight:700;font-family:Courier New,monospace;padding:5px 8px;border:2px solid #0369a1;border-radius:4px;color:#0369a1;min-width:180px;"></div>'
+      +'<input id="grd-edit-num" value="'+_escAttr(g2.numero||'')+'" style="font-size:13px;font-weight:700;font-family:Courier New,monospace;padding:5px 8px;border:2px solid #0369a1;border-radius:4px;color:#0369a1;min-width:180px;"></div>'
       +'<div><label style="font-size:11px;font-weight:700;color:#475569;">Tipo</label><br>'
       +'<select id="grd-edit-tipo" style="font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;">'
       +'<option'+(g2.tipo==='Para Aprovação'?' selected':'')+'>Para Aprovação</option>'
@@ -20494,7 +20583,7 @@ function cdocEditarGrd(grdId){
       +'<option'+(g2.tipo==='Para Informação'?' selected':'')+'>Para Informação</option>'
       +'</select></div>'
       +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#475569;">Observações</label><br>'
-      +'<input id="grd-edit-obs" value="'+_esc(g2.obs||'')+'" style="width:100%;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"></div>'
+      +'<input id="grd-edit-obs" value="'+_escAttr(g2.obs||'')+'" style="width:100%;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"></div>'
       +'</div>'
       +'<div style="font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:8px;">Documentos incluídos ('+((g2.docs||[]).length)+'):</div>'
       +'<div style="border:1px solid #e2e8f0;border-radius:6px;margin-bottom:14px;overflow:hidden;">'
@@ -20506,12 +20595,12 @@ function cdocEditarGrd(grdId){
       +'<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;">🔍 Filtrar documentos disponíveis</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">'
       +'<select id="grd-f-sub" onchange="_cdocGrdFilterDocs('+grdId+')" style="font-size:11px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;"><option value="">Toda sub-obra</option>'
-      +Array.from(new Set(availDocs.map(function(d){return d.sub||'';})).values()).filter(Boolean).sort().map(function(s){return '<option value="'+_esc(s)+'">'+_esc(s)+'</option>';}).join('')
+      +Array.from(new Set(availDocs.map(function(d){return d.sub||'';})).values()).filter(Boolean).sort().map(function(s){return '<option value="'+_escAttr(s)+'">'+_esc(s)+'</option>';}).join('')
       +'</select>'
       +'<input id="grd-f-num" placeholder="Nº Sidertec" oninput="_cdocGrdFilterDocs('+grdId+')" style="width:100px;font-size:11px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
       +'<input id="grd-f-tipo" list="grd-f-tipo-list" placeholder="Tipo" oninput="_cdocGrdFilterDocs('+grdId+')" style="width:130px;font-size:11px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
       +'<datalist id="grd-f-tipo-list">'
-      +Array.from(new Set(availDocs.map(function(d){return d.tipo||'';})).values()).filter(Boolean).sort().map(function(t){return '<option value="'+_esc(t)+'">'+_esc(t)+'</option>';}).join('')
+      +Array.from(new Set(availDocs.map(function(d){return d.tipo||'';})).values()).filter(Boolean).sort().map(function(t){return '<option value="'+_escAttr(t)+'">'+_esc(t)+'</option>';}).join('')
       +'</datalist>'
       +'<button onclick="_cdocGrdClearFilters('+grdId+')" style="padding:4px 8px;font-size:10px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;">✕ Limpar</button>'
       +'</div>'
@@ -21178,7 +21267,7 @@ function _cdocPopulateDiarioObras(){
   var sel=document.getElementById('cdd-df-obra'); if(!sel) return;
   var cur=sel.value;
   var obras=_cdocObras();
-  sel.innerHTML='<option value="">Toda obra</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'">'+_esc(o)+'</option>';}).join('');
+  sel.innerHTML='<option value="">Toda obra</option>'+obras.map(function(o){return '<option value="'+_escAttr(o)+'">'+_esc(o)+'</option>';}).join('');
   sel.value=cur;
 }
 function cdocRenderDiario(){
@@ -21515,7 +21604,7 @@ function _cdocShowColFlt(e,tbl,col){
   sorted.forEach(function(v){
     var chk=curFlt.size===0||curFlt.has(v);
     html+='<label style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;white-space:nowrap;">'
-      +'<input type="checkbox" '+(chk?'checked':'')+' onchange="_cdocFltToggle(\''+tbl+'\',\''+col+'\',this.value,this.checked)" value="'+v.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" style="cursor:pointer;">'
+      +'<input type="checkbox" '+(chk?'checked':'')+' onchange="_cdocFltToggle(\''+tbl+'\',\''+col+'\',this.value,this.checked)" value="'+v.replace_escAttr(/&/g,'&amp;')+'" style="cursor:pointer;">'
       +'<span>'+_esc(v)+'<span style="color:#94a3b8;margin-left:3px;font-size:9px;">('+vals[v]+')</span></span>'
       +'</label>';
   });
