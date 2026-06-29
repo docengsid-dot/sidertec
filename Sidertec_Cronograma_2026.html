@@ -17206,7 +17206,19 @@ async function _cdocSBLoad(){
     }
     var rows=await r.json();
     if(rows.length&&rows[0].data){
-      _cdocSBCache=rows[0].data;
+      var remoteData=rows[0].data;
+      // Tenta mesclar com dados locais mais recentes para não perder saves pendentes
+      var localData=null;
+      try{localData=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
+      if(localData&&((localData.detalhados||[]).length+(localData.basicos||[]).length) >
+         ((remoteData.detalhados||[]).length+(remoteData.basicos||[]).length)){
+        // Local tem mais dados — faz merge e republica para Supabase
+        _cdocSBCache=_cdocMergeSnapshots(remoteData,localData);
+        console.warn('[CDOC] Local tem mais dados que Supabase — fazendo merge e republicando.');
+        await _cdocSBPush(_cdocSBCache);
+      } else {
+        _cdocSBCache=remoteData;
+      }
       // Sanitiza pesos armazenados como string ou NaN
       (_cdocSBCache.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
       (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
@@ -17233,6 +17245,8 @@ async function _cdocSBLoad(){
       }
     }
     _cdocSBReady=true;
+    // Recupera dados perdidos por race condition (ex: S176BAD + GRD-0143)
+    setTimeout(_cdocRecoverLostData, 500);
   } catch(e) {
     console.error('_cdocSBLoad error:',e);
     // fallback para localStorage
@@ -17360,21 +17374,28 @@ function _cdocMergeSnapshots(remote,local){
   return r;
 }
 var _cdocSaveTimer=null;
+var _cdocSavePending=false; // bloqueia auto-refresh enquanto save está em curso
+
 function _cdocSave(db){
   _cdocSBCache=db;
-  // Debounce localStorage write — com 4766 docs JSON.stringify bloqueia a UI
-  clearTimeout(_cdocSaveTimer);
-  _cdocSaveTimer=setTimeout(function(){
-    try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
-  },300);
+  _cdocSavePending=true;
+
+  // Escreve localStorage imediatamente (síncrono) — garante persistência local mesmo se Supabase falhar
+  try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+
   _cdocSBStatus('💾 Salvando...','#0369a1');
   (async function(){
-    await _cdocSBPush(db);
-    _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
-    setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
-  })().catch(function(e){
-    _cdocSBStatus('⚠ Erro ao salvar na nuvem','#dc2626');
-  });
+    try{
+      await _cdocSBPush(db);
+      _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
+      setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
+    } catch(e){
+      _cdocSBStatus('⚠ Erro ao salvar na nuvem — dados preservados localmente','#dc2626');
+      console.error('[_cdocSave] Supabase push error:',e);
+    } finally {
+      _cdocSavePending=false;
+    }
+  })();
 }
 
 function _cdocDb(){ return _cdocLoad(); }
@@ -17416,11 +17437,15 @@ async function abrirCtrlDoc(){
     }
     var editOv=document.getElementById('cdoc-edit-overlay');
     if(editOv&&editOv.classList.contains('show')) return;
+    // NÃO sobrescreve o cache se há um save em andamento — evita perda de dados
+    if(_cdocSavePending) return;
     try{
       var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
       if(!r.ok) return;
       var rows=await r.json();
       if(rows.length&&rows[0].data){
+        // Dupla verificação: não sobrescreve se save foi iniciado durante o fetch
+        if(_cdocSavePending) return;
         _cdocSBCache=rows[0].data;
         try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
         cdocRefreshAll();
@@ -17551,7 +17576,113 @@ function _cdocSeedGrdCounters(seeds){
 }
 // Inicializa contadores das obras com histórico conhecido
 // (só eleva, nunca reduz — seguro rodar múltiplas vezes)
-_cdocSeedGrdCounters({'S176':133});
+_cdocSeedGrdCounters({'S176':143});
+
+// ── RECUPERAÇÃO: S176BAD + GRD-0143 (perdidos por race condition de auto-refresh) ──
+// Roda após Supabase carregar. Injeta o doc e a GRD no cache E no Supabase.
+function _cdocRecoverLostData(){
+  // Usa _cdocSBCache diretamente — é o estado atual do Supabase
+  var db=_cdocSBCache;
+  if(!db||!Array.isArray(db.detalhados)) return;
+
+  var jaTemDoc=db.detalhados.find(function(d){
+    return d.num==='S176BADIFC-001'||d.cli==='40825-04-SF-V-1269';
+  });
+  var jaTemGrd=(db._grds||[]).find(function(g){return g.numero==='S176-GRD-0143';});
+  if(jaTemDoc&&jaTemGrd){
+    console.log('[CDOC Recovery] S176BAD + GRD-0143 já existem. OK.');
+    return;
+  }
+
+  console.warn('[CDOC Recovery] Dados perdidos detectados — restaurando S176BAD + GRD-0143');
+  var changed=false;
+
+  if(!jaTemDoc){
+    db._ids=db._ids||{bas:1,det:1};
+    // Garante ID único
+    var maxId=db.detalhados.reduce(function(m,d){return Math.max(m,d.id||0);},0);
+    db._ids.det=Math.max(db._ids.det||1, maxId+1);
+    var newDoc={
+      id:db._ids.det++,
+      obraId:'S176 RIO VERDE NOURYON',
+      sub:'S176BAD',
+      num:'S176BADIFC-001',
+      cli:'40825-04-SF-V-1269',
+      tipo:'Modelo IFC',
+      titulo:'1201-PRÉDIO DE PROCESSO - CELULAS - TRANSFORMADORES- SUPORTE DE BARRAMENTO 2-MODELO 3D',
+      desc:'MODELO 3D',
+      peca:'',
+      peso:null,
+      rev:'RC1',
+      statusGeral:'ENVIADO AO CLIENTE',
+      data:'',
+      engResp:'',
+      libfabHist:[],
+      envioHist:[{
+        rev:'RC1',
+        data:'2026-06-26',
+        finalidade:'Para Certificação',
+        grd:'S176-GRD-0143',
+        prevRetorno:'2026-07-17',
+        retornoReal:'',
+        statusFinal:'',
+        obs:'',
+        status:'Concluído'
+      }]
+    };
+    db.detalhados.push(newDoc);
+    changed=true;
+    console.log('[CDOC Recovery] Doc S176BAD inserido. ID='+newDoc.id);
+  }
+
+  if(!jaTemGrd){
+    db._grds=db._grds||[];
+    db._ids=db._ids||{bas:1,det:1,grd:0};
+    db._ids.grd=Math.max(db._ids.grd||0,143);
+    db._grdCounters=db._grdCounters||{};
+    db._grdCounters['S176']=Math.max(db._grdCounters['S176']||0,143);
+    db._grds.push({
+      id:143,
+      numero:'S176-GRD-0143',
+      data:'2026-06-26',
+      tipo:'Para Certificação',
+      obs:'',
+      obra:'S176 RIO VERDE NOURYON',
+      modulo:'det',
+      prevRetorno:'2026-07-17',
+      status:'rascunho',
+      docs:[{
+        num:'S176BADIFC-001',
+        sub:'S176BAD',
+        cli:'40825-04-SF-V-1269',
+        tipo:'Modelo IFC',
+        titulo:'1201-PRÉDIO DE PROCESSO - CELULAS - TRANSFORMADORES- SUPORTE DE BARRAMENTO 2-MODELO 3D',
+        desc:'MODELO 3D',
+        peca:'',
+        rev:'RC1',
+        finalidade:'Para Certificação'
+      }]
+    });
+    changed=true;
+    console.log('[CDOC Recovery] GRD S176-GRD-0143 inserida.');
+  }
+
+  if(changed){
+    // Salva localmente E no Supabase imediatamente
+    _cdocSBCache=db;
+    try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+    _cdocSBPush(db).then(function(){
+      console.log('[CDOC Recovery] Dados salvos no Supabase com sucesso.');
+      _cdocSBStatus('✅ Dados S176BAD recuperados','#16a34a');
+      setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
+      cdocRefreshAll();
+    }).catch(function(err){
+      console.error('[CDOC Recovery] Erro ao salvar no Supabase:',err.message);
+      _cdocSBStatus('⚠ Recovery local OK — erro nuvem','#f59e0b');
+      cdocRefreshAll();
+    });
+  }
+}
 
 function cdocPopFilters(){
   var obras=_cdocObras();
