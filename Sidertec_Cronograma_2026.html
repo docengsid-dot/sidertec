@@ -17061,6 +17061,23 @@ function cotExportarCSV(){
     if(b) b.textContent='▼ Expandir pesos por TAG';
     localStorage.setItem('_cdocPesoPainelCollapsed','1');
   }
+}
+function _cdocPainelToggleDet(){
+  var p=document.getElementById('cdd-peso-painel'); if(!p) return;
+  var t=p.querySelector('#cdd-peso-tags');
+  var b=p.querySelector('#cdd-peso-toggle');
+  var col=p.dataset.collapsed==='1';
+  if(col){
+    if(t) t.style.display='flex';
+    p.dataset.collapsed='0';
+    if(b) b.textContent='▲ Recolher';
+    localStorage.setItem('_cdocPesoPainelCollapsedDet','0');
+  } else {
+    if(t) t.style.display='none';
+    p.dataset.collapsed='1';
+    if(b) b.textContent='▼ Expandir pesos por TAG';
+    localStorage.setItem('_cdocPesoPainelCollapsedDet','1');
+  }
 }</script>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
         <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
@@ -17166,6 +17183,7 @@ function cotExportarCSV(){
         <button onclick="backupCompleto()" title="Baixar backup completo JSON (CDOC + Cronograma)" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📥 Backup</button>
         <button onclick="salvarSistema()" title="Salvar cópia do sistema (arquivo HTML com data)" style="background:#0f172a;color:#e2e8f0;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">💾 Salvar App</button>
         <button onclick="_cdocDiag()" title="Diagnóstico: ver o que está carregado em memória" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔍 Diag</button>
+        <button onclick="_cdocCorrigirAcentos()" title="Corrige acentos quebrados (♦, Ã§, etc.) em todos os documentos" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Acentos</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
@@ -17538,6 +17556,38 @@ async function backupCompleto(){
   }
 }
 function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;} document.getElementById('modal-ctrl-doc').classList.remove('show'); }
+// Corrige retroativamente os acentos quebrados (♦, Ã§, etc.) em todos os
+// documentos básicos e detalhados já salvos, e republica no Supabase.
+function _cdocCorrigirAcentos(){
+  if(!_siderRequireEdit()) return;
+  if(!confirm('Isso vai varrer TODOS os documentos (básicos e detalhados) e corrigir caracteres quebrados como ♦, Ã§, etc.\n\nDeseja continuar?')) return;
+  var db=_cdocDb();
+  var camposTexto=['titulo','desc','sub','obraId','num','cli','tipo','peca','engResp','obs','area','proj'];
+  var corrigidos=0;
+
+  function corrigirObj(obj){
+    var mudou=false;
+    camposTexto.forEach(function(f){
+      if(typeof obj[f]==='string'){
+        var fixed=_cdocFixEncoding(obj[f]);
+        if(fixed!==obj[f]){ obj[f]=fixed; mudou=true; }
+      }
+    });
+    return mudou;
+  }
+
+  (db.basicos||[]).forEach(function(b){ if(corrigirObj(b)) corrigidos++; });
+  (db.detalhados||[]).forEach(function(d){ if(corrigirObj(d)) corrigidos++; });
+
+  if(corrigidos>0){
+    _cdocSave(db);
+    showToast('Acentos corrigidos', corrigidos+' documento(s) corrigido(s) e salvo(s).', 'success');
+    cdocRenderBas(); cdocRenderDet(); cdocRenderVisao();
+  } else {
+    showToast('Nada a corrigir', 'Nenhum caractere quebrado encontrado.', 'info');
+  }
+}
+
 function _cdocDiag(){
   var cache=_cdocSBCache;
   var ls=null; try{ls=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
@@ -17695,6 +17745,46 @@ var _cdocBadge={
 // Caso contrário → includes normal (ex: "CB" retorna "S176CB", "CBM", etc.)
 // Suporta MÚLTIPLAS TAGs separadas por vírgula ou ponto-e-vírgula (ex: "CBL, AAH, S176BBE")
 // — retorna true se a sub-obra bater com QUALQUER um dos termos informados
+// _cdocFixEncoding — corrige texto importado com encoding errado (Windows-1252 lido
+// como UTF-8/Latin-1), que resulta em caracteres ♦ no lugar de Ç, Õ, Ã, É, etc.
+// Aplicado apenas ao salvar (não no carregamento, para não impactar performance).
+var _cdocEncodingMap = {
+  // Padrões de dupla-codificação UTF-8→Latin1 (mais comuns)
+  'Ã§':'ç','Ã£':'ã','Ã¢':'â','Ãª':'ê','Ã´':'ô','Ãµ':'õ',
+  'Ã¡':'á','Ã©':'é','Ã­':'í','Ã³':'ó','Ãº':'ú','Ã¼':'ü',
+  'Ã‡':'Ç','Ãƒ':'Ã','Ã‚':'Â','ÃŠ':'Ê','Ã"':'Ô','Ã•':'Õ',
+  'Ã€':'Á','Ã‰':'É','Ã"':'Í','Ãš':'Ú',
+  // Padrão "losango" ♦ — caractere de substituição genérico (mais comum no CSV import)
+  // Sem contexto não é possível saber qual acento era — mas os casos mais comuns em
+  // português são Ç, Õ, Ã, ÃO, ÇÕES — tentamos os padrões de palavra mais frequentes
+  'ELEVA♦♦ES':'ELEVAÇÕES','ELEVA\uFFFD\uFFFDES':'ELEVAÇÕES',
+  'INSTALA♦♦ES':'INSTALAÇÕES','INSTALA\uFFFD\uFFFDES':'INSTALAÇÕES',
+  'FUNDA♦♦ES':'FUNDAÇÕES','FUNDA\uFFFD\uFFFDES':'FUNDAÇÕES',
+  'LIGA♦♦ES':'LIGAÇÕES','LIGA\uFFFD\uFFFDES':'LIGAÇÕES',
+  'CONEX♦ES':'CONEXÕES','CONEX\uFFFDES':'CONEXÕES',
+  'SE♦♦ES':'SEÇÕES','SE\uFFFD\uFFFDES':'SEÇÕES',
+  'SOLDA♦O':'SOLDAÇÃO','SOLDA\uFFFDO':'SOLDAÇÃO',
+  'POSI♦♦O':'POSIÇÃO','POSI\uFFFD\uFFFDO':'POSIÇÃO',
+  'EXECU♦♦O':'EXECUÇÃO','EXECU\uFFFD\uFFFDO':'EXECUÇÃO',
+  'FABRICA♦♦O':'FABRICAÇÃO','FABRICA\uFFFD\uFFFDO':'FABRICAÇÃO',
+  'MONTAGE♦':'MONTAGEM','MONTAGE\uFFFD':'MONTAGEM',
+  'DETALHA♦♦O':'DETALHAÇÃO','DETALHA\uFFFD\uFFFDO':'DETALHAÇÃO',
+  'ESTRUTURA♦':'ESTRUTURAÇ','ESTRUTURA\uFFFD':'ESTRUTURAÇ'
+};
+function _cdocFixEncoding(str){
+  if(!str||typeof str!=='string') return str;
+  if(str.indexOf('♦')===-1 && str.indexOf('\uFFFD')===-1 && str.indexOf('Ã')===-1) return str;
+  var fixed=str;
+  Object.keys(_cdocEncodingMap).forEach(function(bad){
+    if(fixed.indexOf(bad)!==-1) fixed=fixed.split(bad).join(_cdocEncodingMap[bad]);
+  });
+  // Genérico: substitui ♦♦ por ÇÕ (padrão mais comum em ações terminadas em -ÇÕES)
+  fixed=fixed.replace(/♦♦/g,'ÇÕ').replace(/\uFFFD\uFFFD/g,'ÇÕ');
+  // ♦ isolado → tenta Ç (segundo padrão mais comum)
+  fixed=fixed.replace(/♦/g,'Ç').replace(/\uFFFD/g,'Ç');
+  return fixed;
+}
+
 function _cdocSubMatch(sub, termo){
   if(!termo) return true;
   // Separa por vírgula ou ponto-e-vírgula em múltiplos termos de busca
@@ -18337,14 +18427,21 @@ function cdocRenderDet(){
           +'</div>';
       }).join('');
     }
+    var _painelWasCollapsedD = (localStorage.getItem('_cdocPesoPainelCollapsedDet')||'1')!=='0';
     painel.style.display='';
-    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">'
+    painel.dataset.collapsed = _painelWasCollapsedD ? '1' : '0';
+    var _tagsDisplayStyleD = _painelWasCollapsedD ? 'display:none;' : 'display:flex;';
+    var _toggleLabelD = _painelWasCollapsedD ? '▼ Expandir pesos por TAG' : '▲ Recolher';
+    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;overflow:hidden;">'
+      +'<div onclick="_cdocPainelToggleDet()" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;cursor:pointer;user-select:none;" title="Clique para expandir / recolher os pesos por TAG">'
       +'<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:7px;padding:8px 20px;min-width:120px;">'
       +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
       +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalFmt+'</span>'
       +'<span style="font-size:11px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.length+' doc(s)</span>'
       +'</div>'
-      +(subCards?'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+subCards+'</div>':'')
+      +'<span id="cdd-peso-toggle" style="margin-left:auto;background:#0369a1;border:none;border-radius:5px;color:#fff;font-size:10px;font-weight:700;padding:4px 10px;cursor:pointer;white-space:nowrap;pointer-events:none;">'+_toggleLabelD+'</span>'
+      +'</div>'
+      +(subCards?'<div id="cdd-peso-tags" style="'+_tagsDisplayStyleD+'gap:8px;flex-wrap:wrap;align-items:center;padding:0 16px 12px;">'+subCards+'</div>':'')
       +'</div>';
   })();
   var ddelBtn=document.getElementById('cdd-btn-del-sel'); var ddelCnt=document.getElementById('cdd-del-count');
@@ -20775,7 +20872,7 @@ async function _cdocCriarNoCronograma(rec){
 function cdocSalvar(){
   if(!_siderRequireEdit()) return;
   var db=_cdocDb();
-  var g=function(id){return (document.getElementById(id)||{}).value||'';};
+  var g=function(id){return _cdocFixEncoding((document.getElementById(id)||{}).value||'');};
   if(_cdocMode==='bas'){
     var obra=g('cef-obra'), sub=g('cef-sub'), titulo=g('cef-titulo');
     if(!obra||!sub||!titulo){alert('Obra, Sub-obra e Título são obrigatórios.');return;}
