@@ -17022,7 +17022,7 @@ function cotExportarCSV(){
         <div class="cdoc-bar">
           <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
           <select id="cdb-f-obra" onchange="_cdocSyncGlobalFromTab('cdb-f-obra');cdocRenderBas()"><option value="">Todas obras</option></select>
-          <input id="cdb-f-sub" placeholder="Sub-obra..." oninput="cdocRenderBas()" style="max-width:130px;">
+          <input id="cdb-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="cdocRenderBas()" style="max-width:150px;">
           <select id="cdb-f-status" onchange="cdocRenderBas()">
             <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
           </select>
@@ -17079,7 +17079,7 @@ function cotExportarCSV(){
         <div class="cdoc-bar">
           <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
           <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
-          <input id="cdd-f-sub" placeholder="Sub-obra..." oninput="cdocRenderDet()" style="max-width:130px;">
+          <input id="cdd-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="cdocRenderDet()" style="max-width:150px;">
           <select id="cdd-f-tipo" onchange="cdocRenderDet()">
             <option value="">Todos tipos</option>
           </select>
@@ -17693,7 +17693,17 @@ var _cdocBadge={
 // _cdocSubMatch — busca inteligente por TAG/sub-obra
 // Se o termo termina com espaço → busca exata pelo prefixo (ex: "CB " só retorna "CB", não "S176CB")
 // Caso contrário → includes normal (ex: "CB" retorna "S176CB", "CBM", etc.)
+// Suporta MÚLTIPLAS TAGs separadas por vírgula ou ponto-e-vírgula (ex: "CBL, AAH, S176BBE")
+// — retorna true se a sub-obra bater com QUALQUER um dos termos informados
 function _cdocSubMatch(sub, termo){
+  if(!termo) return true;
+  // Separa por vírgula ou ponto-e-vírgula em múltiplos termos de busca
+  var termos = termo.split(/[,;]/).map(function(t){return t;}).filter(function(t){return t.trim()!=='';});
+  if(!termos.length) return true;
+  // Se só houver 1 termo, comportamento idêntico ao anterior
+  return termos.some(function(t){ return _cdocSubMatchSingle(sub, t); });
+}
+function _cdocSubMatchSingle(sub, termo){
   if(!termo) return true;
   var t = termo;
   var exact = t.endsWith(' ');
