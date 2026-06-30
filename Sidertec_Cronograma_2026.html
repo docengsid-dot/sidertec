@@ -17234,6 +17234,9 @@ async function _cdocSBLoad(){
       }
     }
     _cdocSBReady=true;
+    // Re-sincroniza Etapa 2 do cronograma para GRDs de Modelo IFC/3D já emitidas
+    // mas que não atualizaram a etapa (corrige bugs anteriores retroativamente)
+    setTimeout(_cdocResyncEtapa2Modelo, 1200);
   } catch(e) {
     console.error('_cdocSBLoad error:',e);
     // fallback para localStorage
@@ -17246,6 +17249,70 @@ async function _cdocSBLoad(){
       _cdocSBCache={basicos:[],detalhados:[],_ids:{bas:1,det:1}};
       _cdocSBStatus('⚠ Erro de conexão — '+e.message,'#dc2626');
     }
+  }
+}
+
+// Varre todos os documentos Modelo IFC/3D com envioHist registrado e garante que
+// a Etapa 2 do cronograma (real_rec_modelo / conc_rec_modelo) esteja sincronizada.
+// Corrige retroativamente GRDs já emitidas que não atualizaram a etapa por bugs anteriores.
+function _cdocResyncEtapa2Modelo(){
+  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length) return;
+  var db=_cdocSBCache||_cdocLoad();
+  if(!db||!Array.isArray(db.detalhados)) return;
+
+  var _tiposModelo=['modelo ifc','modelo 3d','modelo3d'];
+  var corrigidos=0;
+
+  // Para cada TAG, encontra o último envio "Para Aprovação"/"Ambos" de um doc Modelo IFC/3D
+  var porTag={};
+  db.detalhados.forEach(function(d){
+    var t=(d.tipo||'').toLowerCase().trim();
+    if(_tiposModelo.indexOf(t)===-1) return;
+    if(!d.sub||!d.envioHist||!d.envioHist.length) return;
+    var ultimoRelevante=null;
+    d.envioHist.forEach(function(h){
+      var fin=(h.finalidade||'').toString();
+      if(fin.indexOf('Para Aprovação')!==-1||fin.indexOf('Ambos')!==-1||!fin){
+        if(!ultimoRelevante||(h.data||'')>=(ultimoRelevante.data||'')) ultimoRelevante=h;
+      }
+    });
+    if(ultimoRelevante){
+      var key=d.obraId+'|'+d.sub;
+      if(!porTag[key]||(ultimoRelevante.data||'')>(porTag[key].data||'')){
+        porTag[key]={obraId:d.obraId,sub:d.sub,data:ultimoRelevante.data,grd:ultimoRelevante.grd};
+      }
+    }
+  });
+
+  Object.keys(porTag).forEach(function(key){
+    var info=porTag[key];
+    var cronRec=allCronSubobras.find(function(s){
+      return s.subobra===info.sub&&(!info.obraId||s.obra===info.obraId);
+    });
+    if(!cronRec) return;
+    // Já está sincronizado? (tem data de realização e GRD preenchidos)
+    if(cronRec.real_rec_modelo&&cronRec.conc_rec_modelo==='S') return;
+    if(!info.data) return;
+
+    var upd={
+      atualizado_em:new Date().toISOString(),
+      grd_modelo:info.grd||cronRec.grd_modelo||'',
+      real_rec_modelo:info.data,
+      conc_rec_modelo:'S'
+    };
+    var idx=allCronSubobras.findIndex(function(x){return x.id===cronRec.id;});
+    if(idx>=0) allCronSubobras[idx]=Object.assign({},allCronSubobras[idx],upd);
+    corrigidos++;
+    try{
+      sbClient.from('cronograma_subobras').update(upd).eq('id',cronRec.id).select()
+        .then(function(r){if(r.error) console.warn('[Resync Etapa2]',r.error.message);})
+        .catch(function(e){console.warn('[Resync Etapa2]',e.message);});
+    }catch(e){console.warn('[Resync Etapa2]',e.message);}
+  });
+
+  if(corrigidos>0){
+    console.log('[Resync Etapa2] '+corrigidos+' TAG(s) corrigida(s) retroativamente.');
+    if(typeof renderCronograma==='function') setTimeout(renderCronograma,300);
   }
 }
 
@@ -18910,6 +18977,21 @@ function cdocToggleGrdMode(){
   var th=document.getElementById('cdd-th-chk'); if(th) th.style.display=_cdocGrdMode?'table-cell':'none';
   cdocRenderDet();
 }
+// Calcula automaticamente a data de Prev. Retorno a partir do nº de dias informado
+function _grdCalcPrevRetDias(){
+  var diasEl=document.getElementById('grd-prev-ret-dias');
+  var dataEl=document.getElementById('grd-prev-ret-input');
+  if(!diasEl||!dataEl) return;
+  var dias=parseInt(diasEl.value,10);
+  if(isNaN(dias)||dias<=0){ return; }
+  var hoje=new Date();
+  hoje.setDate(hoje.getDate()+dias);
+  var yyyy=hoje.getFullYear();
+  var mm=String(hoje.getMonth()+1).padStart(2,'0');
+  var dd=String(hoje.getDate()).padStart(2,'0');
+  dataEl.value=yyyy+'-'+mm+'-'+dd;
+}
+
 function cdocEmitirGrd(){
   if(!_siderRequireEdit()) return;
   var db=_cdocDb();
@@ -18957,7 +19039,12 @@ function cdocEmitirGrd(){
     }).join('')
     +'</div>'
     +'<div style="margin-bottom:10px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Prev. Retorno (opcional)</label>'
-    +'<input id="grd-prev-ret-input" type="date" style="width:160px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;"></div>'
+    +'<div style="display:flex;gap:8px;align-items:center;">'
+    +'<input id="grd-prev-ret-input" type="date" style="width:160px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;">'
+    +'<span style="font-size:11px;color:#94a3b8;">ou</span>'
+    +'<input id="grd-prev-ret-dias" type="number" min="1" placeholder="dias" style="width:65px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;" oninput="_grdCalcPrevRetDias()">'
+    +'<span style="font-size:11px;color:#64748b;">dia(s) corridos a partir de hoje</span>'
+    +'</div></div>'
     +'<div style="margin-bottom:18px;"><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações (opcional)</label>'
     +'<textarea id="grd-obs-input" rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;resize:vertical;"></textarea></div>'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;">'
@@ -19714,8 +19801,12 @@ function _cdocGrdDetAtualizarCronograma(sels, dataISO, numGrd, tipoEm){
   if(!sels.length) return; // nenhum documento relevante para a Etapa 2
   var _fObraRef=(document.getElementById('cdd-f-obra')||{}).value||'';
   var obraRef=_fObraRef||(sels[0]&&sels[0].obraId)||'';
-  var atualizaAprov=(tipoEm==='Para Aprovação'||tipoEm==='Ambos'||!tipoEm);
-  var atualizaMP=(tipoEm==='Para Verificação de MP'||tipoEm==='Ambos');
+  // Normaliza tipoEm: pode chegar como array (['Para Aprovação']) ou string
+  // ("Para Aprovação", "Para Aprovação + Ambos", etc.) — extrai todos os tipos presentes
+  var _tiposArr = Array.isArray(tipoEm) ? tipoEm : String(tipoEm||'').split('+').map(function(s){return s.trim();});
+  var _tiposStr = _tiposArr.join(' ');
+  var atualizaAprov = !tipoEm || _tiposArr.indexOf('Para Aprovação')!==-1 || _tiposArr.indexOf('Ambos')!==-1;
+  var atualizaMP     = _tiposArr.indexOf('Para Verificação de MP')!==-1 || _tiposArr.indexOf('Ambos')!==-1;
   // Coleta TAGs únicas dos documentos selecionados
   var tagsAfetadas=[];
   sels.forEach(function(d){if(d.sub&&tagsAfetadas.indexOf(d.sub)===-1) tagsAfetadas.push(d.sub);});
