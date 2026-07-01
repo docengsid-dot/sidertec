@@ -2413,9 +2413,16 @@ ALTER TABLE medicao_terceiros
         O relatório incluirá: TAG, Obra, Engenharia, Status, Data Prevista/Real de Lib., Peso Básico/Detalhado, Status Resumo MP, Revisão de Projeto e % de Avanço. Ao filtrar pela Etapa 11, o relatório destacará o status dos Diagramas de Montagem.
       </div>
     </div>
-    <div style="padding:.85rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.6rem;">
-      <button class="btn btn-secondary" onclick="fecharRelatorioCron()">Cancelar</button>
-      <button class="btn btn-primary" onclick="gerarRelatorioCron()" style="background:var(--blue);">📄 Gerar e Imprimir</button>
+    <div style="padding:.85rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2);cursor:pointer;">
+        <input type="checkbox" id="rcron-agrupar" style="width:15px;height:15px;accent-color:var(--blue);">
+        <span>Agrupar por Status / Etapa</span>
+      </label>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="fecharRelatorioCron()">Cancelar</button>
+        <button class="btn" onclick="gerarRelatorioE11()" style="background:#1e3a5f;color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:13px;cursor:pointer;">📋 Relatório Etapa 11</button>
+        <button class="btn btn-primary" onclick="gerarRelatorioCron()" style="background:var(--blue);">📄 Gerar e Imprimir</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2454,10 +2461,13 @@ const sbClient = {
     self._match=function(row){return self._filters.every(function(f){return String(row[f[0]])===String(f[1]);});};
     self.update=function(changes){self._changes=changes;return self;};
     self.delete=function(){self._del=true;return self;};
-    // _getUserTag: injeta o nome do usuário logado em todo write
+    // _getUserTag: injeta nome do usuário — só em tabelas que têm coluna _autor
+    // cronograma_subobras NÃO tem _autor (legado) — não injeta para evitar erro de schema
+    var _TABELAS_SEM_AUTOR=['cronograma_subobras','cronograma_historico','liberacoes',
+      'medicao_bm','cotacao_eng','diario_obra','pacotes_fab','revisoes_doc'];
     self._tag=function(obj){
       var u=window._siderCurrentUser;
-      if(u&&u.nome) obj._autor=u.nome;
+      if(u&&u.nome&&_TABELAS_SEM_AUTOR.indexOf(table)===-1) obj._autor=u.nome;
       obj.atualizado_em=new Date().toISOString();
       return obj;
     };
@@ -6776,8 +6786,9 @@ async function salvarCronSubobra(){
 
   // Salva no Supabase (fonte principal) + espelho em localStorage como cache
   async function _salvar(p, modo, id){
-    // Injeta autor em todos os saves do cronograma
-    if(window._siderCurrentUser&&window._siderCurrentUser.nome) p._autor=window._siderCurrentUser.nome;
+    // Remove _autor do payload — cronograma_subobras não tem essa coluna
+    // O rastreamento de usuário fica no histórico de observações
+    delete p._autor;
     try {
       if(modo==='insert'){
         // INSERT no Supabase
@@ -8741,48 +8752,82 @@ function _buildAtrasadosHtml(subs){
   if(!atrasados.length) return '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:6px;padding:7px 12px;margin-bottom:.6rem;font-size:8px;color:#166534;font-weight:700;">&#x2705; Nenhuma entrega em atraso encontrada nos filtros atuais.</div>';
 
   var totPesoAtrasado = atrasados.reduce(function(acc,x){ return acc+(Number(x.s.peso_previsto)||0); }, 0);
-  var rowsAt = atrasados.map(function(x,i){
-    var cfg = (typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[x.s.status])||{color:'#475569',bg:'#f1f5f9',icon:'&bull;'};
-    var urgColor = x.dias > 30 ? '#7f1d1d' : x.dias > 14 ? '#991b1b' : '#c2410c';
-    var bgRow = i%2===0 ? '#fff7f7' : '#fef2f2';
-    return '<tr style="background:'+bgRow+';border-bottom:1px solid #fecaca;">'
-      +'<td style="padding:3px 5px;font-size:9px;font-weight:700;color:#7f1d1d;text-align:center;">'+(i+1)+'</td>'
-      +'<td style="padding:3px 5px;font-family:\'Courier New\';font-size:8px;font-weight:700;color:'+cfg.color+';">'+(x.s.subobra||'—')+'</td>'
-      +'<td style="padding:3px 5px;font-size:7.5px;">'+(x.s.obra||'').split(' ').slice(0,3).join(' ')+'</td>'
-      +'<td style="padding:3px 5px;font-size:7.5px;color:#555;">'+(x.s.equipe?x.s.equipe.split('(')[0].trim():'—')+'</td>'
-      +'<td style="padding:3px 5px;"><span style="background:'+cfg.bg+';color:'+cfg.color+';border-radius:3px;padding:1px 4px;font-size:7px;font-weight:700;">'+cfg.icon+' '+x.s.status+'</span></td>'
-      +'<td style="padding:3px 5px;font-size:7.5px;max-width:160px;word-wrap:break-word;">'+(x.s.descricao||'—')+'</td>'
-      +'<td style="padding:3px 5px;"><span style="background:'+x.cor+';color:#fff;border-radius:3px;padding:1px 6px;font-size:7px;font-weight:700;">'+x.etapa+'</span></td>'
-      +'<td style="padding:3px 5px;text-align:right;font-family:\'Courier New\';font-size:8px;color:#c2410c;font-weight:700;">'+fmtDtLocal(x.prev)+'</td>'
-      +'<td style="padding:3px 5px;text-align:center;"><span style="background:'+urgColor+';color:#fff;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:800;">'+x.dias+'d</span></td>'
-      +'<td style="padding:3px 5px;text-align:right;font-family:\'Courier New\';font-size:8px;">'+(x.s.peso_previsto?Number(x.s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>'
+
+  // Agrupa por etapa atrasada
+  var gruposEtapa = {};
+  atrasados.forEach(function(x){
+    var k = x.etapa;
+    if(!gruposEtapa[k]) gruposEtapa[k]={label:x.etapa,cor:x.cor,items:[]};
+    gruposEtapa[k].items.push(x);
+  });
+
+  function buildRowsAt(items){
+    return items.map(function(x,i){
+      var cfg = (typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[x.s.status])||{color:'#475569',bg:'#f1f5f9',icon:'&bull;'};
+      var urgColor = x.dias > 30 ? '#7f1d1d' : x.dias > 14 ? '#991b1b' : '#c2410c';
+      var bgRow = i%2===0 ? '#fff7f7' : '#fef2f2';
+      return '<tr style="background:'+bgRow+';border-bottom:1px solid #fecaca;">'
+        +'<td style="padding:3px 5px;font-size:9px;font-weight:700;color:#7f1d1d;text-align:center;">'+(i+1)+'</td>'
+        +'<td style="padding:3px 5px;font-family:\'Courier New\';font-size:8px;font-weight:700;color:'+cfg.color+';">'+(x.s.subobra||'—')+'</td>'
+        +'<td style="padding:3px 5px;font-size:7.5px;">'+(x.s.obra||'').split(' ').slice(0,3).join(' ')+'</td>'
+        +'<td style="padding:3px 5px;font-size:7.5px;color:#555;">'+(x.s.equipe?x.s.equipe.split('(')[0].trim():'—')+'</td>'
+        +'<td style="padding:3px 5px;"><span style="background:'+cfg.bg+';color:'+cfg.color+';border-radius:3px;padding:1px 4px;font-size:7px;font-weight:700;">'+cfg.icon+' '+x.s.status+'</span></td>'
+        +'<td style="padding:3px 5px;font-size:7.5px;max-width:160px;word-wrap:break-word;">'+(x.s.descricao||'—')+'</td>'
+        +'<td style="padding:3px 5px;text-align:right;font-family:\'Courier New\';font-size:8px;color:#c2410c;font-weight:700;">'+fmtDtLocal(x.prev)+'</td>'
+        +'<td style="padding:3px 5px;text-align:center;"><span style="background:'+urgColor+';color:#fff;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:800;">'+x.dias+'d</span></td>'
+        +'<td style="padding:3px 5px;text-align:right;font-family:\'Courier New\';font-size:8px;">'+(x.s.peso_previsto?Number(x.s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>'
       +'</tr>';
+    }).join('');
+  }
+
+  // Ordem das etapas no fluxo
+  var ETAPA_ORDER = ['Rec. Básico','Env. Modelo','Rec. Modelo','Lista MP','Pcte. Fab.','Lib. Fab.'];
+  var etapaKeys = Object.keys(gruposEtapa).sort(function(a,b){
+    var ia=ETAPA_ORDER.indexOf(a); var ib=ETAPA_ORDER.indexOf(b);
+    if(ia===-1&&ib===-1) return a.localeCompare(b,'pt-BR');
+    if(ia===-1) return 1; if(ib===-1) return -1;
+    return ia-ib;
+  });
+
+  var blocosHtml = etapaKeys.map(function(etapa){
+    var grp = gruposEtapa[etapa];
+    var pesoGrp = grp.items.reduce(function(a,x){return a+(Number(x.s.peso_previsto)||0);},0);
+    return '<div style="margin-bottom:.6rem;">'
+      +'<div style="background:'+grp.cor+';color:#fff;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;">'
+        +'<span style="font-size:10px;font-weight:800;letter-spacing:.04em;">&#x25B6; ETAPA: '+grp.label.toUpperCase()+'</span>'
+        +'<span style="font-size:8.5px;opacity:.9;">'+grp.items.length+' sub-obra(s) &nbsp;&middot;&nbsp; '+pesoGrp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</span>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:8.5px;">'
+        +'<thead><tr style="background:#7f1d1d;">'
+          +'<th style="color:#fca5a5;padding:3px 5px;text-align:center;">#</th>'
+          +'<th style="color:#fff;padding:3px 5px;text-align:left;">TAG</th>'
+          +'<th style="color:#fff;padding:3px 5px;text-align:left;">Obra</th>'
+          +'<th style="color:#fff;padding:3px 5px;text-align:left;">Engenharia</th>'
+          +'<th style="color:#fff;padding:3px 5px;text-align:left;">Status Atual</th>'
+          +'<th style="color:#fff;padding:3px 5px;text-align:left;">Descri&ccedil;&atilde;o</th>'
+          +'<th style="color:#fca5a5;padding:3px 5px;text-align:right;">Prev. Entrega</th>'
+          +'<th style="color:#fca5a5;padding:3px 5px;text-align:center;">Atraso</th>'
+          +'<th style="color:#f5c89a;padding:3px 5px;text-align:right;">Peso B&aacute;s.</th>'
+        +'</tr></thead>'
+        +'<tbody>'+buildRowsAt(grp.items)+'</tbody>'
+        +'<tfoot><tr style="background:#450a0a;">'
+          +'<td colspan="8" style="color:#fca5a5;font-size:8px;padding:3px 5px;">Subtotal '+grp.label+': '+grp.items.length+' sub-obra(s)</td>'
+          +'<td style="color:#f5c89a;font-weight:700;font-size:8px;padding:3px 5px;text-align:right;font-family:\'Courier New\';">'+pesoGrp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td>'
+        +'</tr></tfoot>'
+      +'</table>'
+    +'</div>';
   }).join('');
 
   return '<div style="margin-bottom:.7rem;">'
     +'<div style="background:#991b1b;color:#fff;padding:5px 10px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;align-items:center;">'
-      +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">&#x26A0; Entregas em Atraso &mdash; '+atrasados.length+' sub-obra(s)</span>'
+      +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">&#x26A0; Entregas em Atraso &mdash; '+atrasados.length+' sub-obra(s) em '+etapaKeys.length+' etapa(s)</span>'
       +'<span style="font-size:8.5px;opacity:.85;">Peso total em atraso: '+totPesoAtrasado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg &middot; Ref: '+new Date().toLocaleDateString('pt-BR')+'</span>'
     +'</div>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:8.5px;">'
-      +'<thead><tr style="background:#7f1d1d;">'
-        +'<th style="color:#fca5a5;padding:3px 5px;text-align:center;">#</th>'
-        +'<th style="color:#fff;padding:3px 5px;text-align:left;">TAG</th>'
-        +'<th style="color:#fff;padding:3px 5px;text-align:left;">Obra</th>'
-        +'<th style="color:#fff;padding:3px 5px;text-align:left;">Engenharia</th>'
-        +'<th style="color:#fff;padding:3px 5px;text-align:left;">Status</th>'
-        +'<th style="color:#fff;padding:3px 5px;text-align:left;">Descrição</th>'
-        +'<th style="color:#fde68a;padding:3px 5px;text-align:left;">Etapa Atrasada</th>'
-        +'<th style="color:#fca5a5;padding:3px 5px;text-align:right;">Prev. Entrega</th>'
-        +'<th style="color:#fca5a5;padding:3px 5px;text-align:center;">Atraso</th>'
-        +'<th style="color:#f5c89a;padding:3px 5px;text-align:right;">Peso Bás.</th>'
-      +'</tr></thead>'
-      +'<tbody>'+rowsAt+'</tbody>'
-      +'<tfoot><tr style="background:#7f1d1d;">'
-        +'<td colspan="9" style="color:#fff;font-weight:700;padding:4px 5px;font-size:8px;">TOTAL EM ATRASO &mdash; '+atrasados.length+' sub-obra(s)</td>'
-        +'<td style="color:#f5c89a;font-weight:700;padding:4px 5px;text-align:right;font-size:8px;font-family:\'Courier New\';">'+totPesoAtrasado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</td>'
-      +'</tr></tfoot>'
-    +'</table>'
+    +blocosHtml
+    +'<div style="background:#7f1d1d;color:#fff;padding:4px 8px;font-size:8px;font-weight:700;display:flex;justify-content:space-between;border-radius:0 0 4px 4px;">'
+      +'<span>TOTAL EM ATRASO &mdash; '+atrasados.length+' sub-obra(s) em '+etapaKeys.length+' etapa(s)</span>'
+      +'<span style="font-family:\'Courier New\';">'+totPesoAtrasado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</span>'
+    +'</div>'
   +'</div>'
   +'<div style="border-top:2px solid #1A1714;margin:.4rem 0 .5rem;"></div>';
 }
@@ -8875,18 +8920,187 @@ function _buildE11Html(subs, doc11F, hoje11e, fmtDt11, hoje) {
   + '</div>';
 }
 
+function gerarRelatorioE11(){
+  const obraF  = document.getElementById('rcron-obra').value;
+  const tagF   = document.getElementById('rcron-tag').value.toLowerCase();
+  const engF   = document.getElementById('rcron-eng').value;
+  const statusFs=(typeof _rcronStatusSelecionados!=='undefined')?_rcronStatusSelecionados:[];
+  const hoje   = new Date().toLocaleDateString('pt-BR');
+  const hojeD  = new Date(); hojeD.setHours(0,0,0,0);
+
+  // Filtra sub-obras com os mesmos filtros do cronograma
+  let subs = allCronSubobras.filter(s=>{
+    if(obraF && s.obra!==obraF) return false;
+    if(tagF  && !(s.subobra||'').toLowerCase().includes(tagF)) return false;
+    if(engF  && s.equipe!==engF) return false;
+    if(statusFs.length>0&&!statusFs.includes(s.status)) return false;
+    return true;
+  });
+
+  if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra encontrada com os filtros.','warn'); return; }
+
+  const fmtDt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+  const fmtPeso = v => v ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+
+  // Classifica cada sub-obra para E11
+  function classE11(s){
+    const real = s.real_diagramas, prev = s.prev_diagramas;
+    if(real) return {sit:'concluido', label:'✅ Concluído', bg:'#dcfce7', color:'#166534', dias:0, data:real};
+    if(prev){
+      const dp = new Date(prev+'T12:00:00');
+      const dias = Math.floor((hojeD - dp)/86400000);
+      if(dp < hojeD) return {sit:'atrasado', label:'🔴 Em Atraso', bg:'#fee2e2', color:'#991b1b', dias, data:prev};
+      return {sit:'pendente', label:'⏳ Pendente', bg:'#fef3c7', color:'#92400e', dias:0, data:prev};
+    }
+    return {sit:'sem_prev', label:'— Sem Prev.', bg:'#f1f5f9', color:'#64748b', dias:0, data:''};
+  }
+
+  // Agrupa por situação
+  const grupos = {atrasado:[], pendente:[], sem_prev:[], concluido:[]};
+  subs.forEach(s=>{ const c=classE11(s); grupos[c.sit].push({s,c}); });
+
+  // Ordena dentro de cada grupo por data (atrasados: mais antigo primeiro; pendentes: mais próximo primeiro)
+  grupos.atrasado.sort((a,b)=>a.c.data<b.c.data?-1:a.c.data>b.c.data?1:0);
+  grupos.pendente.sort((a,b)=>a.c.data<b.c.data?-1:a.c.data>b.c.data?1:0);
+  grupos.concluido.sort((a,b)=>b.c.data<a.c.data?-1:b.c.data>a.c.data?1:0);
+
+  const totAtr = grupos.atrasado.length;
+  const totPend = grupos.pendente.length;
+  const totConc = grupos.concluido.length;
+  const totSemPrev = grupos.sem_prev.length;
+  const totPeso = subs.reduce((a,s)=>a+(Number(s.peso_previsto)||0),0);
+
+  function buildGrupoHtml(items, titulo, headerBg, headerColor){
+    if(!items.length) return '';
+    const pesoGrp = items.reduce((a,x)=>a+(Number(x.s.peso_previsto)||0),0);
+    const rows = items.map((x,i)=>{
+      const {s,c}=x;
+      const cfg=STATUS_CFG_CRON[s.status]||{color:'#475569',bg:'#f1f5f9',icon:'•'};
+      const bgRow = i%2===0?'#fff':'#f8fafc';
+      const diasBadge = c.dias>0
+        ? `<span style="background:${c.dias>30?'#7f1d1d':c.dias>14?'#991b1b':'#c2410c'};color:#fff;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:800;">${c.dias}d</span>`
+        : (c.sit==='pendente'&&c.data ? `<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 6px;font-size:8px;">no prazo</span>` : '—');
+      return `<tr style="border-bottom:1px solid #e8ecf0;background:${bgRow};">
+        <td style="padding:4px 6px;font-size:8px;font-weight:700;color:#7f1d1d;text-align:center;">${i+1}</td>
+        <td style="padding:4px 6px;font-family:'Courier New';font-size:9px;font-weight:700;color:${cfg.color};">${s.subobra||'—'}</td>
+        <td style="padding:4px 6px;font-size:8px;">${(s.obra||'').split(' ').slice(0,3).join(' ')}</td>
+        <td style="padding:4px 6px;font-size:8px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
+        <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
+        <td style="padding:4px 6px;font-size:8px;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
+        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;">${fmtDt(s.prev_diagramas)}</td>
+        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;color:#166534;">${fmtDt(s.real_diagramas)}</td>
+        <td style="padding:4px 6px;text-align:center;">${diasBadge}</td>
+        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;">${fmtPeso(s.peso_previsto)}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:12px;page-break-inside:avoid;">
+      <div style="background:${headerBg};color:${headerColor};padding:7px 12px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;font-weight:800;letter-spacing:.04em;">${titulo}</span>
+        <span style="font-size:9px;opacity:.9;">${items.length} sub-obra(s) &nbsp;·&nbsp; ${pesoGrp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#1e293b;color:#fff;font-size:7.5px;">
+          <th style="padding:4px 5px;text-align:center;">#</th>
+          <th style="padding:4px 5px;text-align:left;">TAG</th>
+          <th style="padding:4px 5px;text-align:left;">Obra</th>
+          <th style="padding:4px 5px;text-align:left;">Engenharia</th>
+          <th style="padding:4px 5px;text-align:left;">Status Atual</th>
+          <th style="padding:4px 5px;text-align:left;">Descrição</th>
+          <th style="padding:4px 5px;text-align:right;color:#bfdbfe;">Prev. Diagrama</th>
+          <th style="padding:4px 5px;text-align:right;color:#a7f3d0;">Real. Diagrama</th>
+          <th style="padding:4px 5px;text-align:center;color:#fde68a;">Situação</th>
+          <th style="padding:4px 5px;text-align:right;">Peso Bás.</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="background:#1e293b;">
+          <td colspan="9" style="color:#94a3b8;font-size:8px;padding:4px 6px;">Subtotal: ${items.length} sub-obra(s)</td>
+          <td style="color:#f5c89a;font-weight:700;font-size:8px;padding:4px 6px;text-align:right;font-family:'Courier New';">${pesoGrp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+  }
+
+  const filtrosTexto = [
+    obraF?'Obra: '+obraF:'',
+    engF?'Eng.: '+engF:'',
+    statusFs.length?'Status: '+statusFs.join(', '):'',
+  ].filter(Boolean).join(' · ')||'Todas as sub-obras';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      body{font-family:'Times New Roman',serif;margin:0;padding:12px;color:#000;}
+      @media print{.no-print{display:none;}}
+    </style>
+  </head><body>
+    <!-- Cabeçalho -->
+    <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;margin-bottom:12px;">
+      <tr>
+        <td style="width:80px;border-right:1.5px solid #000;padding:.4rem;text-align:center;">
+          <div style="background:#C4501A;border-radius:3px;padding:.3rem .5rem;display:inline-block;">
+            <div style="font-size:16px;font-weight:700;color:#fff;">SE</div>
+            <div style="font-size:6px;color:rgba(255,255,255,.8);">SIDERTEC</div>
+          </div>
+        </td>
+        <td style="border-right:1.5px solid #000;padding:.4rem .75rem;text-align:center;">
+          <div style="font-size:15px;font-weight:700;text-transform:uppercase;">RELATÓRIO — ETAPA 11: DIAGRAMAS DE MONTAGEM</div>
+          <div style="font-size:9px;color:#444;margin-top:.15rem;">SIDERTEC ESTRUTURAS METÁLICAS</div>
+          <div style="font-size:8px;color:#666;margin-top:.1rem;">${filtrosTexto}</div>
+        </td>
+        <td style="padding:.4rem;min-width:130px;font-size:7.5px;">
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;">DATA:</span><span>${hoje}</span></div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;">TOTAL:</span><span>${subs.length} sub-obras</span></div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;color:#991b1b;">🔴 Atrasadas:</span><span style="font-weight:700;color:#991b1b;">${totAtr}</span></div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;color:#92400e;">⏳ Pendentes:</span><span>${totPend}</span></div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;color:#64748b;">— Sem prev.:</span><span>${totSemPrev}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-weight:700;color:#166534;">✅ Concluídas:</span><span>${totConc}</span></div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Grupos em ordem: Atrasadas → Pendentes → Sem Prev. → Concluídas -->
+    ${buildGrupoHtml(grupos.atrasado,  '🔴 EM ATRASO',     '#991b1b', '#fff')}
+    ${buildGrupoHtml(grupos.pendente,  '⏳ PENDENTES (NO PRAZO)', '#92400e', '#fff')}
+    ${buildGrupoHtml(grupos.sem_prev,  '— SEM DATA PREVISTA',    '#475569', '#fff')}
+    ${buildGrupoHtml(grupos.concluido, '✅ CONCLUÍDAS',    '#166534', '#fff')}
+
+    <!-- Totalizador -->
+    <table style="width:100%;border-collapse:collapse;border:1.5px solid #1e293b;margin-top:4px;">
+      <tr style="background:#1e293b;">
+        <td style="color:#fff;font-weight:700;padding:5px 8px;font-size:9px;">
+          TOTAL GERAL — ${subs.length} sub-obras
+          &nbsp;·&nbsp; 🔴 ${totAtr} atrasadas
+          &nbsp;·&nbsp; ⏳ ${totPend} pendentes
+          &nbsp;·&nbsp; — ${totSemPrev} sem prev.
+          &nbsp;·&nbsp; ✅ ${totConc} concluídas
+        </td>
+        <td style="color:#f5c89a;font-weight:700;padding:5px 8px;text-align:right;font-size:9px;font-family:'Courier New';">${fmtPeso(totPeso)}</td>
+      </tr>
+    </table>
+
+    <div class="no-print" style="margin-top:14px;text-align:center;">
+      <button onclick="window.print()" style="background:#1e3a5f;color:#fff;border:none;border-radius:5px;padding:8px 24px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>
+      <button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:8px 16px;font-size:12px;cursor:pointer;">Fechar</button>
+    </div>
+  </body></html>`;
+
+  const win = window.open('','_blank','width=1100,height=850');
+  if(!win){ showToast('Popup bloqueado','Permita popups neste site.','error'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
 function gerarRelatorioCron(){
   const obraF  = document.getElementById('rcron-obra').value;
   const tagF   = document.getElementById('rcron-tag').value.toLowerCase();
   const engF   = document.getElementById('rcron-eng').value;
   const statusFs=(typeof _rcronStatusSelecionados!=='undefined')?_rcronStatusSelecionados:[];
-  const statusF=statusFs.length===1?statusFs[0]:'';
   const prevF  = document.getElementById('rcron-prev-de').value;
   const prevAF = document.getElementById('rcron-prev-ate').value;
   const doc11Checked = document.querySelector('input[name="rcron-doc11"]:checked');
   const doc11Raw = doc11Checked ? doc11Checked.value : 'nao_incluir';
   const doc11F = doc11Raw === 'nao_incluir' ? null : doc11Raw;
   const hoje   = new Date().toLocaleDateString('pt-BR');
+  const agrupar = !!(document.getElementById('rcron-agrupar')&&document.getElementById('rcron-agrupar').checked);
 
   let subs = allCronSubobras.filter(s=>{
     if(obraF && s.obra!==obraF) return false;
@@ -8895,204 +9109,239 @@ function gerarRelatorioCron(){
     if(statusFs.length>0&&!statusFs.includes(s.status)) return false;
     if(prevF && s.prev_lib_fab && s.prev_lib_fab < prevF) return false;
     if(prevAF && s.prev_lib_fab && s.prev_lib_fab > prevAF) return false;
-    // Filtro Etapa 11
     if(doc11F){
-      var hoje11 = new Date(); hoje11.setHours(0,0,0,0);
-      var realDiag = s.real_diagramas;
-      var prevDiag = s.prev_diagramas;
-      if(doc11F === 'concluido'){
-        if(!realDiag) return false;
-      } else if(doc11F === 'pendente'){
-        if(realDiag) return false;
-        if(prevDiag && new Date(prevDiag+'T12:00:00') < hoje11) return false;
-      } else if(doc11F === 'atrasado'){
-        if(realDiag) return false;
-        if(!prevDiag) return false;
-        if(new Date(prevDiag+'T12:00:00') >= hoje11) return false;
-      } else if(doc11F === 'pendente_e_atrasado'){
-        if(realDiag) return false; // já concluído — exclui
-      }
+      var hoje11=new Date(); hoje11.setHours(0,0,0,0);
+      var realDiag=s.real_diagramas, prevDiag=s.prev_diagramas;
+      if(doc11F==='concluido'&&!realDiag) return false;
+      else if(doc11F==='pendente'){if(realDiag) return false; if(prevDiag&&new Date(prevDiag+'T12:00:00')<hoje11) return false;}
+      else if(doc11F==='atrasado'){if(realDiag) return false; if(!prevDiag) return false; if(new Date(prevDiag+'T12:00:00')>=hoje11) return false;}
+      else if(doc11F==='pendente_e_atrasado'){if(realDiag) return false;}
     }
     return true;
   });
 
   if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra encontrada com os filtros selecionados.','warn'); return; }
 
-  // Ordenar por data prevista de entrega (prev_lib_fab) crescente — mais antigo primeiro
+  // _dateSortKey: retorna a data mais relevante para ordenação dentro de cada grupo de status
+  // Usa a data da etapa que está pendente (não concluída) para o status atual
   const _dateSortKey = s => {
-    // Pega a data de entrega mais relevante ainda não concluída
-    if(!s.conc_basico         && s.prev_basico)          return s.prev_basico;
-    if(!s.conc_retorno_modelo && s.prev_retorno_modelo)   return s.prev_retorno_modelo;
-    if(!s.conc_pcte_fab       && s.prev_pcte_fab)         return s.prev_pcte_fab;
-    if(!s.conc_lib_fab        && s.prev_lib_fab)          return s.prev_lib_fab;
-    // Se todas concluídas, usa a última data real
-    return s.real_lib_fab || s.prev_lib_fab || '9999-12-31';
+    const st = (s.status||'').toUpperCase();
+    // Para cada status, pega a data da etapa correspondente
+    if(st.includes('PROJ. BÁSICO')||st.includes('BÁSICO'))
+      return s.prev_basico || s.prev_envio_detail || '9999-12-31';
+    if(st.includes('DETALHAMENTO')||st.includes('DETAIL'))
+      return s.prev_envio_detail || s.prev_envio_modelo || '9999-12-31';
+    if(st.includes('MAT. PRIMA')||st.includes('MATERIA'))
+      return s.prev_resumo_mp || s.prev_envio_modelo || '9999-12-31';
+    if(st.includes('MODELO PARA APROV')||st.includes('MOD. EM APROV')||st.includes('ANÁLISE'))
+      return s.prev_retorno_modelo || s.prev_envio_modelo || '9999-12-31';
+    if(st.includes('APROVADO')||st.includes('CERTIFICAÇÃO'))
+      return s.prev_pcte_fab || s.prev_lib_fab || '9999-12-31';
+    if(st.includes('LISTA RESUMO')||st.includes('RESUMO MP'))
+      return s.prev_pcte_fab || '9999-12-31';
+    if(st.includes('PCTE')||st.includes('PACOTE'))
+      return s.prev_pcte_fab || s.prev_lib_fab || '9999-12-31';
+    if(st.includes('LIB'))
+      return s.real_lib_fab || s.prev_lib_fab || s.data_limite_fab || '9999-12-31';
+    // Fallback genérico: primeira etapa não concluída
+    if(!s.conc_basico && s.prev_basico)          return s.prev_basico;
+    if(!s.conc_envio_detail && s.prev_envio_detail) return s.prev_envio_detail;
+    if(!s.conc_retorno_modelo && s.prev_retorno_modelo) return s.prev_retorno_modelo;
+    if(!s.conc_pcte_fab && s.prev_pcte_fab)      return s.prev_pcte_fab;
+    if(!s.conc_lib_fab && s.prev_lib_fab)        return s.prev_lib_fab;
+    return s.data_limite_fab || s.real_lib_fab || s.prev_lib_fab || '9999-12-31';
   };
-  subs = subs.slice().sort((a,b) => {
-    const da = _dateSortKey(a), db = _dateSortKey(b);
-    if(da < db) return -1; if(da > db) return 1; return 0;
-  });
+  subs = subs.slice().sort((a,b)=>{const da=_dateSortKey(a),db=_dateSortKey(b); return da<db?-1:da>db?1:0;});
 
-  const CORES_STATUS = {'AG. PROJ. BÁSICO':'#1e40af','EM DETALHAMENTO':'#0f766e','VERIF. MAT. PRIMA':'#92400e','MOD. EM APROV.':'#c2410c','MOD. APROVADO CLI.':'#166534','LISTA RESUMO MP':'#d97706','PCTE. FABRICAÇÃO':'#7c3aed','LIB. FABRICAÇÃO':'#166534','DIAGRAMAS':'#0f172a'};
-
-  const STATUS_LIB_FAB_REL = ['LIB. FABRICAÇÃO','LIB P/FAB.','LIB.FAB.','LIB P/ FAB.'];
-  const calcPct = s => STATUS_LIB_FAB_REL.some(v=>v===(s.status||'').toUpperCase().trim()) ? 100 :
+  const STATUS_LIB_FAB_REL=['LIB. FABRICAÇÃO','LIB P/FAB.','LIB.FAB.','LIB P/ FAB.'];
+  const calcPct = s => STATUS_LIB_FAB_REL.some(v=>v===(s.status||'').toUpperCase().trim())?100:
     (s.conc_basico?20:0)+(s.conc_retorno_modelo?25:0)+(s.conc_pcte_fab?25:0)+(s.conc_lib_fab?30:0);
-  const rows = subs.map((s,_ri)=>{
-    const cfg = STATUS_CFG_CRON[s.status]||{color:'#475569',bg:'#f1f5f9',icon:'•'};
-    const pesoLib = allLancamentos.filter(l=>l.observacao&&l.observacao.includes('sub-obra:')&&l.observacao.replace('sub-obra:','').trim()===s.subobra&&l.obra===s.obra).reduce((acc,l)=>acc+Number(l.peso_kg),0);
-    const pct = s.peso_previsto>0?Math.min(100,Math.round(pesoLib/s.peso_previsto*100)):0;
-    const mpBadge = s.status_resumo_mp ? `<span style="background:${s.status_resumo_mp==='CONCLUÍDO'?'#dcfce7':'#fee2e2'};color:${s.status_resumo_mp==='CONCLUÍDO'?'#166534':'#991b1b'};border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">${s.status_resumo_mp}</span>` : '—';
-    const revBadge = s.tem_revisao ? `<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">SIM${s.num_revisao?' · '+s.num_revisao:''}</span>` : '—';
-    const fmtDt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-    return `<tr style="border-bottom:1px solid #e2e8f0;">
-      <td style="padding:4px 6px;font-size:8px;font-weight:700;color:#7f1d1d;text-align:center;">${_ri+1}</td>
-      <td style="padding:4px 6px;font-family:'Courier New';font-size:8px;font-weight:700;color:${cfg.color};">${s.subobra||'—'}</td>
-      <td style="padding:4px 6px;font-size:8px;">${(s.obra||'').split(' ').slice(0,3).join(' ')}</td>
-      <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
-      <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
-      <td style="padding:4px 6px;font-size:7.5px;color:#333;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
-      <td style="padding:4px 6px;font-size:7.5px;color:#555;">${s.area||'—'}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_basico)}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_envio_modelo)}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_pcte_fab)}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_lib_fab)}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:${s.data_limite_fab?(s.real_lib_fab?'#166534':(new Date(s.data_limite_fab+'T12:00:00')-new Date())/86400000<=7?'#991b1b':'#92400e'):'#94a3b8'};font-weight:700;">${fmtDt(s.data_limite_fab)}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_lib_fab)}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';">${s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#1d4ed8;">${s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#c2410c;">${s.peso_pcp?Number(s.peso_pcp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
-      <td style="padding:4px 6px;text-align:center;">${revBadge}</td>
-      <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';font-weight:700;color:${calcPct(s)>=100?'#166534':calcPct(s)>0?'#c2410c':'#94a3b8'}">${calcPct(s)}%</td>
+  const fmtDt = d => d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—';
+  const fmtPeso = v => v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+
+  // Ordem do fluxo de trabalho para agrupamento
+  const _FLOW_ORDER=[
+    'AG. PROJ. BÁSICO','EM DETALHAMENTO','VERIF. MAT. PRIMA',
+    'AG. MODELO PARA APROV.','MOD. EM APROV.','AG. ANÁLISE ENG. SIDERTEC',
+    'AG. CERTIFICAÇÃO','MOD. APROVADO CLI.','LISTA RESUMO MP',
+    'PCTE. FABRICAÇÃO','LIB. FABRICAÇÃO','LIB P/ FAB.','LIB.FAB.','LIB P/FAB.',
+    'COM PEND ENG. SIDERTEC/CLIENTE','COM PEND ENG. SIDERTEC',
+    'AGUARDANDO','HOLD','CANCELADO'
+  ];
+
+  function buildRow(s, idx){
+    const cfg=STATUS_CFG_CRON[s.status]||{color:'#475569',bg:'#f1f5f9',icon:'•'};
+    const pct=calcPct(s);
+    const revBadge=s.tem_revisao?`<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 5px;font-size:7px;font-weight:700;">SIM${s.num_revisao?' · '+s.num_revisao:''}</span>`:'—';
+    const limColor=s.data_limite_fab?(s.real_lib_fab?'#166534':(new Date(s.data_limite_fab+'T12:00:00')-new Date())/86400000<=7?'#991b1b':'#92400e'):'#94a3b8';
+    return `<tr style="border-bottom:1px solid #e8ecf0;background:${idx%2===0?'#fff':'#fafbfc'};">
+      <td style="padding:4px 5px;font-size:8px;font-weight:700;color:#7f1d1d;text-align:center;">${idx+1}</td>
+      <td style="padding:4px 5px;font-family:'Courier New';font-size:8px;font-weight:700;color:${cfg.color};">${s.subobra||'—'}</td>
+      <td style="padding:4px 5px;font-size:8px;">${(s.obra||'').split(' ').slice(0,3).join(' ')}</td>
+      <td style="padding:4px 5px;font-size:7.5px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
+      ${agrupar?'':(`<td style="padding:4px 5px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>`)}
+      <td style="padding:4px 5px;font-size:7.5px;max-width:180px;word-wrap:break-word;">${s.descricao||'—'}</td>
+      <td style="padding:4px 5px;font-size:7.5px;color:#555;">${s.area||'—'}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_basico)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_envio_modelo)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_pcte_fab)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.prev_lib_fab)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';color:${limColor};font-weight:700;">${fmtDt(s.data_limite_fab)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtDt(s.real_lib_fab)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${fmtPeso(s.peso_previsto)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';color:#1d4ed8;">${fmtPeso(s.peso_detalhado)}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';color:#c2410c;">${fmtPeso(s.peso_pcp)}</td>
+      <td style="padding:4px 5px;text-align:center;">${revBadge}</td>
+      <td style="padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';font-weight:700;color:${pct>=100?'#166534':pct>0?'#c2410c':'#94a3b8'}">${pct}%</td>
     </tr>`;
-  }).join('');
+  }
 
-  // Totais para rodapé
-  const totBasico    = subs.reduce((s,x)=>s+(Number(x.peso_previsto)||0),0);
-  const totDetalhado = subs.reduce((s,x)=>s+(Number(x.peso_detalhado)||0),0);
-  const totPcp       = subs.reduce((s,x)=>s+(Number(x.peso_pcp)||0),0);
-  const fmtRelPeso = v => v>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
-  const totPct = subs.length>0 ? Math.round(subs.reduce((a,s)=> a + calcPct(s), 0)/subs.length) : 0;
-  var doc11Labels = {concluido:'E11: Concluídas', pendente:'E11: Pendentes', atrasado:'E11: Atrasadas', pendente_e_atrasado:'E11: Pend.+Atrasadas'};
+  const THEAD = ()=>`<thead><tr style="background:#1A1714;color:#fff;font-size:7.5px;">
+    <th style="padding:5px 5px;text-align:center;">#</th>
+    <th style="padding:5px 5px;text-align:left;">TAG</th>
+    <th style="padding:5px 5px;text-align:left;">Obra</th>
+    <th style="padding:5px 5px;text-align:left;">Engenharia</th>
+    ${agrupar?'':'<th style="padding:5px 5px;text-align:left;">Status</th>'}
+    <th style="padding:5px 5px;text-align:left;">Descrição</th>
+    <th style="padding:5px 5px;text-align:left;">Área</th>
+    <th style="padding:5px 5px;text-align:right;color:#d1fae5;">Rec.Bás.</th>
+    <th style="padding:5px 5px;text-align:right;">Env.Modelo</th>
+    <th style="padding:5px 5px;text-align:right;">Pcte.Fab.</th>
+    <th style="padding:5px 5px;text-align:right;">Prev.Lib.</th>
+    <th style="padding:5px 5px;text-align:right;color:#fde047;">Lim.Fab.</th>
+    <th style="padding:5px 5px;text-align:right;">Real.Lib.</th>
+    <th style="padding:5px 5px;text-align:right;">Peso Bás.</th>
+    <th style="padding:5px 5px;text-align:right;color:#93c5fd;">Peso Det.</th>
+    <th style="padding:5px 5px;text-align:right;color:#fdba74;">Peso PCP</th>
+    <th style="padding:5px 5px;text-align:center;">Rev.</th>
+    <th style="padding:5px 5px;text-align:right;color:#4ade80;">%</th>
+  </tr></thead>`;
+
+  // ── Gera o corpo: agrupado ou lista simples ──────────────────────────
+  let bodyHtml = '';
+  if(agrupar){
+    // Agrupa por status
+    const grupos = {};
+    subs.forEach(s=>{ const k=s.status||'(sem status)'; if(!grupos[k]) grupos[k]=[]; grupos[k].push(s); });
+    // Ordena grupos pela ordem do fluxo
+    const keys = Object.keys(grupos).sort((a,b)=>{
+      const ia=_FLOW_ORDER.indexOf(a), ib=_FLOW_ORDER.indexOf(b);
+      if(ia===-1&&ib===-1) return a.localeCompare(b,'pt-BR');
+      return (ia===-1?999:ia)-(ib===-1?999:ib);
+    });
+    keys.forEach(status=>{
+      const grupo=grupos[status];
+      // Dentro de cada grupo: ordena pela data mais relevante para o status atual,
+      // da mais antiga (mais atrasada/urgente) para a mais recente
+      grupo.sort((a,b)=>{
+        const da=_dateSortKey(a)||'9999-12-31';
+        const db=_dateSortKey(b)||'9999-12-31';
+        return da<db?-1:da>db?1:0;
+      });
+      const cfg=STATUS_CFG_CRON[status]||{color:'#fff',bg:'#334155',icon:'•'};
+      const gBas=grupo.reduce((a,s)=>a+(Number(s.peso_previsto)||0),0);
+      const gDet=grupo.reduce((a,s)=>a+(Number(s.peso_detalhado)||0),0);
+      // Cabeçalho de grupo com cor do status
+      bodyHtml += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;page-break-inside:avoid;">
+        <thead>
+          <tr>
+            <td colspan="17" style="background:${cfg.bg};color:${cfg.color};padding:7px 10px;font-size:10px;font-weight:800;letter-spacing:.04em;border-radius:4px 4px 0 0;">
+              ${cfg.icon} &nbsp;${status}
+              <span style="font-weight:400;font-size:9px;opacity:.85;margin-left:12px;">${grupo.length} sub-obra(s)</span>
+              <span style="font-weight:400;font-size:9px;opacity:.85;margin-left:10px;">Peso Bás.: ${gBas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span>
+              ${gDet>0?`<span style="font-weight:400;font-size:9px;opacity:.85;margin-left:10px;">Peso Det.: ${gDet.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span>`:''}
+            </td>
+          </tr>
+          ${THEAD()}
+        </thead>
+        <tbody>
+          ${grupo.map((s,i)=>buildRow(s,i)).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:#f0f4f8;border-top:2px solid #cbd5e1;">
+            <td colspan="6" style="padding:4px 6px;font-size:8px;color:#64748b;font-weight:700;">Subtotal: ${grupo.length} sub-obra(s)</td>
+            <td colspan="5" style="padding:4px 6px;"></td>
+            <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';font-weight:700;">${gBas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</td>
+            <td style="padding:4px 6px;text-align:right;font-size:8px;font-family:'Courier New';color:#1d4ed8;font-weight:700;">${gDet>0?gDet.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
+            <td colspan="3" style="padding:4px 6px;"></td>
+          </tr>
+        </tfoot>
+      </table>`;
+    });
+  } else {
+    bodyHtml = `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+      ${THEAD()}
+      <tbody>${subs.map((s,i)=>buildRow(s,i)).join('')}</tbody>
+    </table>`;
+  }
+
+  // ── Totais gerais ─────────────────────────────────────────────────────
+  const totBasico    = subs.reduce((a,s)=>a+(Number(s.peso_previsto)||0),0);
+  const totDetalhado = subs.reduce((a,s)=>a+(Number(s.peso_detalhado)||0),0);
+  const totPcp       = subs.reduce((a,s)=>a+(Number(s.peso_pcp)||0),0);
+  const totPct       = subs.length>0?Math.round(subs.reduce((a,s)=>a+calcPct(s),0)/subs.length):0;
+  const fmtRelPeso   = v => v>0?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—';
   const filtrosTexto = [
-    obraF  ? 'Obra: '+obraF  : '',
-    statusF? 'Status: '+statusF: '',
-    engF   ? 'Eng.: '+engF  : '',
-    prevF  ? 'Lib. de: '+new Date(prevF+'T12:00:00').toLocaleDateString('pt-BR')  : '',
-    prevAF ? 'até: '+new Date(prevAF+'T12:00:00').toLocaleDateString('pt-BR') : '',
-    doc11F ? (doc11Labels[doc11F]||doc11F) : '',
-  ].filter(Boolean).join(' · ') || 'Sem filtros (todas as sub-obras)';
+    obraF?'Obra: '+obraF:'',
+    statusFs.length?'Status: '+statusFs.join(', '):'',
+    engF?'Eng.: '+engF:'',
+    prevF?'Lib. de: '+new Date(prevF+'T12:00:00').toLocaleDateString('pt-BR'):'',
+    prevAF?'até: '+new Date(prevAF+'T12:00:00').toLocaleDateString('pt-BR'):'',
+    agrupar?'Agrupado por Status/Etapa':'',
+  ].filter(Boolean).join(' · ')||'Sem filtros (todas as sub-obras)';
 
-  const html = `
-  <div style="font-family:'Times New Roman',serif;color:#000;padding:1rem;">
-    <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;margin-bottom:0;">
+  // ── HTML do relatório ─────────────────────────────────────────────────
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      body{font-family:'Times New Roman',serif;margin:0;padding:12px;color:#000;font-size:8.5px;}
+      table{border-collapse:collapse;}
+      @media print{body{padding:4px;} .no-print{display:none;}}
+    </style>
+  </head><body>
+    <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;margin-bottom:10px;">
       <tr>
-        <td style="width:90px;border-right:1.5px solid #000;padding:.4rem;text-align:center;">
+        <td style="width:80px;border-right:1.5px solid #000;padding:.4rem;text-align:center;">
           <div style="background:#C4501A;border-radius:3px;padding:.3rem .5rem;display:inline-block;">
             <div style="font-size:16px;font-weight:700;color:#fff;">SE</div>
             <div style="font-size:6px;color:rgba(255,255,255,.8);letter-spacing:.08em;">SIDERTEC</div>
           </div>
         </td>
         <td style="border-right:1.5px solid #000;padding:.4rem .75rem;text-align:center;">
-          <div style="font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">RELATÓRIO DE CRONOGRAMA DE SUB-OBRAS</div>
+          <div style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">RELATÓRIO DE CRONOGRAMA DE SUB-OBRAS${agrupar?' — POR ETAPA/STATUS':''}</div>
           <div style="font-size:9px;color:#444;margin-top:.15rem;">SIDERTEC ESTRUTURAS METÁLICAS</div>
           <div style="font-size:8px;color:#666;margin-top:.1rem;">${filtrosTexto}</div>
         </td>
         <td style="padding:.4rem;min-width:130px;">
           <div style="font-size:7.5px;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">DATA:</span><span>${hoje}</span></div>
           <div style="font-size:7.5px;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">SUB-OBRAS:</span><span>${subs.length}</span></div>
-          <div style="font-size:7.5px;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">PESO BÁS.:</span><span>${totBasico.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span></div>
-          <div style="font-size:7.5px;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">PESO DET.:</span><span>${totDetalhado>0?totDetalhado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</span></div>
-          <div style="font-size:7.5px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">PESO PCP:</span><span>${totPcp>0?totPcp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</span></div>
+          <div style="font-size:7.5px;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">PESO BÁS.:</span><span>${fmtRelPeso(totBasico)}</span></div>
+          <div style="font-size:7.5px;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">PESO DET.:</span><span>${totDetalhado>0?fmtRelPeso(totDetalhado):'—'}</span></div>
+          <div style="font-size:7.5px;display:flex;justify-content:space-between;gap:.5rem;"><span style="font-weight:700;">AVANÇO MÉD.:</span><span>${totPct}%</span></div>
         </td>
       </tr>
     </table>
-    <div style="border-top:2px solid #000;margin:.5rem 0;"></div>
-    ${_buildAtrasadosHtml(subs)}
-    <table style="width:100%;border-collapse:collapse;font-size:8.5px;">
-      <thead>
-        <tr style="background:#1A1714;">
-          <th style="color:#fca5a5;padding:5px 6px;text-align:center;white-space:nowrap;">#</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">TAG / Sub-obra</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Obra</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Engenharia</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Status</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;max-width:200px;">Descrição</th>
-          <th style="color:#fff;padding:5px 6px;text-align:left;white-space:nowrap;">Área</th>
-          <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Rec. Básico</th>
-          <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Modelo</th>
-          <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Pcte.Fab.</th>
-          <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Prev. Lib.Fab.</th>
-          <th style="color:#fde047;padding:5px 6px;text-align:right;white-space:nowrap;">Limite Fáb.</th>
-          <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Real. Lib.</th>
-          <th style="color:#fff;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Bás. (kg)</th>
-          <th style="color:#93c5fd;padding:5px 6px;text-align:right;white-space:nowrap;">Peso Det. (kg)</th>
-          <th style="color:#fdba74;padding:5px 6px;text-align:right;white-space:nowrap;">Peso PCP (kg)</th>
-          <th style="color:#fff;padding:5px 6px;text-align:center;white-space:nowrap;">Revisão</th>
-          <th style="color:#4ade80;padding:5px 6px;text-align:right;white-space:nowrap;">Avanço</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-        <tr style="background:#1A1714;">
-          <td colspan="7" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
-          <td style="color:#f5c89a;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${fmtRelPeso(totBasico)}</td>
-          <td style="color:#93c5fd;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totDetalhado>0?fmtRelPeso(totDetalhado):'—'}</td>
-          <td style="color:#fdba74;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totPcp>0?fmtRelPeso(totPcp):'—'}</td>
-          <td colspan="2" style="color:#fff;padding:5px 6px;text-align:center;font-size:8px;">${totBasico>0?'Δ Det: '+(((totDetalhado-totBasico)/totBasico)*100).toFixed(1)+'%':''}</td>
-        </tr>
-      </tbody>
-    </table>
-    ${(function(){
-      if(!doc11F) return '';
-      var hoje11e = new Date(); hoje11e.setHours(0,0,0,0);
-      var fmtDt11 = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'; };
-      // Build E11 section using _buildE11Html
-      return _buildE11Html(subs, doc11F, hoje11e, fmtDt11, hoje);
-    })()}
-    <div style="font-size:7px;color:#555;text-align:center;border-top:1px solid #ccc;padding-top:.35rem;margin-top:.75rem;">
-      Sidertec Estruturas Metálicas · Relatório Cronograma de Sub-obras · Gerado em ${hoje}
-    </div>
-  </div>`;
 
-  // Abre o relatório numa nova aba para impressão limpa
-  fecharRelatorioCron();
-  const win = window.open('', '_blank', 'width=900,height=700');
-  if(!win){ showToast('Popup bloqueado','Permita popups para este site e tente novamente.','warn'); return; }
-  win.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Relatório Cronograma — Sidertec</title>
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Times New Roman',serif; background:#fff; color:#000; }
-  @page { size:A4 landscape; margin:12mm 10mm; }
-  @media print {
-    .no-print { display:none!important; }
-    body { margin:0; }
-  }
-  .btn-print { position:fixed; top:12px; right:16px; background:#1A1714; color:#fff;
-    border:none; padding:9px 22px; border-radius:5px; font-size:13px; cursor:pointer;
-    font-family:sans-serif; z-index:999; }
-  .btn-print:hover { background:#C4501A; }
-  table { border-collapse:collapse; width:100%; }
-  th, td { padding:4px 6px; font-size:8.5px; }
-  thead tr { background:#1A1714; }
-  thead th { color:#fff; text-align:left; white-space:nowrap; }
-  th.num, td.num { text-align:right; font-family:'Courier New',monospace; }
-  tbody tr { border-bottom:1px solid #e2e8f0; }
-  tbody tr:nth-child(even) { background:#f8fafc; }
-  .footer { font-size:7px; color:#555; text-align:center; border-top:1px solid #ccc;
-    padding-top:.35rem; margin-top:.75rem; }
-  .totais-row { background:#1A1714!important; }
-  .totais-row td { color:#fff!important; font-weight:700; border-bottom:none; }
-</style>
-</head>
-<body>
-<button class="btn-print no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
-` + html + `
-</body></html>`);
+    ${bodyHtml}
+
+    <table style="width:100%;border-collapse:collapse;border:1.5px solid #1A1714;margin-top:${agrupar?'0':'0'};">
+      <tr style="background:#1A1714;">
+        <td colspan="6" style="color:#fff;font-weight:700;padding:5px 6px;font-size:9px;">TOTAL GERAL — ${subs.length} sub-obras · Avanço médio: ${totPct}%</td>
+        <td style="color:#f5c89a;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${fmtRelPeso(totBasico)}</td>
+        <td style="color:#93c5fd;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totDetalhado>0?fmtRelPeso(totDetalhado):'—'}</td>
+        <td style="color:#fdba74;font-weight:700;padding:5px 6px;text-align:right;font-size:9px;font-family:'Courier New';">${totPcp>0?fmtRelPeso(totPcp):'—'}</td>
+        <td colspan="2" style="color:#fff;padding:5px 6px;text-align:center;font-size:8px;">${totBasico>0?'Δ Det: '+(((totDetalhado-totBasico)/totBasico)*100).toFixed(1)+'%':''}</td>
+      </tr>
+    </table>
+
+    <div class="no-print" style="margin-top:12px;text-align:center;">
+      <button onclick="window.print()" style="background:#0369a1;color:#fff;border:none;border-radius:5px;padding:8px 24px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>
+      <button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:8px 16px;font-size:12px;cursor:pointer;">Fechar</button>
+    </div>
+  </body></html>`;
+
+  const win = window.open('','_blank','width=1100,height=800');
+  if(!win){ showToast('Popup bloqueado','Permita popups neste site para gerar o relatório.','error'); return; }
+  win.document.write(html);
   win.document.close();
 }
 
