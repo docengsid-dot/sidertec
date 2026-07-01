@@ -1358,6 +1358,11 @@ canvas{overflow:visible!important;}
   ADD COLUMN IF NOT EXISTS peso_pintura          numeric,
   ADD COLUMN IF NOT EXISTS peso_expedicao        numeric;
 
+-- ══ ADICIONAR COLUNA VERSION para controle de concorrência multi-usuário ══
+-- Execute este bloco separado no SQL Editor do Supabase:
+ALTER TABLE cdoc_database ADD COLUMN IF NOT EXISTS version integer DEFAULT 0;
+UPDATE cdoc_database SET version = 1 WHERE key = 'main' AND (version IS NULL OR version = 0);
+
 CREATE TABLE IF NOT EXISTS medicao_terceiros (
   id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   num_ps           text NOT NULL,
@@ -2226,7 +2231,7 @@ ALTER TABLE medicao_terceiros
           </div>
           <div class="field-group">
             <label class="field-label">Autor</label>
-            <input type="text" class="field-input" id="cm-obs-autor" value="Jenifer" readonly style="background:var(--bg2);color:var(--ink3);cursor:default;">
+            <input type="text" class="field-input" id="cm-obs-autor" value="Usuário" readonly style="background:var(--bg2);color:var(--ink3);cursor:default;">
           </div>
         </div>
         <div class="anexo-area" id="anexo-obs-area" style="margin-bottom:.5rem;">
@@ -2334,7 +2339,7 @@ ALTER TABLE medicao_terceiros
         </div>
         <div class="field-group">
           <label class="field-label">Registrado por</label>
-          <input type="text" class="field-input" id="and-autor" value="Jenifer" readonly style="background:var(--bg2);color:var(--ink3);cursor:default;">
+          <input type="text" class="field-input" id="and-autor" value="Usuário" readonly style="background:var(--bg2);color:var(--ink3);cursor:default;">
         </div>
       </div>
 
@@ -2449,22 +2454,48 @@ const sbClient = {
     self._match=function(row){return self._filters.every(function(f){return String(row[f[0]])===String(f[1]);});};
     self.update=function(changes){self._changes=changes;return self;};
     self.delete=function(){self._del=true;return self;};
+    // _getUserTag: injeta o nome do usuário logado em todo write
+    self._tag=function(obj){
+      var u=window._siderCurrentUser;
+      if(u&&u.nome) obj._autor=u.nome;
+      obj.atualizado_em=new Date().toISOString();
+      return obj;
+    };
+    // _fetchWithRetry: retry automático para operações de escrita
+    self._fetchWithRetry=function(url,opts,tentativas){
+      tentativas=tentativas||0;
+      return fetch(url,opts).then(function(r){
+        if(!r.ok && r.status>=500 && tentativas<3){
+          // Erro de servidor → retry com backoff
+          return new Promise(function(res){setTimeout(res,800*Math.pow(2,tentativas));})
+            .then(function(){return self._fetchWithRetry(url,opts,tentativas+1);});
+        }
+        return r;
+      }).catch(function(e){
+        if(tentativas<3){
+          return new Promise(function(res){setTimeout(res,800*Math.pow(2,tentativas));})
+            .then(function(){return self._fetchWithRetry(url,opts,tentativas+1);});
+        }
+        throw e;
+      });
+    };
     self.insert=function(data){
       var arr=Array.isArray(data)?data:[data];
-      arr=arr.map(function(r){var o=Object.assign({},r);if(!o.id)o.id=_genId();if(!o.criado_em)o.criado_em=new Date().toISOString();o.atualizado_em=new Date().toISOString();return o;});
-      var p=fetch(_sbUrl(table),{method:'POST',headers:_SB_H,body:JSON.stringify(arr)})
+      arr=arr.map(function(r){var o=Object.assign({},r);if(!o.id)o.id=_genId();if(!o.criado_em)o.criado_em=new Date().toISOString();return self._tag(o);});
+      var p=self._fetchWithRetry(_sbUrl(table),{method:'POST',headers:_SB_H,body:JSON.stringify(arr)})
         .then(function(r){return r.json();}).then(function(d){var ins=Array.isArray(d)?d:[d];return{data:ins,error:ins[0]&&ins[0].code?ins[0]:null};})
         .catch(function(e){return{data:arr,error:e};});
       return{select:function(){return p;},then:function(fn){p.then(fn);return{catch:function(f){p.catch(f);}};},catch:function(f){p.catch(f);}};
     };
     self.select=function(){
       if(self._del){
-        return fetch(self._url(),{method:'DELETE',headers:_SB_H})
+        return self._fetchWithRetry(self._url(),{method:'DELETE',headers:_SB_H})
           .then(function(r){return r.ok?{error:null}:{error:{message:'Delete failed '+r.status}};})
           .catch(function(e){return{error:e};});
       }
       if(self._changes){
-        return fetch(self._url(),{method:'PATCH',headers:_SB_H,body:JSON.stringify(Object.assign({},self._changes,{atualizado_em:new Date().toISOString()}))})
+        var payload=self._tag(Object.assign({},self._changes));
+        return self._fetchWithRetry(self._url(),{method:'PATCH',headers:_SB_H,body:JSON.stringify(payload)})
           .then(function(r){return r.json();}).then(function(d){var u=Array.isArray(d)?d:[d];return{data:u,error:u[0]&&u[0].code?u[0]:null};})
           .catch(function(e){return{data:[],error:e};});
       }
@@ -6745,6 +6776,8 @@ async function salvarCronSubobra(){
 
   // Salva no Supabase (fonte principal) + espelho em localStorage como cache
   async function _salvar(p, modo, id){
+    // Injeta autor em todos os saves do cronograma
+    if(window._siderCurrentUser&&window._siderCurrentUser.nome) p._autor=window._siderCurrentUser.nome;
     try {
       if(modo==='insert'){
         // INSERT no Supabase
@@ -17213,7 +17246,7 @@ function _cdocSBStatus(msg, color){
 async function _cdocSBLoad(){
   try {
     _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
-    var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
+    var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
     if(!r.ok){
       var errBody=''; try{errBody=await r.text();}catch(ex){}
       console.error('[CDOC] Supabase HTTP '+r.status+':', errBody);
@@ -17226,6 +17259,7 @@ async function _cdocSBLoad(){
     var rows=await r.json();
     if(rows.length&&rows[0].data){
       _cdocSBCache=rows[0].data;
+      _cdocSaveVersion=rows[0].version||0; // captura versão atual para lock otimista
       // Sanitiza pesos armazenados como string ou NaN
       (_cdocSBCache.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
       (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
@@ -17336,10 +17370,12 @@ function _cdocResyncEtapa2Modelo(){
 
 async function _cdocSBPush(db){
   try{
+    // Inclui campo 'version' no payload para lock otimista
+    var payload = {key:'main', data:db, version:(db._version||0)};
     var r=await fetch(_sbUrl('cdoc_database'),{
       method:'POST',
       headers:Object.assign({},_SB_H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
-      body:JSON.stringify({key:'main',data:db})
+      body:JSON.stringify(payload)
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
   } catch(e){ console.error('_cdocSBPush error:',e); throw e; }
@@ -17417,22 +17453,46 @@ function _cdocLoad(){
   return d;
 }
 
+// Mescla dois snapshots do CDOC preservando edições concorrentes de múltiplos usuários.
+// IMPORTANTE: usa "tombstones" (db._deletedIds) para que exclusões sobrevivam ao merge —
+// sem isso, um doc apagado por um usuário reapareceria se outro usuário salvasse
+// um snapshot antigo (que ainda continha aquele doc) ao mesmo tempo.
 function _cdocMergeSnapshots(remote,local){
   var r=JSON.parse(JSON.stringify(remote));
+
+  // Tombstones: IDs marcados como excluídos por QUALQUER um dos dois lados
+  var deletedBas = new Set([].concat(remote._deletedBasIds||[], local._deletedBasIds||[]));
+  var deletedDet = new Set([].concat(remote._deletedDetIds||[], local._deletedDetIds||[]));
+  var deletedGrd = new Set([].concat(remote._deletedGrdIds||[], local._deletedGrdIds||[]));
+
+  // Remove do remoto qualquer registro marcado como excluído por qualquer lado
+  r.basicos = (r.basicos||[]).filter(function(b){return !deletedBas.has(b.id);});
+  r.detalhados = (r.detalhados||[]).filter(function(d){return !deletedDet.has(d.id);});
+  r._grds = (r._grds||[]).filter(function(g){return !deletedGrd.has(g.id);});
+
   (local.basicos||[]).forEach(function(lb){
+    if(deletedBas.has(lb.id)) return; // não readiciona o que foi excluído
     var idx=r.basicos.findIndex(function(rb){return rb.id===lb.id;});
     if(idx>=0) r.basicos[idx]=lb; else r.basicos.push(lb);
   });
   (local.detalhados||[]).forEach(function(ld){
+    if(deletedDet.has(ld.id)) return;
     var idx=r.detalhados.findIndex(function(rd){return rd.id===ld.id;});
     if(idx>=0) r.detalhados[idx]=ld; else r.detalhados.push(ld);
   });
   // Merge _grds (GRDs emitidas)
   r._grds=r._grds||[];
   (local._grds||[]).forEach(function(lg){
+    if(deletedGrd.has(lg.id)) return;
     var idx=r._grds.findIndex(function(rg){return rg.id===lg.id;});
     if(idx>=0) r._grds[idx]=lg; else r._grds.push(lg);
   });
+
+  // Preserva os tombstones combinados (para futuros merges)
+  r._deletedBasIds = Array.from(deletedBas);
+  r._deletedDetIds = Array.from(deletedDet);
+  r._deletedGrdIds = Array.from(deletedGrd);
+
   // Merge contadores
   r._ids=r._ids||{};
   r._ids.bas=Math.max((remote._ids||{}).bas||1,(local._ids||{}).bas||1);
@@ -17446,21 +17506,95 @@ function _cdocMergeSnapshots(remote,local){
   return r;
 }
 var _cdocSaveTimer=null;
+var _cdocSaveQueue=Promise.resolve(); // serializa saves do mesmo usuário
+var _cdocSaveTimer=null;
+var _cdocSaveVersion=0; // versão do último save bem-sucedido (lock otimista)
+
 function _cdocSave(db){
   _cdocSBCache=db;
-  // Debounce localStorage write — com 4766 docs JSON.stringify bloqueia a UI
+  // Auditoria: quem salvou e quando
+  db._lastSavedBy = _siderCurrentUser ? _siderCurrentUser.nome : 'desconhecido';
+  db._lastSavedAt = new Date().toISOString();
+  // Backup local debounced
   clearTimeout(_cdocSaveTimer);
   _cdocSaveTimer=setTimeout(function(){
     try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
   },300);
   _cdocSBStatus('💾 Salvando...','#0369a1');
-  (async function(){
-    await _cdocSBPush(db);
-    _cdocSBStatus('☁ Salvo na nuvem','#16a34a');
-    setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},2500);
-  })().catch(function(e){
-    _cdocSBStatus('⚠ Erro ao salvar na nuvem','#dc2626');
+
+  var _dbSnapshot=JSON.parse(JSON.stringify(db)); // snapshot imutável desta operação
+
+  // Serializa saves do mesmo usuário — cada save espera o anterior completar
+  _cdocSaveQueue = _cdocSaveQueue.then(function(){
+    return _cdocSaveWithRetry(_dbSnapshot, 0);
   });
+}
+
+async function _cdocSaveWithRetry(snapshot, tentativa){
+  var MAX_TENTATIVAS=5;
+  var DELAY_BASE=800; // ms
+
+  try{
+    // ── Passo 1: busca estado ATUAL do servidor ──────────────────
+    var remoteDb=null, remoteVersion=0;
+    try{
+      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
+      if(r.ok){
+        var rows=await r.json();
+        if(rows.length&&rows[0].data){
+          remoteDb=rows[0].data;
+          remoteVersion=rows[0].version||0;
+        }
+      }
+    }catch(eFetch){
+      console.warn('[CDOC save] fetch remoto falhou — salvando sem merge:',eFetch.message);
+    }
+
+    // ── Passo 2: detecta conflito real ────────────────────────────
+    // Se o remoto foi modificado por outro usuário desde nosso último save
+    var temConflito = remoteDb && remoteVersion > _cdocSaveVersion;
+    if(temConflito){
+      console.log('[CDOC save] Conflito detectado (versão remota='+remoteVersion+', local='+_cdocSaveVersion+') — mesclando...');
+    }
+
+    // ── Passo 3: mescla preservando tudo de ambos os lados ────────
+    var finalDb = remoteDb ? _cdocMergeSnapshots(remoteDb, snapshot) : snapshot;
+    finalDb._version = (remoteVersion||0) + 1; // incrementa versão
+    finalDb._lastSavedBy = snapshot._lastSavedBy;
+    finalDb._lastSavedAt = snapshot._lastSavedAt;
+
+    // ── Passo 4: push atômico ─────────────────────────────────────
+    await _cdocSBPush(finalDb);
+    _cdocSaveVersion = finalDb._version||0;
+
+    // ── Passo 5: atualiza cache e localStorage ────────────────────
+    _cdocSBCache = finalDb;
+    try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(finalDb)); }catch(e){}
+
+    _cdocSBStatus('☁ '+(_siderCurrentUser?_siderCurrentUser.nome:'?')+' · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#16a34a');
+    setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
+
+    // Se o merge trouxe dados novos de outro usuário, re-renderiza
+    if(temConflito){
+      showToast('Dados sincronizados','Outro usuário salvou dados simultaneamente — ambos foram preservados.','info');
+      if(typeof cdocRenderDet==='function') setTimeout(cdocRenderDet,100);
+      if(typeof cdocRenderBas==='function') setTimeout(cdocRenderBas,100);
+    }
+
+  } catch(e){
+    console.error('[CDOC save] erro (tentativa '+(tentativa+1)+'):',e);
+    if(tentativa < MAX_TENTATIVAS){
+      var delay = DELAY_BASE * Math.pow(2, tentativa); // backoff exponencial: 0.8s, 1.6s, 3.2s...
+      _cdocSBStatus('⚠ Erro ao salvar — retry em '+(delay/1000).toFixed(1)+'s...','#f59e0b');
+      await new Promise(function(res){setTimeout(res, delay);});
+      return _cdocSaveWithRetry(snapshot, tentativa+1);
+    } else {
+      _cdocSBStatus('⚠ Não foi possível salvar na nuvem — dados preservados localmente','#dc2626');
+      showToast('Erro ao salvar na nuvem',
+        'Dados salvos apenas localmente. Verifique sua conexão e tente o botão 🔄 Atualizar.',
+        'error');
+    }
+  }
 }
 
 function _cdocDb(){ return _cdocLoad(); }
@@ -17494,27 +17628,38 @@ async function abrirCtrlDoc(){
   try{ await _cdocSBLoad(); } catch(e){ console.error('abrirCtrlDoc error:',e); }
   if(btnAt) btnAt.disabled=false;
   cdocRefreshAll();
-  // Auto-refresh a cada 45s enquanto o modal estiver aberto
+  // Auto-refresh a cada 20s enquanto o modal estiver aberto (multi-usuário)
   if(_cdocAutoRefreshTimer) clearInterval(_cdocAutoRefreshTimer);
   _cdocAutoRefreshTimer=setInterval(async function(){
     if(!document.getElementById('modal-ctrl-doc').classList.contains('show')){
       clearInterval(_cdocAutoRefreshTimer); _cdocAutoRefreshTimer=null; return;
     }
     var editOv=document.getElementById('cdoc-edit-overlay');
-    if(editOv&&editOv.classList.contains('show')) return;
+    if(editOv&&editOv.classList.contains('show')) return; // não interrompe edição em curso
     try{
-      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data'),{headers:_SB_H});
+      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
       if(!r.ok) return;
       var rows=await r.json();
       if(rows.length&&rows[0].data){
-        _cdocSBCache=rows[0].data;
+        var remoteData=rows[0].data;
+        var remoteVer=rows[0].version||0;
+        if(remoteVer>0 && remoteVer<=_cdocSaveVersion) return;
+        var curBas=(_cdocSBCache&&_cdocSBCache.basicos||[]).length;
+        var curDet=(_cdocSBCache&&_cdocSBCache.detalhados||[]).length;
+        var newBas=(remoteData.basicos||[]).length;
+        var newDet=(remoteData.detalhados||[]).length;
+        if(newBas<curBas||newDet<curDet){
+          remoteData=_cdocMergeSnapshots(remoteData,_cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
+        }
+        _cdocSBCache=remoteData;
+        _cdocSaveVersion=remoteVer;
         try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
         cdocRefreshAll();
-        _cdocSBStatus('☁ '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#16a34a');
-        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
+        _cdocSBStatus('🔄 Outro usuário salvou · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#7c3aed');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
       }
     }catch(e){}
-  },45000);
+  },20000);
 }
 async function backupCompleto(){
   var btn = event && event.target;
@@ -18582,7 +18727,7 @@ function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-status',
 /* ── Formulário Básico ── */
 function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
 function cdocEditBas(id){ var db=_cdocDb(); _cdocMode='bas'; _cdocEditId=id; _cdocAbrirFormBas(db.basicos.find(function(b){return b.id===id;})||null); }
-function cdocDelBas(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este projeto básico?')) return; var db=_cdocDb(); db.basicos=db.basicos.filter(function(b){return b.id!==id;}); _cdocSave(db); cdocRenderBas(); cdocRenderVisao(); }
+function cdocDelBas(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este projeto básico?')) return; var db=_cdocDb(); db.basicos=db.basicos.filter(function(b){return b.id!==id;}); db._deletedBasIds=(db._deletedBasIds||[]).concat([id]); _cdocSave(db); cdocRenderBas(); cdocRenderVisao(); }
 function cdocDelSelBas(){
   if(!_siderRequireEdit()) return;
   if(!_cdocBasSel.size){alert('Nenhum registro selecionado.');return;}
@@ -18591,6 +18736,7 @@ function cdocDelSelBas(){
   var db=_cdocDb();
   var idSet=new Set(ids.map(function(id){return String(id);}));
   db.basicos=db.basicos.filter(function(b){return !idSet.has(String(b.id));});
+  db._deletedBasIds=(db._deletedBasIds||[]).concat(ids);
   _cdocSave(db);
   _cdocBasSel.clear();
   cdocRenderBas();
@@ -18763,7 +18909,7 @@ function cdocBasSubChange(){
 /* ── Formulário Detalhado ── */
 function cdocNovoDet(){ if(!_siderRequireEdit()) return; _cdocMode='det'; _cdocEditId=null; _cdocAbrirFormDet(null); }
 function cdocEditDet(id){ var db=_cdocDb(); _cdocMode='det'; _cdocEditId=id; _cdocAbrirFormDet(db.detalhados.find(function(d){return d.id===id;})||null); }
-function cdocDelDet(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este documento?')) return; var db=_cdocDb(); db.detalhados=db.detalhados.filter(function(d){return d.id!==id;}); _cdocSave(db); cdocRenderDet(); cdocRenderVisao(); }
+function cdocDelDet(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este documento?')) return; var db=_cdocDb(); db.detalhados=db.detalhados.filter(function(d){return d.id!==id;}); db._deletedDetIds=(db._deletedDetIds||[]).concat([id]); _cdocSave(db); cdocRenderDet(); cdocRenderVisao(); }
 function cdocDelSelDet(){
   if(!_siderRequireEdit()) return;
   if(!_cdocDetSel.size){alert('Nenhum registro selecionado.');return;}
@@ -18773,6 +18919,7 @@ function cdocDelSelDet(){
   // Normaliza para string para comparação segura (CSV importa IDs como string, form gera número)
   var idSet=new Set(ids.map(function(id){return String(id);}));
   db.detalhados=db.detalhados.filter(function(d){return !idSet.has(String(d.id));});
+  db._deletedDetIds=(db._deletedDetIds||[]).concat(ids);
   _cdocSave(db);
   _cdocDetSel.clear();
   cdocRenderDet();
@@ -19509,6 +19656,9 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
   _cdocDetSel.clear();
   cdocRenderDet();
   cdocRenderVisao();
+  if(typeof showToast==='function'){
+    showToast('✅ GRD '+grdNum+' emitida', sels.length+' documento(s) processado(s).', 'success');
+  }
 }
 /* ── Relatório de Projeto Básico ── */
 function cdocRelBas(){
@@ -19896,16 +20046,23 @@ function _cdocGrdBasAtualizarCronograma(sels,dataISO,numGrd,tipoEm){
    numGrd: número da GRD gerada
 */
 function _cdocGrdDetAtualizarCronograma(sels, dataISO, numGrd, tipoEm){
-  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length) return;
+  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length){
+    console.warn('[GRD-DET→Cron] allCronSubobras não disponível ou vazio.');
+    return;
+  }
   // A Etapa 2 do cronograma (Modelo p/ Aprovação) só deve ser atualizada por
   // documentos do tipo "Modelo IFC" ou "Modelo 3D" — demais tipos (Diagrama de
   // Montagem, Memória de Cálculo, Desenho de Fabricação, etc.) não afetam essa etapa.
   var _tiposModelo=['modelo ifc','modelo 3d','modelo3d'];
+  var _selsAntes=(sels||[]).length;
   sels = (sels||[]).filter(function(d){
     var t=(d.tipo||'').toLowerCase().trim();
     return _tiposModelo.indexOf(t)!==-1;
   });
-  if(!sels.length) return; // nenhum documento relevante para a Etapa 2
+  if(!sels.length){
+    console.log('[GRD-DET→Cron] Nenhum doc Modelo IFC/3D entre os '+_selsAntes+' selecionados — Etapa 2 não atualizada (comportamento esperado para outros tipos).');
+    return;
+  }
   var _fObraRef=(document.getElementById('cdd-f-obra')||{}).value||'';
   var obraRef=_fObraRef||(sels[0]&&sels[0].obraId)||'';
   // Normaliza tipoEm: pode chegar como array (['Para Aprovação']) ou string
@@ -19917,11 +20074,23 @@ function _cdocGrdDetAtualizarCronograma(sels, dataISO, numGrd, tipoEm){
   // Coleta TAGs únicas dos documentos selecionados
   var tagsAfetadas=[];
   sels.forEach(function(d){if(d.sub&&tagsAfetadas.indexOf(d.sub)===-1) tagsAfetadas.push(d.sub);});
+  console.log('[GRD-DET→Cron] TAGs a atualizar:',tagsAfetadas,'| obraRef:',obraRef,'| atualizaAprov:',atualizaAprov);
   tagsAfetadas.forEach(function(tag){
+    // Match exato primeiro (TAG + obra)
     var cronRec=allCronSubobras.find(function(s){
       return s.subobra===tag&&(!obraRef||s.obra===obraRef);
     });
-    if(!cronRec) return;
+    // Fallback: se não achou com obra exata, tenta só pela TAG (case-insensitive)
+    if(!cronRec){
+      cronRec=allCronSubobras.find(function(s){
+        return (s.subobra||'').toUpperCase().trim()===tag.toUpperCase().trim();
+      });
+      if(cronRec) console.warn('[GRD-DET→Cron] TAG "'+tag+'" encontrada via fallback (obra do cronograma="'+cronRec.obra+'" ≠ obraRef="'+obraRef+'")');
+    }
+    if(!cronRec){
+      console.warn('[GRD-DET→Cron] TAG "'+tag+'" NÃO encontrada em allCronSubobras ('+allCronSubobras.length+' registros). Verifique se a TAG do documento corresponde exatamente à sub-obra do cronograma.');
+      return;
+    }
     var upd={atualizado_em:new Date().toISOString()};
     if(atualizaAprov){
       upd.grd_modelo=numGrd;
@@ -19936,9 +20105,22 @@ function _cdocGrdDetAtualizarCronograma(sels, dataISO, numGrd, tipoEm){
     if(idx>=0) allCronSubobras[idx]=Object.assign({},allCronSubobras[idx],upd);
     try{
       sbClient.from('cronograma_subobras').update(upd).eq('id',cronRec.id).select()
-        .then(function(r){if(r.error) console.warn('[GRD-DET→Cron]',r.error.message);})
-        .catch(function(e){console.warn('[GRD-DET→Cron]',e.message);});
-    }catch(e){console.warn('[GRD-DET→Cron]',e.message);}
+        .then(function(r){
+          if(r.error){
+            console.warn('[GRD-DET→Cron]',r.error.message);
+            if(typeof showToast==='function') showToast('Erro ao atualizar Etapa 2', tag+': '+r.error.message, 'error');
+          } else {
+            console.log('[GRD-DET→Cron] TAG "'+tag+'" atualizada com sucesso na Etapa 2.');
+          }
+        })
+        .catch(function(e){
+          console.warn('[GRD-DET→Cron]',e.message);
+          if(typeof showToast==='function') showToast('Erro ao atualizar Etapa 2', tag+': '+e.message, 'error');
+        });
+    }catch(e){
+      console.warn('[GRD-DET→Cron]',e.message);
+      if(typeof showToast==='function') showToast('Erro ao atualizar Etapa 2', tag+': '+e.message, 'error');
+    }
     // Atualiza _etapasState em memória se o modal do cronograma estiver aberto para esta TAG
     try{
       if(typeof _etapasState!=='undefined'&&typeof _cronModalTag!=='undefined'&&_cronModalTag===tag){
@@ -21663,45 +21845,255 @@ function _cdocFltToggle(tbl,col,val,checked){
 
 /* ── Sistema de Bloqueio de Edição ── */
 var _siderEditUnlocked=false;
-var _CDOC_SENHA='sidertec';
-function _siderToggleLock(){
-  if(_siderEditUnlocked){
-    _siderEditUnlocked=false;
-    document.querySelectorAll('.sider-lock-btn').forEach(function(b){
-      b.classList.add('locked'); b.innerHTML='🔒 Editar'; b.title='Clique para desbloquear edição';
-    });
+// ═══════════════════════════════════════════════════════════════════════
+// SISTEMA DE USUÁRIOS — login por nome + senha, sessão persistente
+// Cada usuário tem nome identificado; todas as operações ficam rastreadas
+// ═══════════════════════════════════════════════════════════════════════
+// Usuários padrão — carregados/sobrescritos pelo localStorage
+var _SIDER_USERS_DEFAULT = [
+  {nome:'Jenifer',  senha:'sid2026',  role:'editor'},
+  {nome:'TCH',      senha:'sid2026',  role:'editor'},
+  {nome:'LWM',      senha:'sid2026',  role:'editor'},
+  {nome:'Gabriel',  senha:'sid2026',  role:'editor'},
+  {nome:'Admin',    senha:'sidertec', role:'admin'}
+];
+// Carrega usuários do localStorage (permite adicionar/remover sem editar o código)
+function _siderLoadUsers(){
+  try{
+    var saved=JSON.parse(localStorage.getItem('sider_users')||'null');
+    if(saved&&Array.isArray(saved)&&saved.length) return saved;
+  }catch(e){}
+  return JSON.parse(JSON.stringify(_SIDER_USERS_DEFAULT));
+}
+function _siderSaveUsers(users){
+  try{ localStorage.setItem('sider_users',JSON.stringify(users)); }catch(e){}
+}
+var _SIDER_USERS = _siderLoadUsers();
+var _siderCurrentUser = null; // {nome, role}
+
+// ── GERENCIAMENTO DE USUÁRIOS (Admin only) ────────────────────────────
+function _siderAbrirGerenciarUsuarios(){
+  if(!_siderCurrentUser||_siderCurrentUser.role!=='admin'){
+    alert('Apenas o Admin pode gerenciar usuários.');
     return;
   }
-  // Mostrar overlay de senha
+  _siderRenderGerenciarUsuarios();
+}
+
+function _siderRenderGerenciarUsuarios(){
+  var existing=document.getElementById('sider-users-ov'); if(existing) existing.remove();
+  var users=_siderLoadUsers();
   var ov=document.createElement('div');
-  ov.id='sider-pwd-ov';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999999;display:flex;align-items:center;justify-content:center;';
-  ov.innerHTML='<div style="background:#fff;border-radius:10px;padding:28px 32px;min-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
-    +'<div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-bottom:14px;">🔒 Desbloquear Edição</div>'
-    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">Senha:</label>'
-    +'<input id="sider-pwd-inp" type="password" style="width:100%;box-sizing:border-box;font-size:14px;padding:8px 10px;border:2px solid #0369a1;border-radius:5px;margin-bottom:14px;" placeholder="Digite a senha..." onkeydown="if(event.key===\'Enter\')_siderConfirmPwd();">'
-    +'<div style="display:flex;gap:8px;justify-content:flex-end;">'
-    +'<button onclick="_siderCancelPwd()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Cancelar</button>'
-    +'<button onclick="_siderConfirmPwd()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;font-weight:700;cursor:pointer;">Confirmar</button>'
-    +'</div></div>';
+  ov.id='sider-users-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+  var rows=users.map(function(u,i){
+    var isAdmin=u.role==='admin';
+    return '<tr style="border-bottom:1px solid #f1f5f9;">'
+      +'<td style="padding:8px 12px;font-weight:700;font-size:13px;">'+u.nome+'</td>'
+      +'<td style="padding:8px 12px;"><span style="background:'+(isAdmin?'#fef3c7':'#eff6ff')+';color:'+(isAdmin?'#92400e':'#1d4ed8')+';border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">'+(isAdmin?'Admin':'Editor')+'</span></td>'
+      +'<td style="padding:8px 12px;font-family:monospace;font-size:12px;color:#64748b;">'+u.senha+'</td>'
+      +'<td style="padding:8px 6px;display:flex;gap:6px;align-items:center;">'
+        +'<button onclick="_siderEditarUsuario('+i+')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">✎ Editar</button>'
+        +(isAdmin?'':'<button onclick="_siderExcluirUsuario('+i+')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">✕ Excluir</button>')
+      +'</td>'
+    +'</tr>';
+  }).join('');
+
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;width:580px;max-width:100%;box-shadow:0 16px 48px rgba(0,0,0,.3);">'
+    +'<div style="background:#0c4a6e;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">'
+      +'<span style="font-size:15px;font-weight:800;">👥 Gerenciar Usuários</span>'
+      +'<button onclick="document.getElementById(\'sider-users-ov\').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:20px;cursor:pointer;">✕</button>'
+    +'</div>'
+    +'<div style="padding:16px 20px;">'
+      +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">'
+        +'<thead><tr style="background:#f8fafc;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">'
+          +'<th style="padding:8px 12px;text-align:left;">Nome</th>'
+          +'<th style="padding:8px 12px;text-align:left;">Perfil</th>'
+          +'<th style="padding:8px 12px;text-align:left;">Senha</th>'
+          +'<th style="padding:8px 12px;text-align:left;">Ações</th>'
+        +'</tr></thead>'
+        +'<tbody>'+rows+'</tbody>'
+      +'</table>'
+      +'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;">'
+        +'<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:10px;">➕ Adicionar Usuário</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;">'
+          +'<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px;">Nome</label>'
+            +'<input id="su-novo-nome" placeholder="Nome do usuário" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;"></div>'
+          +'<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px;">Senha</label>'
+            +'<input id="su-novo-senha" placeholder="Senha" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;"></div>'
+          +'<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px;">Perfil</label>'
+            +'<select id="su-novo-role" style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;">'
+              +'<option value="editor">Editor</option>'
+              +'<option value="admin">Admin</option>'
+            +'</select></div>'
+          +'<button onclick="_siderAdicionarUsuario()" style="background:#0369a1;color:#fff;border:none;border-radius:5px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Adicionar</button>'
+        +'</div>'
+      +'</div>'
+      +'<div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:11px;color:#92400e;">'
+        +'⚠️ As senhas ficam salvas neste navegador (localStorage). Para usar em outros computadores, exporte e importe o arquivo HTML já atualizado.'
+      +'</div>'
+    +'</div>'
+    +'<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;">'
+      +'<button onclick="document.getElementById(\'sider-users-ov\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:5px;padding:7px 18px;font-size:12px;cursor:pointer;">Fechar</button>'
+    +'</div>'
+  +'</div>';
   document.body.appendChild(ov);
-  setTimeout(function(){var inp=document.getElementById('sider-pwd-inp');if(inp)inp.focus();},50);
 }
-function _siderConfirmPwd(){
-  var inp=document.getElementById('sider-pwd-inp');
-  var s=inp?inp.value:'';
-  _siderCancelPwd();
-  if(s===_CDOC_SENHA){
-    _siderEditUnlocked=true;
-    document.querySelectorAll('.sider-lock-btn').forEach(function(b){
-      b.classList.remove('locked'); b.innerHTML='🔓 Editando'; b.title='Clique para bloquear edição';
-    });
-  } else {
-    setTimeout(function(){alert('Senha incorreta.');},50);
+
+function _siderAdicionarUsuario(){
+  var nome=(document.getElementById('su-novo-nome')||{}).value||'';
+  var senha=(document.getElementById('su-novo-senha')||{}).value||'';
+  var role=(document.getElementById('su-novo-role')||{}).value||'editor';
+  nome=nome.trim(); senha=senha.trim();
+  if(!nome||!senha){alert('Preencha nome e senha.');return;}
+  var users=_siderLoadUsers();
+  if(users.find(function(u){return u.nome.toLowerCase()===nome.toLowerCase();})){
+    alert('Já existe um usuário com esse nome.');return;
   }
+  users.push({nome:nome,senha:senha,role:role});
+  _siderSaveUsers(users);
+  _SIDER_USERS=users;
+  _siderRenderGerenciarUsuarios(); // re-renderiza
+  if(typeof showToast==='function') showToast('Usuário adicionado',''+nome+' ('+role+') criado com sucesso.','success');
 }
+
+function _siderExcluirUsuario(idx){
+  var users=_siderLoadUsers();
+  var u=users[idx];
+  if(!u)return;
+  if(u.role==='admin'&&users.filter(function(x){return x.role==='admin';}).length<=1){
+    alert('Não é possível excluir o único Admin.');return;
+  }
+  if(!confirm('Excluir usuário "'+u.nome+'"?'))return;
+  users.splice(idx,1);
+  _siderSaveUsers(users);
+  _SIDER_USERS=users;
+  _siderRenderGerenciarUsuarios();
+  if(typeof showToast==='function') showToast('Usuário removido',''+u.nome+' foi excluído.','info');
+}
+
+function _siderEditarUsuario(idx){
+  var users=_siderLoadUsers();
+  var u=users[idx]; if(!u)return;
+  var novaSenha=prompt('Nova senha para "'+u.nome+'" (deixe em branco para manter a atual):\nSenha atual: '+u.senha,'');
+  if(novaSenha===null)return; // cancelou
+  if(novaSenha.trim()) users[idx].senha=novaSenha.trim();
+  var novoRole=confirm('"'+u.nome+'" deve ter perfil Admin?\n(OK = Admin | Cancelar = Editor)');
+  users[idx].role=novoRole?'admin':'editor';
+  _siderSaveUsers(users);
+  _SIDER_USERS=users;
+  _siderRenderGerenciarUsuarios();
+  if(typeof showToast==='function') showToast('Usuário atualizado',''+u.nome+' atualizado.','success');
+}
+
+function _siderIniciarLogin(){
+  // Tenta restaurar sessão salva
+  try{
+    var saved = JSON.parse(sessionStorage.getItem('sider_session')||'null');
+    if(saved&&saved.nome){
+      var u=_SIDER_USERS.find(function(x){return x.nome===saved.nome;});
+      if(u){ _siderCurrentUser={nome:u.nome,role:u.role}; _siderAplicarSessao(); return; }
+    }
+  }catch(e){}
+  _siderMostrarLogin();
+}
+
+function _siderMostrarLogin(msg){
+  var existing=document.getElementById('sider-login-ov'); if(existing) existing.remove();
+  var ov=document.createElement('div');
+  ov.id='sider-login-ov';
+  ov.style.cssText='position:fixed;inset:0;background:linear-gradient(135deg,#0c4a6e,#1e293b);z-index:999999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML=''
+    +'<div style="background:#fff;border-radius:14px;padding:36px 40px;min-width:340px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4);">'
+      +'<div style="text-align:center;margin-bottom:24px;">'
+        +'<div style="font-size:28px;font-weight:900;color:#0c4a6e;letter-spacing:-1px;">Sidertec</div>'
+        +'<div style="font-size:12px;color:#64748b;margin-top:2px;">Gestão de Projetos · 2026</div>'
+      +'</div>'
+      +(msg?'<div style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:16px;text-align:center;">'+msg+'</div>':'')
+      +'<div style="margin-bottom:14px;">'
+        +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:5px;">USUÁRIO</label>'
+        +'<select id="sl-user" style="width:100%;font-size:14px;padding:9px 12px;border:2px solid #e2e8f0;border-radius:7px;outline:none;cursor:pointer;" onfocus="this.style.borderColor=\'#0369a1\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+          +'<option value="">— Selecione —</option>'
+          +_SIDER_USERS.map(function(u){return '<option value="'+u.nome+'">'+u.nome+'</option>';}).join('')
+        +'</select>'
+      +'</div>'
+      +'<div style="margin-bottom:20px;">'
+        +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:5px;">SENHA</label>'
+        +'<input id="sl-pwd" type="password" placeholder="Senha..." style="width:100%;box-sizing:border-box;font-size:14px;padding:9px 12px;border:2px solid #e2e8f0;border-radius:7px;outline:none;" onfocus="this.style.borderColor=\'#0369a1\'" onblur="this.style.borderColor=\'#e2e8f0\'" onkeydown="if(event.key===\'Enter\')_siderFazerLogin();">'
+      +'</div>'
+      +'<button onclick="_siderFazerLogin()" style="width:100%;background:#0369a1;color:#fff;border:none;border-radius:7px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.03em;" onmouseover="this.style.background=\'#0c4a6e\'" onmouseout="this.style.background=\'#0369a1\'">Entrar</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){ var s=document.getElementById('sl-user'); if(s)s.focus(); },50);
+}
+
+function _siderFazerLogin(){
+  var nome=(document.getElementById('sl-user')||{}).value||'';
+  var senha=(document.getElementById('sl-pwd')||{}).value||'';
+  if(!nome){ _siderMostrarLogin('Selecione um usuário.'); return; }
+  var u=_SIDER_USERS.find(function(x){return x.nome===nome&&x.senha===senha;});
+  if(!u){ _siderMostrarLogin('Senha incorreta para o usuário '+nome+'.'); return; }
+  _siderCurrentUser={nome:u.nome,role:u.role};
+  sessionStorage.setItem('sider_session',JSON.stringify({nome:u.nome}));
+  var ov=document.getElementById('sider-login-ov'); if(ov) ov.remove();
+  _siderAplicarSessao();
+}
+
+function _siderAplicarSessao(){
+  _siderEditUnlocked=true;
+  // Mostra o nome do usuário logado na barra
+  var btnEd=document.querySelector('.sider-lock-btn');
+  if(btnEd){
+    btnEd.classList.remove('locked');
+    btnEd.innerHTML='👤 '+_siderCurrentUser.nome;
+    btnEd.title='Logado como '+_siderCurrentUser.nome+' — clique para trocar usuário';
+    btnEd.onclick=function(){ _siderTrocarUsuario(); };
+  }
+  // Botão de gerenciar usuários — só aparece para Admin
+  var adminBtn=document.getElementById('sider-admin-users-btn');
+  if(!adminBtn){
+    adminBtn=document.createElement('button');
+    adminBtn.id='sider-admin-users-btn';
+    adminBtn.style.cssText='background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;margin-left:6px;';
+    adminBtn.title='Gerenciar usuários (Admin)';
+    adminBtn.textContent='👥 Usuários';
+    adminBtn.onclick=function(){ _siderAbrirGerenciarUsuarios(); };
+    var lockBtn=document.querySelector('.sider-lock-btn');
+    if(lockBtn&&lockBtn.parentNode) lockBtn.parentNode.insertBefore(adminBtn,lockBtn.nextSibling);
+  }
+  adminBtn.style.display=_siderCurrentUser&&_siderCurrentUser.role==='admin'?'inline-block':'none';
+  // Atualiza todos os campos de autor com o nome do usuário logado
+  ['cm-obs-autor','and-autor'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.value=_siderCurrentUser.nome;
+  });
+}
+
+function _siderTrocarUsuario(){
+  if(!confirm('Trocar de usuário? A sessão atual será encerrada.')) return;
+  sessionStorage.removeItem('sider_session');
+  _siderCurrentUser=null;
+  _siderEditUnlocked=false;
+  _siderMostrarLogin();
+}
+
+function _siderToggleLock(){
+  if(!_siderCurrentUser) { _siderMostrarLogin(); return; }
+  _siderTrocarUsuario();
+}
+function _siderConfirmPwd(){}
 function _siderCancelPwd(){ var ov=document.getElementById('sider-pwd-ov'); if(ov) ov.remove(); }
-function _siderRequireEdit(){ if(_siderEditUnlocked) return true; _siderToggleLock(); return _siderEditUnlocked; }
+function _siderRequireEdit(){
+  if(_siderEditUnlocked&&_siderCurrentUser) return true;
+  _siderMostrarLogin();
+  return false;
+}
+
+// Inicia login ao carregar
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(_siderIniciarLogin, 200);
+});
 
 // Verificação de backup ao carregar
 document.addEventListener('DOMContentLoaded', function(){
