@@ -631,9 +631,9 @@ canvas{overflow:visible!important;}
 .cron-semaforo.cinza{background:#94a3b8;}
 
 /* MODAL CRONOGRAMA */
-.cron-modal-overlay{position:fixed;inset:0;background:rgba(26,23,20,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .2s;}
+.cron-modal-overlay{position:fixed;inset:0;background:rgba(26,23,20,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .2s;}
 .cron-modal-overlay.show{opacity:1;pointer-events:all;}
-.cron-modal-box{background:#fff;border-radius:var(--r);width:1080px;max-width:100%;box-shadow:var(--shadow2);transform:translateY(-16px);transition:transform .2s;}
+.cron-modal-box{background:#fff;border-radius:var(--r);width:1300px;max-width:100%;box-shadow:var(--shadow2);transform:translateY(-16px);transition:transform .2s;}
 .cron-modal-overlay.show .cron-modal-box{transform:translateY(0);}
 .cron-mhd{background:var(--ink);border-radius:var(--r) var(--r) 0 0;padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;}
 .cron-mhd-title{font-family:'Georgia',serif,serif;font-size:17px;color:#fff;flex:1;}
@@ -761,203 +761,201 @@ canvas{overflow:visible!important;}
 
 /* Reduz o box do modal de sub-obra */
 #cron-modal .cron-modal-box {
-  width: 900px;
+  width: 1300px;
 }
 
-/* Header compacto */
+/* Header */
 #cron-modal .cron-mhd {
-  padding: 8px 12px;
+  padding: 12px 16px;
 }
 #cron-modal .cron-mhd-title {
-  font-size: 13px;
+  font-size: 15px;
 }
 #cron-modal .cron-mhd-sub {
-  font-size: 11px;
+  font-size: 12px;
 }
 
-/* Body com menos padding */
+/* Body */
 #cron-modal .cron-mbody {
-  padding: 10px 12px;
+  padding: 14px 16px;
 }
 
-/* Footer compacto */
+/* Footer */
 #cron-modal .cron-mfooter {
-  padding: 7px 12px;
+  padding: 10px 16px;
 }
 #cron-modal .cron-mfooter button {
-  font-size: 11px;
-  padding: 4px 12px;
+  font-size: 13px;
+  padding: 6px 16px;
 }
 
 /* ── CAMPOS DO FORMULÁRIO ── */
-
-/* Labels menores */
 #cron-modal label,
 #cron-modal .form-label {
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: .07em;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
   display: block;
 }
 
-/* Inputs, selects e textareas compactos */
+/* Inputs, selects e textareas */
 #cron-modal input[type="text"],
 #cron-modal input[type="number"],
 #cron-modal input[type="date"],
 #cron-modal select,
 #cron-modal textarea {
-  font-size: 11px;
-  padding: 3px 6px;
-  height: 24px;
-  border-radius: 3px;
+  font-size: 13px;
+  padding: 5px 8px;
+  height: 30px;
+  border-radius: 4px;
 }
 #cron-modal textarea {
   height: auto;
-  min-height: 40px;
+  min-height: 50px;
 }
 
 /* Grids de campos lado a lado */
 #cron-modal .cron-form-row,
 #cron-modal .form-row {
   display: grid;
-  gap: 5px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 /* ── DATA LIMITE — badge no header ── */
 #cron-modal .data-limite-fab-wrap {
-  padding: 6px 10px;
-  font-size: 11px;
+  padding: 8px 14px;
+  font-size: 13px;
 }
 #cron-modal .data-limite-fab-wrap .dl-label {
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .07em;
 }
 #cron-modal .data-limite-fab-wrap .dl-dias {
-  font-size: 12px;
+  font-size: 15px;
 }
 
-/* ── TABELA DE ETAPAS — COMPACTA ── */
+/* ── TABELA DE ETAPAS ── */
 #cron-modal .cron-etapas-table-wrap {
   border-width: 1px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 #cron-modal .cron-etapas-table {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 #cron-modal .cron-etapas-table thead th {
-  padding: 3px 5px;
-  font-size: 9px;
+  padding: 5px 7px;
+  font-size: 11px;
 }
 
 #cron-modal .cron-etapas-table tbody td {
-  padding: 3px 5px;
-  font-size: 10px;
+  padding: 5px 7px;
+  font-size: 12px;
 }
 
 /* Input de data dentro da tabela */
 #cron-modal .cron-etapas-table input[type="date"],
 #cron-modal .cron-etapas-table input[type="text"] {
-  font-size: 9px;
-  height: 20px;
-  padding: 1px 3px;
+  font-size: 11px;
+  height: 26px;
+  padding: 2px 5px;
 }
 
-/* Campo Observação dentro da tabela — COMPACTO */
+/* Campo Observação dentro da tabela */
 #cron-modal .cron-etapas-table td.obs-td input,
 #cron-modal .cron-etapas-table .obs-input,
 #cron-modal .cron-etapas-table input[placeholder*="Obs"],
 #cron-modal .cron-etapas-table input[placeholder*="obs"],
 #cron-modal .cron-etapas-table input[placeholder*="Observ"] {
-  font-size: 9px !important;
-  height: 18px !important;
-  padding: 1px 4px !important;
-  width: 90px;
+  font-size: 11px !important;
+  height: 24px !important;
+  padding: 2px 6px !important;
+  width: 140px;
 }
 
 /* Número da etapa badge */
 #cron-modal .cron-etapas-table .etapa-num {
-  font-size: 9px;
-  padding: 1px 4px;
-  min-width: 18px;
+  font-size: 11px;
+  padding: 2px 6px;
+  min-width: 22px;
 }
 
 /* Nome da etapa */
 #cron-modal .cron-etapas-table .etapa-name {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Status pill */
 #cron-modal .cron-etapa-status-pill {
-  font-size: 9px;
-  padding: 2px 6px;
+  font-size: 11px;
+  padding: 3px 8px;
   border-radius: 8px;
 }
 
 /* Linha de sub-etapa */
 #cron-modal .cron-etapas-table tbody tr.sub-etapa td {
-  font-size: 9px;
-  padding: 2px 5px;
+  font-size: 11px;
+  padding: 3px 6px;
   color: #6b7280;
 }
 
 /* Linha Anexar */
 #cron-modal .cron-etapas-table tr.anexar-row td {
-  padding: 2px 5px;
-  font-size: 9px;
+  padding: 3px 6px;
+  font-size: 11px;
 }
 
-/* Checkbox mini */
+/* Checkbox */
 #cron-modal .cron-etapas-table input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
 }
 
 /* Botão de ação (✓ / ↩) */
 #cron-modal .cron-etapas-table button {
-  font-size: 10px;
-  padding: 1px 4px;
+  font-size: 12px;
+  padding: 2px 6px;
 }
 
 /* ── SEÇÕES INTERNAS (Revisão, MP, Anexos) ── */
 #cron-modal .revisao-section,
 #cron-modal .resumo-mp-section {
-  padding: 8px 10px;
-  margin-top: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
 }
 #cron-modal .revisao-title,
 #cron-modal .resumo-mp-title {
-  font-size: 10px;
-  margin-bottom: 5px;
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 #cron-modal .check-row label {
-  font-size: 11px;
+  font-size: 12px;
 }
 #cron-modal .check-row input[type="checkbox"] {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Área de anexo */
 #cron-modal .anexo-area {
-  padding: 4px 8px;
-  margin-top: 4px;
+  padding: 5px 10px;
+  margin-top: 5px;
 }
 #cron-modal .anexo-label {
-  font-size: 11px;
+  font-size: 12px;
 }
 #cron-modal .anexo-item {
-  font-size: 9px;
-  padding: 1px 5px;
+  font-size: 11px;
+  padding: 2px 6px;
 }
 
 /* ── DIAS BADGE dentro da tabela ── */
 #cron-modal .dias-etapa-badge {
-  font-size: 8px;
-  padding: 1px 5px;
+  font-size: 10px;
+  padding: 2px 6px;
   margin: 0;
 }
 
@@ -1362,6 +1360,14 @@ canvas{overflow:visible!important;}
 -- Execute este bloco separado no SQL Editor do Supabase:
 ALTER TABLE cdoc_database ADD COLUMN IF NOT EXISTS version integer DEFAULT 0;
 UPDATE cdoc_database SET version = 1 WHERE key = 'main' AND (version IS NULL OR version = 0);
+
+-- ══ TABELA cdoc_meta para configurações compartilhadas (usuários, etc.) ══
+CREATE TABLE IF NOT EXISTS cdoc_meta (
+  key   text PRIMARY KEY,
+  value text
+);
+ALTER TABLE cdoc_meta ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "allow_all_cdoc_meta" ON cdoc_meta FOR ALL USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS medicao_terceiros (
   id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -19821,13 +19827,23 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
     var doc=db.detalhados.find(function(d){return d.id===ds.doc.id;});
     if(!doc) return;
     doc.envioHist=doc.envioHist||[];
-    doc.envioHist.push({rev:doc.rev||'',data:dataISO,finalidade:ds.finalidade,grd:grdNum,
-      prevRetorno:prevRetGrd||'',retornoReal:'',statusFinal:'',obs:obsGrd||'',status:'Concluído'});
+    // Verifica se já existe um registro idêntico (mesma GRD + data) para evitar duplicatas
+    var jaExiste=doc.envioHist.find(function(h){
+      return h.grd===grdNum && h.data===dataISO && h.finalidade===ds.finalidade;
+    });
+    if(!jaExiste){
+      doc.envioHist.push({rev:doc.rev||'',data:dataISO,finalidade:ds.finalidade,grd:grdNum,
+        prevRetorno:prevRetGrd||'',retornoReal:'',statusFinal:'',obs:obsGrd||'',status:'Concluído'});
+    }
     if(!doc.statusGeral||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO'||
        ds.finalidade==='Para Aprovação'||ds.finalidade==='Para Certificação'||ds.finalidade==='Para Informação'){
       doc.statusGeral='ENVIADO AO CLIENTE';
     }
   });
+  // Limpa _cdocPendingEnvio para evitar duplicação quando o formulário do documento
+  // for salvo depois da GRD (o registro já foi adicionado diretamente ao envioHist acima)
+  _cdocPendingEnvio=[];
+  _cdocPendingLibfab=[];
   _cdocSave(db);
   _cdocGrdDetAtualizarCronograma(sels, dataISO, grdNum, tiposStr);
 
@@ -21400,6 +21416,16 @@ function cdocSalvar(){
       }
     }
     var rec2={id:_cdocEditId||_cdocGenId(db,'det'),obraId:obra2,sub:sub2,num:num,cli:g('cef-cli'),tipo:g('cef-tipo'),engResp:g('cef-eng'),titulo:g('cef-titulo-det'),desc:g('cef-desc'),peca:g('cef-peca'),peso:g('cef-peso')||null,rev:g('cef-rev'),statusGeral:sgFinal,data:g('cef-data'),libfabHist:((_oldRec2&&_oldRec2.libfabHist)||[]).concat(_cdocPendingLibfab||[]),envioHist:((_oldRec2&&_oldRec2.envioHist)||[]).concat(_cdocPendingEnvio||[])};
+    // Remove duplicatas no envioHist: mesma GRD + data + finalidade = mesmo registro
+    rec2.envioHist=(function(hist){
+      var seen=new Set();
+      return hist.filter(function(h){
+        var k=(h.grd||'')+'|'+(h.data||'')+'|'+(h.finalidade||'');
+        if(seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    })(rec2.envioHist);
     // Guarda quais entradas de envio/libfab são NOVAS nesta gravação (para sincronizar o cronograma)
     var _novosEnvios = (_cdocPendingEnvio||[]).slice();
     _cdocPendingLibfab=[];_cdocPendingEnvio=[];
@@ -22104,9 +22130,12 @@ var _SIDER_USERS_DEFAULT = [
   {nome:'TCH',      senha:'sid2026',  role:'editor'},
   {nome:'LWM',      senha:'sid2026',  role:'editor'},
   {nome:'Gabriel',  senha:'sid2026',  role:'editor'},
+  {nome:'Dayara',   senha:'sid2026',  role:'editor'},
+  {nome:'Engenharia Sidertec', senha:'sid2026', role:'editor'},
   {nome:'Admin',    senha:'sidertec', role:'admin'}
 ];
-// Carrega usuários do localStorage (permite adicionar/remover sem editar o código)
+
+// Carrega usuários: Supabase (fonte de verdade) → localStorage (cache) → defaults
 function _siderLoadUsers(){
   try{
     var saved=JSON.parse(localStorage.getItem('sider_users')||'null');
@@ -22114,9 +22143,45 @@ function _siderLoadUsers(){
   }catch(e){}
   return JSON.parse(JSON.stringify(_SIDER_USERS_DEFAULT));
 }
+
+// Salva usuários: localStorage + Supabase (assíncrono)
 function _siderSaveUsers(users){
   try{ localStorage.setItem('sider_users',JSON.stringify(users)); }catch(e){}
+  // Persiste no Supabase para sincronizar todos os computadores
+  _siderPushUsersToSB(users);
 }
+
+async function _siderPushUsersToSB(users){
+  try{
+    var r=await fetch(_sbUrl('cdoc_meta'),{
+      method:'POST',
+      headers:Object.assign({},_SB_H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify({key:'sider_users',value:JSON.stringify(users)})
+    });
+    if(!r.ok) console.warn('[Users] Erro ao salvar no Supabase:',r.status);
+  }catch(e){ console.warn('[Users] Supabase indisponível:',e.message); }
+}
+
+// Busca usuários do Supabase e atualiza localStorage + tela de login
+async function _siderFetchUsersFromSB(){
+  try{
+    var r=await fetch(_sbUrl('cdoc_meta?key=eq.sider_users&select=value'),{headers:_SB_H});
+    if(!r.ok) return;
+    var rows=await r.json();
+    if(rows.length&&rows[0].value){
+      var users=JSON.parse(rows[0].value);
+      if(Array.isArray(users)&&users.length){
+        // Garante que Admin sempre existe
+        if(!users.find(function(u){return u.role==='admin';})){
+          users.push({nome:'Admin',senha:'sidertec',role:'admin'});
+        }
+        _SIDER_USERS=users;
+        try{ localStorage.setItem('sider_users',JSON.stringify(users)); }catch(e){}
+      }
+    }
+  }catch(e){ console.warn('[Users] Fetch do Supabase falhou:',e.message); }
+}
+
 var _SIDER_USERS = _siderLoadUsers();
 var _siderCurrentUser = null; // {nome, role}
 
@@ -22245,7 +22310,12 @@ function _siderIniciarLogin(){
       if(u){ _siderCurrentUser={nome:u.nome,role:u.role}; _siderAplicarSessao(); return; }
     }
   }catch(e){}
-  _siderMostrarLogin();
+  // Busca usuários atualizados do Supabase antes de mostrar a tela de login
+  _siderFetchUsersFromSB().then(function(){
+    _siderMostrarLogin();
+  }).catch(function(){
+    _siderMostrarLogin();
+  });
 }
 
 function _siderMostrarLogin(msg){
