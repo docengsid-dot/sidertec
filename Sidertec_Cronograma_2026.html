@@ -22225,9 +22225,13 @@ function _siderRenderGerenciarUsuarios(){
 
   var rows=users.map(function(u,i){
     var isAdmin=u.role==='admin';
+    var isViewer=u.role==='viewer';
+    var roleBg=isAdmin?'#fef3c7':isViewer?'#fef9c3':'#eff6ff';
+    var roleColor=isAdmin?'#92400e':isViewer?'#713f12':'#1d4ed8';
+    var roleLabel=isAdmin?'Admin':isViewer?'Visualizador':'Editor';
     return '<tr style="border-bottom:1px solid #f1f5f9;">'
       +'<td style="padding:8px 12px;font-weight:700;font-size:13px;">'+u.nome+'</td>'
-      +'<td style="padding:8px 12px;"><span style="background:'+(isAdmin?'#fef3c7':'#eff6ff')+';color:'+(isAdmin?'#92400e':'#1d4ed8')+';border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">'+(isAdmin?'Admin':'Editor')+'</span></td>'
+      +'<td style="padding:8px 12px;"><span style="background:'+roleBg+';color:'+roleColor+';border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">'+roleLabel+'</span></td>'
       +'<td style="padding:8px 12px;font-family:monospace;font-size:12px;color:#64748b;">'+u.senha+'</td>'
       +'<td style="padding:8px 6px;display:flex;gap:6px;align-items:center;">'
         +'<button onclick="_siderEditarUsuario('+i+')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">✎ Editar</button>'
@@ -22261,6 +22265,7 @@ function _siderRenderGerenciarUsuarios(){
           +'<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px;">Perfil</label>'
             +'<select id="su-novo-role" style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;">'
               +'<option value="editor">Editor</option>'
+              +'<option value="viewer">Visualizador</option>'
               +'<option value="admin">Admin</option>'
             +'</select></div>'
           +'<button onclick="_siderAdicionarUsuario()" style="background:#0369a1;color:#fff;border:none;border-radius:5px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Adicionar</button>'
@@ -22312,15 +22317,20 @@ function _siderExcluirUsuario(idx){
 function _siderEditarUsuario(idx){
   var users=_siderLoadUsers();
   var u=users[idx]; if(!u)return;
-  var novaSenha=prompt('Nova senha para "'+u.nome+'" (deixe em branco para manter a atual):\nSenha atual: '+u.senha,'');
-  if(novaSenha===null)return; // cancelou
+  var novaSenha=prompt('Nova senha para "'+u.nome+'" (deixe em branco para manter):\nSenha atual: '+u.senha,'');
+  if(novaSenha===null)return;
   if(novaSenha.trim()) users[idx].senha=novaSenha.trim();
-  var novoRole=confirm('"'+u.nome+'" deve ter perfil Admin?\n(OK = Admin | Cancelar = Editor)');
-  users[idx].role=novoRole?'admin':'editor';
+  var novoRole=prompt(
+    'Perfil para "'+u.nome+'":\n1 = Editor (pode editar)\n2 = Visualizador (só consulta)\n3 = Admin\n\nDigite 1, 2 ou 3:',
+    u.role==='admin'?'3':u.role==='viewer'?'2':'1'
+  );
+  if(novoRole===null)return;
+  var roleMap={'1':'editor','2':'viewer','3':'admin'};
+  users[idx].role=roleMap[novoRole.trim()]||'editor';
   _siderSaveUsers(users);
   _SIDER_USERS=users;
   _siderRenderGerenciarUsuarios();
-  if(typeof showToast==='function') showToast('Usuário atualizado',''+u.nome+' atualizado.','success');
+  if(typeof showToast==='function') showToast('Usuário atualizado',u.nome+' atualizado com perfil '+users[idx].role+'.','success');
 }
 
 function _siderIniciarLogin(){
@@ -22382,13 +22392,23 @@ function _siderFazerLogin(){
 }
 
 function _siderAplicarSessao(){
-  _siderEditUnlocked=true;
-  // Mostra o nome do usuário logado na barra
+  _siderEditUnlocked = _siderCurrentUser && _siderCurrentUser.role !== 'viewer';
+  // Botão de usuário logado na barra
   var btnEd=document.querySelector('.sider-lock-btn');
   if(btnEd){
+    var isViewer = _siderCurrentUser && _siderCurrentUser.role === 'viewer';
     btnEd.classList.remove('locked');
-    btnEd.innerHTML='👤 '+_siderCurrentUser.nome;
-    btnEd.title='Logado como '+_siderCurrentUser.nome+' — clique para trocar usuário';
+    if(isViewer){
+      btnEd.innerHTML='👁 '+_siderCurrentUser.nome+' <span style="font-size:9px;opacity:.7;background:rgba(255,255,255,.15);border-radius:3px;padding:1px 5px;margin-left:3px;">Visualizador</span>';
+      btnEd.title='Perfil Visualizador — somente consulta. Clique para trocar usuário.';
+      btnEd.style.color='#fde68a';
+      btnEd.style.borderColor='#fde68a';
+    } else {
+      btnEd.innerHTML='👤 '+_siderCurrentUser.nome;
+      btnEd.title='Logado como '+_siderCurrentUser.nome+' — clique para trocar usuário';
+      btnEd.style.color='';
+      btnEd.style.borderColor='';
+    }
     btnEd.onclick=function(){ _siderTrocarUsuario(); };
   }
   // Botão de gerenciar usuários — só aparece para Admin
@@ -22426,6 +22446,14 @@ function _siderToggleLock(){
 function _siderConfirmPwd(){}
 function _siderCancelPwd(){ var ov=document.getElementById('sider-pwd-ov'); if(ov) ov.remove(); }
 function _siderRequireEdit(){
+  if(_siderCurrentUser&&_siderCurrentUser.role==='viewer'){
+    if(typeof showToast==='function'){
+      showToast('Acesso restrito','Perfil Visualizador não tem permissão para editar. Solicite acesso a um Admin.','warn');
+    } else {
+      alert('Perfil Visualizador — somente consulta. Solicite acesso a um Admin.');
+    }
+    return false;
+  }
   if(_siderEditUnlocked&&_siderCurrentUser) return true;
   _siderMostrarLogin();
   return false;
