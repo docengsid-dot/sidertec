@@ -17421,7 +17421,7 @@ function _cdocPainelToggleDet(){
         <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
           <table class="cdoc-tbl">
             <thead><tr>
-              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título / Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="min-width:90px;"><div class="th-inner">GRD Remessa<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','remessaGRD')">&#9660;</button></div></th><th style="width:54px;"></th>
+              <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button><button class="th-srt" id="cdb-srt-titulo" onclick="_cdocSort(event,'bas','titulo')">&#8693;</button></div></th><th style="min-width:140px;"><div class="th-inner">Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','descbas')">&#9660;</button><button class="th-srt" id="cdb-srt-descbas" onclick="_cdocSort(event,'bas','descbas')">&#8693;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="min-width:90px;"><div class="th-inner">GRD Remessa<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','remessaGRD')">&#9660;</button></div></th><th style="width:54px;"></th>
             </tr></thead>
             <tbody id="cdb-tbody"></tbody>
           </table>
@@ -18704,6 +18704,7 @@ function cdocRenderBas(){
           +'<td style="font-weight:700;font-size:10px;font-family:Courier New,monospace;color:#0369a1;">'+_esc(b.sub||'—')+'</td>'
           +'<td style="font-size:10px;color:#94a3b8;">—</td>'
           +'<td style="font-size:10px;color:#64748b;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(b.titulo||'')+'">'+_esc(b.titulo||'(sem CDOC cadastrado)')+'</td>'
+          +'<td style="font-size:10px;color:#94a3b8;">—</td>'
           +'<td style="text-align:right;font-family:Courier New,monospace;font-size:10px;">'+fmt(b.peso)+'</td>'
           +'<td style="font-size:10px;color:#2563eb;">'+_esc(b.area||'—')+'</td>'
           +'<td><span style="background:#f1f5f9;color:#94a3b8;border-radius:3px;padding:1px 6px;font-size:9px;">—</span></td>'
@@ -18725,6 +18726,7 @@ function cdocRenderBas(){
         +'<td style="font-weight:700;font-size:10px;font-family:Courier New,monospace;">'+_esc(b.sub||'—')+'</td>'
         +'<td style="font-size:10px;">'+_esc(b.cli||'—')+'</td>'
         +'<td style="font-size:10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(b.titulo||'')+'">'+_esc(b.titulo||'—')+'</td>'
+        +'<td style="font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;" title="'+_esc(b.descbas||'')+'">'+_esc(b.descbas||'—')+'</td>'
         +'<td style="text-align:right;font-family:Courier New,monospace;font-size:10px;">'+fmt(b.peso)+'</td>'
         +'<td style="font-size:10px;color:#2563eb;">'+_esc(b.area||'—')+'</td>'
         +'<td>'+_cdocBadgeHtml(b.status)+'</td>'
@@ -19247,7 +19249,8 @@ function _cdocAbrirFormBas(rec){
     +'<div><label>Obra *</label><select id="cef-obra" onchange="cdocBasObraChange()"><option value="">-- Selecione --</option>'+oO+'</select></div>'
     +'<div><label>TAG Sub-obra *</label><div style="display:flex;gap:4px;align-items:center;"><input id="cef-sub" list="cef-sub-dl" placeholder="Selecione ou digite..." oninput="cdocBasSubChange()" autocomplete="off" value="'+(rec&&rec.sub?rec.sub:'')+'" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;"><datalist id="cef-sub-dl">'+sO.replace(/ selected/g,'')+'</datalist></div></div>'
     +'</div>'
-    +'<div class="cdoc-ef full"><div><label>Título / Descrição *</label><input id="cef-titulo" value="'+v('titulo').replace(/"/g,'&quot;')+'"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Título do Documento *</label><input id="cef-titulo" value="'+v('titulo').replace(/"/g,'&quot;')+'" placeholder="Título completo do documento"></div></div>'
+    +'<div class="cdoc-ef full"><div><label>Descrição</label><input id="cef-descbas" value="'+v('descbas').replace(/"/g,'&quot;')+'" placeholder="Descrição resumida (ex: DIAGRAMA DE MONTAGEM)"></div></div>'
     +'<div class="cdoc-ef">'
     +'<div><label>Nº Cliente</label><input id="cef-cli" value="'+v('cli')+'"></div>'
     +'<div><label>Projetista</label><select id="cef-proj" onchange="cdocBasEquipeChange()"><option value="">-- Selecione --</option>'+eqO+'</select></div>'
@@ -21567,7 +21570,7 @@ function cdocSalvar(){
     if(!_cdocEditId&&_revVal&&!(_cdocPendingRevs&&_cdocPendingRevs.length)){
       _cdocPendingRevs=[{rev:_revVal,data:_revData,obs:'Revisão inicial'}];
     }
-    var rec={id:_cdocEditId||_cdocGenId(db,'bas'),obraId:obra,sub:sub,titulo:titulo,cli:g('cef-cli'),proj:g('cef-proj'),status:g('cef-status')||'LD',area:g('cef-area'),peso:g('cef-peso')||null,m3d:g('cef-m3d')||'2D',diag:g('cef-diag')||'2D',det:g('cef-det'),rev:g('cef-rev'),data:g('cef-data'),revisoes:(_oldRec&&_oldRec.revisoes?_oldRec.revisoes:[]).concat(_cdocPendingRevs||[])};
+    var rec={id:_cdocEditId||_cdocGenId(db,'bas'),obraId:obra,sub:sub,titulo:titulo,descbas:g('cef-descbas')||'',cli:g('cef-cli'),proj:g('cef-proj'),status:g('cef-status')||'LD',area:g('cef-area'),peso:g('cef-peso')||null,m3d:g('cef-m3d')||'2D',diag:g('cef-diag')||'2D',det:g('cef-det'),rev:g('cef-rev'),data:g('cef-data'),revisoes:(_oldRec&&_oldRec.revisoes?_oldRec.revisoes:[]).concat(_cdocPendingRevs||[])};
     _cdocPendingRevs=[];
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
@@ -22392,31 +22395,38 @@ function _cdocShowColFlt(e,tbl,col){
   var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
   var vals={};
   allRows.forEach(function(r){var v=(r[col]||'(vazio)').toString();vals[v]=(vals[v]||0)+1;});
-  var sorted=Object.keys(vals).sort();
+  var sorted=Object.keys(vals).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
   var curFlt=flts[col]||new Set();
   var popup=document.createElement('div');
   popup.id='cdoc-col-flt-popup';
-  popup.style.cssText='position:fixed;background:#fff;border:1.5px solid #cbd5e1;border-radius:6px;padding:8px;min-width:190px;max-height:300px;overflow-y:auto;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.18);font-size:11px;';
+  popup.style.cssText='position:fixed;background:#fff;border:1.5px solid #cbd5e1;border-radius:6px;padding:8px;min-width:220px;max-height:320px;overflow:hidden;display:flex;flex-direction:column;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.18);font-size:11px;';
   var rect=e.target.getBoundingClientRect();
-  popup.style.left=Math.min(rect.left,window.innerWidth-210)+'px';
+  popup.style.left=Math.min(rect.left,window.innerWidth-230)+'px';
   popup.style.top=(rect.bottom+2)+'px';
-  var html='<div style="display:flex;gap:4px;margin-bottom:7px;">'
-    +'<button onclick="_cdocFltSelAll(\''+tbl+'\',\''+col+'\',true)" style="flex:1;background:#dbeafe;color:#1e40af;border:none;border-radius:3px;padding:2px 0;font-size:10px;cursor:pointer;font-weight:700;">Todos</button>'
-    +'<button onclick="_cdocFltSelAll(\''+tbl+'\',\''+col+'\',false)" style="flex:1;background:#fee2e2;color:#991b1b;border:none;border-radius:3px;padding:2px 0;font-size:10px;cursor:pointer;font-weight:700;">Nenhum</button>'
+  // Search box + Todos/Nenhum
+  var header='<input id="cdoc-flt-search" placeholder="🔍 Buscar..." oninput="_cdocFltSearch(this.value)" style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:4px 6px;font-size:11px;margin-bottom:6px;box-sizing:border-box;">'
+    +'<div style="display:flex;gap:4px;margin-bottom:6px;">'
+    +'<button onclick="_cdocFltSelAll(\''+tbl+'\',\''+col+'\',true)" style="flex:1;background:#dbeafe;color:#1e40af;border:none;border-radius:3px;padding:3px 0;font-size:10px;cursor:pointer;font-weight:700;">✓ Todos</button>'
+    +'<button onclick="_cdocFltSelAll(\''+tbl+'\',\''+col+'\',false)" style="flex:1;background:#fee2e2;color:#991b1b;border:none;border-radius:3px;padding:3px 0;font-size:10px;cursor:pointer;font-weight:700;">✗ Nenhum</button>'
     +'</div>';
+  var list='<div id="cdoc-flt-list" style="overflow-y:auto;flex:1;">';
   sorted.forEach(function(v){
     var chk=curFlt.size===0||curFlt.has(v);
-    html+='<label style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;white-space:nowrap;">'
+    list+='<label class="cdoc-flt-item" style="display:flex;align-items:center;gap:6px;padding:3px 2px;cursor:pointer;white-space:nowrap;">'
       +'<input type="checkbox" '+(chk?'checked':'')+' onchange="_cdocFltToggle(\''+tbl+'\',\''+col+'\',this.value,this.checked)" value="'+v.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" style="cursor:pointer;">'
-      +'<span>'+_esc(v)+'<span style="color:#94a3b8;margin-left:3px;font-size:9px;">('+vals[v]+')</span></span>'
+      +'<span>'+_esc(v.length>40?v.substring(0,40)+'…':v)+'<span style="color:#94a3b8;margin-left:3px;font-size:9px;">('+vals[v]+')</span></span>'
       +'</label>';
   });
-  html+='<div style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:5px;text-align:right;">'
-    +'<button onclick="document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
-    +'style="background:#0369a1;color:#fff;border:none;border-radius:3px;padding:2px 12px;font-size:10px;cursor:pointer;font-weight:700;">OK</button>'
+  list+='</div>';
+  var footer='<div style="border-top:1px solid #e2e8f0;margin-top:5px;padding-top:5px;display:flex;justify-content:space-between;gap:4px;">'
+    +'<button onclick="'+tbl==='bas'?'cdocRenderBas()':'cdocRenderDet()'+';document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
+    +'style="flex:1;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:3px 0;font-size:10px;cursor:pointer;font-weight:700;">Aplicar</button>'
+    +'<button onclick="var f=\''+tbl+'\';var c=\''+col+'\';var flts=f===\'bas\'?_cdocColFltsBas:_cdocColFltsDet;delete flts[c];if(f===\'bas\')cdocRenderBas();else cdocRenderDet();document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
+    +'style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:3px 8px;font-size:10px;cursor:pointer;">Limpar</button>'
     +'</div>';
-  popup.innerHTML=html;
+  popup.innerHTML=header+list+footer;
   document.body.appendChild(popup);
+  popup.querySelector('#cdoc-flt-search').focus();
   setTimeout(function(){
     document.addEventListener('click',function _cFltClose(ev){
       var p=document.getElementById('cdoc-col-flt-popup');
@@ -22424,6 +22434,12 @@ function _cdocShowColFlt(e,tbl,col){
       if(!p.contains(ev.target)){p.remove();_cdocColFltCtx={tbl:null,col:null};document.removeEventListener('click',_cFltClose,true);}
     },true);
   },50);
+}
+function _cdocFltSearch(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('#cdoc-flt-list .cdoc-flt-item').forEach(function(el){
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
 }
 function _cdocFltSelAll(tbl,col,sel){
   var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
@@ -23686,6 +23702,43 @@ document.addEventListener('DOMContentLoaded', function(){
           <input type="hidden" id="mp-valor" value="0">
           <span class="field-hint">Soma automática: Fornecimento + Montagem</span>
         </div>
+
+      </div><!-- end field-group grid -->
+
+      <!-- Aditivos Contratuais — logo abaixo do valor do contrato -->
+      <div style="background:#fafafa;border:1px solid var(--border);border-radius:var(--r2);padding:.75rem;margin-bottom:.75rem;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">📋 Aditivos Contratuais</div>
+        <div id="mp-aditivos-lista" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.5rem;"></div>
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:var(--bg2);border-radius:var(--r2);padding:.5rem .6rem;border:1px dashed var(--border);">
+          <div style="font-size:10px;font-weight:700;color:var(--ink3);padding-bottom:18px;">Novo</div>
+          <div class="field-group" style="margin:0">
+            <label class="field-label">Nº Aditivo</label>
+            <input type="text" class="field-input" id="mp-adit-num" placeholder="Ex: 01">
+          </div>
+          <div class="field-group" style="margin:0">
+            <label class="field-label">Valor (R$)</label>
+            <input type="number" class="field-input" id="mp-adit-valor" placeholder="0,00" min="0" step="0.01">
+          </div>
+          <div class="field-group" style="margin:0">
+            <label class="field-label">Peso (kg)</label>
+            <input type="number" class="field-input" id="mp-adit-peso" placeholder="0" min="0" step="0.01">
+          </div>
+          <button onclick="mpAdicionarAditivo()" style="background:var(--blue);color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;height:32px;align-self:end;">+ Add</button>
+        </div>
+        <!-- Totais com aditivos -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem;">
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r2);padding:7px 10px;">
+            <div style="font-size:9px;color:#1d4ed8;text-transform:uppercase;margin-bottom:2px;">Total Contrato + Aditivos (R$)</div>
+            <div id="mp-total-com-aditivos" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#1d4ed8;">—</div>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:var(--r2);padding:7px 10px;">
+            <div style="font-size:9px;color:#c2410c;text-transform:uppercase;margin-bottom:2px;">Peso Total + Aditivos (kg)</div>
+            <div id="mp-peso-com-aditivos" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#c2410c;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
         <div class="field-group">
           <label class="field-label">Data de Início</label>
           <input type="date" class="field-input" id="mp-inicio">
@@ -25483,9 +25536,10 @@ function _ct_renderProjetos(){
       <!-- Aditivos -->
       <td style="padding:7px 8px;text-align:center;">
         ${aditivos.length>0
-          ? `<div style="font-size:10px;font-weight:700;color:#7c3aed;">${aditivos.length}x</div>`
-            +(totAditVal>0?`<div style="font-size:9px;color:#16a34a;">${fmtC(totAditVal)}</div>`:'')
+          ? `<div style="font-size:10px;font-weight:700;color:#7c3aed;">${aditivos.length}x adit.</div>`
+            +(totAditVal>0?`<div style="font-size:9px;color:#7c3aed;">${fmtC(totAditVal)}</div>`:'')
             +(totAditPeso>0?`<div style="font-size:9px;color:#b45309;">${fmtKg(totAditPeso)}</div>`:'')
+            +`<div style="font-size:9px;color:#0369a1;font-weight:700;border-top:1px solid #e2e8f0;margin-top:2px;padding-top:2px;">Total: ${fmtC((Number(p.valor_contrato)||0)+totAditVal)}</div>`
           : '<span style="color:#cbd5e1;font-size:10px;">—</span>'}
       </td>
       <!-- Doc. Abertura -->
@@ -25661,6 +25715,16 @@ function calcValorContrato(){
   if(el) el.textContent = total>0 ? total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '—';
   const hidden = document.getElementById('mp-valor');
   if(hidden) hidden.value = total;
+  // Atualiza totais com aditivos
+  var ads=_mpAditivos||[];
+  var totAditVal=ads.reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+  var totAditPeso=ads.reduce(function(a,x){return a+(Number(x.peso)||0);},0);
+  var elV=document.getElementById('mp-total-com-aditivos');
+  var elP=document.getElementById('mp-peso-com-aditivos');
+  var fmtC=function(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
+  var fmtK=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg';};
+  if(elV) elV.textContent=ads.length>0?fmtC(total+totAditVal):'(sem aditivos)';
+  if(elP) elP.textContent=(ads.length>0&&totAditPeso>0)?fmtK(totAditPeso):'(sem aditivos)';
 }
 
 function calcPesoModal(){
@@ -25783,23 +25847,63 @@ function mpAutoFillPesosCronograma(codigoObra){
 // ── ADITIVOS ──────────────────────────────────────────────────────────────
 var _mpAditivos = [];
 
+var _mpEditandoIdx = -1; // índice do aditivo sendo editado (-1 = nenhum)
+
 function mpRenderAditivos(){
   var lista = document.getElementById('mp-aditivos-lista'); if(!lista) return;
   if(!_mpAditivos.length){
     lista.innerHTML='<div style="font-size:11px;color:var(--ink3);font-style:italic;padding:4px 0;">Nenhum aditivo cadastrado.</div>';
-    return;
+  } else {
+    var fmtR=function(v){return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
+    var fmtKg=function(v){return v>0?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—';};
+    lista.innerHTML=_mpAditivos.map(function(a,i){
+      if(_mpEditandoIdx===i){
+        // Modo edição — exibe campos inline
+        return '<div id="mp-adit-edit-row" style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:#eff6ff;border-radius:var(--r2);padding:6px 8px;border:1.5px solid #93c5fd;">'
+          +'<div style="font-size:10px;font-weight:700;color:#1d4ed8;padding-bottom:18px;">Editar</div>'
+          +'<div><div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px;">Nº Aditivo</div>'
+          +'<input id="mp-adit-edit-num" value="'+_esc(a.num||'')+'" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;"></div>'
+          +'<div><div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px;">Valor (R$)</div>'
+          +'<input type="number" id="mp-adit-edit-valor" value="'+(a.valor||0)+'" min="0" step="0.01" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;"></div>'
+          +'<div><div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px;">Peso (kg)</div>'
+          +'<input type="number" id="mp-adit-edit-peso" value="'+(a.peso||0)+'" min="0" step="0.01" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;"></div>'
+          +'<div style="display:flex;gap:4px;align-self:end;">'
+          +'<button onclick="mpSalvarAditivo('+i+')" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">💾</button>'
+          +'<button onclick="_mpEditandoIdx=-1;mpRenderAditivos();" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:5px 8px;font-size:12px;cursor:pointer;">✕</button>'
+          +'</div>'
+          +'</div>';
+      }
+      // Modo visualização
+      return '<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:center;background:#fff;border-radius:var(--r2);padding:5px 8px;border:1px solid var(--border);">'
+        +'<span style="font-size:11px;font-weight:700;color:var(--blue);min-width:70px;">'+_esc(a.num?'Aditivo '+a.num:'Aditivo '+(i+1))+'</span>'
+        +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--green);">'+fmtR(a.valor)+'</span>'
+        +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--orange);">'+fmtKg(a.peso)+'</span>'
+        +'<span></span>'
+        +'<div style="display:flex;gap:2px;">'
+        +'<button onclick="mpEditarAditivo('+i+')" style="background:none;border:none;color:#0369a1;cursor:pointer;font-size:14px;padding:0 4px;" title="Editar">✎</button>'
+        +'<button onclick="mpRemoverAditivo('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;" title="Excluir">✕</button>'
+        +'</div>'
+        +'</div>';
+    }).join('');
   }
-  var fmtR=function(v){return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
-  var fmtKg=function(v){return v>0?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—';};
-  lista.innerHTML=_mpAditivos.map(function(a,i){
-    return '<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:center;background:var(--bg2);border-radius:var(--r2);padding:6px 10px;border:1px solid var(--border);">'
-      +'<span style="font-size:11px;font-weight:700;color:var(--blue);min-width:60px;">Aditivo '+_esc(a.num||String(i+1))+'</span>'
-      +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--green);">'+fmtR(a.valor)+'</span>'
-      +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--orange);">'+fmtKg(a.peso)+'</span>'
-      +'<span></span>'
-      +'<button onclick="mpRemoverAditivo('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>'
-      +'</div>';
-  }).join('');
+  calcValorContrato();
+}
+
+function mpEditarAditivo(idx){
+  _mpEditandoIdx = idx;
+  mpRenderAditivos();
+  // Foca no primeiro campo
+  setTimeout(function(){ var el=document.getElementById('mp-adit-edit-num'); if(el) el.focus(); },50);
+}
+
+function mpSalvarAditivo(idx){
+  var num   = (document.getElementById('mp-adit-edit-num')||{}).value||'';
+  var valor = parseFloat((document.getElementById('mp-adit-edit-valor')||{}).value)||0;
+  var peso  = parseFloat((document.getElementById('mp-adit-edit-peso')||{}).value)||0;
+  if(!num&&!valor&&!peso){ alert('Preencha ao menos um campo.'); return; }
+  _mpAditivos[idx] = {num:num.trim(), valor:valor, peso:peso};
+  _mpEditandoIdx = -1;
+  mpRenderAditivos();
 }
 
 function mpAdicionarAditivo(){
@@ -25808,13 +25912,16 @@ function mpAdicionarAditivo(){
   var peso=parseFloat((document.getElementById('mp-adit-peso')||{}).value)||0;
   if(!num&&!valor&&!peso){alert('Preencha ao menos o Nº do Aditivo ou o Valor.');return;}
   _mpAditivos.push({num:num.trim(),valor:valor,peso:peso});
+  _mpEditandoIdx = -1;
   mpRenderAditivos();
-  // Limpa campos
   ['mp-adit-num','mp-adit-valor','mp-adit-peso'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('mp-adit-num')?.focus();
 }
 
 function mpRemoverAditivo(idx){
+  if(!confirm('Remover este aditivo?')) return;
   _mpAditivos.splice(idx,1);
+  if(_mpEditandoIdx===idx) _mpEditandoIdx=-1;
   mpRenderAditivos();
 }
 
@@ -25861,6 +25968,7 @@ function abrirModalProjeto(id){
   });
   // Reset aditivos
   _mpAditivos=[];
+  _mpEditandoIdx=-1;
   mpRenderAditivos();
   // Reset escopo checkboxes
   ['fornecimento','montagem'].forEach(f=>{
