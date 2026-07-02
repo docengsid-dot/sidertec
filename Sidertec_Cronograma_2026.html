@@ -17438,6 +17438,9 @@ function _cdocPainelToggleDet(){
           <select id="cdd-f-tipo" onchange="_cdocRenderDetDebounced()">
             <option value="">Todos tipos</option>
           </select>
+          <select id="cdd-f-desc" onchange="_cdocRenderDetDebounced()">
+            <option value="">Todas descrições</option>
+          </select>
           <select id="cdd-f-status" onchange="_cdocRenderDetDebounced()">
             <option value="">Todos status</option>
           </select>
@@ -18054,7 +18057,7 @@ function _cdocCorrigirAcentos(){
   if(!_siderRequireEdit()) return;
   if(!confirm('Isso vai varrer TODOS os documentos (básicos e detalhados) e corrigir caracteres quebrados como ♦, Ã§, etc.\n\nDeseja continuar?')) return;
   var db=_cdocDb();
-  var camposTexto=['titulo','desc','sub','obraId','num','cli','tipo','peca','engResp','obs','area','proj'];
+  var camposTexto=['titulo','sub','obraId','num','cli','peca','engResp','obs','area','proj'];
   var corrigidos=0;
 
   function corrigirObj(obj){
@@ -18065,6 +18068,17 @@ function _cdocCorrigirAcentos(){
         if(fixed!==obj[f]){ obj[f]=fixed; mudou=true; }
       }
     });
+    // Normaliza tipo com encoding + aliases (ex: "Desenho de fabricação" → "Desenho de detalhamento")
+    if(typeof obj.tipo==='string'){
+      var tipoNorm=_cdocNormalizaTipo(obj.tipo);
+      if(tipoNorm!==obj.tipo){ obj.tipo=tipoNorm; mudou=true; }
+    }
+    // Normaliza desc com encoding + aliases (ex: "DESENHO DE FABRICACAO" → "DESENHO DE FABRICAÇÃO")
+    if(typeof obj.desc==='string'){
+      var descFixed=_cdocFixEncoding(obj.desc);
+      var descNorm=_cdocNormalizaDesc(descFixed);
+      if(descNorm!==obj.desc){ obj.desc=descNorm; mudou=true; }
+    }
     return mudou;
   }
 
@@ -18226,7 +18240,7 @@ function cdocGlobalObraChange(){
 }
 
 /* ── STATUS badges ── */
-var _cdocTipos=['Modelo IFC','Diagrama de montagem','Desenho de detalhamento','Memória de Cálculo','ART','Data book','PIT','Lista de documentos','Cronograma'];
+var _cdocTipos=['Modelo IFC','Modelo 3D','Diagrama de montagem','Desenho de detalhamento','Memória de Cálculo','ART','Data book','PIT','Lista de documentos','Cronograma'];
 var _cdocBadge={
   'LD':{bg:'#dbeafe',c:'#1d4ed8'},'Em andamento':{bg:'#fef9c3',c:'#92400e'},'Concluído':{bg:'#dcfce7',c:'#166534'},
   'EMITIDO':{bg:'#bfdbfe',c:'#1e40af'},
@@ -18287,6 +18301,62 @@ function _cdocFixEncoding(str){
   // ♦ isolado → tenta Ç (segundo padrão mais comum)
   fixed=fixed.replace(/♦/g,'Ç').replace(/\uFFFD/g,'Ç');
   return fixed;
+}
+
+// Mapa de aliases de TIPO → nome canônico
+// Cobre variantes com encoding quebrado, variações de maiúscula/minúscula,
+// nomes antigos ("Desenho de fabricação") → novo ("Desenho de detalhamento")
+var _cdocTipoAliasMap = {
+  // Desenho de fabricação → Desenho de detalhamento (rename solicitado)
+  'desenho de fabricação':    'Desenho de detalhamento',
+  'desenho de fabricacao':    'Desenho de detalhamento',
+  'desenho de fabricaÃ§Ã£o': 'Desenho de detalhamento',
+  'desenho de fabrica♦♦o':   'Desenho de detalhamento',
+  'desenho de fabrica\uFFFD\uFFFDo':'Desenho de detalhamento',
+  'desenho de fabricação':    'Desenho de detalhamento',  // ç+ã corretos mas nome antigo
+  'desenho fabricação':       'Desenho de detalhamento',
+  'desenho fabricacao':       'Desenho de detalhamento',
+  // Diagrama de montagem — variantes
+  'diagrama de montagem':     'Diagrama de montagem',
+  'diagrama montagem':        'Diagrama de montagem',
+  // Memória de Cálculo — variantes com encoding
+  'memória de cálculo':       'Memória de Cálculo',
+  'memoria de calculo':       'Memória de Cálculo',
+  'memÃ³ria de cÃ¡lculo':    'Memória de Cálculo',
+  'memória de calculo':       'Memória de Cálculo',
+  'memoria de cálculo':       'Memória de Cálculo',
+  // Modelo IFC / 3D
+  'modelo ifc':               'Modelo IFC',
+  'modelo 3d':                'Modelo 3D',
+  'modelo3d':                 'Modelo 3D',
+};
+
+function _cdocNormalizaTipo(tipo){
+  if(!tipo) return tipo;
+  var fixed = _cdocFixEncoding(tipo).trim();
+  var key = fixed.toLowerCase();
+  if(_cdocTipoAliasMap[key]) return _cdocTipoAliasMap[key];
+  // Tenta match exato case-insensitive com _cdocTipos
+  var canonical = (_cdocTipos||[]).find(function(t){ return t.toLowerCase()===key; });
+  return canonical || fixed;
+}
+
+// Normaliza descrição: corrige encoding e padroniza variantes conhecidas
+var _cdocDescAliasMap = {
+  'DESENHO DE FABRICACAO':    'DESENHO DE FABRICAÇÃO',
+  'DESENHO DE FABRICAÇÃO':    'DESENHO DE FABRICAÇÃO',
+  'DESENHO DE FABRICAÃ\x87Ã\x83O':'DESENHO DE FABRICAÇÃO',
+  'DESENHO FABRICA♦♦O':      'DESENHO DE FABRICAÇÃO',
+  'DESENHO FABRICACAO':       'DESENHO DE FABRICAÇÃO',
+  'DIAGRAMA DE MONTAGEM':     'DIAGRAMA DE MONTAGEM',
+  'MEMORIA DE CALCULO':       'MEMÓRIA DE CÁLCULO',
+  'MEMÓRIA DE CALCULO':       'MEMÓRIA DE CÁLCULO',
+  'MEMORIA DE CÁLCULO':       'MEMÓRIA DE CÁLCULO',
+};
+function _cdocNormalizaDesc(desc){
+  if(!desc) return desc;
+  var fixed=_cdocFixEncoding(desc).trim();
+  return _cdocDescAliasMap[fixed.toUpperCase()]||fixed;
 }
 
 function _cdocSubMatch(sub, termo){
@@ -18819,14 +18889,32 @@ function _cdocPopulateTipoFiltro(){
   });
   if(cur) sel.value=cur;
 }
+
+function _cdocPopulateDescFiltro(){
+  var sel=document.getElementById('cdd-f-desc'); if(!sel) return;
+  var cur=sel.value;
+  var db=_cdocDb();
+  // Coleta descrições únicas cadastradas nos documentos
+  var set=new Set();
+  (db.detalhados||[]).forEach(function(d){if(d.desc&&d.desc.trim()) set.add(d.desc.trim());});
+  var list=Array.from(set).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+  sel.innerHTML='<option value="">Todas descrições</option>';
+  list.forEach(function(d){
+    var o=document.createElement('option'); o.value=d; o.textContent=d;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+}
 function cdocRenderDet(){
   // Popula filtros de forma assíncrona para não bloquear a renderização
   setTimeout(cdocPopFilters, 0);
   _cdocPopulateTipoFiltro();
+  _cdocPopulateDescFiltro();
   var db=_cdocDb();
   var fObra=(document.getElementById('cdd-f-obra')||{}).value||'';
   var fSub=(document.getElementById('cdd-f-sub')||{}).value||'';
   var fTipo=(document.getElementById('cdd-f-tipo')||{}).value||'';
+  var fDesc=(document.getElementById('cdd-f-desc')||{}).value||'';
   var fSt=(document.getElementById('cdd-f-status')||{}).value||'';
   var fNum=((document.getElementById('cdd-f-num')||{}).value||'').toLowerCase();
   var fCli=((document.getElementById('cdd-f-cli')||{}).value||'').toLowerCase();
@@ -18837,6 +18925,7 @@ function cdocRenderDet(){
     if(fObra&&d.obraId!==fObra) return false;
     if(fSub&&!_cdocSubMatch(d.sub||'',fSub)) return false;
     if(fTipo&&(d.tipo||'').toLowerCase()!==fTipo.toLowerCase()) return false;
+    if(fDesc&&(d.desc||'').trim()!==fDesc) return false;
     if(fSt&&d.statusGeral!==fSt) return false;
     if(fNum&&!(d.num||'').toLowerCase().includes(fNum)&&!(d.cli||'').toLowerCase().includes(fNum)) return false;
     if(fCli&&!(d.cli||'').toLowerCase().includes(fCli)) return false;
@@ -19121,7 +19210,7 @@ function cdocBumpRev(modulo, dir){
 
 /* ── Limpar filtros ── */
 function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli','cdb-f-grd','cdb-f-proj','cdb-f-data'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
-function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
+function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-desc','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
 
 /* ── Formulário Básico ── */
 function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
@@ -21840,22 +21929,23 @@ function cdocImportDet(input){
       var existing=numIdx[num+'|'+obra];
       if(!existing&&cli) existing=cliIdx[cli+'|'+obra];
 
+      var _tipoRaw = (row['Tipo']||row['TIPO']||'').trim();
+      var _descRaw = (row['Descrição']||row['Descricao']||row['DESCRIÇÃO']||'').trim();
       var newData={
         obraId:obra,sub:sub,num:num,cli:cli,
-        tipo:row['Tipo']||row['TIPO']||'',
-        titulo:row['Título']||row['Titulo']||row['TÍTULO']||row['título']||'',
+        tipo:_tipoRaw ? _cdocNormalizaTipo(_cdocFixEncoding(_tipoRaw)) : '',
+        titulo:_cdocFixEncoding(row['Título']||row['Titulo']||row['TÍTULO']||row['título']||''),
         engResp:row['Eng.Resp']||row['Eng. Responsável']||'',
-        desc:row['Descrição']||row['Descricao']||row['DESCRIÇÃO']||'',
+        desc:_descRaw ? _cdocNormalizaDesc(_cdocFixEncoding(_descRaw)) : '',
         peca:row['Peça']||row['Peca']||'',
         peso:(function(){var v=(row['Peso (kg)']||row['Peso']||'').trim().replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;})(),
         rev:row['Rev']||row['Rev.']||row['Revisão']||'',
         statusGeral:row['Status Geral']||row['Status']||null,
         data:normData(row['Data']||'')
       };
-      if(newData.tipo){
-        var tipoMatch=(_cdocTipos||[]).find(function(t){return t.toLowerCase()===newData.tipo.toLowerCase();});
-        if(tipoMatch) newData.tipo=tipoMatch;
-      }
+      // Tipo e desc: não sobrescreve com vazio — mantém o valor existente
+      if(!newData.tipo) delete newData.tipo;
+      if(!newData.desc) delete newData.desc;
       if(existing){
         var lhist=dedupEnvio(existing.libfabHist||[]);
         var ehist=dedupEnvio(existing.envioHist||[]);
@@ -22225,9 +22315,11 @@ function _cdocAtualizarBarraSelBas(){
 }
 function _cdocAtualizarBarraSelDet(){
   var fmtD=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-  var db=_cdocSBCache||_cdocLoad();
-  var selPeso=(db.detalhados||[]).filter(function(d){return _cdocDetSel.has(d.id);}).reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
-  var ps=document.getElementById('cdd-peso-sel'); if(ps) ps.textContent=_cdocDetSel.size?'Selecionados ('+_cdocDetSel.size+'): '+fmtD(selPeso)+' kg':'';
+  // Usa _cdocDetRowsAll (já filtrados) em vez de escanear todos — mais rápido com 4800+ docs
+  var source = window._cdocDetRowsAll || ((_cdocSBCache||_cdocLoad()).detalhados||[]);
+  var selPeso=source.filter(function(d){return _cdocDetSel.has(d.id);}).reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+  var ps=document.getElementById('cdd-peso-sel');
+  if(ps) ps.textContent=_cdocDetSel.size?'Selecionados ('+_cdocDetSel.size+'): '+fmtD(selPeso)+' kg':'';
   var btn=document.getElementById('cdd-btn-del-sel'); if(btn) btn.style.display=_cdocDetSel.size?'':'none';
   var cnt=document.getElementById('cdd-del-count'); if(cnt) cnt.textContent=_cdocDetSel.size;
   var grd=document.getElementById('cdd-btn-grd-emit'); if(grd) grd.style.display=_cdocDetSel.size?'':'none';
@@ -22248,12 +22340,23 @@ function _cdocBasSelAll(cb){
 function _cdocDetSelAll(cb){
   _cdocDetSel.clear();
   if(cb.checked){
-    document.querySelectorAll('#cdd-tbody .cdd-row-chk').forEach(function(chk){
-      var id=chk.dataset.id; var nid=isNaN(id)?id:Number(id);
+    // Seleciona TODOS os filtrados (window._cdocDetRowsAll), não só os visíveis no DOM
+    var todosRows = window._cdocDetRowsAll || [];
+    if(todosRows.length > 200){
+      // Mostra confirmação quando há muitos documentos
+      var confirmar = confirm(
+        'Selecionar TODOS os ' + todosRows.length + ' documentos filtrados?\n\n' +
+        'Apenas os primeiros ' + Math.min(200, todosRows.length) + ' estão visíveis na tela. ' +
+        'Clique OK para selecionar todos (incluindo os não carregados).'
+      );
+      if(!confirmar){ cb.checked=false; return; }
+    }
+    todosRows.forEach(function(d){
+      var nid = isNaN(d.id) ? d.id : Number(d.id);
       _cdocDetSel.add(nid);
     });
   }
-  // Atualiza todos os checkboxes diretamente
+  // Atualiza checkboxes visíveis no DOM
   document.querySelectorAll('#cdd-tbody .cdd-row-chk').forEach(function(chk){
     var id=chk.dataset.id; var nid=isNaN(id)?id:Number(id);
     chk.checked=_cdocDetSel.has(nid);
