@@ -23485,21 +23485,36 @@ document.addEventListener('DOMContentLoaded', function(){
     </select>
     <div class="fsep"></div>
     <button class="btn btn-primary" onclick="abrirModalProjeto(null)" style="padding:5px 14px;font-size:11px;">+ Novo Projeto</button>
+    <button onclick="mpSincronizarTodosPesos()" title="Atualiza Peso Básico e Peso Detalhado de todos os projetos com os dados do Cronograma" style="background:#eff6ff;border:1px solid #93c5fd;border-radius:5px;color:#1d4ed8;font-size:11px;font-weight:700;padding:5px 12px;cursor:pointer;">🔄 Sincronizar Pesos</button>
     <div class="fsep"></div>
     <button class="btn btn-secondary" onclick="_ct_exportarCSV('projetos')" style="font-size:10px;padding:5px 12px;">⬇ CSV</button>
     <button class="btn btn-secondary" onclick="_ct_exportarExcel('projetos')" style="font-size:10px;padding:5px 12px;">⬇ Excel</button>
   </div>
   <div class="tbl-wrap">
-    <table>
-      <thead><tr>
-        <th>Projeto / Contrato</th><th>Cliente</th><th>Escopo</th>
-        <th class="num">Forn. (R$)</th><th class="num">Mont. (R$)</th><th class="num">Total Contrato</th>
-        <th class="num">Faturado</th><th class="num">Saldo</th>
-        <th class="num">🏗 Peso Forn.</th><th class="num">🔩 Peso Mont.</th><th class="num">⚖️ Total Peso</th>
-        <th>Doc. Abertura</th><th>Docs Setores</th>
-        <th>Status</th><th></th>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="background:#1e293b;color:#fff;font-size:10px;white-space:nowrap;">
+        <th style="padding:8px 10px;text-align:left;min-width:180px;">Projeto / Contrato</th>
+        <th style="padding:8px 8px;text-align:left;">Cliente</th>
+        <th style="padding:8px 8px;text-align:center;">Escopo</th>
+        <th style="padding:8px 8px;text-align:right;">Forn. (R$)</th>
+        <th style="padding:8px 8px;text-align:right;">Mont. (R$)</th>
+        <th style="padding:8px 8px;text-align:right;">Total Contrato</th>
+        <th style="padding:8px 8px;text-align:right;color:#4ade80;">Faturado</th>
+        <th style="padding:8px 8px;text-align:right;">Saldo</th>
+        <th style="padding:8px 8px;text-align:right;color:#fbbf24;">🏗 Peso Cont.</th>
+        <th style="padding:8px 8px;text-align:right;color:#86efac;">📋 Peso Bás.</th>
+        <th style="padding:8px 8px;text-align:right;color:#93c5fd;">📐 Peso Det.</th>
+        <th style="padding:8px 8px;text-align:right;color:#f9a8d4;">🚚 Peso Exped.</th>
+        <th style="padding:8px 8px;text-align:right;color:#fde68a;">Δ Bás−Cont.</th>
+        <th style="padding:8px 8px;text-align:right;color:#fde68a;">Δ Det−Bás.</th>
+        <th style="padding:8px 8px;text-align:right;color:#fde68a;">Δ Exped−Cont.</th>
+        <th style="padding:8px 8px;text-align:center;">📋 Aditivos</th>
+        <th style="padding:8px 8px;text-align:center;">Doc. Abertura</th>
+        <th style="padding:8px 8px;text-align:center;">Docs Setores</th>
+        <th style="padding:8px 8px;text-align:center;">Status</th>
+        <th style="padding:8px 8px;text-align:center;min-width:160px;">Ações</th>
       </tr></thead>
-      <tbody id="tbody-projetos"><tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--ink3)">Carregando…</td></tr></tbody>
+      <tbody id="tbody-projetos"><tr><td colspan="20" style="text-align:center;padding:2rem;color:var(--ink3)">Carregando…</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -23741,7 +23756,7 @@ document.addEventListener('DOMContentLoaded', function(){
       </div>
       <!-- Peso dividido por escopo -->
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">⚖️ Peso por Escopo (kg)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.5rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.5rem;">
         <div class="field-group">
           <label class="field-label">🏗 Forn. Contratado</label>
           <input type="number" class="field-input" id="mp-peso-forn-cont" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
@@ -23758,22 +23773,69 @@ document.addEventListener('DOMContentLoaded', function(){
           <label class="field-label">🔩 Mont. Faturado</label>
           <input type="number" class="field-input" id="mp-peso-mont-fat" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
         </div>
+        <div class="field-group">
+          <label class="field-label">📋 Peso Básico <span style="font-size:9px;color:#0369a1;font-weight:400;">(auto)</span></label>
+          <input type="number" class="field-input" id="mp-peso-basico" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso básico total da obra (soma de allCronSubobras)">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📐 Peso Detalhado <span style="font-size:9px;color:#0369a1;font-weight:400;">(auto)</span></label>
+          <input type="number" class="field-input" id="mp-peso-detalhado" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso detalhado total (soma de peso_detalhado em allCronSubobras)">
+        </div>
+        <div class="field-group">
+          <label class="field-label">🚚 Peso Expedido</label>
+          <input type="number" class="field-input" id="mp-peso-expedido" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso total expedido para a obra">
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
         <div style="background:var(--orange2);border:1px solid var(--orange);border-radius:var(--r2);padding:8px 12px;">
           <div style="font-size:9px;color:var(--orange);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Contratado</div>
-          <div id="mp-peso-total-cont" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--orange);">—</div>
+          <div id="mp-peso-total-cont" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--orange);">—</div>
         </div>
         <div style="background:var(--green2);border:1px solid var(--green);border-radius:var(--r2);padding:8px 12px;">
           <div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Faturado</div>
-          <div id="mp-peso-total-fat" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--green);">—</div>
+          <div id="mp-peso-total-fat" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--green);">—</div>
         </div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Saldo de Peso</div>
-          <div id="mp-peso-saldo" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--ink3);">—</div>
+          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Saldo Peso</div>
+          <div id="mp-peso-saldo" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--ink3);">—</div>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#16a34a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">📋 Peso Básico</div>
+          <div id="mp-peso-bas-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#16a34a;">—</div>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">📐 Peso Detalhado</div>
+          <div id="mp-peso-det-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#1d4ed8;">—</div>
+        </div>
+        <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#be185d;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">🚚 Peso Expedido</div>
+          <div id="mp-peso-exp-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#be185d;">—</div>
+        </div>
+        <div style="background:#fefce8;border:1px solid #fde047;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#a16207;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Δ Diferenças</div>
+          <div id="mp-peso-deltas" style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#a16207;line-height:1.4;">—</div>
         </div>
       </div>
 
+      <!-- Aditivos Contratuais -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:.85rem 0 .5rem;">📋 Aditivos Contratuais</div>
+      <div id="mp-aditivos-lista" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.5rem;"></div>
+      <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:var(--bg2);border-radius:var(--r2);padding:.6rem .75rem;border:1px dashed var(--border);">
+        <div style="font-size:11px;font-weight:700;color:var(--ink3);padding-bottom:20px;">Novo</div>
+        <div class="field-group" style="margin:0">
+          <label class="field-label">Nº Aditivo</label>
+          <input type="text" class="field-input" id="mp-adit-num" placeholder="Ex: 01">
+        </div>
+        <div class="field-group" style="margin:0">
+          <label class="field-label">Valor (R$)</label>
+          <input type="number" class="field-input" id="mp-adit-valor" placeholder="0,00" min="0" step="0.01">
+        </div>
+        <div class="field-group" style="margin:0">
+          <label class="field-label">Peso (kg)</label>
+          <input type="number" class="field-input" id="mp-adit-peso" placeholder="0" min="0" step="0.01">
+        </div>
+        <button onclick="mpAdicionarAditivo()" style="background:var(--blue);color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;height:32px;align-self:end;">+ Add</button>
+      </div>
 
       <!-- Reunião de Comissionamento -->
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:.85rem 0 .6rem;">🤝 Reunião de Comissionamento</div>
@@ -24846,7 +24908,7 @@ function _ct_showPage(id, el){
 // CRUD SUPABASE — contratos_projetos + contratos_eventos
 // ═══════════════════════════════════════════════════════════
 async function sbFetch(table){
-  const res = await fetch(_sbUrlCt(table+'?order=criado_em.desc&limit=5000'), { headers:_SB_H_CT });
+  const res = await fetch(_sbUrlCt(table+'?select=*&order=criado_em.desc&limit=5000'), { headers:_SB_H_CT });
   if(!res.ok) throw new Error('Erro ao carregar '+table+': '+res.status);
   return res.json();
 }
@@ -24966,6 +25028,10 @@ alter table contratos_projetos add column if not exists peso_forn_contratado num
 alter table contratos_projetos add column if not exists peso_forn_faturado   numeric default 0;
 alter table contratos_projetos add column if not exists peso_mont_contratado numeric default 0;
 alter table contratos_projetos add column if not exists peso_mont_faturado   numeric default 0;
+alter table contratos_projetos add column if not exists peso_detalhado       numeric default 0;
+alter table contratos_projetos add column if not exists peso_basico          numeric default 0;
+alter table contratos_projetos add column if not exists peso_expedido        numeric default 0;
+alter table contratos_projetos add column if not exists aditivos             jsonb default '[]';
 
 drop policy if exists "anon_all_projetos" on contratos_projetos;
 create policy "anon_all_projetos" on contratos_projetos
@@ -25088,7 +25154,7 @@ function abrirDetalheProjeto(id){
   const c = calcProjeto(p);
 
   const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-  const fmtKg = v => (Number(v)||0)>0 ? Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg' : '—';
+  const fmtKg = v => (Number(v)||0)>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
   const chk = v => v
     ? '<span style="color:var(--green);font-size:13px;font-weight:700;">✓</span>'
     : '<span style="color:var(--border2);font-size:13px;">○</span>';
@@ -25339,64 +25405,122 @@ function _ct_renderProjetos(){
     return true;
   });
   const tbody = document.getElementById('tbody-projetos');
-  if(!lista.length){ tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhum projeto encontrado.</td></tr>'; return; }
+  if(!lista.length){ tbody.innerHTML='<tr><td colspan="17" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhum projeto encontrado.</td></tr>'; return; }
+
+  const fmtC = v => v>0 ? 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const fmtKg= v => v>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+  const tdN  = (v,color) => `<td style="padding:7px 8px;text-align:right;font-family:'DM Mono',monospace;font-size:11px;${color?'color:'+color+';':''}font-weight:600;">${v}</td>`;
+
   tbody.innerHTML = lista.map(p=>{
     const c = calcProjeto(p);
-    const escopoBadges = [
-      p.escopo_fornecimento ? `<span style="background:var(--orange2);color:var(--orange);border-radius:3px;font-size:8px;padding:1px 5px;font-weight:700;">🏗 FORN.</span>` : '',
-      p.escopo_montagem     ? `<span style="background:var(--blue2);color:var(--blue);border-radius:3px;font-size:8px;padding:1px 5px;font-weight:700;">🔩 MONT.</span>` : ''
-    ].filter(Boolean).join(' ');
     const pesoFornCont = Number(p.peso_forn_contratado)||0;
     const pesoFornFat  = Number(p.peso_forn_faturado)||0;
     const pesoMontCont = Number(p.peso_mont_contratado)||0;
     const pesoMontFat  = Number(p.peso_mont_faturado)||0;
     const pesoCont = pesoFornCont + pesoMontCont || Number(p.peso_contratado)||0;
     const pesoFat  = pesoFornFat  + pesoMontFat  || Number(p.peso_faturado)||0;
-    return `<tr>
-      <td>
-        <div style="font-weight:600;color:var(--ink);">${p.nome}</div>
-        <div style="font-size:9px;font-family:'DM Mono',monospace;color:var(--blue);">${p.codigo||''} ${p.numero_contrato?'· '+p.numero_contrato:''}</div>
-        ${p.escopo_desc?`<div style="font-size:9px;color:var(--ink3);margin-top:2px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.escopo_desc}">${p.escopo_desc}</div>`:''}
+    const pesoDet  = Number(p.peso_detalhado)||0;
+    const pesoBas  = Number(p.peso_basico)||0;
+    const pesoExp  = Number(p.peso_expedido)||0;
+    const aditivos = Array.isArray(p.aditivos) ? p.aditivos : [];
+    // Deltas
+    const dBasCont = pesoCont>0&&pesoBas>0 ? pesoBas-pesoCont : null;
+    const dDetBas  = pesoBas>0&&pesoDet>0  ? pesoDet-pesoBas  : null;
+    const dExpCont = pesoCont>0&&pesoExp>0 ? pesoExp-pesoCont : null;
+    const fmtDelta = v => {
+      if(v===null) return '<span style="color:#cbd5e1;">—</span>';
+      const c=v>=0?'#16a34a':'#dc2626';
+      const s=v>=0?'+':'';
+      return '<span style="color:'+c+';font-weight:700;">'+s+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg</span>';
+    };
+    const totAditVal = aditivos.reduce((a,x)=>a+(Number(x.valor)||0),0);
+    const totAditPeso= aditivos.reduce((a,x)=>a+(Number(x.peso)||0),0);
+    const escopoBadges = [
+      p.escopo_fornecimento ? `<span style="background:#fef3c7;color:#b45309;border-radius:3px;font-size:9px;padding:1px 5px;font-weight:700;display:block;">🏗 FORN.</span>` : '',
+      p.escopo_montagem     ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;font-size:9px;padding:1px 5px;font-weight:700;display:block;">🔩 MONT.</span>` : ''
+    ].filter(Boolean).join('');
+
+    const ckIcon = v => v
+      ? '<span style="color:#16a34a;font-size:12px;">✓</span>'
+      : '<span style="color:#e2e8f0;font-size:12px;">○</span>';
+
+    const rowBg = lista.indexOf(p)%2===0?'#fff':'#f8fafc';
+
+    return `<tr style="border-bottom:1px solid #e2e8f0;background:${rowBg};vertical-align:middle;">
+      <!-- Projeto -->
+      <td style="padding:8px 10px;">
+        <div style="font-weight:700;color:#0c4a6e;font-size:12px;">${p.nome}</div>
+        <div style="font-size:9px;font-family:'DM Mono',monospace;color:#64748b;">${p.codigo||''} ${p.numero_contrato?'· '+p.numero_contrato:''}</div>
+        ${p.escopo_desc?`<div style="font-size:9px;color:#94a3b8;margin-top:1px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.escopo_desc}">${p.escopo_desc}</div>`:''}
       </td>
-      <td>${p.cliente||'—'}</td>
-      <td>
-        <div style="display:flex;flex-direction:column;gap:.2rem;">
-          ${escopoBadges||'<span style="color:var(--ink3);font-size:10px;">—</span>'}
+      <!-- Cliente -->
+      <td style="padding:8px 8px;font-size:11px;color:#374151;">${p.cliente||'—'}</td>
+      <!-- Escopo -->
+      <td style="padding:8px 8px;text-align:center;">${escopoBadges||'<span style="color:#cbd5e1;font-size:10px;">—</span>'}</td>
+      <!-- Valores -->
+      ${tdN(fmtC(p.valor_fornecimento||0),'#b45309')}
+      ${tdN(fmtC(p.valor_montagem||0),'#1d4ed8')}
+      ${tdN(fmtC(p.valor_contrato),'#0c4a6e')}
+      ${tdN(fmtC(c.faturado),'#16a34a')}
+      ${tdN(fmtC(c.saldo),c.saldo<0?'#dc2626':'#64748b')}
+      <!-- Pesos -->
+      <td style="padding:7px 8px;text-align:right;">
+        ${pesoCont>0?`<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#b45309;">${fmtKg(pesoCont)}</div>
+         ${pesoFat>0?`<div style="font-family:'DM Mono',monospace;font-size:9px;color:#16a34a;">fat: ${fmtKg(pesoFat)}</div>`:''}`:'<span style="color:#cbd5e1;">—</span>'}
+      </td>
+      <td style="padding:7px 8px;text-align:right;">
+        ${pesoBas>0?`<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#16a34a;">${fmtKg(pesoBas)}</div>`:'<span style="color:#cbd5e1;">—</span>'}
+      </td>
+      <td style="padding:7px 8px;text-align:right;">
+        ${pesoDet>0?`<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#1d4ed8;">${fmtKg(pesoDet)}</div>`:'<span style="color:#cbd5e1;">—</span>'}
+      </td>
+      <td style="padding:7px 8px;text-align:right;">
+        ${pesoExp>0?`<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#be185d;">${fmtKg(pesoExp)}</div>`:'<span style="color:#cbd5e1;">—</span>'}
+      </td>
+      <td style="padding:7px 8px;text-align:right;font-size:10px;">${fmtDelta(dBasCont)}</td>
+      <td style="padding:7px 8px;text-align:right;font-size:10px;">${fmtDelta(dDetBas)}</td>
+      <td style="padding:7px 8px;text-align:right;font-size:10px;">${fmtDelta(dExpCont)}</td>
+      <!-- Aditivos -->
+      <td style="padding:7px 8px;text-align:center;">
+        ${aditivos.length>0
+          ? `<div style="font-size:10px;font-weight:700;color:#7c3aed;">${aditivos.length}x</div>`
+            +(totAditVal>0?`<div style="font-size:9px;color:#16a34a;">${fmtC(totAditVal)}</div>`:'')
+            +(totAditPeso>0?`<div style="font-size:9px;color:#b45309;">${fmtKg(totAditPeso)}</div>`:'')
+          : '<span style="color:#cbd5e1;font-size:10px;">—</span>'}
+      </td>
+      <!-- Doc. Abertura -->
+      <td style="padding:7px 8px;text-align:center;font-size:11px;">
+        <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+          <span title="Docs. Abertura">${ckIcon(p.doc_abertura_recebido)}</span>
+          <span title="Abertura Obra">${ckIcon(p.abertura_obra)}</span>
         </div>
+        <div style="font-size:8px;color:#94a3b8;margin-top:1px;">Doc·AO</div>
       </td>
-      <td class="num">${fmtC(p.valor_contrato)||'—'}</td>
-      <td class="num" style="color:var(--green);">${fmtC(c.faturado)||'—'}</td>
-      <td class="num" style="color:${c.saldo<0?'var(--red)':'var(--ink2)'};">${fmtC(c.saldo)||'—'}</td>
-      <td class="num">
-        ${pesoFornCont>0?`<div style="font-weight:600;">${pesoFornCont.toLocaleString('pt-BR',{maximumFractionDigits:0})} kg</div>
-         ${pesoFornFat>0?`<div style="color:var(--green);font-size:10px;">fat: ${pesoFornFat.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>`:''}`:'—'}
-      </td>
-      <td class="num">
-        ${pesoMontCont>0?`<div style="font-weight:600;">${pesoMontCont.toLocaleString('pt-BR',{maximumFractionDigits:0})} kg</div>
-         ${pesoMontFat>0?`<div style="color:var(--green);font-size:10px;">fat: ${pesoMontFat.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>`:''}`:'—'}
-      </td>
-      <td>
-        <div style="font-size:9px;display:flex;gap:3px;flex-wrap:wrap;margin-bottom:3px;">
-          <span style="background:${p.doc_abertura_recebido?'var(--green2)':'var(--bg3)'};color:${p.doc_abertura_recebido?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">DOC</span>
-          <span style="background:${p.abertura_obra?'var(--green2)':'var(--bg3)'};color:${p.abertura_obra?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">AO</span>
-          <span style="background:${p.entrega_engenharia?'var(--green2)':'var(--bg3)'};color:${p.entrega_engenharia?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">ENG</span>
-          <span style="background:${p.entrega_suprimentos?'var(--green2)':'var(--bg3)'};color:${p.entrega_suprimentos?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">SUP</span>
-          <span style="background:${p.entrega_fiscal?'var(--green2)':'var(--bg3)'};color:${p.entrega_fiscal?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">FIS</span>
-          <span style="background:${p.entrega_planejamento?'var(--green2)':'var(--bg3)'};color:${p.entrega_planejamento?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">PLAN</span>
-          <span style="background:${p.entrega_qualidade?'var(--green2)':'var(--bg3)'};color:${p.entrega_qualidade?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">QUAL</span>
-          <span style="background:${p.emissao_art?'var(--green2)':'var(--bg3)'};color:${p.emissao_art?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">ART</span>
-          <span style="background:${p.emissao_pit?'var(--green2)':'var(--bg3)'};color:${p.emissao_pit?'var(--green)':'var(--ink3)'};border-radius:3px;padding:1px 4px;font-weight:600;">PIT</span>
+      <!-- Docs Setores -->
+      <td style="padding:7px 8px;text-align:center;">
+        <div style="display:flex;gap:2px;justify-content:center;flex-wrap:wrap;margin-bottom:3px;">
+          <span style="background:${p.entrega_engenharia?'#dcfce7':'#f1f5f9'};color:${p.entrega_engenharia?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">ENG</span>
+          <span style="background:${p.entrega_suprimentos?'#dcfce7':'#f1f5f9'};color:${p.entrega_suprimentos?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">SUP</span>
+          <span style="background:${p.entrega_fiscal?'#dcfce7':'#f1f5f9'};color:${p.entrega_fiscal?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">FIS</span>
+          <span style="background:${p.entrega_planejamento?'#dcfce7':'#f1f5f9'};color:${p.entrega_planejamento?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">PLAN</span>
+          <span style="background:${p.entrega_qualidade?'#dcfce7':'#f1f5f9'};color:${p.entrega_qualidade?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">QUAL</span>
+          <span style="background:${p.emissao_art?'#dcfce7':'#f1f5f9'};color:${p.emissao_art?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">ART</span>
+          <span style="background:${p.emissao_pit?'#dcfce7':'#f1f5f9'};color:${p.emissao_pit?'#16a34a':'#94a3b8'};border-radius:2px;padding:1px 3px;font-size:8px;font-weight:700;">PIT</span>
         </div>
-        <div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:${c.docsPct}%;"></div></div>
-        <div style="font-size:8px;color:var(--ink3);margin-top:1px;">${c.docsDone}/${c.docsTotal} entregues</div>
+        <div style="background:#e2e8f0;border-radius:3px;height:4px;margin:0 4px;overflow:hidden;">
+          <div style="background:#16a34a;height:100%;width:${c.docsPct}%;transition:width .3s;"></div>
+        </div>
+        <div style="font-size:8px;color:#94a3b8;margin-top:1px;text-align:center;">${c.docsDone}/${c.docsTotal}</div>
       </td>
-      <td>${_ct_statusBadge(p.status)}</td>
-      <td style="white-space:nowrap;">
-        <button onclick="abrirDetalheProjeto('${p.id}')" style="background:var(--blue2);border:1px solid var(--blue);border-radius:3px;color:var(--blue);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer;" title="Ver detalhes">👁 Ver</button>
-        <button onclick="abrirModalAnexos('${p.id}','proj')" style="background:var(--bg2);border:1px solid var(--border2);border-radius:3px;color:var(--ink2);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer;white-space:nowrap;" title="Anexos do projeto">${getAnexosCount('proj:'+p.id)>0?'📎 '+getAnexosCount('proj:'+p.id):'📎'}</button>
-        <button onclick="abrirModalBmCliente('${p.id}')" style="background:var(--green2);border:1px solid var(--green);border-radius:3px;color:var(--green);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer;" title="Boletim de Medição">📋 BM</button>
-        <button onclick="abrirModalProjeto('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:13px;opacity:.5;padding:2px 5px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5" title="Editar">✏️</button>
-        <button onclick="confirmarExcluirProjeto('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:13px;opacity:.25;padding:2px 5px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.25" title="Excluir">🗑</button>
+      <!-- Status -->
+      <td style="padding:7px 8px;text-align:center;">${_ct_statusBadge(p.status)}</td>
+      <!-- Ações -->
+      <td style="padding:7px 8px;text-align:center;white-space:nowrap;">
+        <button onclick="abrirDetalheProjeto('${p.id}')" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;color:#1d4ed8;font-size:10px;font-weight:700;padding:4px 8px;cursor:pointer;margin:1px;">👁 Ver</button>
+        <button onclick="abrirModalAnexos('${p.id}','proj')" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;color:#64748b;font-size:10px;font-weight:700;padding:4px 8px;cursor:pointer;margin:1px;">${getAnexosCount('proj:'+p.id)>0?'📎 '+getAnexosCount('proj:'+p.id):'📎'}</button>
+        <button onclick="abrirModalBmCliente('${p.id}')" style="background:#dcfce7;border:1px solid #86efac;border-radius:4px;color:#16a34a;font-size:10px;font-weight:700;padding:4px 8px;cursor:pointer;margin:1px;">📋 BM</button>
+        <button onclick="abrirModalProjeto('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;opacity:.5;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5" title="Editar">✏️</button>
+        <button onclick="confirmarExcluirProjeto('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;opacity:.2;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.2" title="Excluir">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -25540,23 +25664,158 @@ function calcValorContrato(){
 }
 
 function calcPesoModal(){
-  const fmtKg = v => v>0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg' : '';
-  const fc = parseFloat(document.getElementById('mp-peso-forn-cont')?.value)||0;
-  const ff = parseFloat(document.getElementById('mp-peso-forn-fat')?.value)||0;
-  const mc = parseFloat(document.getElementById('mp-peso-mont-cont')?.value)||0;
-  const mf = parseFloat(document.getElementById('mp-peso-mont-fat')?.value)||0;
+  const fmtKg = v => v>0 ? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '';
+  const fmtD  = (v,suf) => {
+    if(!v) return '';
+    const s = v>=0?'+':'';
+    return s+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg'+(suf?' ('+suf+')':'');
+  };
+  const fc  = parseFloat(document.getElementById('mp-peso-forn-cont')?.value)||0;
+  const ff  = parseFloat(document.getElementById('mp-peso-forn-fat')?.value)||0;
+  const mc  = parseFloat(document.getElementById('mp-peso-mont-cont')?.value)||0;
+  const mf  = parseFloat(document.getElementById('mp-peso-mont-fat')?.value)||0;
+  const det = parseFloat(document.getElementById('mp-peso-detalhado')?.value)||0;
+  const bas = parseFloat(document.getElementById('mp-peso-basico')?.value)||0;
+  const exp = parseFloat(document.getElementById('mp-peso-expedido')?.value)||0;
   const totalCont = fc + mc;
   const totalFat  = ff + mf;
   const saldo = totalCont - totalFat;
 
-  const setEl=(id,v,color)=>{ const el=document.getElementById(id); if(el){ el.textContent=v; if(color) el.style.color=color; } };
-  setEl('mp-peso-total-cont', totalCont>0?fmtKg(totalCont):'—');
-  setEl('mp-peso-total-fat',  totalFat>0?fmtKg(totalFat):'—');
+  const setEl=(id,v,color)=>{ const el=document.getElementById(id); if(el){ el.textContent=v||'—'; if(color) el.style.color=color; } };
+  setEl('mp-peso-total-cont', fmtKg(totalCont));
+  setEl('mp-peso-total-fat',  fmtKg(totalFat));
+  setEl('mp-peso-bas-display',fmtKg(bas));
+  setEl('mp-peso-det-display',fmtKg(det));
+  setEl('mp-peso-exp-display',fmtKg(exp));
   const sEl = document.getElementById('mp-peso-saldo');
   if(sEl){
-    sEl.textContent = (totalCont>0||totalFat>0) ? fmtKg(saldo)||'0 kg' : '—';
+    sEl.textContent = (totalCont>0||totalFat>0) ? fmtKg(saldo)||'0,00 kg' : '—';
     sEl.style.color = saldo<0?'var(--red)':saldo>0?'var(--blue)':'var(--green)';
   }
+  // Deltas
+  const dEl = document.getElementById('mp-peso-deltas');
+  if(dEl){
+    const dBasCont = totalCont>0&&bas>0 ? bas-totalCont : null;
+    const dDetBas  = bas>0&&det>0       ? det-bas       : null;
+    const dExpCont = totalCont>0&&exp>0 ? exp-totalCont : null;
+    let html='';
+    if(dBasCont!==null){
+      const c=dBasCont>=0?'#16a34a':'#dc2626';
+      html+=`<div style="color:${c};">Bás−Cont: ${fmtD(dBasCont)}</div>`;
+    }
+    if(dDetBas!==null){
+      const c=dDetBas>=0?'#16a34a':'#dc2626';
+      html+=`<div style="color:${c};">Det−Bás: ${fmtD(dDetBas)}</div>`;
+    }
+    if(dExpCont!==null){
+      const c=dExpCont>=0?'#16a34a':'#dc2626';
+      html+=`<div style="color:${c};">Exp−Cont: ${fmtD(dExpCont)}</div>`;
+    }
+    dEl.innerHTML=html||'—';
+  }
+}
+
+// Busca automática dos pesos do Cronograma para o modal de Contratos
+// Cruza pelo código da obra (ex: "S176", "S178") com allCronSubobras
+// Sincroniza Peso Básico e Detalhado de TODOS os projetos com allCronSubobras
+async function mpSincronizarTodosPesos(){
+  if(typeof allCronSubobras==='undefined'||!allCronSubobras.length){
+    alert('AVISO: allCronSubobras está vazio.\nAbra o Cronograma Principal primeiro, carregue os dados, depois volte aqui.');
+    return;
+  }
+  var atualizados=0, erros=[], semMatch=[];
+  for(var i=0;i<_ct_allProjetos.length;i++){
+    var p=_ct_allProjetos[i];
+    var codNorm=(p.codigo||'').trim().toUpperCase().split(' ')[0];
+    if(!codNorm){ semMatch.push(p.nome+' (sem código)'); continue; }
+    var subs=allCronSubobras.filter(function(s){
+      return (s.obra||'').toUpperCase().startsWith(codNorm)||(s.subobra||'').toUpperCase().startsWith(codNorm);
+    });
+    if(!subs.length){ semMatch.push(p.nome+' ('+codNorm+' não encontrado)'); continue; }
+    var pesoBas=subs.reduce(function(a,s){return a+(Number(s.peso_previsto)||0);},0);
+    var pesoDet=subs.reduce(function(a,s){return a+(Number(s.peso_detalhado)||0);},0);
+    try{
+      var payload={peso_basico:Math.round(pesoBas*100)/100, peso_detalhado:Math.round(pesoDet*100)/100, atualizado_em:new Date().toISOString()};
+      await sbPatch('contratos_projetos',p.id,payload);
+      atualizados++;
+    }catch(e){
+      erros.push(p.nome+': '+e.message);
+    }
+  }
+  // Recarrega do Supabase para garantir dados frescos na tabela
+  try{
+    _ct_allProjetos = await sbFetch('contratos_projetos');
+  }catch(e){ erros.push('Erro ao recarregar: '+e.message); }
+  _ct_renderProjetos();
+  var msg='✓ '+atualizados+' projeto(s) atualizado(s)';
+  if(semMatch.length) msg+='\n\n⚠ Sem match:\n'+semMatch.join('\n');
+  if(erros.length) msg+='\n\n✗ Erros:\n'+erros.join('\n');
+  alert(msg);
+}
+
+function mpAutoFillPesosCronograma(codigoObra){
+  if(!codigoObra || typeof allCronSubobras==='undefined' || !allCronSubobras.length) return;
+  // Normaliza código: pega o prefixo numérico (ex: "S176 Rio Verde" → "S176")
+  var codNorm = codigoObra.trim().toUpperCase().split(' ')[0];
+  // Filtra sub-obras da obra correspondente
+  var subs = allCronSubobras.filter(function(s){
+    return (s.obra||'').toUpperCase().startsWith(codNorm) || (s.subobra||'').toUpperCase().startsWith(codNorm);
+  });
+  if(!subs.length) return;
+  // Soma pesos
+  var pesoBas = subs.reduce(function(a,s){ return a+(Number(s.peso_previsto)||0); }, 0);
+  var pesoDet = subs.reduce(function(a,s){ return a+(Number(s.peso_detalhado)||0); }, 0);
+  // Preenche apenas se o campo estiver vazio ou for zero
+  var elBas = document.getElementById('mp-peso-basico');
+  var elDet = document.getElementById('mp-peso-detalhado');
+  if(elBas && (!(parseFloat(elBas.value)||0)) && pesoBas>0){
+    elBas.value = pesoBas.toFixed(2);
+    elBas.style.background='#eff6ff'; // indica auto-preenchido
+    elBas.title = 'Auto: soma de peso_previsto de '+subs.length+' sub-obras da obra '+codNorm;
+  }
+  if(elDet && (!(parseFloat(elDet.value)||0)) && pesoDet>0){
+    elDet.value = pesoDet.toFixed(2);
+    elDet.style.background='#eff6ff';
+    elDet.title = 'Auto: soma de peso_detalhado de '+subs.length+' sub-obras da obra '+codNorm;
+  }
+}
+
+// ── ADITIVOS ──────────────────────────────────────────────────────────────
+var _mpAditivos = [];
+
+function mpRenderAditivos(){
+  var lista = document.getElementById('mp-aditivos-lista'); if(!lista) return;
+  if(!_mpAditivos.length){
+    lista.innerHTML='<div style="font-size:11px;color:var(--ink3);font-style:italic;padding:4px 0;">Nenhum aditivo cadastrado.</div>';
+    return;
+  }
+  var fmtR=function(v){return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
+  var fmtKg=function(v){return v>0?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—';};
+  lista.innerHTML=_mpAditivos.map(function(a,i){
+    return '<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:center;background:var(--bg2);border-radius:var(--r2);padding:6px 10px;border:1px solid var(--border);">'
+      +'<span style="font-size:11px;font-weight:700;color:var(--blue);min-width:60px;">Aditivo '+_esc(a.num||String(i+1))+'</span>'
+      +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--green);">'+fmtR(a.valor)+'</span>'
+      +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--orange);">'+fmtKg(a.peso)+'</span>'
+      +'<span></span>'
+      +'<button onclick="mpRemoverAditivo('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>'
+      +'</div>';
+  }).join('');
+}
+
+function mpAdicionarAditivo(){
+  var num=(document.getElementById('mp-adit-num')||{}).value||'';
+  var valor=parseFloat((document.getElementById('mp-adit-valor')||{}).value)||0;
+  var peso=parseFloat((document.getElementById('mp-adit-peso')||{}).value)||0;
+  if(!num&&!valor&&!peso){alert('Preencha ao menos o Nº do Aditivo ou o Valor.');return;}
+  _mpAditivos.push({num:num.trim(),valor:valor,peso:peso});
+  mpRenderAditivos();
+  // Limpa campos
+  ['mp-adit-num','mp-adit-valor','mp-adit-peso'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+}
+
+function mpRemoverAditivo(idx){
+  _mpAditivos.splice(idx,1);
+  mpRenderAditivos();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -25578,31 +25837,32 @@ function toggleCheck(field, val){
 function abrirModalProjeto(id){
   editingProjId = id;
   _checkState = {};
-  // Reset
-  ['mp-nome','mp-codigo','mp-cliente','mp-contrato','mp-valor-forn','mp-valor-mont','mp-inicio','mp-termino','mp-obs',
-   'mp-escopo-desc','mp-peso-contratado','mp-peso-faturado'].forEach(f=>{
-    const el=document.getElementById(f); if(el) el.value='';
+  // Reset ALL fields including new ones
+  ['mp-nome','mp-codigo','mp-cliente','mp-contrato','mp-valor-forn','mp-valor-mont',
+   'mp-valor','mp-inicio','mp-termino','mp-obs','mp-escopo-desc','mp-peso-contratado',
+   'mp-peso-faturado','mp-peso-forn-cont','mp-peso-forn-fat','mp-peso-mont-cont',
+   'mp-peso-mont-fat','mp-peso-detalhado','mp-peso-basico',
+   'mp-reuniao-prevista','mp-reuniao-realizada','mp-reuniao-obs',
+   'mp-escopo-fora','mp-garantia-obs','mp-gerente-contrato','mp-gestor-financeiro',
+   'mp-gestor-geral','mp-cidade-obra','mp-obs-faturamento',
+   'mp-art-data','mp-art-numero','mp-pit-data','mp-pit-numero'].forEach(fid=>{
+    const el=document.getElementById(fid); if(el){ el.value=''; el.style.background=''; }
   });
   document.getElementById('mp-status').value='ativo';
-  ['mp-peso-forn-cont','mp-peso-forn-fat','mp-peso-mont-cont','mp-peso-mont-fat',
-   'mp-reuniao-prevista','mp-reuniao-realizada','mp-reuniao-obs',
-   'mp-escopo-fora','mp-garantia-obs',
-   'mp-gerente-contrato','mp-gestor-financeiro','mp-gestor-geral',
-   'mp-cidade-obra','mp-obs-faturamento','mp-art-data','mp-art-numero','mp-pit-data','mp-pit-numero'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
-  });
   const _rs=document.getElementById('mp-reuniao-status'); if(_rs) _rs.value='';
   const _gp=document.getElementById('mp-garantia-possui'); if(_gp) _gp.value='';
   toggleGarantiaSecao('');
   const _eo=document.getElementById('mp-estado-obra'); if(_eo) _eo.value='';
   const _tf=document.getElementById('mp-tipo-faturamento'); if(_tf) _tf.value='';
-  const _ps = document.getElementById('mp-peso-saldo');
-  if(_ps){ _ps.textContent='—'; _ps.style.color='var(--ink3)'; }
-  const _ptc = document.getElementById('mp-peso-total-cont');
-  if(_ptc) _ptc.textContent='—';
-  const _ptf = document.getElementById('mp-peso-total-fat');
-  if(_ptf) _ptf.textContent='—';
-  // reset escopo checkboxes
+  // Reset display cards
+  ['mp-peso-saldo','mp-peso-total-cont','mp-peso-total-fat',
+   'mp-peso-det-display','mp-peso-bas-display'].forEach(function(did){
+    var el=document.getElementById(did); if(el){ el.textContent='—'; el.style.color=''; }
+  });
+  // Reset aditivos
+  _mpAditivos=[];
+  mpRenderAditivos();
+  // Reset escopo checkboxes
   ['fornecimento','montagem'].forEach(f=>{
     document.getElementById('chk-'+f).checked=false;
     document.getElementById('ci-'+f).style.background='var(--bg)';
@@ -25614,6 +25874,7 @@ function abrirModalProjeto(id){
     document.getElementById(info.ci).classList.remove('done');
     _checkState[field]=false;
   });
+  calcValorContrato(); // zera o display do total contrato
 
   if(id){
     const p = _ct_allProjetos.find(x=>x.id===id);
@@ -25631,6 +25892,15 @@ function abrirModalProjeto(id){
     sv('mp-peso-forn-fat',  p.peso_forn_faturado);
     sv('mp-peso-mont-cont', p.peso_mont_contratado);
     sv('mp-peso-mont-fat',  p.peso_mont_faturado);
+    sv('mp-peso-detalhado', p.peso_detalhado||'');
+    sv('mp-peso-basico',    p.peso_basico||'');
+    sv('mp-peso-expedido',  p.peso_expedido||'');
+    // Carrega aditivos
+    _mpAditivos = Array.isArray(p.aditivos) ? JSON.parse(JSON.stringify(p.aditivos)) : [];
+    mpRenderAditivos();
+    // Auto-preenche pesos do Cronograma se o campo estiver vazio ou for 0
+    mpAutoFillPesosCronograma(p.codigo);
+    calcPesoModal();
     sv('mp-reuniao-prevista',  p.reuniao_prevista);
     sv('mp-reuniao-realizada', p.reuniao_realizada);
     sv('mp-reuniao-status',    p.reuniao_status||'');
@@ -25705,8 +25975,12 @@ async function salvarProjeto(){
     peso_forn_faturado:   gn('mp-peso-forn-fat')||0,
     peso_mont_contratado: gn('mp-peso-mont-cont')||0,
     peso_mont_faturado:   gn('mp-peso-mont-fat')||0,
+    peso_detalhado:       gn('mp-peso-detalhado')||0,
+    peso_basico:          gn('mp-peso-basico')||0,
+    peso_expedido:        gn('mp-peso-expedido')||0,
     peso_contratado: (gn('mp-peso-forn-cont')||0)+(gn('mp-peso-mont-cont')||0),
     peso_faturado:   (gn('mp-peso-forn-fat')||0)+(gn('mp-peso-mont-fat')||0),
+    aditivos: JSON.parse(JSON.stringify(_mpAditivos||[])),
     reuniao_prevista:  gv('mp-reuniao-prevista')||null,
     reuniao_realizada: gv('mp-reuniao-realizada')||null,
     reuniao_status:    gv('mp-reuniao-status')||'',
@@ -25731,19 +26005,44 @@ async function salvarProjeto(){
   };
 
   try{
-    if(editingProjId){
-      const data=await sbPatch('contratos_projetos',editingProjId,payload);
-      const i=_ct_allProjetos.findIndex(x=>x.id===editingProjId);
-      if(i>=0&&data?.[0]) _ct_allProjetos[i]=data[0];
-    } else {
-      const data=await sbPost('contratos_projetos',payload);
-      if(data?.[0]) _ct_allProjetos.unshift(data[0]);
+    // Remove campos que podem não existir na tabela (versões antigas do schema)
+    // Se o Supabase retornar erro de coluna inexistente, tenta sem esses campos
+    var _payloadFull = Object.assign({}, payload);
+    var _trySave = async function(p){
+      if(editingProjId){
+        const data=await sbPatch('contratos_projetos',editingProjId,p);
+        const i=_ct_allProjetos.findIndex(x=>x.id===editingProjId);
+        if(i>=0&&data?.[0]) _ct_allProjetos[i]=data[0];
+        else if(i>=0) _ct_allProjetos[i]=Object.assign({},_ct_allProjetos[i],p);
+      } else {
+        const data=await sbPost('contratos_projetos',p);
+        if(data?.[0]) _ct_allProjetos.unshift(data[0]);
+        else _ct_allProjetos.unshift(Object.assign({id:'tmp-'+Date.now()},p));
+      }
+    };
+    try{
+      await _trySave(_payloadFull);
+    } catch(e1){
+      // Se falhou, pode ser coluna nova não existente no Supabase
+      // Tenta sem aditivos, peso_basico, peso_detalhado
+      console.warn('[salvarProjeto] Tentativa 1 falhou:',e1.message,'. Tentando sem colunas novas...');
+      var _payloadCompat = Object.assign({}, _payloadFull);
+      delete _payloadCompat.aditivos;
+      delete _payloadCompat.peso_basico;
+      delete _payloadCompat.peso_detalhado;
+      await _trySave(_payloadCompat);
+      // Se chegou aqui, as colunas novas não existem — avisa o usuário
+      _ct_showToast('⚠ Atenção','Projeto salvo, mas as colunas peso_basico, peso_detalhado e aditivos ainda não existem no Supabase. Execute o SQL de atualização.','warn');
     }
     fecharModalProjeto();
     reRenderAtivo();
     popularSelectsProjetos();
     _ct_showToast('✓ Salvo', nome+' salvo com sucesso.','success');
-  }catch(e){ _ct_showToast('Erro ao salvar',e.message,'error'); }
+  }catch(e){
+    console.error('[salvarProjeto] Erro final:',e);
+    _ct_showToast('Erro ao salvar','Detalhes: '+e.message,'error');
+    alert('Erro ao salvar projeto:\n\n'+e.message+'\n\nVerifique se as tabelas existem no Supabase (execute o SQL de criação).');
+  }
   finally{ btn.disabled=false; btn.textContent='💾 Salvar Projeto'; }
 }
 
@@ -27839,7 +28138,7 @@ function gerarRelatorioPDF(){
     const calcP = calcProjeto(p);
     const evs   = _ct_allEventos.filter(e=>e.projeto_id===p.id);
     const gars  = p.garantias||[];
-    const fmtKg = v => (Number(v)||0)>0 ? Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg' : '—';
+    const fmtKg = v => (Number(v)||0)>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
     const rStatusMap = {agendada:'Agendada',realizada:'Realizada',cancelada:'Cancelada',reagendada:'Reagendada'};
     const pv = p.garantia_possui||'';
     const garColor = possuiColorMap[pv]||'#8A847A';
