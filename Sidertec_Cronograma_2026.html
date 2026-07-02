@@ -1109,11 +1109,11 @@ canvas{overflow:visible!important;}
 
 <div id="cdoc-edit-overlay">
   <div id="cdoc-edit-box">
-    <div class="cdoc-eh"><span id="cdoc-edit-title">Registro</span><button onclick="document.getElementById('cdoc-edit-overlay').classList.remove('show')" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:14px;">✕</button></div>
+    <div class="cdoc-eh"><span id="cdoc-edit-title">Registro</span><button onclick="document.getElementById('cdoc-edit-overlay').classList.remove('show')" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;">✕</button></div>
     <div class="cdoc-eb" id="cdoc-edit-body"></div>
-    <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:.65rem 1rem;border-top:1px solid #e2e8f0;">
-      <button onclick="document.getElementById('cdoc-edit-overlay').classList.remove('show')" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:5px 14px;font-size:11px;cursor:pointer;">Cancelar</button>
-      <button id="cdoc-save-btn" onclick="cdocSalvar()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">Salvar</button>
+    <div style="display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.5rem;border-top:1px solid #e2e8f0;">
+      <button onclick="document.getElementById('cdoc-edit-overlay').classList.remove('show')" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:8px 20px;font-size:13px;cursor:pointer;">Cancelar</button>
+      <button id="cdoc-save-btn" onclick="cdocSalvar()" style="background:#0369a1;color:#fff;border:none;border-radius:6px;padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -7782,6 +7782,27 @@ async function processarImportacao(rows, tipo){
       // Inclui peso_detalhado e data_limite_fab no payload (colunas existem no Supabase)
       if(pesoDetRow != null) payload.peso_detalhado = pesoDetRow;
       if(limFabRow) payload.data_limite_fab = limFabRow;
+
+      // ── HISTÓRICO DE DATAS ──────────────────────────────────────────────────
+      // Antes de sobrescrever, registra no histórico qualquer campo de data
+      // que mudou — mesmo comportamento da atualização manual pelo modal
+      const _camposData = [
+        'prev_basico','prev_envio_detail','prev_materia_prima',
+        'prev_envio_modelo','prev_retorno_modelo',
+        'prev_pcte_fab','prev_lib_fab','prev_diagramas',
+        'prev_expedicao','prev_montagem','prev_rec_modelo','prev_resumo_mp',
+        'prev_inspecao_interna','data_limite_fab'
+      ];
+      const _keyHist = String(exists.id);
+      _camposData.forEach(function(campo){
+        var valorAntigo = exists[campo] || '';
+        var valorNovo   = payload[campo] || (campo==='data_limite_fab'&&limFabRow?limFabRow:'') || '';
+        if(valorAntigo && valorNovo && valorAntigo !== valorNovo){
+          _dhRegister(_keyHist, campo, valorAntigo, valorNovo);
+        }
+      });
+      // ────────────────────────────────────────────────────────────────────────
+
       // Salva no Supabase
       const {data: _upd, error} = await sbClient.from('cronograma_subobras').eq('id',exists.id).update(payload).select();
       // Espelha no localStorage
@@ -17252,18 +17273,19 @@ function cotExportarCSV(){
 .cdoc-kpi-lbl{font-size:8px;text-transform:uppercase;color:#64748b;letter-spacing:.07em;margin-bottom:.15rem;}
 .cdoc-kpi-val{font-family:Georgia,serif;font-size:20px;line-height:1;color:#0369a1;font-weight:700;}
 /* sub-modal edição */
-#cdoc-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;display:none;align-items:center;justify-content:center;}
+#cdoc-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;display:none;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto;}
 #cdoc-edit-overlay.show{display:flex;}
-#cdoc-edit-box{background:#fff;border-radius:8px;width:1100px;max-width:98vw;max-height:96vh;overflow-y:auto;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);}
-.cdoc-eh{display:flex;align-items:center;justify-content:space-between;background:#0c4a6e;color:#fff;padding:.6rem 1rem;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;}
-.cdoc-eb{padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.5rem;}
-.cdoc-ef{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+#cdoc-edit-box{background:#fff;border-radius:8px;width:1380px;max-width:99vw;min-height:60vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:auto;}
+.cdoc-eh{display:flex;align-items:center;justify-content:space-between;background:#0c4a6e;color:#fff;padding:.75rem 1.25rem;border-radius:8px 8px 0 0;font-size:15px;font-weight:700;}
+.cdoc-eb{padding:1.2rem 1.5rem;display:flex;flex-direction:column;gap:.75rem;}
+.cdoc-ef{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
 .cdoc-ef.full{grid-template-columns:1fr;}
 .cdoc-ef.tri{grid-template-columns:1fr 1fr 1fr;}
-.cdoc-ef label{font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:2px;}
-.cdoc-ef input,.cdoc-ef select,.cdoc-ef textarea{font-size:11px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:4px;width:100%;font-family:inherit;}
-.cdoc-sec{font-size:9px;font-weight:700;text-transform:uppercase;color:#0369a1;letter-spacing:.07em;border-bottom:1px solid #bae6fd;padding-bottom:3px;margin:.4rem 0 .3rem;}
-.cdoc-ef2{display:flex;gap:.4rem;}
+.cdoc-ef label{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:3px;}
+.cdoc-ef input,.cdoc-ef select,.cdoc-ef textarea{font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;width:100%;font-family:inherit;height:36px;}
+.cdoc-ef textarea{height:auto;min-height:60px;}
+.cdoc-sec{font-size:11px;font-weight:700;text-transform:uppercase;color:#0369a1;letter-spacing:.07em;border-bottom:1px solid #bae6fd;padding-bottom:4px;margin:.6rem 0 .4rem;}
+.cdoc-ef2{display:flex;gap:.5rem;}
 </style>
 
 <div class="cron-modal-overlay" id="modal-ctrl-doc" onclick="if(event.target.id==='modal-ctrl-doc')fecharCtrlDoc();" style="z-index:750;">
@@ -19041,10 +19063,10 @@ function _cdocAbrirFormBas(rec){
     +'<div class="cdoc-sec">Histórico de Revisões Recebidas do Cliente</div>'
     +'<div id="cef-rev-hist-wrap">'+_cdocRevHistHtml(rec)+'</div>'
     +'<div class="cdoc-ef2" style="margin-top:.3rem;">'
-    +'<input id="cef-new-rev" placeholder="Revisão (ex: RA2)" style="width:90px;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<input id="cef-new-rev-data" type="date" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<input id="cef-new-rev-obs" placeholder="Observação (opcional)" style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<button type="button" onclick="cdocAddRevHist()" style="padding:3px 10px;font-size:10px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:4px;cursor:pointer;">+ Registrar</button>'
+    +'<input id="cef-new-rev" placeholder="Revisão (ex: RA2)" style="width:110px;font-size:13px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;">'
+    +'<input id="cef-new-rev-data" type="date" style="font-size:13px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;">'
+    +'<input id="cef-new-rev-obs" placeholder="Observação (opcional)" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;">'
+    +'<button type="button" onclick="cdocAddRevHist()" style="padding:6px 14px;font-size:13px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:5px;cursor:pointer;">+ Registrar</button>'
     +'</div>';
   if(rec){
     var _ss=function(id,val){var e=document.getElementById(id);if(e&&val!=null)e.value=val;};
@@ -19059,21 +19081,21 @@ function _cdocAbrirFormBas(rec){
 var _cdocPendingRevs=[];
 function _cdocRevHistHtml(rec){
   var revs=(rec&&rec.revisoes)||[];
-  if(!revs.length) return '<div style="font-size:10px;color:#94a3b8;padding:4px 0;font-style:italic;">Nenhuma revisão registrada.</div>';
-  return '<div style="max-height:140px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:4px;margin-top:2px;">'
-    +'<table style="width:100%;border-collapse:collapse;font-size:10px;">'
+  if(!revs.length) return '<div style="font-size:12px;color:#94a3b8;padding:6px 0;font-style:italic;">Nenhuma revisão registrada.</div>';
+  return '<div style="max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:5px;margin-top:4px;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;">'
     +'<thead><tr style="background:#f1f5f9;">'
-    +'<th style="padding:3px 7px;color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;">Revisão</th>'
-    +'<th style="padding:3px 7px;color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;">Data Recebimento</th>'
-    +'<th style="padding:3px 7px;color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;">Observação</th>'
-    +'<th style="width:24px;"></th>'
+    +'<th style="padding:5px 10px;color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;">Revisão</th>'
+    +'<th style="padding:5px 10px;color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;">Data Recebimento</th>'
+    +'<th style="padding:5px 10px;color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;">Observação</th>'
+    +'<th style="width:30px;"></th>'
     +'</tr></thead><tbody>'
     +revs.map(function(r,i){
       return '<tr style="border-top:1px solid #e2e8f0;">'
-        +'<td style="padding:3px 7px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;">'+_esc(r.rev||'—')+'</td>'
-        +'<td style="padding:3px 7px;font-family:Courier New,monospace;">'+_fD2(r.data||'')+'</td>'
-        +'<td style="padding:3px 7px;color:#64748b;font-size:9px;">'+_esc(r.obs||'')+'</td>'
-        +'<td><button type="button" onclick="cdocDelRevHist('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;padding:0 3px;">✕</button></td>'
+        +'<td style="padding:5px 10px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;">'+_esc(r.rev||'—')+'</td>'
+        +'<td style="padding:5px 10px;font-family:Courier New,monospace;">'+_fD2(r.data||'')+'</td>'
+        +'<td style="padding:5px 10px;color:#64748b;font-size:12px;">'+_esc(r.obs||'')+'</td>'
+        +'<td><button type="button" onclick="cdocDelRevHist('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:14px;padding:0 4px;">✕</button></td>'
         +'</tr>';
     }).join('')+'</tbody></table></div>';
 }
@@ -19244,7 +19266,7 @@ function _cdocAbrirFormDet(rec){
     +'<input id="cef-lf-data" type="date" onchange="_cdocLfDataChange()" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<input id="cef-lf-grd" placeholder="GRD n\u00ba" style="width:90px;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<input id="cef-lf-obs" placeholder="Obs." style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<button type="button" onclick="cdocAddLibfabHist()" style="padding:3px 10px;font-size:10px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:4px;cursor:pointer;">+ Reg.</button>'
+    +'<button type="button" onclick="cdocAddLibfabHist()" style="padding:6px 14px;font-size:13px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:5px;cursor:pointer;white-space:nowrap;">+ Reg.</button>'
     +'</div>'
     +'<div class="cdoc-sec">Histórico — Envio ao Cliente</div>'
     +'<div id="cef-envio-hist-wrap">'+_cdocEnvioHistHtml(rec)+'</div>'
@@ -19257,7 +19279,7 @@ function _cdocAbrirFormDet(rec){
     +'<input id="cef-en-ret-real" type="date" title="Retorno Real" style="font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:4px;background:#f0fdf4;" placeholder="Retorno Real">'
     +'<select id="cef-en-status-final" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;"><option value="">Status Final...</option><option>APROVADO</option><option>COM COMENTÁRIOS</option><option>CERTIFICADO</option><option>REPROVADO</option></select>'
     +'<input id="cef-en-obs" placeholder="Obs." style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<button id="cef-en-add-btn" type="button" onclick="cdocAddEnvioHist()" style="padding:3px 10px;font-size:10px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:4px;cursor:pointer;">+ Reg.</button>'
+    +'<button id="cef-en-add-btn" type="button" onclick="cdocAddEnvioHist()" style="padding:6px 14px;font-size:13px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:5px;cursor:pointer;white-space:nowrap;">+ Reg.</button>'
     +'</div>';
   if(rec){
     var ss=function(id,val){var e=document.getElementById(id);if(e&&val!=null)e.value=val;};
@@ -19300,7 +19322,7 @@ function _cdocEnvioHistHtml(rec){
   if(!h.length&&rec&&(rec.envioData||rec.envioRev||rec.envioGRD)){
     h=[{rev:rec.envioRev||'',data:rec.envioData||'',grd:rec.envioGRD||'',obs:'(migrado)'}];
   }
-  if(!h.length) return '<div style="font-size:10px;color:#94a3b8;padding:3px 0;font-style:italic;">Sem registros.</div>';
+  if(!h.length) return '<div style="font-size:12px;color:#94a3b8;padding:5px 0;font-style:italic;">Sem registros.</div>';
   var _sfBadge={
     'APROVADO':'background:#dcfce7;color:#166534;',
     'CERTIFICADO':'background:#f0fdf4;color:#14532d;',
@@ -19312,30 +19334,30 @@ function _cdocEnvioHistHtml(rec){
     'CERTIFICAÇÃO':'background:#e0f2fe;color:#0369a1;',
     'INFORMAÇÃO':'background:#f1f5f9;color:#475569;'
   };
-  return '<div style="max-height:140px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:4px;">'
-    +'<table style="width:100%;border-collapse:collapse;font-size:10px;"><thead><tr style="background:#f1f5f9;">'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Rev.</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Data</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Finalidade</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">GRD</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Prev. Retorno</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Retorno Real</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Status Final</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Obs.</th>'
-    +'<th style="width:22px;"></th></tr></thead><tbody>'
+  return '<div style="max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:5px;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f1f5f9;">'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Rev.</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Data</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Finalidade</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">GRD</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Prev. Retorno</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Retorno Real</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Status Final</th>'
+    +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Obs.</th>'
+    +'<th style="width:28px;"></th></tr></thead><tbody>'
     +h.map(function(r,i){
       var sfStyle=_sfBadge[r.statusFinal]||'';
       var finStyle=_finBadge[r.finalidade]||'';
       return '<tr style="border-top:1px solid #e2e8f0;">'
-      +'<td style="padding:2px 6px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;">'+_esc(r.rev||'—')+'</td>'
-      +'<td style="padding:2px 6px;font-family:Courier New,monospace;white-space:nowrap;">'+_fD2(r.data||'')+'</td>'
-      +'<td style="padding:2px 5px;">'+(r.finalidade?'<span style="'+finStyle+'border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;">'+_esc(r.finalidade)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
-      +'<td style="padding:2px 6px;font-family:Courier New,monospace;color:#7c3aed;font-weight:700;">'+_esc(r.grd||'—')+'</td>'
-      +'<td style="padding:2px 6px;font-family:Courier New,monospace;white-space:nowrap;color:#64748b;">'+_fD2(r.prevRetorno||'')+'</td>'
-      +'<td style="padding:2px 6px;font-family:Courier New,monospace;white-space:nowrap;color:#059669;font-weight:700;">'+_fD2(r.retornoReal||'')+'</td>'
-      +'<td style="padding:2px 5px;">'+(r.statusFinal?'<span style="'+sfStyle+'border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;">'+_esc(r.statusFinal)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
-      +'<td style="padding:2px 6px;color:#64748b;font-size:9px;">'+_esc(r.obs||'')+'</td>'
-      +'<td style="white-space:nowrap;">'+'<button type="button" onclick="cdocEditEnvioHistRow('+i+')" style="background:none;border:none;color:#0369a1;cursor:pointer;font-size:11px;padding:0 3px;" title="Editar">✎</button>'+'<button type="button" onclick="cdocDelEnvioHist('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;padding:0 2px;">&#10005;</button>'+'</td>'
+      +'<td style="padding:4px 8px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;">'+_esc(r.rev||'—')+'</td>'
+      +'<td style="padding:4px 8px;font-family:Courier New,monospace;white-space:nowrap;">'+_fD2(r.data||'')+'</td>'
+      +'<td style="padding:4px 7px;">'+(r.finalidade?'<span style="'+finStyle+'border-radius:3px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap;">'+_esc(r.finalidade)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
+      +'<td style="padding:4px 8px;font-family:Courier New,monospace;color:#7c3aed;font-weight:700;">'+_esc(r.grd||'—')+'</td>'
+      +'<td style="padding:4px 8px;font-family:Courier New,monospace;white-space:nowrap;color:#64748b;">'+_fD2(r.prevRetorno||'')+'</td>'
+      +'<td style="padding:4px 8px;font-family:Courier New,monospace;white-space:nowrap;color:#059669;font-weight:700;">'+_fD2(r.retornoReal||'')+'</td>'
+      +'<td style="padding:4px 7px;">'+(r.statusFinal?'<span style="'+sfStyle+'border-radius:3px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap;">'+_esc(r.statusFinal)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
+      +'<td style="padding:4px 8px;color:#64748b;font-size:12px;">'+_esc(r.obs||'')+'</td>'
+      +'<td style="white-space:nowrap;">'+'<button type="button" onclick="cdocEditEnvioHistRow('+i+')" style="background:none;border:none;color:#0369a1;cursor:pointer;font-size:14px;padding:0 4px;" title="Editar">✎</button>'+'<button type="button" onclick="cdocDelEnvioHist('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:14px;padding:0 3px;">&#10005;</button>'+'</td>'
       +'</tr>';}).join('')+'</tbody></table></div>';
 }
 function cdocEditEnvioHistRow(idx){
