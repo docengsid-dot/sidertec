@@ -26035,6 +26035,11 @@ async function salvarProjeto(){
       _ct_showToast('⚠ Atenção','Projeto salvo, mas as colunas peso_basico, peso_detalhado e aditivos ainda não existem no Supabase. Execute o SQL de atualização.','warn');
     }
     fecharModalProjeto();
+    // Recarrega do Supabase para garantir que a tabela mostra dados atualizados
+    try{
+      _ct_allProjetos = await sbFetch('contratos_projetos');
+      _ct_allEventos  = await sbFetch('contratos_eventos');
+    }catch(e2){ console.warn('[salvarProjeto] Erro ao recarregar:',e2.message); }
     reRenderAtivo();
     popularSelectsProjetos();
     _ct_showToast('✓ Salvo', nome+' salvo com sucesso.','success');
@@ -26143,6 +26148,7 @@ async function salvarEvento(){
       if(data?.[0]) _ct_allEventos.push(data[0]);
     }
     fecharModalEvento();
+    try{ _ct_allEventos = await sbFetch('contratos_eventos'); }catch(e2){}
     reRenderAtivo();
     _ct_showToast('✓ Salvo', 'Evento "'+desc+'" salvo.','success');
   }catch(e){ _ct_showToast('Erro ao salvar',e.message,'error'); }
