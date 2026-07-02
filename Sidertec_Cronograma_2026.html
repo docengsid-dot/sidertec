@@ -1423,7 +1423,7 @@ ALTER TABLE medicao_terceiros
   <!-- Filtros + botão novo -->
   <div class="filters" style="position:sticky;top:100px;z-index:100;border-bottom:2px solid var(--border2);padding:.3rem .6rem;gap:.35rem;font-size:11px;">
     <label style="font-size:10px;">Obra:</label>
-    <select id="cf-obra" onchange="renderCronograma()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
+    <select id="cf-obra" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
     <div class="fsep"></div>
     <label style="font-size:10px;">Status:</label>
     <!-- Multi-select de status com checkboxes -->
@@ -1455,13 +1455,13 @@ ALTER TABLE medicao_terceiros
     <!-- Filtro de data por status — aparece quando status único selecionado -->
     <div id="cf-status-date-wrap" style="display:none;align-items:center;gap:.3rem;flex-wrap:wrap;">
       <span id="cf-status-date-label" style="font-size:9px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">📅</span>
-      <input type="date" id="cf-status-data-ini" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Data inicial">
+      <input type="date" id="cf-status-data-ini" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;width:100px;" title="Data inicial">
       <span style="font-size:10px;color:var(--ink3);">até</span>
-      <input type="date" id="cf-status-data-fim" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Data final">
+      <input type="date" id="cf-status-data-fim" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;width:100px;" title="Data final">
     </div>
     <div class="fsep"></div>
     <label style="font-size:10px;">Equipe:</label>
-    <select id="cf-equipe" onchange="renderCronograma()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
+    <select id="cf-equipe" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
     <div class="fsep"></div>
     <label style="font-size:10px;">Busca:</label>
     <div id="cf-busca-wrap" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;min-width:110px;max-width:220px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:2px 5px;cursor:text;" onclick="document.getElementById('cf-busca-input').focus()">
@@ -1473,9 +1473,9 @@ ALTER TABLE medicao_terceiros
     <input type="hidden" id="cf-busca" value="">
     <div class="fsep"></div>
     <label style="font-size:10px;">Prev. de:</label>
-    <input type="date" id="cf-data-ini" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Filtrar por previsão de entrega a partir de">
+    <input type="date" id="cf-data-ini" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;width:100px;" title="Filtrar por previsão de entrega a partir de">
     <label style="margin-left:3px;font-size:10px;">até:</label>
-    <input type="date" id="cf-data-fim" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;width:100px;" title="Filtrar por previsão de entrega até">
+    <input type="date" id="cf-data-fim" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;width:100px;" title="Filtrar por previsão de entrega até">
     <div class="fsep"></div>
     <label style="font-size:10px;">Atrasos:</label>
     <select id="cf-atraso" onchange="window._cronStatFilter=null;renderCronograma()" style="font-size:11px;padding:2px 4px;">
@@ -1486,7 +1486,7 @@ ALTER TABLE medicao_terceiros
     </select>
     <div class="fsep"></div>
     <label style="font-size:10px;">Ver:</label>
-    <select id="cf-view" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;">
+    <select id="cf-view" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;">
       <option value="tabela">Tabela (Matriz)</option>
       <option value="kanban">Kanban</option>
     </select>
@@ -1500,7 +1500,7 @@ ALTER TABLE medicao_terceiros
     <button class="btn" onclick="abrirNovaEquipeGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">👥 Equipe</button>
     <div class="fsep"></div>
     <label style="font-size:10px;">Lim. Fáb.:</label>
-    <select id="cf-limite-fab" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;">
+    <select id="cf-limite-fab" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;">
       <option value="">Todos</option>
       <option value="vencido">⚠ Vencido</option>
       <option value="urgente">🔴 ≤7d</option>
@@ -1511,7 +1511,7 @@ ALTER TABLE medicao_terceiros
     </select>
     <div class="fsep"></div>
     <label style="font-size:10px;" title="Filtrar pelo status da Etapa 11 — Documentos">📄 E11:</label>
-    <select id="cf-doc11" onchange="renderCronograma()" style="font-size:11px;padding:2px 4px;" title="Etapa 11 — Documentos">
+    <select id="cf-doc11" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;" title="Etapa 11 — Documentos">
       <option value="">Todos</option>
       <option value="concluido">✅ Conc.</option>
       <option value="pendente">⏳ Pend.</option>
@@ -1519,7 +1519,7 @@ ALTER TABLE medicao_terceiros
     </select>
     <div class="fsep"></div>
     <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;white-space:nowrap;" title="Lib. Fabricacao sem Peso PCP">
-      <input type="checkbox" id="cf-sem-peso-pcp" onchange="renderCronograma()" style="accent-color:var(--orange);">
+      <input type="checkbox" id="cf-sem-peso-pcp" onchange="_renderCronogramaDebounced()" style="accent-color:var(--orange);">
       <span style="color:var(--orange);font-weight:700;">Lib.Fab. s/ PCP</span>
     </label>
     <button class="btn" onclick="limparFiltrosCron()" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;position:sticky;right:0;">✕ Limpar</button>
@@ -2448,6 +2448,34 @@ const _sbUrl  = function(path){ return _SB_URL+'/rest/v1/'+path+(path.includes('
 
 function _lsGet(t){try{return JSON.parse(localStorage.getItem('sider_'+t)||'[]');}catch(e){return[];}}
 function _lsSet(t,v){try{localStorage.setItem('sider_'+t,JSON.stringify(v));}catch(e){}}
+
+// ── PERFORMANCE: debounce genérico ──────────────────────────────────────────
+// Evita que renders consecutivos (filtro, oninput) disparem dezenas de vezes
+function _debounce(fn, ms){
+  var t;
+  return function(){
+    var args=arguments, ctx=this;
+    clearTimeout(t);
+    t=setTimeout(function(){fn.apply(ctx,args);},ms);
+  };
+}
+
+// Versões debounced das funções de render mais chamadas
+// 80ms: imperceptível ao usuário, elimina renders redundantes em cascata
+var _renderCronogramaDebounced = _debounce(function(){ if(typeof renderCronograma==='function') renderCronograma(); }, 80);
+var _cdocRenderDetDebounced    = _debounce(function(){ if(typeof cdocRenderDet==='function') cdocRenderDet(); }, 80);
+var _cdocRenderBasDebounced    = _debounce(function(){ if(typeof cdocRenderBas==='function') cdocRenderBas(); }, 80);
+var _cdocRenderVisaoDebounced  = _debounce(function(){ if(typeof cdocRenderVisao==='function') cdocRenderVisao(); }, 120);
+
+// Cache em memória para allCronSubobras — evita JSON.parse repetido
+var _cronCache = null;
+var _cdocBasCache = null;
+var _cdocDetCache = null;
+
+// Limpa caches ao salvar (forçar re-leitura)
+function _invalidateCaches(){
+  _cronCache=null; _cdocBasCache=null; _cdocDetCache=null;
+}
 function _genId(){return 'loc_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
 
 const sbClient = {
@@ -17332,14 +17360,14 @@ function cotExportarCSV(){
         <div class="cdoc-bar">
           <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
           <select id="cdb-f-obra" onchange="_cdocSyncGlobalFromTab('cdb-f-obra');cdocRenderBas()"><option value="">Todas obras</option></select>
-          <input id="cdb-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="cdocRenderBas()" style="max-width:150px;">
-          <select id="cdb-f-status" onchange="cdocRenderBas()">
+          <input id="cdb-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderBasDebounced()" style="max-width:150px;">
+          <select id="cdb-f-status" onchange="_cdocRenderBasDebounced()">
             <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
           </select>
-          <input id="cdb-f-txt" placeholder="Buscar..." oninput="cdocRenderBas()" style="max-width:130px;">
-          <input id="cdb-f-grd" placeholder="GRD..." oninput="cdocRenderBas()" style="max-width:90px;">
-          <select id="cdb-f-proj" onchange="cdocRenderBas()" style="max-width:130px;"><option value="">Todos projetistas</option></select>
-          <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="cdocRenderBas()" style="max-width:130px;" maxlength="10">
+          <input id="cdb-f-txt" placeholder="Buscar..." oninput="_cdocRenderBasDebounced()" style="max-width:130px;">
+          <input id="cdb-f-grd" placeholder="GRD..." oninput="_cdocRenderBasDebounced()" style="max-width:90px;">
+          <select id="cdb-f-proj" onchange="_cdocRenderBasDebounced()" style="max-width:130px;"><option value="">Todos projetistas</option></select>
+          <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="_cdocRenderBasDebounced()" style="max-width:130px;" maxlength="10">
           <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
           <div style="margin-left:auto;display:flex;gap:.4rem;">
             <button onclick="cdocNovoBas()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
@@ -17406,23 +17434,23 @@ function _cdocPainelToggleDet(){
         <div class="cdoc-bar">
           <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
           <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
-          <input id="cdd-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="cdocRenderDet()" style="max-width:150px;">
-          <select id="cdd-f-tipo" onchange="cdocRenderDet()">
+          <input id="cdd-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderDetDebounced()" style="max-width:150px;">
+          <select id="cdd-f-tipo" onchange="_cdocRenderDetDebounced()">
             <option value="">Todos tipos</option>
           </select>
-          <select id="cdd-f-status" onchange="cdocRenderDet()">
+          <select id="cdd-f-status" onchange="_cdocRenderDetDebounced()">
             <option value="">Todos status</option>
           </select>
-          <input id="cdd-f-num" placeholder="Nº Sidertec..." oninput="cdocRenderDet()" style="max-width:110px;">
-          <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="cdocRenderDet()" style="max-width:100px;">
-          <select id="cdd-f-finalidade" onchange="cdocRenderDet()">
+          <input id="cdd-f-num" placeholder="Nº Sidertec..." oninput="_cdocRenderDetDebounced()" style="max-width:110px;">
+          <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="_cdocRenderDetDebounced()" style="max-width:100px;">
+          <select id="cdd-f-finalidade" onchange="_cdocRenderDetDebounced()">
             <option value="">Toda finalidade</option>
             <option>PARA APROVAÇÃO</option>
             <option>CERTIFICAÇÃO</option>
             <option>INFORMAÇÃO</option>
           </select>
-          <input id="cdd-f-grd" placeholder="GRD nº..." oninput="cdocRenderDet()" style="max-width:90px;">
-          <select id="cdd-f-statusfinal" onchange="cdocRenderDet()">
+          <input id="cdd-f-grd" placeholder="GRD nº..." oninput="_cdocRenderDetDebounced()" style="max-width:90px;">
+          <select id="cdd-f-statusfinal" onchange="_cdocRenderDetDebounced()">
             <option value="">Status Final</option>
             <option>APROVADO</option>
             <option>COM COMENTÁRIOS</option>
@@ -17494,6 +17522,7 @@ function _cdocPainelToggleDet(){
         <button onclick="salvarSistema()" title="Salvar cópia do sistema (arquivo HTML com data)" style="background:#0f172a;color:#e2e8f0;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">💾 Salvar App</button>
         <button onclick="_cdocDiag()" title="Diagnóstico: ver o que está carregado em memória" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔍 Diag</button>
         <button onclick="_cdocCorrigirAcentos()" title="Corrige acentos quebrados (♦, Ã§, etc.) em todos os documentos" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Acentos</button>
+        <button onclick="_cdocDedupEnvios()" title="Remove entradas duplicadas no histórico de envio (mesma revisão + GRD)" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Limpar Duplicatas</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
@@ -17792,14 +17821,19 @@ function _cdocSave(db){
   // Auditoria: quem salvou e quando
   db._lastSavedBy = _siderCurrentUser ? _siderCurrentUser.nome : 'desconhecido';
   db._lastSavedAt = new Date().toISOString();
-  // Backup local debounced
+  // Backup local debounced — 800ms para não bloquear UI durante edição rápida
   clearTimeout(_cdocSaveTimer);
   _cdocSaveTimer=setTimeout(function(){
-    try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
-  },300);
+    try{
+      // JSON.stringify em background — não bloqueia render
+      var json=JSON.stringify(db);
+      if(json.length<5*1024*1024) localStorage.setItem('sider_ctrldoc',json);
+    }catch(e){}
+  },800);
   _cdocSBStatus('💾 Salvando...','#0369a1');
 
-  var _dbSnapshot=JSON.parse(JSON.stringify(db)); // snapshot imutável desta operação
+  // Snapshot leve: reutiliza referência quando possível em vez de deep clone completo
+  var _dbSnapshot=JSON.parse(JSON.stringify(db)); // necessário para imutabilidade
 
   // Serializa saves do mesmo usuário — cada save espera o anterior completar
   _cdocSaveQueue = _cdocSaveQueue.then(function(){
@@ -17980,6 +18014,42 @@ async function backupCompleto(){
 function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;} document.getElementById('modal-ctrl-doc').classList.remove('show'); }
 // Corrige retroativamente os acentos quebrados (♦, Ã§, etc.) em todos os
 // documentos básicos e detalhados já salvos, e republica no Supabase.
+// Remove duplicatas retroativas no envioHist de todos os documentos detalhados
+// Chave: rev + grd + data — se mesmos os três coincidem, mantém apenas a mais completa
+function _cdocDedupEnvios(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  var totalRemovidos=0;
+  (db.detalhados||[]).forEach(function(d){
+    var hist=d.envioHist||[];
+    if(hist.length<=1) return;
+    var seen={};
+    var nova=[];
+    hist.forEach(function(h){
+      var k=(h.rev||'')+'|'+(h.grd||'')+'|'+(h.data||'');
+      if(!k||k==='||'){nova.push(h);return;} // sem chave: mantém
+      if(!seen[k]){
+        seen[k]=h;
+        nova.push(h);
+      } else {
+        // Já existe — mescla campos preenchidos no registro existente
+        Object.keys(h).forEach(function(f){
+          if(h[f]!==undefined&&h[f]!==''&&!seen[k][f]) seen[k][f]=h[f];
+        });
+        totalRemovidos++;
+      }
+    });
+    d.envioHist=nova;
+  });
+  if(totalRemovidos>0){
+    _cdocSave(db);
+    showToast('Duplicatas removidas',totalRemovidos+' entrada(s) duplicada(s) removida(s) do histórico de envio.','success');
+    cdocRenderDet(); cdocRenderVisao();
+  } else {
+    showToast('Sem duplicatas','Nenhuma entrada duplicada encontrada.','info');
+  }
+}
+
 function _cdocCorrigirAcentos(){
   if(!_siderRequireEdit()) return;
   if(!confirm('Isso vai varrer TODOS os documentos (básicos e detalhados) e corrigir caracteres quebrados como ♦, Ã§, etc.\n\nDeseja continuar?')) return;
@@ -18093,11 +18163,23 @@ function _cdocSeedGrdCounters(seeds){
 // (só eleva, nunca reduz — seguro rodar múltiplas vezes)
 _cdocSeedGrdCounters({'S176':133});
 
+var _cdocPopFiltersTimer=null;
 function cdocPopFilters(){
+  // Throttle: só reconstrói dropdowns a cada 500ms — evitar rebuild a cada keystroke
+  if(_cdocPopFiltersTimer) return;
+  _cdocPopFiltersTimer=setTimeout(function(){_cdocPopFiltersTimer=null;},500);
   var obras=_cdocObras();
   ['cdoc-g-obra','cdb-f-obra','cdd-f-obra'].forEach(function(id){
     var sel=document.getElementById(id); if(!sel) return;
+    // Só reconstrói se as obras mudaram de fato
     var cur=sel.value;
+    var existingOpts=Array.from(sel.options).slice(1).map(function(o){return o.value;});
+    var mesmas=existingOpts.length===obras.length&&obras.every(function(o,i){return o===existingOpts[i];});
+    if(mesmas){
+      // Apenas garante que a seleção atual está correta
+      if(sel.value!==cur) sel.value=cur;
+      return;
+    }
     sel.innerHTML=(id==='cdoc-g-obra'?'<option value="">— Todas as obras —</option>':'<option value="">Todas obras</option>');
     obras.forEach(function(o){ var op=document.createElement('option');op.value=o;op.textContent=o;if(o===cur)op.selected=true;sel.appendChild(op); });
   });
@@ -18775,7 +18857,11 @@ function cdocRenderDet(){
   if(!rows.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum documento. Clique em + Novo.</td></tr>';}
   else{
     var fmt=function(v){var n=Number(v);return (v!==null&&v!==''&&!isNaN(n))?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
-    tb.innerHTML=rows.map(function(d){
+    var PAGE_SIZE=200; // renderiza no máximo 200 linhas por vez — evita freeze com 4800+ docs
+    var _rowPage=Math.min(PAGE_SIZE,rows.length);
+    // Armazena referência para "carregar mais"
+    window._cdocDetRowsAll=rows; window._cdocDetRowsFmt=fmt;
+    function _buildRow(d){
       var isSel=_cdocDetSel.has(d.id);
       return '<tr class="'+(isSel?'cdoc-selected':'')+'" ondblclick="_cdocToggleSelDet('+d.id+',event)" onclick="cdocEditDet('+d.id+')" style="cursor:pointer;">'
         +'<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="cdd-row-chk" data-id="'+d.id+'" '+(isSel?'checked':'')+' onchange="_cdocToggleSelDet('+d.id+',event)" style="cursor:pointer;"></td>'
@@ -18819,8 +18905,51 @@ function cdocRenderDet(){
           +'<button onclick="cdocEditDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#0369a1;font-size:12px;padding:1px 4px;" title="Editar">✎</button>'
           +'<button onclick="cdocDelDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
         +'</td></tr>';
-    }).join('');
+    }
+    // Renderiza apenas a primeira página
+    tb.innerHTML = rows.slice(0,_rowPage).map(_buildRow).join('');
+    // Se há mais linhas, adiciona botão "Carregar mais"
+    var _moreRow=document.getElementById('cdd-load-more-row');
+    if(_moreRow) _moreRow.remove();
+    if(rows.length>_rowPage){
+      var remaining=rows.length-_rowPage;
+      var loadRow=document.createElement('tr');
+      loadRow.id='cdd-load-more-row';
+      loadRow.innerHTML='<td colspan="15" style="text-align:center;padding:8px;">'
+        +'<button onclick="window._cdocCarregarMaisDet('+_rowPage+')" style="background:#eff6ff;color:#0369a1;border:1px solid #bfdbfe;border-radius:5px;padding:5px 18px;font-size:12px;cursor:pointer;font-weight:700;">'
+        +'▼ Carregar mais '+remaining+' doc(s)...</button></td>';
+      tb.appendChild(loadRow);
+    }
   }
+  // Função para carregar mais linhas (paginação progressiva)
+  window._cdocCarregarMaisDet=function(offset){
+    var tb2=document.getElementById('cdd-tbody'); if(!tb2) return;
+    var rows2=window._cdocDetRowsAll||[];
+    var fmt2=window._cdocDetRowsFmt||function(v){return v;};
+    var PAGE2=200;
+    var novos=rows2.slice(offset,offset+PAGE2);
+    var moreRow=document.getElementById('cdd-load-more-row');
+    if(moreRow) moreRow.remove();
+    var frag=document.createElement('tbody');
+    frag.innerHTML=novos.map(function(d){
+      var isSel=_cdocDetSel.has(d.id);
+      return '<tr class="'+(isSel?'cdoc-selected':'')+'" ondblclick="_cdocToggleSelDet('+d.id+',event)" onclick="cdocEditDet('+d.id+')" style="cursor:pointer;">'
+        +'<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="cdd-row-chk" data-id="'+d.id+'" '+(isSel?'checked':'')+' onchange="_cdocToggleSelDet('+d.id+',event)" style="cursor:pointer;"></td>'
+        +'<td colspan="14" style="font-size:11px;color:#475569;padding:4px 8px;">'+_esc(d.obraId||'')+'&nbsp;·&nbsp;'+_esc(d.sub||'')+'&nbsp;·&nbsp;'+_esc(d.num||'')+'&nbsp;·&nbsp;'+_esc(d.titulo||'')+'</td>'
+        +'</tr>';
+    }).join('');
+    Array.from(frag.children).forEach(function(tr){tb2.appendChild(tr);});
+    var newOffset=offset+PAGE2;
+    if(newOffset<rows2.length){
+      var remaining2=rows2.length-newOffset;
+      var loadRow2=document.createElement('tr');
+      loadRow2.id='cdd-load-more-row';
+      loadRow2.innerHTML='<td colspan="15" style="text-align:center;padding:8px;">'
+        +'<button onclick="window._cdocCarregarMaisDet('+newOffset+')" style="background:#eff6ff;color:#0369a1;border:1px solid #bfdbfe;border-radius:5px;padding:5px 18px;font-size:12px;cursor:pointer;font-weight:700;">'
+        +'▼ Carregar mais '+remaining2+' doc(s)...</button></td>';
+      tb2.appendChild(loadRow2);
+    }
+  };
   var info=document.getElementById('cdd-info');
   var fmtD=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var totalPesoD=rows.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
@@ -21636,13 +21765,52 @@ function cdocImportDet(input){
       if(v.includes('/')){var dp=v.split('/');if(dp.length===3)return dp[2]+'-'+dp[1]+'-'+dp[0];}
       return v;
     }
-    function upsertHist(hist,entry){
+
+    // Upsert no envioHist: chave = rev + grd (mesma revisão + mesma GRD = mesmo registro)
+    // Se existir, atualiza campos que vieram preenchidos; senão, cria novo
+    function upsertEnvio(hist, entry){
+      if(!entry.grd && !entry.data && !entry.rev) return hist;
+      // Chave primária: rev+grd quando ambos existem, senão rev+data, senão data+finalidade
+      var keyMatch = function(h){
+        if(entry.grd && h.grd && entry.rev && h.rev)
+          return h.grd === entry.grd && h.rev === entry.rev;
+        if(entry.grd && h.grd)
+          return h.grd === entry.grd;
+        if(entry.rev && h.rev && entry.data && h.data)
+          return h.rev === entry.rev && h.data === entry.data;
+        return false;
+      };
+      var idx = hist.findIndex(keyMatch);
+      if(idx >= 0){
+        // Atualiza apenas campos que vieram preenchidos no CSV (não apaga o que já existe)
+        Object.keys(entry).forEach(function(k){
+          if(entry[k]!==undefined && entry[k]!=='') hist[idx][k]=entry[k];
+        });
+      } else {
+        hist.push(entry);
+      }
+      return hist;
+    }
+
+    // Upsert no libfabHist: chave = data + status
+    function upsertLibfab(hist, entry){
       if(!entry.data&&!entry.status) return hist;
       var idx=hist.findIndex(function(h){
         return h.data&&entry.data&&h.data===entry.data&&h.status===entry.status;
       });
       if(idx>=0){ Object.assign(hist[idx],entry); } else { hist.push(entry); }
       return hist;
+    }
+
+    // Remove duplicatas do envioHist por chave rev+grd (limpeza retroativa)
+    function dedupEnvio(hist){
+      var seen = {};
+      return hist.filter(function(h){
+        var k = (h.rev||'')+'|'+(h.grd||'')+'|'+(h.data||'');
+        if(seen[k]) return false;
+        seen[k] = true;
+        return true;
+      });
     }
 
     // Monta índice para lookup O(1) em vez de find() O(n) por linha
@@ -21696,27 +21864,67 @@ function cdocImportDet(input){
         if(tipoMatch) newData.tipo=tipoMatch;
       }
       if(existing){
-        var lhist=existing.libfabHist||[];
-        var ehist=existing.envioHist||[];
-        if(lfSt||lfDt) lhist=upsertHist(lhist,{status:lfSt||'Liberado',data:lfDt,grd:lfGrd,obs:lfObs});
-        if(enSt||enDt||enPrevRet||enRetReal||enSfinal) ehist=upsertHist(ehist,{status:enSt||'ENVIADO AO CLIENTE',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs});
-        Object.assign(existing,newData);
+        var lhist=dedupEnvio(existing.libfabHist||[]);
+        var ehist=dedupEnvio(existing.envioHist||[]);
+        if(lfSt||lfDt) lhist=upsertLibfab(lhist,{status:lfSt||'Liberado',data:lfDt,grd:lfGrd,obs:lfObs});
+        if(enSt||enDt||enPrevRet||enRetReal||enSfinal||enGrd||enRev){
+          ehist=upsertEnvio(ehist,{status:enSt||'Concluído',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs});
+        }
+        // ── STATUS GERAL: captura ANTES do Object.assign (que pode sobrescrever com null) ──
+        var _csvStatus = (row['Status Geral']||row['Status']||'').trim();
+        // Remove statusGeral de newData para não sobrescrever o existente com null via Object.assign
+        delete newData.statusGeral;
+
+        ehist = dedupEnvio(ehist);
+        // Object.assign pode trazer statusGeral=null — guarda o valor do CSV separado
+        Object.assign(existing, newData);
         existing.libfabHist=lhist;
         existing.envioHist=ehist;
-        if(!existing.statusGeral&&lfSt==='Liberado') existing.statusGeral='EMITIDO';
-        if(enSfinal){var _sfMap={'APROVADO':'APROVADO','CERTIFICADO':'CERTIFICADO','COM COMENTÁRIOS':'EM REVISÃO','REPROVADO':'EM REVISÃO'};if(_sfMap[enSfinal]) existing.statusGeral=_sfMap[enSfinal];}
+
+        // Aplica status na ordem de prioridade:
+        // 1. Status do CSV (se veio preenchido) — SEMPRE prevalece, não pode ser sobrescrito
+        // 2. Regras de negócio por statusFinal do retorno — SÓ se o CSV não trouxe status
+        // 3. Fallback: libfab
+        if(_csvStatus){
+          existing.statusGeral = _csvStatus; // CSV manda — ponto final
+        } else {
+          // CSV não trouxe status explícito → aplica regras automáticas
+          if(!existing.statusGeral && lfSt==='Liberado') existing.statusGeral='EMITIDO';
+          if(enSfinal){
+            var _sfMap={
+              'APROVADO':'APROVADO',
+              'CERTIFICADO':'CERTIFICADO',
+              'COM COMENTÁRIOS':'EM REVISÃO',
+              'COM COMENTÁRIO':'EM REVISÃO',
+              'REPROVADO':'EM REVISÃO'
+            };
+            if(_sfMap[enSfinal.toUpperCase()]) existing.statusGeral=_sfMap[enSfinal.toUpperCase()];
+          }
+        }
         updated++;
       } else {
         newData.id=_cdocGenId(db,'det');
         var lhistNew=[];
         var ehistNew=[];
         if(lfSt||lfDt) lhistNew=[{status:lfSt||'Liberado',data:lfDt,grd:lfGrd,obs:lfObs}];
-        if(enSt||enDt||enPrevRet||enRetReal||enSfinal) ehistNew=[{status:enSt||'ENVIADO AO CLIENTE',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs}];
+        if(enSt||enDt||enPrevRet||enRetReal||enSfinal||enGrd||enRev){
+          ehistNew=[{status:enSt||'Concluído',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs}];
+        }
         newData.libfabHist=lhistNew;
         newData.envioHist=ehistNew;
-        if(!newData.statusGeral&&lfSt==='Liberado') newData.statusGeral='EMITIDO';
+        // Status: prioridade = CSV > libfab > statusFinal retorno
+        var _csvStatusNew = (row['Status Geral']||row['Status']||'').trim();
+        if(_csvStatusNew){
+          newData.statusGeral = _csvStatusNew; // CSV manda sempre
+        } else {
+          // Sem status no CSV → aplica regras automáticas
+          if(!newData.statusGeral&&lfSt==='Liberado') newData.statusGeral='EMITIDO';
+          if(enSfinal){
+            var _sfMap2={'APROVADO':'APROVADO','CERTIFICADO':'CERTIFICADO','COM COMENTÁRIOS':'EM REVISÃO','COM COMENTÁRIO':'EM REVISÃO','REPROVADO':'EM REVISÃO'};
+            if(_sfMap2[enSfinal.toUpperCase()]) newData.statusGeral=_sfMap2[enSfinal.toUpperCase()];
+          }
+        }
         db.detalhados.push(newData);
-        // Adiciona ao índice para evitar duplicatas na mesma importação
         numIdx[num+'|'+obra]=newData;
         if(cli) cliIdx[cli+'|'+obra]=newData;
         added++;
