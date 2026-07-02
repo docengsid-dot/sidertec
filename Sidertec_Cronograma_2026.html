@@ -18906,6 +18906,7 @@ function cdocRenderDet(){
           +'<button onclick="cdocDelDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:1px 3px;" title="Excluir">✕</button>'
         +'</td></tr>';
     }
+    window._cdocBuildRow = _buildRow; // expõe para _cdocCarregarMaisDet
     // Renderiza apenas a primeira página
     tb.innerHTML = rows.slice(0,_rowPage).map(_buildRow).join('');
     // Se há mais linhas, adiciona botão "Carregar mais"
@@ -18925,20 +18926,12 @@ function cdocRenderDet(){
   window._cdocCarregarMaisDet=function(offset){
     var tb2=document.getElementById('cdd-tbody'); if(!tb2) return;
     var rows2=window._cdocDetRowsAll||[];
-    var fmt2=window._cdocDetRowsFmt||function(v){return v;};
     var PAGE2=200;
     var novos=rows2.slice(offset,offset+PAGE2);
     var moreRow=document.getElementById('cdd-load-more-row');
     if(moreRow) moreRow.remove();
-    var frag=document.createElement('tbody');
-    frag.innerHTML=novos.map(function(d){
-      var isSel=_cdocDetSel.has(d.id);
-      return '<tr class="'+(isSel?'cdoc-selected':'')+'" ondblclick="_cdocToggleSelDet('+d.id+',event)" onclick="cdocEditDet('+d.id+')" style="cursor:pointer;">'
-        +'<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="cdd-row-chk" data-id="'+d.id+'" '+(isSel?'checked':'')+' onchange="_cdocToggleSelDet('+d.id+',event)" style="cursor:pointer;"></td>'
-        +'<td colspan="14" style="font-size:11px;color:#475569;padding:4px 8px;">'+_esc(d.obraId||'')+'&nbsp;·&nbsp;'+_esc(d.sub||'')+'&nbsp;·&nbsp;'+_esc(d.num||'')+'&nbsp;·&nbsp;'+_esc(d.titulo||'')+'</td>'
-        +'</tr>';
-    }).join('');
-    Array.from(frag.children).forEach(function(tr){tb2.appendChild(tr);});
+    // Usa a mesma _buildRow da renderização inicial — layout idêntico
+    tb2.insertAdjacentHTML('beforeend', novos.map(window._cdocBuildRow||_buildRow).join(''));
     var newOffset=offset+PAGE2;
     if(newOffset<rows2.length){
       var remaining2=rows2.length-newOffset;
