@@ -23239,7 +23239,13 @@ document.addEventListener('DOMContentLoaded', function(){
       <tbody id="tbody-relatorio"></tbody>
     </table>
   </div>
-  <div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem;">
+  <div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;align-items:center;gap:.4rem;background:#f8fafc;border:1px solid var(--border);border-radius:var(--r2);padding:5px 10px;">
+      <span style="font-size:11px;color:var(--ink3);font-weight:600;">Obra:</span>
+      <select id="rel-proj-select" style="border:none;background:transparent;font-size:11px;color:var(--ink);cursor:pointer;outline:none;min-width:180px;">
+        <option value="">— Todos os projetos —</option>
+      </select>
+    </div>
     <button onclick="_ct_exportarCSV('relatorio-geral')" class="btn btn-secondary" style="font-size:11px;">⬇ CSV Geral</button>
     <button onclick="_ct_exportarExcel('relatorio-geral')" style="background:var(--green);color:#fff;border:none;border-radius:var(--r2);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:9px 18px;cursor:pointer;">⬇ Excel Geral</button>
     <button onclick="gerarRelatorioPDF()" style="background:var(--red);color:#fff;border:none;border-radius:var(--r2);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:9px 18px;cursor:pointer;">🖨 Relatório PDF</button>
@@ -28081,6 +28087,16 @@ function processarImport(csvText, fmt, modulo){
 // ─── RELATÓRIOS page render ───────────────────────────────
 function _ct_renderRelatorios(){
   tcLoadAll();
+  // Populate project selector
+  var selProjRel = document.getElementById('rel-proj-select');
+  if(selProjRel){
+    var curVal = selProjRel.value;
+    selProjRel.innerHTML = '<option value="">— Todos os projetos —</option>'
+      + _ct_allProjetos.map(function(p){
+          return '<option value="'+p.id+'">'+(p.codigo?p.codigo+' · ':'')+p.nome+'</option>';
+        }).join('');
+    if(curVal) selProjRel.value = curVal;
+  }
   // Update counts
   const sc=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v+' registros';};
   sc('rel-count-projetos',_ct_allProjetos.length);
@@ -28235,28 +28251,47 @@ function gerarRelatorioPDF(){
   const hoje = new Date().toLocaleDateString('pt-BR');
   const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
   const fmtN = v => (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2});
-  const chk  = v => v ? '<span style="color:#2A7A4A;font-weight:700;">✓</span>' : '<span style="color:#C8C2B5;">○</span>';
+  const fmtKg= v => (Number(v)||0)>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+  const fmtD2= (a,b,label) => {
+    const diff = (Number(a)||0)-(Number(b)||0);
+    if(!(Number(a)||0) || !(Number(b)||0)) return '';
+    const c = diff>=0?'#16a34a':'#dc2626';
+    const s = diff>=0?'+':'';
+    return `<span style="color:${c};font-size:8px;font-weight:700;">${s}${diff.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg ${label}</span>`;
+  };
 
-  const totalContrato  = _ct_allProjetos.reduce((s,p)=>s+(Number(p.valor_contrato)||0),0);
-  const totalFaturado  = _ct_allEventos.reduce((s,e)=>s+(Number(e.valor_faturado)||0),0);
-  const totalRecebido  = _ct_allEventos.reduce((s,e)=>s+(Number(e.valor_recibo)||0),0);
+  // Project filter
+  const selProjId = (document.getElementById('rel-proj-select')||{}).value||'';
+  const projetos  = selProjId
+    ? _ct_allProjetos.filter(p=>p.id===selProjId)
+    : _ct_allProjetos;
+
+  const totalContrato  = projetos.reduce((s,p)=>s+(Number(p.valor_contrato)||0),0);
+  const totalFaturado  = _ct_allEventos.filter(e=>projetos.some(p=>p.id===e.projeto_id)).reduce((s,e)=>s+(Number(e.valor_faturado)||0),0);
+  const totalRecebido  = _ct_allEventos.filter(e=>projetos.some(p=>p.id===e.projeto_id)).reduce((s,e)=>s+(Number(e.valor_recibo)||0),0);
   const totalSaldo     = totalContrato - totalFaturado;
-  const totalGarantias = _ct_allProjetos.reduce((s,p)=>{
-    return s + (p.garantias||[]).reduce((ss,g)=>ss+(Number(g.valor_segurado)||0),0);
-  },0);
-
+  const totalGarantias = projetos.reduce((s,p)=>{return s+(p.garantias||[]).reduce((ss,g)=>ss+(Number(g.valor_segurado)||0),0);},0);
+  const totalAditVal   = projetos.reduce((s,p)=>s+(p.aditivos||[]).reduce((ss,a)=>ss+(Number(a.valor)||0),0),0);
   const possuiMap = {sim:'✅ Possui garantia',nao:'❌ Sem garantia',dispensada:'⚠️ Dispensada'};
   const possuiColorMap = {sim:'#2A7A4A',nao:'#C0392B',dispensada:'#E07000'};
 
-  const projetosHTML = _ct_allProjetos.map(p=>{
+  const projetosHTML = projetos.map(p=>{
     const calcP = calcProjeto(p);
     const evs   = _ct_allEventos.filter(e=>e.projeto_id===p.id);
     const gars  = p.garantias||[];
-    const fmtKg = v => (Number(v)||0)>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+    const ads   = p.aditivos||[];
     const rStatusMap = {agendada:'Agendada',realizada:'Realizada',cancelada:'Cancelada',reagendada:'Reagendada'};
     const pv = p.garantia_possui||'';
     const garColor = possuiColorMap[pv]||'#8A847A';
     const garLabel = possuiMap[pv]||'Não informado';
+    const pesoCont   = (Number(p.peso_forn_contratado)||0)+(Number(p.peso_mont_contratado)||0)||(Number(p.peso_contratado)||0);
+    const pesoFat    = (Number(p.peso_forn_faturado)||0)+(Number(p.peso_mont_faturado)||0)||(Number(p.peso_faturado)||0);
+    const pesoBas    = Number(p.peso_basico)||0;
+    const pesoDet    = Number(p.peso_detalhado)||0;
+    const pesoExp    = Number(p.peso_expedido)||0;
+    const totAditVal = ads.reduce((a,x)=>a+(Number(x.valor)||0),0);
+    const totAditPeso= ads.reduce((a,x)=>a+(Number(x.peso)||0),0);
+    const totalComAditivo = (Number(p.valor_contrato)||0)+totAditVal;
 
     return `
     <div class="proj-block">
@@ -28269,21 +28304,85 @@ function gerarRelatorioPDF(){
       </div>
 
       ${(p.gerente_contrato||p.gestor_financeiro||p.gestor_geral)?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;">
-        ${p.gerente_contrato?`<div style="background:#F5F3EE;border:1px solid #D8D3C8;border-radius:4px;padding:5px 8px;"><div class="sec-lbl" style="margin-bottom:1px;">👤 Gerente do Contrato</div><div style="font-size:10px;font-weight:600;">${p.gerente_contrato}</div></div>`:''}
-        ${p.gestor_financeiro?`<div style="background:#F5F3EE;border:1px solid #D8D3C8;border-radius:4px;padding:5px 8px;"><div class="sec-lbl" style="margin-bottom:1px;">💰 Gestor Financeiro</div><div style="font-size:10px;font-weight:600;">${p.gestor_financeiro}</div></div>`:''}
-        ${p.gestor_geral?`<div style="background:#F5F3EE;border:1px solid #D8D3C8;border-radius:4px;padding:5px 8px;"><div class="sec-lbl" style="margin-bottom:1px;">🏢 Gestor Geral</div><div style="font-size:10px;font-weight:600;">${p.gestor_geral}</div></div>`:''}
+        ${p.gerente_contrato?`<div class="info-box"><div class="sec-lbl">👤 Gerente do Contrato</div><div class="info-val">${p.gerente_contrato}</div></div>`:''}
+        ${p.gestor_financeiro?`<div class="info-box"><div class="sec-lbl">💰 Gestor Financeiro</div><div class="info-val">${p.gestor_financeiro}</div></div>`:''}
+        ${p.gestor_geral?`<div class="info-box"><div class="sec-lbl">🏢 Gestor Geral</div><div class="info-val">${p.gestor_geral}</div></div>`:''}
       </div>`:''}
 
-      ${(p.cidade_obra||p.estado_obra||p.tipo_faturamento)?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;">
-        ${p.cidade_obra||p.estado_obra?`<div style="background:#F5F3EE;border:1px solid #D8D3C8;border-radius:4px;padding:5px 8px;"><div class="sec-lbl">📍 Local da Obra</div><div style="font-size:10px;font-weight:600;">${[p.cidade_obra,p.estado_obra].filter(Boolean).join(' — ')}</div></div>`:''}
-        ${p.tipo_faturamento?`<div style="background:#F5F3EE;border:1px solid #D8D3C8;border-radius:4px;padding:5px 8px;"><div class="sec-lbl">⚖️ Tipo de Faturamento</div><div style="font-size:10px;font-weight:600;">${p.tipo_faturamento==='peso_balanca'?'⚖️ Peso de Balança':'📐 Por Projeto'}</div>${p.obs_faturamento?`<div style="font-size:8px;color:#8A847A;margin-top:1px;">${p.obs_faturamento}</div>`:''}</div>`:''}
+      ${(p.cidade_obra||p.estado_obra||p.tipo_faturamento)?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;">
+        ${p.cidade_obra||p.estado_obra?`<div class="info-box"><div class="sec-lbl">📍 Local da Obra</div><div class="info-val">${[p.cidade_obra,p.estado_obra].filter(Boolean).join(' — ')}</div></div>`:''}
+        ${p.tipo_faturamento?`<div class="info-box"><div class="sec-lbl">⚖️ Tipo de Faturamento</div><div class="info-val">${p.tipo_faturamento==='peso_balanca'?'⚖️ Peso de Balança':'📐 Por Projeto'}</div>${p.obs_faturamento?`<div style="font-size:8px;color:#8A847A;">${p.obs_faturamento}</div>`:''}</div>`:''}
       </div>`:''}
 
+      <!-- Valores financeiros -->
       <div class="grid4" style="margin-bottom:8px;">
-        <div class="box blue"><div class="box-lbl">Total Contrato</div><div class="box-val">${fmtN(p.valor_contrato)}</div><div class="box-sub">🏗 ${fmtN(p.valor_fornecimento)} · 🔩 ${fmtN(p.valor_montagem)}</div></div>
-        <div class="box green"><div class="box-lbl">Faturado</div><div class="box-val">${fmtN(calcP.faturado)}</div><div class="box-sub">${p.valor_contrato>0?Math.round(calcP.faturado/(Number(p.valor_contrato)||1)*100):0}% do contrato</div></div>
+        <div class="box blue">
+          <div class="box-lbl">Total Contrato</div>
+          <div class="box-val">${fmtN(p.valor_contrato)}</div>
+          <div class="box-sub">🏗 ${fmtN(p.valor_fornecimento)} · 🔩 ${fmtN(p.valor_montagem)}</div>
+        </div>
+        <div class="box green">
+          <div class="box-lbl">Faturado</div>
+          <div class="box-val">${fmtN(calcP.faturado)}</div>
+          <div class="box-sub">${p.valor_contrato>0?Math.round(calcP.faturado/(Number(p.valor_contrato)||1)*100):0}% do contrato</div>
+        </div>
         <div class="box orange"><div class="box-lbl">Saldo</div><div class="box-val">${fmtN(calcP.saldo)}</div></div>
         <div class="box gray"><div class="box-lbl">Docs</div><div class="box-val">${calcP.docsPct}%</div><div class="box-sub">${calcP.docsDone}/${calcP.docsTotal}</div></div>
+      </div>
+
+      <!-- Aditivos Contratuais -->
+      ${ads.length>0?`<div style="margin-bottom:8px;">
+        <div class="sec-lbl">📋 Aditivos Contratuais</div>
+        <table class="mini-table" style="margin-top:3px;">
+          <thead><tr><th>Nº</th><th style="text-align:right;">Valor (R$)</th><th style="text-align:right;">Peso (kg)</th></tr></thead>
+          <tbody>
+            ${ads.map(a=>`<tr>
+              <td><b>Aditivo ${a.num||'—'}</b></td>
+              <td style="text-align:right;">${fmtN(a.valor)}</td>
+              <td style="text-align:right;">${fmtKg(a.peso)}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr style="background:#1e293b;color:#fff;">
+            <td><b>Total + Aditivos</b></td>
+            <td style="text-align:right;"><b>${fmtN(totalComAditivo)}</b></td>
+            <td style="text-align:right;"><b>${totAditPeso>0?fmtKg(totAditPeso):'—'}</b></td>
+          </tr></tfoot>
+        </table>
+      </div>`:''}
+
+      <!-- Pesos -->
+      <div style="margin-bottom:8px;">
+        <div class="sec-lbl">⚖️ Análise de Pesos</div>
+        <table class="mini-table" style="margin-top:3px;">
+          <thead><tr>
+            <th>Escopo</th>
+            <th style="text-align:right;">Forn. Cont.</th><th style="text-align:right;">Forn. Fat.</th>
+            <th style="text-align:right;">Mont. Cont.</th><th style="text-align:right;">Mont. Fat.</th>
+            <th style="text-align:right;background:#1e3a5f;">Total Cont.</th>
+            <th style="text-align:right;color:#86efac;">📋 Básico</th>
+            <th style="text-align:right;color:#93c5fd;">📐 Detalhado</th>
+            <th style="text-align:right;color:#f9a8d4;">🚚 Expedido</th>
+          </tr></thead>
+          <tbody><tr>
+            <td><b>Valores</b></td>
+            <td style="text-align:right;">${fmtKg(p.peso_forn_contratado)}</td>
+            <td style="text-align:right;">${fmtKg(p.peso_forn_faturado)}</td>
+            <td style="text-align:right;">${fmtKg(p.peso_mont_contratado)}</td>
+            <td style="text-align:right;">${fmtKg(p.peso_mont_faturado)}</td>
+            <td style="text-align:right;font-weight:700;">${fmtKg(pesoCont)}</td>
+            <td style="text-align:right;color:#16a34a;font-weight:700;">${fmtKg(pesoBas)}</td>
+            <td style="text-align:right;color:#1d4ed8;font-weight:700;">${fmtKg(pesoDet)}</td>
+            <td style="text-align:right;color:#be185d;font-weight:700;">${fmtKg(pesoExp)}</td>
+          </tr></tbody>
+        </table>
+        <!-- Diferenças -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;padding:5px 7px;background:#fefce8;border-radius:4px;border:1px solid #fde047;">
+          <div style="font-size:8px;font-weight:700;color:#a16207;text-transform:uppercase;">Δ Diferenças:</div>
+          ${pesoCont>0&&pesoBas>0?`<div style="font-size:8px;">Bás−Cont: <span style="color:${pesoBas>=pesoCont?'#16a34a':'#dc2626'};font-weight:700;">${pesoBas>=pesoCont?'+':''}${(pesoBas-pesoCont).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span></div>`:''}
+          ${pesoBas>0&&pesoDet>0?`<div style="font-size:8px;">Det−Bás: <span style="color:${pesoDet>=pesoBas?'#16a34a':'#dc2626'};font-weight:700;">${pesoDet>=pesoBas?'+':''}${(pesoDet-pesoBas).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span></div>`:''}
+          ${pesoCont>0&&pesoExp>0?`<div style="font-size:8px;">Exped−Cont: <span style="color:${pesoExp>=pesoCont?'#16a34a':'#dc2626'};font-weight:700;">${pesoExp>=pesoCont?'+':''}${(pesoExp-pesoCont).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span></div>`:''}
+          ${!pesoCont&&!pesoBas&&!pesoDet&&!pesoExp?'<div style="font-size:8px;color:#a16207;">Nenhum peso cadastrado.</div>':''}
+        </div>
       </div>
 
       ${p.escopo_desc||p.escopo_fora?`
@@ -28291,11 +28390,6 @@ function gerarRelatorioPDF(){
         ${p.escopo_desc?`<div><div class="sec-lbl">✅ Escopo Contratado</div><div style="font-size:9px;line-height:1.5;color:#3A3530;">${p.escopo_desc}</div></div>`:''}
         ${p.escopo_fora?`<div><div class="sec-lbl">🚫 Fora do Escopo</div><div style="font-size:9px;line-height:1.5;color:#C0392B;">${p.escopo_fora}</div></div>`:''}
       </div>`:''}
-
-      <table class="mini-table" style="margin-bottom:8px;">
-        <thead><tr><th>Peso</th><th>🏗 Forn. Cont.</th><th>🏗 Forn. Fat.</th><th>🔩 Mont. Cont.</th><th>🔩 Mont. Fat.</th><th>Total Cont.</th></tr></thead>
-        <tbody><tr><td>Valores</td><td>${fmtKg(p.peso_forn_contratado)}</td><td>${fmtKg(p.peso_forn_faturado)}</td><td>${fmtKg(p.peso_mont_contratado)}</td><td>${fmtKg(p.peso_mont_faturado)}</td><td><b>${fmtKg(p.peso_contratado)}</b></td></tr></tbody>
-      </table>
 
       <div style="margin-bottom:8px;">
         <div class="sec-lbl">Documentos</div>
@@ -28313,14 +28407,14 @@ function gerarRelatorioPDF(){
       </div>
 
       ${p.obs?`<div style="margin-bottom:8px;background:#F5F3EE;border-left:3px solid #C8C2B5;border-radius:0 4px 4px 0;padding:6px 10px;">
-        <div class="sec-lbl" style="margin-bottom:2px;">📝 Observações do Projeto</div>
+        <div class="sec-lbl" style="margin-bottom:2px;">📝 Observações</div>
         <div style="font-size:9px;color:#3A3530;line-height:1.6;">${p.obs}</div>
       </div>`:''}
 
       <div style="margin-bottom:8px;">
         <div class="sec-lbl">🤝 Reunião de Comissionamento — ${rStatusMap[p.reuniao_status||'']||'Não agendada'}</div>
         <div style="font-size:9px;margin-top:2px;">Prevista: <b>${fmtD(p.reuniao_prevista)}</b> &nbsp;|&nbsp; Realizada: <b>${fmtD(p.reuniao_realizada)}</b></div>
-        ${p.reuniao_obs?`<div style="margin-top:4px;background:#E8F0F8;border-left:3px solid #1A4A7A;border-radius:0 4px 4px 0;padding:5px 9px;font-size:9px;color:#1A4A7A;line-height:1.6;"><b>Obs. da Reunião:</b> ${p.reuniao_obs}</div>`:''}
+        ${p.reuniao_obs?`<div style="margin-top:4px;background:#E8F0F8;border-left:3px solid #1A4A7A;border-radius:0 4px 4px 0;padding:5px 9px;font-size:9px;color:#1A4A7A;line-height:1.6;"><b>Obs.:</b> ${p.reuniao_obs}</div>`:''}
       </div>
 
       <div style="margin-bottom:8px;">
@@ -28332,6 +28426,10 @@ function gerarRelatorioPDF(){
       ${evs.length>0?`<div><div class="sec-lbl">Eventos de Pagamento (${evs.length})</div><table class="mini-table"><thead><tr><th>Nº</th><th>Descrição</th><th style="text-align:right;">Valor</th><th style="text-align:right;">Faturado</th><th>Vencimento</th><th>Status</th></tr></thead><tbody>${evs.map(e=>`<tr><td>${e.numero_evento||'—'}</td><td>${e.descricao}</td><td style="text-align:right;">${fmtN(e.valor)}</td><td style="text-align:right;">${fmtN(e.valor_faturado)}</td><td>${fmtD(e.data_vencimento)}</td><td>${(e.status||'').toUpperCase()}</td></tr>`).join('')}</tbody></table></div>`:''}
     </div>`;
   }).join('');
+
+  const tituloRel = selProjId && projetos.length===1
+    ? `Relatório Contratual — ${projetos[0].nome}`
+    : `Relatório Contratual Consolidado (${projetos.length} projeto${projetos.length!==1?'s':''})`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -28364,8 +28462,11 @@ body{font-family:'Outfit',sans-serif;background:#fff;color:#1A1714;font-size:10p
 .box-lbl{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#8A847A;margin-bottom:1px;}
 .box-val{font-family:'DM Serif Display',serif;font-size:11px;}
 .box-sub{font-size:7px;color:#8A847A;margin-top:1px;}
+.info-box{background:#F5F3EE;border:1px solid #D8D3C8;border-radius:4px;padding:5px 8px;}
+.info-val{font-size:10px;font-weight:600;}
 .mini-table{width:100%;border-collapse:collapse;font-size:9px;margin-top:3px;}
 .mini-table thead th{background:#1A1714;color:#fff;padding:3px 6px;text-align:left;font-size:7px;text-transform:uppercase;letter-spacing:.04em;}
+.mini-table tfoot td{background:#374151;color:#fff;padding:3px 6px;font-size:9px;}
 .mini-table tbody td{padding:3px 6px;border-bottom:1px solid #E3DFD5;}
 .mini-table tbody tr:last-child td{border-bottom:none;}
 .sec-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8A847A;margin-bottom:2px;}
@@ -28382,15 +28483,15 @@ body{font-family:'Outfit',sans-serif;background:#fff;color:#1A1714;font-size:10p
     <div class="cover-logo">SE</div>
     <div>
       <div class="cover-title">Sidertec Estruturas Metálicas</div>
-      <div class="cover-sub">Relatório Contratual Consolidado</div>
+      <div class="cover-sub">${tituloRel}</div>
     </div>
     <div class="cover-right">
       <div class="cover-date">Emitido em ${hoje}</div>
-      <div class="cover-date">${_ct_allProjetos.length} projeto(s)</div>
+      <div class="cover-date">${projetos.length} projeto(s)</div>
     </div>
   </div>
   <div class="totais">
-    <div class="tot blue"><div class="tot-lbl">Total Contratos</div><div class="tot-val">${fmtN(totalContrato)}</div></div>
+    <div class="tot blue"><div class="tot-lbl">Total Contratos</div><div class="tot-val">${fmtN(totalContrato)}</div>${totalAditVal>0?`<div style="font-size:7px;color:#1A4A7A;">+Aditivos: ${fmtN(totalAditVal)}</div>`:''}</div>
     <div class="tot green"><div class="tot-lbl">Total Faturado</div><div class="tot-val">${fmtN(totalFaturado)}</div></div>
     <div class="tot orange"><div class="tot-lbl">Saldo</div><div class="tot-val">${fmtN(totalSaldo)}</div></div>
     <div class="tot"><div class="tot-lbl">Recebido</div><div class="tot-val">${fmtN(totalRecebido)}</div></div>
