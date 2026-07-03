@@ -4708,6 +4708,7 @@ function etapaAnexar(key,input){
 }
 function etapaRemoverAnexo(key,idx){
   if(!_etapasState[key]||!_etapasState[key].anexos) return;
+  if(!confirm('Remover este anexo?')) return;
   _etapasState[key].anexos.splice(idx,1);
   renderEtapasDinamicas();
 }
@@ -7118,6 +7119,7 @@ function renderAnexoList(tipo){
 }
 
 function removerAnexo(tipo, idx){
+  if(!confirm('Remover este anexo?')) return;
   _anexos[tipo].splice(idx,1);
   renderAnexoList(tipo);
 }
@@ -11579,6 +11581,7 @@ function _medRenderAnexos(){
 }
 
 function _medRemoverAnexo(idx){
+  if(!confirm('Remover este anexo?')) return;
   _medAnexos.splice(idx, 1);
   _medRenderAnexos();
 }
@@ -15401,6 +15404,7 @@ function _medRenderAnexos(){
 }
 
 function _medRemoverAnexo(idx){
+  if(!confirm('Remover este anexo?')) return;
   _medAnexos.splice(idx, 1);
   _medRenderAnexos();
 }
@@ -18169,6 +18173,7 @@ function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefre
 // Chave: rev + grd + data — se mesmos os três coincidem, mantém apenas a mais completa
 function _cdocDedupEnvios(){
   if(!_siderRequireEdit()) return;
+  if(!confirm('Isso vai varrer TODOS os documentos e remover entradas duplicadas do histórico de envio (mesma revisão + GRD + data), mesclando os campos preenchidos.\n\nDeseja continuar?')) return;
   var db=_cdocDb();
   var totalRemovidos=0;
   (db.detalhados||[]).forEach(function(d){
@@ -18233,9 +18238,34 @@ function _cdocCorrigirAcentos(){
   (db.basicos||[]).forEach(function(b){ if(corrigirObj(b)) corrigidos++; });
   (db.detalhados||[]).forEach(function(d){ if(corrigirObj(d)) corrigidos++; });
 
-  if(corrigidos>0){
+  // Corrige também o texto gravado dentro das GRDs (ex: "PARA CERTIFICA♦♦O")
+  // — são cópias independentes, então precisam de correção própria.
+  var corrigidosGrd=0;
+  (db._grds||[]).forEach(function(g){
+    var mudouG=false;
+    ['tipo','obs','responsavel'].forEach(function(f){
+      if(typeof g[f]==='string'){
+        var fx=_cdocFixEncoding(g[f]);
+        if(fx!==g[f]){ g[f]=fx; mudouG=true; }
+      }
+    });
+    (g.docs||[]).forEach(function(gd){
+      ['titulo','desc','tipo','cli','sub','peca','finalidade'].forEach(function(f){
+        if(typeof gd[f]==='string'){
+          var fx2=_cdocFixEncoding(gd[f]);
+          if(fx2!==gd[f]){ gd[f]=fx2; mudouG=true; }
+        }
+      });
+    });
+    if(mudouG) corrigidosGrd++;
+  });
+
+  if(corrigidos>0||corrigidosGrd>0){
     _cdocSave(db);
-    showToast('Acentos corrigidos', corrigidos+' documento(s) corrigido(s) e salvo(s).', 'success');
+    var partes=[];
+    if(corrigidos>0) partes.push(corrigidos+' documento(s)');
+    if(corrigidosGrd>0) partes.push(corrigidosGrd+' GRD(s)');
+    showToast('Acentos corrigidos', partes.join(' e ')+' corrigido(s) e salvo(s).', 'success');
     cdocRenderBas(); cdocRenderDet(); cdocRenderVisao();
   } else {
     showToast('Nada a corrigir', 'Nenhum caractere quebrado encontrado.', 'info');
@@ -19116,7 +19146,7 @@ function cdocRenderDet(){
         +'<td style="font-size:9px;">'+_esc(d.tipo||'—')+'</td>'
         +'<td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(d.titulo||'')+'">'+_esc(d.titulo||'—')+'</td>'
         +'<td style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(d.desc||'')+'">'+_esc(d.desc||'—')+'</td>'
-        +'<td>'+_cdocBadgeHtml(d.statusGeral)+'</td>'
+        +'<td>'+_cdocBadgeHtml(d.statusGeral)+(d.acaoPendente&&d.acaoPendente.texto?'&nbsp;<span title="Ação definida em '+(d.acaoPendente.data?d.acaoPendente.data.split('-').reverse().join('/'):'')+': '+_esc(d.acaoPendente.texto)+'" style="cursor:help;">🔔</span>':'')+'</td>'
         +'<td style="font-size:10px;">'+_esc(d.peca||'—')+'</td>'
         +'<td style="text-align:right;font-family:Courier New,monospace;font-size:10px;">'+fmt(d.peso)+'</td>'
         +'<td style="font-size:10px;">'+_esc(d.rev||'—')+'</td>'
@@ -19494,6 +19524,7 @@ function cdocAddRevHist(){
   if(wrap) wrap.innerHTML=_cdocRevHistHtml({revisoes:_cdocCurrentRevs()});
 }
 function cdocDelRevHist(idx){
+  if(!confirm('Excluir este registro de revisão?')) return;
   var db=_cdocLoad();
   var base=(_cdocEditId?db.basicos.find(function(b){return b.id===_cdocEditId;}):null);
   var savedLen=(base&&base.revisoes)?base.revisoes.length:0;
@@ -19862,6 +19893,7 @@ function cdocAddEnvioHist(){
   if(wrap) wrap.innerHTML=_cdocEnvioHistHtml({envioHist:_cdocCurrentEnvio()});
 }
 function cdocDelLibfabHist(idx){
+  if(!confirm('Excluir este registro de liberação para fabricação?')) return;
   var db=_cdocLoad(); var base=(_cdocEditId?db.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
   var savedLen=(base&&base.libfabHist)?base.libfabHist.length:0;
   if(idx<savedLen){if(base){base.libfabHist.splice(idx,1);_cdocSave(db);}}
@@ -19870,6 +19902,7 @@ function cdocDelLibfabHist(idx){
   if(wrap) wrap.innerHTML=_cdocLibfabHistHtml({libfabHist:_cdocCurrentLibfab()});
 }
 function cdocDelEnvioHist(idx){
+  if(!confirm('Excluir este registro de envio?\nSe ele tiver uma GRD vinculada, o registro da GRD em si não é apagado, mas este documento deixará de aparecer nela.')) return;
   var db=_cdocLoad(); var base=(_cdocEditId?db.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
   var savedLen=(base&&base.envioHist)?base.envioHist.length:0;
   if(idx<savedLen){if(base){base.envioHist.splice(idx,1);_cdocSave(db);}}
@@ -19935,6 +19968,25 @@ function _grdCalcPrevRetDias(){
 // documentos selecionados, agrupados por Eng. Responsável — pensada para enviar
 // a alguém olhar e identificar rapidamente o que está sob sua responsabilidade,
 // sem precisar emitir uma GRD formal.
+// Chamada pela janela popup "Lista para Responsável" (via window.opener) para
+// gravar a Ação definida de volta nos documentos que estavam naquela lista.
+function _cdocSalvarAcaoLista(docIds, acaoTexto){
+  if(!_siderRequireEdit()) return {ok:false, erro:'Sessão sem permissão de edição — faça login novamente na aba principal.'};
+  if(!acaoTexto) return {ok:false, erro:'Ação vazia.'};
+  var db=_cdocDb();
+  var hoje=_cdocHojeISO();
+  var qtd=0;
+  (docIds||[]).forEach(function(id){
+    var doc=db.detalhados.find(function(d){return d.id===id;});
+    if(!doc) return;
+    doc.acaoPendente={texto:acaoTexto,data:hoje,por:(_siderCurrentUser?_siderCurrentUser.nome:'')};
+    qtd++;
+  });
+  _cdocSave(db);
+  cdocRenderDet();
+  showToast('Ação registrada', '"'+acaoTexto+'" registrada em '+qtd+' documento(s).', 'success');
+  return {ok:true, qtd:qtd, dataBR:hoje.split('-').reverse().join('/')};
+}
 function cdocImprimirListaResponsavel(){
   if(!_cdocDetSel.size){ showToast('Nenhum documento selecionado','Marque os documentos na tabela antes de gerar a lista.','warn'); return; }
   var db=_cdocDb();
@@ -19947,17 +19999,24 @@ function cdocImprimirListaResponsavel(){
   });
   ordem.sort();
   var hoje=new Date().toLocaleDateString('pt-BR');
+  var sfMap={'APROVADO':'background:#dcfce7;color:#166534;','CERTIFICADO':'background:#f0fdf4;color:#14532d;','COM COMENTÁRIOS':'background:#fef3c7;color:#92400e;','REPROVADO':'background:#fee2e2;color:#991b1b;'};
   var rowsHtml='';
   ordem.forEach(function(resp){
     var lista=grupos[resp];
-    rowsHtml+='<tr><td colspan="7" style="padding:8px 10px;background:#0e7490;color:#fff;font-weight:700;font-size:12px;">👤 '+_esc(resp)+' ('+lista.length+' doc(s))</td></tr>';
+    rowsHtml+='<tr><td colspan="9" style="padding:8px 10px;background:#0e7490;color:#fff;font-weight:700;font-size:12px;">👤 '+_esc(resp)+' ('+lista.length+' doc(s))</td></tr>';
     lista.forEach(function(d,i){
+      var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
+      var sf=eh&&eh.statusFinal?eh.statusFinal:'';
+      var sfHtml=sf?'<span style="'+(sfMap[sf]||'background:#f1f5f9;color:#475569;')+'border-radius:3px;padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap;">'+_esc(sf)+'</span>':'<span style="color:#cbd5e1;">—</span>';
       rowsHtml+='<tr><td>'+(i+1)+'</td><td>'+_esc(d.obraId||'')+'</td><td>'+_esc(d.sub||'')+'</td>'
-        +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
+        +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.cli||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
         +'<td style="font-size:10px;">'+_esc(d.titulo||d.desc||'')+'</td>'
-        +'<td>'+_cdocBadgeHtml(d.statusGeral)+'</td></tr>';
+        +'<td>'+_cdocBadgeHtml(d.statusGeral)+'</td>'
+        +'<td>'+sfHtml+'</td></tr>';
     });
   });
+  var docIds=docs.map(function(d){return d.id;});
+  var acoesFixas=['EMITIR PACOTE DE FABRICAÇÃO','CORRIGIR MODELO E REENVIAR PARA APROVAÇÃO','ATENDER COMENTÁRIOS E REENVIAR PARA APROVAÇÃO','ENVIAR EM REVISÃO SUPERIOR PARA CERTIFICAR','FINALIZAR'];
   var w=window.open('','_blank','width=1100,height=800');
   if(!w){alert('Permita popups para gerar a lista.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista para Responsável</title>'
@@ -19968,12 +20027,36 @@ function cdocImprimirListaResponsavel(){
     +'@media print{.no-print{display:none;}}</style></head><body>'
     +'<h2>Lista de Documentos — Para Verificação</h2>'
     +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS &middot; Gerado em '+hoje+' &middot; Total: '+docs.length+' documento(s)</p>'
-    +'<table><thead><tr><th style="width:25px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Tipo</th><th>Título/Descrição</th><th>Status</th></tr></thead>'
+    +'<table><thead><tr><th style="width:25px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Tipo</th><th>Título/Descrição</th><th>Status</th><th>Status Final</th></tr></thead>'
     +'<tbody>'+rowsHtml+'</tbody></table>'
+    +'<div class="no-print" style="margin-top:20px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;max-width:460px;">'
+    +'<div style="font-weight:700;font-size:13px;color:#0e7490;margin-bottom:8px;">📌 Ação</div>'
+    +'<select id="lra-acao" onchange="document.getElementById(\'lra-acao-custom\').style.display=this.value===\'__custom__\'?\'block\':\'none\';" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:100%;box-sizing:border-box;">'
+      +'<option value="">-- Selecione uma ação --</option>'
+      +acoesFixas.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('')
+      +'<option value="__custom__">Outra (especificar manualmente)...</option>'
+    +'</select>'
+    +'<input id="lra-acao-custom" placeholder="Descreva a ação específica..." style="display:none;margin-top:8px;width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;">'
+    +'<button id="lra-salvar-btn" onclick="_lraSalvar()" style="margin-top:10px;background:#166534;color:#fff;border:none;border-radius:4px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">💾 Salvar Ação</button>'
+    +'<div id="lra-resultado" style="margin-top:8px;font-size:11px;color:#166534;font-weight:700;"></div>'
+    +'</div>'
     +'<br><div class="no-print" style="margin-top:16px;">'
     +'<button onclick="window.print()" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>'
     +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
-    +'</div></body></html>');
+    +'</div>'
+    +'<script>'
+    +'var _lraDocIds='+JSON.stringify(docIds)+';'
+    +'function _lraSalvar(){'
+      +'var sel=document.getElementById("lra-acao").value;'
+      +'var acao = sel==="__custom__" ? document.getElementById("lra-acao-custom").value.trim() : sel;'
+      +'if(!acao){ alert("Selecione ou digite uma ação."); return; }'
+      +'if(!window.opener || !window.opener._cdocSalvarAcaoLista){ alert("Não foi possível conectar à janela principal. Feche esta janela e gere a lista novamente."); return; }'
+      +'var r=window.opener._cdocSalvarAcaoLista(_lraDocIds, acao);'
+      +'if(r&&r.ok){ document.getElementById("lra-resultado").textContent="✔ Ação \\""+acao+"\\" registrada em "+r.qtd+" documento(s) em "+r.dataBR+"."; }'
+      +'else if(r&&r.erro){ alert(r.erro); }'
+    +'}'
+    +'<\/script>'
+    +'</body></html>');
   w.document.close();
 }
 function cdocAbrirStatusLote(){
@@ -21535,21 +21618,22 @@ function _cdocFiltrarGrds(v){
   var trs=document.querySelectorAll('#cdoc-grds-tbody tr[data-search]');
   trs.forEach(function(tr){tr.style.display=(!q||tr.dataset.search.indexOf(q)>-1)?'':'none';});
 }
+// Extrai a parte numérica "de verdade" do identificador da GRD, mesmo com os
+// formatos antigos inconsistentes (S176GRD-0135, GRD_S176_0110, S176-GRD-0111,
+// S176-GRD-021 etc.) — pega a ÚLTIMA sequência de dígitos do texto, que é
+// sempre o número sequencial, independente do formato usado na época.
+function _cdocGrdNumOrdenavel(numero){
+  var m=(numero||'').match(/(\d+)(?!.*\d)/);
+  return m?parseInt(m[1],10):0;
+}
 function cdocAbrirGrds(){
   var db=_cdocLoad();
   var _fObraGrd=(document.getElementById('cdd-f-obra')||{}).value||'';
   var _fObraGrdN=_fObraGrd.trim().toUpperCase();
-  var grds=(db._grds||[]).filter(function(g){
-    if(g.modulo==='bas') return false;
-    if(!_fObraGrd) return true;
-    // Compara pelo campo "obra" já gravado na GRD (fonte confiável); só recorre à
-    // dedução por prefixo se o campo estiver vazio. Faz correspondência tolerante
-    // (prefixo x nome completo) para não perder GRDs de obras cadastradas fora do
-    // cronograma, onde só o prefixo pode ter sido gravado.
-    var gObraN=(g.obra||_cdocObraDeGrd(g.numero,'')||'').trim().toUpperCase();
-    if(!gObraN) return false;
-    return gObraN===_fObraGrdN || _fObraGrdN.indexOf(gObraN)===0 || gObraN.indexOf(_fObraGrdN)===0;
-  }).slice().reverse();
+  var todasDoModulo=(db._grds||[]).filter(function(g){return g.modulo!=='bas';});
+  // Lista de obras presentes nas GRDs (para o seletor "Obra" do filtro avançado)
+  var obrasPresentes=[...new Set(todasDoModulo.map(function(g){return _cdocObraDeGrd(g.numero,g.obra);}).filter(Boolean))].sort();
+
   var box=document.createElement('div');
   box.id='cdoc-grds-overlay';
   box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
@@ -21567,33 +21651,91 @@ function cdocAbrirGrds(){
       return '<span style="background:#fef9c3;color:#92400e;border-radius:4px;padding:2px 6px;font-size:9px;font-weight:700;" title="Vincula à Lista Resumo de Materiais no Cronograma">📅 Lista MP</span>';
     return '';
   };
-  var rows=grds.length?grds.map(function(g){
-    var dBR=g.data?g.data.split('-').reverse().join('/'):'—';
-    var _srchG=(_esc(g.numero)+' '+_esc(g.responsavel||'')+' '+_esc(g.tipo||'')+' '+_esc(_cdocObraDeGrd(g.numero,g.obra))).toLowerCase();
-    var acoes='<button onclick="cdocVerGrd('+g.id+')" title="Ver/Imprimir" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;margin-right:3px;">👁 Ver</button>';
-    if(g.status!=='enviado'){
-      acoes+='<button onclick="cdocEditarGrd('+g.id+')" title="Editar/adicionar documentos" style="background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;margin-right:3px;">✎ Editar</button>';
-      acoes+='<button onclick="cdocEnviarGrd('+g.id+')" title="Marcar como enviada e atualizar documentos" style="background:#0369a1;color:#fff;border:none;border-radius:3px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;margin-right:3px;">📤 Enviar</button>';
-    }
-    acoes+='<button onclick="cdocDelGrd('+g.id+')" title="Excluir" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;">🗑</button>';
-    return '<tr data-search="'+_srchG+'" style="border-bottom:1px solid #e2e8f0;">'
-      +'<td style="padding:8px 10px;font-weight:700;color:#1e40af;font-family:Courier New,monospace;font-size:12px;">'+_esc(g.numero)+'</td>'
-      +'<td style="padding:8px 10px;font-size:11px;">'+dBR+'</td>'
-      +'<td style="padding:8px 10px;font-size:11px;font-weight:600;">'+_esc(_cdocObraDeGrd(g.numero,g.obra))+'</td>'
-      +'<td style="padding:8px 10px;font-size:11px;">'+_esc(g.tipo||'')+'&nbsp;'+cronEtapaBadge(g)+'</td>'
-      +'<td style="padding:8px 10px;font-size:11px;color:#0369a1;font-weight:600;">'+_esc(g.responsavel||'—')+'</td>'
-      +'<td style="padding:8px 10px;text-align:center;">'+statusBadge(g)+'</td>'
-      +'<td style="padding:8px 10px;text-align:right;font-weight:700;">'+((g.docs?g.docs.length:0))+'</td>'
-      +'<td style="padding:8px 10px;">'+acoes+'</td>'
-      +'</tr>';
-  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;font-style:italic;">Nenhuma GRD emitida.</td></tr>';
-  box.innerHTML='<div style="background:#fff;border-radius:12px;width:1100px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.25);">'
+
+  function render(){
+    var fObraSel=(document.getElementById('grd-f-obra')||{}).value||_fObraGrdN;
+    var fNum=((document.getElementById('grd-f-num')||{}).value||'').trim().toUpperCase();
+    var fDe=(document.getElementById('grd-f-de')||{}).value||'';
+    var fAte=(document.getElementById('grd-f-ate')||{}).value||'';
+    var fBusca=((document.getElementById('grd-busca')||{}).value||'').toLowerCase();
+    var ordem=(document.getElementById('grd-f-ordem')||{}).value||'num-desc';
+
+    var grds=todasDoModulo.filter(function(g){
+      var gObraN=(g.obra||_cdocObraDeGrd(g.numero,'')||'').trim().toUpperCase();
+      if(fObraSel){
+        if(!gObraN) return false;
+        if(!(gObraN===fObraSel || fObraSel.indexOf(gObraN)===0 || gObraN.indexOf(fObraSel)===0)) return false;
+      }
+      if(fNum&&(g.numero||'').toUpperCase().indexOf(fNum)===-1) return false;
+      if(fDe&&g.data&&g.data<fDe) return false;
+      if(fAte&&g.data&&g.data>fAte) return false;
+      if(fBusca){
+        var srch=((g.numero||'')+' '+(g.responsavel||'')+' '+(g.tipo||'')+' '+_cdocObraDeGrd(g.numero,g.obra)).toLowerCase();
+        if(srch.indexOf(fBusca)===-1) return false;
+      }
+      return true;
+    });
+
+    // Mantém a ordem de numeração de verdade (extraída do texto), não a ordem
+    // bruta de inserção — assim GRDs com formatos antigos diferentes ainda
+    // aparecem na sequência correta.
+    grds.sort(function(a,b){
+      var na=_cdocGrdNumOrdenavel(a.numero), nb=_cdocGrdNumOrdenavel(b.numero);
+      if(ordem==='num-asc') return na-nb;
+      if(ordem==='num-desc') return nb-na;
+      if(ordem==='data-asc') return (a.data||'').localeCompare(b.data||'');
+      if(ordem==='data-desc') return (b.data||'').localeCompare(a.data||'');
+      return nb-na;
+    });
+
+    var rows=grds.length?grds.map(function(g){
+      var dBR=g.data?g.data.split('-').reverse().join('/'):'—';
+      var acoes='<button onclick="cdocVerGrd('+g.id+')" title="Ver/Imprimir" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;margin-right:3px;">👁 Ver</button>';
+      if(g.status!=='enviado'){
+        acoes+='<button onclick="cdocEditarGrd('+g.id+')" title="Editar/adicionar documentos" style="background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;margin-right:3px;">✎ Editar</button>';
+        acoes+='<button onclick="cdocEnviarGrd('+g.id+')" title="Marcar como enviada e atualizar documentos" style="background:#0369a1;color:#fff;border:none;border-radius:3px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;margin-right:3px;">📤 Enviar</button>';
+      }
+      acoes+='<button onclick="cdocDelGrd('+g.id+')" title="Excluir" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;">🗑</button>';
+      return '<tr style="border-bottom:1px solid #e2e8f0;">'
+        +'<td style="padding:8px 10px;font-weight:700;color:#1e40af;font-family:Courier New,monospace;font-size:12px;">'+_esc(g.numero)+'</td>'
+        +'<td style="padding:8px 10px;font-size:11px;">'+dBR+'</td>'
+        +'<td style="padding:8px 10px;font-size:11px;font-weight:600;">'+_esc(_cdocObraDeGrd(g.numero,g.obra))+'</td>'
+        +'<td style="padding:8px 10px;font-size:11px;">'+_esc(g.tipo||'')+'&nbsp;'+cronEtapaBadge(g)+'</td>'
+        +'<td style="padding:8px 10px;font-size:11px;color:#0369a1;font-weight:600;">'+_esc(g.responsavel||'—')+'</td>'
+        +'<td style="padding:8px 10px;text-align:center;">'+statusBadge(g)+'</td>'
+        +'<td style="padding:8px 10px;text-align:right;font-weight:700;">'+((g.docs?g.docs.length:0))+'</td>'
+        +'<td style="padding:8px 10px;">'+acoes+'</td>'
+        +'</tr>';
+    }).join(''):'<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;font-style:italic;">Nenhuma GRD encontrada com esses filtros.</td></tr>';
+    var tbody=document.getElementById('cdoc-grds-tbody');
+    if(tbody) tbody.innerHTML=rows;
+    var cnt=document.getElementById('cdoc-grds-count'); if(cnt) cnt.textContent=grds.length;
+  }
+  window._cdocGrdsRender=render;
+
+  box.innerHTML='<div style="background:#fff;border-radius:12px;width:1150px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.25);">'
     +'<div style="background:linear-gradient(135deg,#1e3a5f,#0369a1);color:#fff;padding:18px 24px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">'
-    +'<span style="font-size:17px;font-weight:700;">📄 GRDs Emitidas'+(_fObraGrd?' — '+_fObraGrd:'')+'</span>'
+    +'<span style="font-size:17px;font-weight:700;">📄 GRDs Emitidas'+(_fObraGrd?' — '+_fObraGrd:'')+' <span id="cdoc-grds-count" style="font-size:12px;font-weight:400;opacity:.8;"></span></span>'
     +'<button onclick="document.body.removeChild(document.getElementById(\'cdoc-grds-overlay\'))" style="background:rgba(255,255,255,.2);border:none;color:#fff;font-size:20px;cursor:pointer;border-radius:50%;width:32px;height:32px;line-height:32px;text-align:center;">✕</button>'
     +'</div>'
+    +'<div style="padding:12px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    +'<select id="grd-f-obra" onchange="window._cdocGrdsRender()" style="font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;min-width:180px;">'
+      +'<option value="">Todas as obras</option>'
+      +obrasPresentes.map(function(o){return '<option value="'+_esc(o.toUpperCase())+'"'+(o.toUpperCase()===_fObraGrdN?' selected':'')+'>'+_esc(o)+'</option>';}).join('')
+    +'</select>'
+    +'<input id="grd-f-num" placeholder="Nº da GRD..." oninput="window._cdocGrdsRender()" style="font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:130px;">'
+    +'<label style="font-size:10px;color:#64748b;">De:</label><input id="grd-f-de" type="date" onchange="window._cdocGrdsRender()" style="font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;">'
+    +'<label style="font-size:10px;color:#64748b;">Até:</label><input id="grd-f-ate" type="date" onchange="window._cdocGrdsRender()" style="font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;">'
+    +'<select id="grd-f-ordem" onchange="window._cdocGrdsRender()" style="font-size:11px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;">'
+      +'<option value="num-desc">Nº — mais recente primeiro</option>'
+      +'<option value="num-asc">Nº — mais antiga primeiro</option>'
+      +'<option value="data-desc">Data — mais recente primeiro</option>'
+      +'<option value="data-asc">Data — mais antiga primeiro</option>'
+    +'</select>'
+    +'<button onclick="document.getElementById(\'grd-f-obra\').value=\'\';document.getElementById(\'grd-f-num\').value=\'\';document.getElementById(\'grd-f-de\').value=\'\';document.getElementById(\'grd-f-ate\').value=\'\';document.getElementById(\'grd-busca\').value=\'\';document.getElementById(\'grd-f-ordem\').value=\'num-desc\';window._cdocGrdsRender();" style="font-size:10px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;cursor:pointer;">✕ Limpar filtros</button>'
+    +'</div>'
     +'<div style="padding:12px 20px 0 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">'
-    +'<input id="grd-busca" type="search" placeholder="🔍 Buscar por Nº GRD, Responsável, Tipo ou Obra..." oninput="_cdocFiltrarGrds(this.value)" style="width:100%;box-sizing:border-box;padding:8px 12px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;outline:none;background:#fff;" autocomplete="off">'
+    +'<input id="grd-busca" type="search" placeholder="🔍 Buscar por Nº GRD, Responsável, Tipo ou Obra..." oninput="window._cdocGrdsRender()" style="width:100%;box-sizing:border-box;padding:8px 12px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;outline:none;background:#fff;margin-bottom:10px;" autocomplete="off">'
     +'</div>'
     +'<div style="overflow:auto;padding:20px;">'
     +'<table style="width:100%;border-collapse:collapse;">'
@@ -21607,9 +21749,10 @@ function cdocAbrirGrds(){
     +'<th style="padding:10px 10px;text-align:right;font-size:12px;">Docs</th>'
     +'<th style="padding:10px 10px;font-size:12px;">Ações</th>'
     +'</tr></thead>'
-    +'<tbody id="cdoc-grds-tbody">'+rows+'</tbody></table>'
+    +'<tbody id="cdoc-grds-tbody"></tbody></table>'
     +'</div></div>';
   document.body.appendChild(box);
+  render();
 }
 function cdocEnviarGrd(grdId){
   if(!_siderRequireEdit()) return;
@@ -28703,6 +28846,7 @@ function adicionarGarantia(){
 }
 
 function removerGarantia(idx){
+  if(!confirm('Remover esta garantia?')) return;
   const atual = coletarGarantias();
   atual.splice(idx,1);
   renderGarantiasList(atual);
