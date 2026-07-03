@@ -19969,8 +19969,11 @@ function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
   var db=_cdocDb();
   // Coleta todos os tipos de documento únicos presentes na seleção
   var tiposDoc=[...new Set(sels.map(function(d){return d.tipo||'—';}))].sort();
-  // Estado: docs com finalidade individual (inicia com o primeiro tipo)
-  var docState=sels.map(function(d){return {doc:d, finalidade:tiposEm[0], incluir:true};});
+  // Todas as finalidades de remessa possíveis — sempre disponíveis linha a linha,
+  // independente do que foi marcado na Etapa 1 (que agora serve só de sugestão inicial).
+  var finalidadesAll=['Para Aprovação','Para Certificação','Para Informação'];
+  // Estado: docs com finalidade individual (inicia com o primeiro tipo marcado na Etapa 1)
+  var docState=sels.map(function(d){return {doc:d, finalidade:tiposEm[0]||finalidadesAll[0], incluir:true};});
 
   var overlay2=document.createElement('div');
   overlay2.id='grd-step2-ov';
@@ -20008,7 +20011,7 @@ function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
         +'<td style="padding:4px 6px;font-size:10px;text-align:center;">'+_esc(d.rev||'')+'</td>'
         +'<td style="padding:4px;">'
           +'<select data-grd2-idx="'+docState.indexOf(ds)+'" onchange="_grd2SetFinalidade(this)" style="font-size:10px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;background:#'+tcParts[0]+';color:'+(tcParts[1]||'#475569')+';font-weight:700;">'
-          +tiposEm.map(function(t){return '<option value="'+t+'"'+(t===ds.finalidade?' selected':'')+'>'+t+'</option>';}).join('')
+          +finalidadesAll.map(function(t){return '<option value="'+t+'"'+(t===ds.finalidade?' selected':'')+'>'+t+'</option>';}).join('')
           +'</select>'
         +'</td>'
       +'</tr>';
@@ -20031,7 +20034,15 @@ function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
         +'<input id="grd2-f-busca" placeholder="Buscar por Nº, Título, Descrição..." value="'+(overlay2._fBusca||'')+'" oninput="_grd2Filter()" style="font-size:11px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:4px;width:220px;">'
         +'<button onclick="_grd2ToggleAll(true)" style="font-size:10px;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;padding:3px 10px;cursor:pointer;">☑ Todos</button>'
         +'<button onclick="_grd2ToggleAll(false)" style="font-size:10px;background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:3px 10px;cursor:pointer;">☐ Nenhum</button>'
-        +(tiposEm.length>1?'<button onclick="_grd2SetAllFinalidade()" style="font-size:10px;background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:4px;padding:3px 10px;cursor:pointer;">↕ Aplicar finalidade a todos</button>':'')
+      +'</div>'
+      // Barra de aplicar finalidade em lote — sempre disponível, agindo sobre o que
+      // está visível no filtro (tipo + busca) acima, exatamente como filtrado na tela.
+      +'<div style="padding:8px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+        +'<span style="font-size:10px;font-weight:700;color:#0369a1;white-space:nowrap;">↕ Aplicar finalidade aos '+filtrados.length+' documento(s) filtrado(s):</span>'
+        +'<select id="grd2-bulk-finalidade" style="font-size:11px;padding:4px 8px;border:1px solid #93c5fd;border-radius:4px;font-weight:700;color:#1d4ed8;">'
+          +finalidadesAll.map(function(t){return '<option value="'+t+'">'+t+'</option>';}).join('')
+        +'</select>'
+        +'<button onclick="_grd2AplicarFiltrados()" style="font-size:10px;background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-weight:700;cursor:pointer;">Aplicar</button>'
       +'</div>'
       // Tabela
       +'<div style="overflow-x:auto;max-height:55vh;">'
@@ -20074,7 +20085,6 @@ function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
     var incl=window._grd2State.filter(function(ds){return ds.incluir;}).length;
     var btn=document.querySelector('#grd-step2-ov button[onclick="_grd2Confirmar()"]');
     if(btn) btn.textContent='✅ Gerar GRD ('+incl+' docs)';
-    var cnt=document.querySelector('#grd-step2-ov span[style*="margin-right:auto"]');
     // update header counter
     var headerSpan=document.querySelector('#grd-step2-ov span[style*="11px;font-weight:700;color:#64748b"]');
     if(headerSpan) headerSpan.textContent=incl+'/'+window._grd2State.length+' docs incluídos';
@@ -20094,14 +20104,27 @@ function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
     overlay2._fBusca=(document.getElementById('grd2-f-busca')||{}).value||'';
     render();
   };
-  window._grd2SetAllFinalidade=function(){
-    var tiposEm2=window._grd2Params.tiposEm;
-    if(tiposEm2.length<2) return;
-    var escolha=prompt('Aplicar qual finalidade a todos os documentos visíveis?\n'+tiposEm2.map(function(t,i){return (i+1)+'. '+t;}).join('\n')+'\n\nDigite o número:');
-    var idx=parseInt(escolha)-1;
-    if(isNaN(idx)||idx<0||idx>=tiposEm2.length) return;
-    window._grd2State.forEach(function(ds){ds.finalidade=tiposEm2[idx];});
+  // Aplica a finalidade escolhida no seletor de lote a TODOS os documentos que
+  // estão visíveis no filtro atual (tipo + busca) — não precisa de vários tipos
+  // marcados na Etapa 1, funciona sempre.
+  window._grd2AplicarFiltrados=function(){
+    var novaFinalidade=(document.getElementById('grd2-bulk-finalidade')||{}).value;
+    if(!novaFinalidade) return;
+    var fTipo=(document.getElementById('grd2-f-tipo')||{}).value||'';
+    var fBusca=(document.getElementById('grd2-f-busca')||{}).value.toLowerCase()||'';
+    var qtd=0;
+    window._grd2State.forEach(function(ds){
+      if(fTipo&&ds.doc.tipo!==fTipo) return;
+      if(fBusca){
+        var txt=((ds.doc.num||'')+(ds.doc.cli||'')+(ds.doc.titulo||'')+(ds.doc.desc||'')+(ds.doc.sub||'')).toLowerCase();
+        if(!txt.includes(fBusca)) return;
+      }
+      ds.finalidade=novaFinalidade;
+      qtd++;
+    });
+    overlay2._fTipo=fTipo; overlay2._fBusca=(document.getElementById('grd2-f-busca')||{}).value||'';
     render();
+    if(typeof showToast==='function') showToast('Finalidade aplicada', novaFinalidade+' aplicada a '+qtd+' documento(s).', 'success');
   };
   window._grd2Filter=function(){
     overlay2._fTipo=(document.getElementById('grd2-f-tipo')||{}).value||'';
@@ -20113,7 +20136,11 @@ function _cdocGrdStep2(sels, tiposEm, obsGrd, numCustom, prevRetGrd){
     var inclSels=window._grd2State.filter(function(ds){return ds.incluir;}).map(function(ds){return {doc:ds.doc,finalidade:ds.finalidade};});
     if(!inclSels.length){alert('Nenhum documento selecionado para incluir na GRD.');return;}
     document.getElementById('grd-step2-ov').remove();
-    _cdocGerarGrdJanela(inclSels, p.tiposEm, p.obsGrd, p.numCustom, p.prevRetGrd);
+    // Usa as finalidades realmente aplicadas aos documentos incluídos (podem ter sido
+    // alteradas em lote), em vez de travar no que foi marcado na Etapa 1 — assim o
+    // cabeçalho e o agrupamento da GRD impressa refletem a realidade.
+    var finalidadesUsadas=[...new Set(inclSels.map(function(ds){return ds.finalidade;}))];
+    _cdocGerarGrdJanela(inclSels, finalidadesUsadas.length?finalidadesUsadas:p.tiposEm, p.obsGrd, p.numCustom, p.prevRetGrd);
   };
 
   document.body.appendChild(overlay2);
