@@ -9524,6 +9524,20 @@ function salvarNovaObraGlobal(){
   // Also refresh the cronograma filter
   cronPopularFiltros();
   fecharNovaObraGlobal();
+
+  // Sincroniza com o Controle de Documentos, para que a obra apareça
+  // também lá (Visão Geral, Proj. Básico, Proj. Detalhado, Diário) sem
+  // precisar cadastrá-la de novo em outro lugar.
+  try{
+    var _dbCdoc=_cdocDb();
+    _dbCdoc._obras=_dbCdoc._obras||[];
+    _dbCdoc._obrasOcultas=(_dbCdoc._obrasOcultas||[]).filter(function(o){return o!==obraCompleta;});
+    if(_dbCdoc._obras.indexOf(obraCompleta)===-1){
+      _dbCdoc._obras.push(obraCompleta);
+      _cdocSave(_dbCdoc);
+    }
+  }catch(eCdocSync){ console.warn('[NovaObraGlobal→CDOC]', eCdocSync.message); }
+
   showToast('✓ Obra cadastrada', obraCompleta + ' adicionada ao sistema.', 'success');
 }
 
@@ -12673,6 +12687,23 @@ window.addEventListener('DOMContentLoaded', function(){
     <div class="modal-btns">
       <button class="btn btn-secondary" onclick="fecharNovaObraGlobal()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovaObraGlobal()">✓ Cadastrar Obra</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL NOVA OBRA (CONTROLE DE DOCUMENTOS) ═══ -->
+<div class="modal-overlay" id="modal-cdoc-nova-obra" onclick="cdocFecharNovaObra(event)" style="z-index:1300;">
+  <div class="modal-box" style="width:460px;">
+    <div class="modal-title" style="font-family:'Georgia',serif,serif;">🏗 Nova Obra</div>
+    <div class="modal-sub">Cadastre uma nova obra no Controle de Documentos.</div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:.65rem;margin-bottom:.85rem;">
+      <div class="field-group"><label class="field-label">Código *</label><input type="text" class="field-input" id="cdno-codigo" placeholder="Ex: S185" style="text-transform:uppercase;font-family:'Courier New',monospace,monospace;" onkeydown="if(event.key==='Enter')cdocSalvarNovaObraDb();"></div>
+      <div class="field-group"><label class="field-label">Nome da Obra</label><input type="text" class="field-input" id="cdno-nome" placeholder="Ex: USINA BETA FASE 1" style="text-transform:uppercase;" onkeydown="if(event.key==='Enter')cdocSalvarNovaObraDb();"></div>
+    </div>
+    <div id="cdno-preview" style="display:none;background:var(--ink);color:#fff;border-radius:var(--r2);padding:.5rem .85rem;font-family:'Courier New',monospace,monospace;font-size:15px;font-weight:700;margin-bottom:.85rem;letter-spacing:.03em;"></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="cdocFecharNovaObra()">Cancelar</button>
+      <button class="btn btn-primary" onclick="cdocSalvarNovaObraDb()">✓ Cadastrar Obra</button>
     </div>
   </div>
 </div>
@@ -17526,6 +17557,7 @@ function _cdocPainelToggleDet(){
         <button onclick="_cdocDiag()" title="Diagnóstico: ver o que está carregado em memória" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔍 Diag</button>
         <button onclick="_cdocCorrigirAcentos()" title="Corrige acentos quebrados (♦, Ã§, etc.) em todos os documentos" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Acentos</button>
         <button onclick="_cdocDedupEnvios()" title="Remove entradas duplicadas no histórico de envio (mesma revisão + GRD)" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Limpar Duplicatas</button>
+        <button onclick="_cdocRepararGrds()" title="Reconstrói a lista de GRDs Emitidas a partir do histórico de envio dos documentos (corrige GRDs que não aparecem na lista)" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Reparar GRDs</button>
       </div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
@@ -17802,6 +17834,13 @@ function _cdocMergeSnapshots(remote,local){
   r._deletedDetIds = Array.from(deletedDet);
   r._deletedGrdIds = Array.from(deletedGrd);
 
+  // Merge lista de obras cadastradas manualmente (Controle de Documentos)
+  // Sem isso, uma obra recém-cadastrada localmente era perdida ao mesclar com o remoto.
+  var obrasOcultasSet = new Set([].concat(remote._obrasOcultas||[], local._obrasOcultas||[]));
+  var obrasSet = new Set([].concat(remote._obras||[], local._obras||[]).filter(function(o){return !obrasOcultasSet.has(o);}));
+  r._obras = Array.from(obrasSet);
+  r._obrasOcultas = Array.from(obrasOcultasSet);
+
   // Merge contadores
   r._ids=r._ids||{};
   r._ids.bas=Math.max((remote._ids||{}).bas||1,(local._ids||{}).bas||1);
@@ -17818,6 +17857,8 @@ var _cdocSaveTimer=null;
 var _cdocSaveQueue=Promise.resolve(); // serializa saves do mesmo usuário
 var _cdocSaveTimer=null;
 var _cdocSaveVersion=0; // versão do último save bem-sucedido (lock otimista)
+var _cdocSavePending=0; // nº de saves em andamento (fetch+merge+push) — usado para o
+                         // auto-refresh não sobrescrever um save nosso ainda em curso
 
 function _cdocSave(db){
   _cdocSBCache=db;
@@ -17839,10 +17880,14 @@ function _cdocSave(db){
   var _dbSnapshot=JSON.parse(JSON.stringify(db)); // necessário para imutabilidade
 
   // Serializa saves do mesmo usuário — cada save espera o anterior completar
+  _cdocSavePending++;
   _cdocSaveQueue = _cdocSaveQueue.then(function(){
     return _cdocSaveWithRetry(_dbSnapshot, 0);
+  }).finally(function(){
+    _cdocSavePending=Math.max(0,_cdocSavePending-1);
   });
 }
+
 
 async function _cdocSaveWithRetry(snapshot, tentativa){
   var MAX_TENTATIVAS=5;
@@ -17932,6 +17977,109 @@ function _cdocSubs(obra, equipe){
   }).map(function(s){return s.subobra||'';}).filter(Boolean))].sort();
 }
 
+// ── NOVA OBRA (Controle de Documentos) ──────────────────────────────
+function cdocNovaObra(){
+  if(!_siderRequireEdit()) return;
+  var elCod=document.getElementById('cdno-codigo'), elNom=document.getElementById('cdno-nome'), prev=document.getElementById('cdno-preview');
+  elCod.value=''; elNom.value=''; prev.style.display='none';
+  document.getElementById('modal-cdoc-nova-obra').classList.add('show');
+  setTimeout(function(){elCod.focus();},100);
+  var updatePreview=function(){
+    var cod=elCod.value.trim().toUpperCase(), nom=elNom.value.trim().toUpperCase();
+    if(cod||nom){ prev.style.display='block'; prev.textContent=(cod&&nom)?cod+' '+nom:(cod||nom); }
+    else prev.style.display='none';
+  };
+  elCod.oninput=updatePreview; elNom.oninput=updatePreview;
+}
+function cdocFecharNovaObra(e){
+  if(!e||e.target.id==='modal-cdoc-nova-obra') document.getElementById('modal-cdoc-nova-obra').classList.remove('show');
+}
+function cdocSalvarNovaObraDb(){
+  var cod=document.getElementById('cdno-codigo').value.trim().toUpperCase();
+  var nome=document.getElementById('cdno-nome').value.trim().toUpperCase();
+  if(!cod){ showToast('Campo obrigatório','Informe o código da obra (ex: S185).','error'); return; }
+  var obraCompleta = nome ? cod+' '+nome : cod;
+  if(_cdocObras().indexOf(obraCompleta)!==-1){
+    showToast('Obra já existe','Esta obra já está cadastrada no Controle de Documentos.','warn');
+    return;
+  }
+  var db=_cdocDb();
+  db._obras=db._obras||[];
+  db._obras.push(obraCompleta);
+  db._obrasOcultas=(db._obrasOcultas||[]).filter(function(o){return o!==obraCompleta;});
+  _cdocSave(db);
+  document.getElementById('modal-cdoc-nova-obra').classList.remove('show');
+  _cdocVisaoObra=obraCompleta;
+  cdocRenderVisao();
+  var sel=document.getElementById('cdv-f-obra'); if(sel) sel.value=obraCompleta;
+
+  // Sincroniza com Cronograma e Lançamento de Pesos, para que a obra fique
+  // disponível em todo o sistema — não só dentro do Controle de Documentos.
+  try{
+    if(typeof atualizarTodosSelectsObra==='function'){
+      var extraObras=JSON.parse(sessionStorage.getItem('sidertec_extra_obras')||'[]');
+      if(extraObras.indexOf(obraCompleta)===-1){
+        extraObras.push(obraCompleta);
+        sessionStorage.setItem('sidertec_extra_obras', JSON.stringify(extraObras));
+      }
+      atualizarTodosSelectsObra(obraCompleta);
+      if(typeof cronPopularFiltros==='function') cronPopularFiltros();
+    }
+  }catch(eGlobalSync){ console.warn('[CDOC→NovaObraGlobal]', eGlobalSync.message); }
+
+  showToast('Obra cadastrada', obraCompleta+' foi adicionada com sucesso em todo o sistema.', 'success');
+}
+function cdocEditarObra(obraEnc,evt){
+  if(evt) evt.stopPropagation();
+  if(!_siderRequireEdit()) return;
+  var obra=decodeURIComponent(obraEnc);
+  if(obra==='(sem obra)'){ showToast('Não é possível editar','O grupo "(sem obra)" é automático e não pode ser renomeado.','warn'); return; }
+  var novoNome=prompt('Renomear obra (ou digite o nome de uma obra já existente para MESCLAR os registros nela):',obra);
+  if(novoNome===null) return;
+  novoNome=novoNome.trim().toUpperCase();
+  if(!novoNome||novoNome===obra) return;
+  var jaExiste=_cdocObras().indexOf(novoNome)!==-1;
+  if(jaExiste){
+    if(!confirm('Já existe uma obra "'+novoNome+'".\n\nDeseja MESCLAR todos os projetos básicos, documentos e GRDs de "'+obra+'" para dentro de "'+novoNome+'"? Essa ação não pode ser desfeita.')) return;
+  }
+  var db=_cdocDb();
+  db.basicos.forEach(function(b){ if(b.obraId===obra) b.obraId=novoNome; });
+  db.detalhados.forEach(function(d){ if(d.obraId===obra) d.obraId=novoNome; });
+  // Atualiza também o nome da obra já gravado nas GRDs emitidas — sem isso, GRDs
+  // antigas ficariam "presas" no nome antigo e sumiriam do filtro após a mesclagem.
+  (db._grds||[]).forEach(function(g){
+    if((g.obra||'').trim().toUpperCase()===obra.trim().toUpperCase()) g.obra=novoNome;
+  });
+  db._obras=(db._obras||[]).filter(function(o){return o!==obra;});
+  if(db._obras.indexOf(novoNome)===-1) db._obras.push(novoNome);
+  db._obrasOcultas=(db._obrasOcultas||[]).filter(function(o){return o!==novoNome;});
+  _cdocSave(db);
+  if(_cdocVisaoObra===obra) _cdocVisaoObra=novoNome;
+  cdocRenderVisao();
+  showToast(jaExiste?'Obras mescladas':'Obra renomeada',
+    jaExiste?('Registros de "'+obra+'" foram movidos para "'+novoNome+'".'):('Obra atualizada para "'+novoNome+'".'), 'success');
+}
+function cdocExcluirObra(obraEnc,evt){
+  if(evt) evt.stopPropagation();
+  if(!_siderRequireEdit()) return;
+  var obra=decodeURIComponent(obraEnc);
+  if(obra==='(sem obra)'){ showToast('Não é possível excluir','O grupo "(sem obra)" é automático e não pode ser removido.','warn'); return; }
+  var db=_cdocDb();
+  var temBas=db.basicos.some(function(b){return b.obraId===obra;});
+  var temDet=db.detalhados.some(function(d){return d.obraId===obra;});
+  if(temBas||temDet){
+    showToast('Não é possível excluir','Esta obra possui projetos básicos ou documentos vinculados. Remova-os antes de excluir a obra.','error');
+    return;
+  }
+  if(!confirm('Remover "'+obra+'" da lista de obras do Controle de Documentos?')) return;
+  db._obrasOcultas=(db._obrasOcultas||[]).concat([obra]);
+  db._obras=(db._obras||[]).filter(function(o){return o!==obra;});
+  _cdocSave(db);
+  if(_cdocVisaoObra===obra){ _cdocVisaoObra=''; var sel=document.getElementById('cdv-f-obra'); if(sel) sel.value=''; }
+  cdocRenderVisao();
+  showToast('Obra removida', obra+' foi removida da lista.', 'success');
+}
+
 var _cdocAutoRefreshTimer=null;
 async function abrirCtrlDoc(){
   var modal=document.getElementById('modal-ctrl-doc');
@@ -17950,6 +18098,7 @@ async function abrirCtrlDoc(){
     }
     var editOv=document.getElementById('cdoc-edit-overlay');
     if(editOv&&editOv.classList.contains('show')) return; // não interrompe edição em curso
+    if(_cdocSavePending>0) return; // não interrompe um save nosso ainda em andamento
     try{
       var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
       if(!r.ok) return;
@@ -17958,13 +18107,11 @@ async function abrirCtrlDoc(){
         var remoteData=rows[0].data;
         var remoteVer=rows[0].version||0;
         if(remoteVer>0 && remoteVer<=_cdocSaveVersion) return;
-        var curBas=(_cdocSBCache&&_cdocSBCache.basicos||[]).length;
-        var curDet=(_cdocSBCache&&_cdocSBCache.detalhados||[]).length;
-        var newBas=(remoteData.basicos||[]).length;
-        var newDet=(remoteData.detalhados||[]).length;
-        if(newBas<curBas||newDet<curDet){
-          remoteData=_cdocMergeSnapshots(remoteData,_cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
-        }
+        if(_cdocSavePending>0) return; // re-checa: pode ter iniciado durante o fetch acima
+        // SEMPRE mescla com o que temos localmente — nunca sobrescreve de forma bruta.
+        // Um simples "veio menos básico/detalhado" não cobre GRDs, obras ou edições de
+        // campo, então confiar nessa heurística apagava dados recém-criados localmente.
+        remoteData=_cdocMergeSnapshots(remoteData,_cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
         _cdocSBCache=remoteData;
         _cdocSaveVersion=remoteVer;
         try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
@@ -18102,6 +18249,10 @@ function _cdocDiag(){
   if(cache&&typeof cache==='object'){
     msg+='  basicos: '+((cache.basicos||[]).length)+' registros\n';
     msg+='  detalhados: '+((cache.detalhados||[]).length)+' registros\n';
+    msg+='  _grds: '+((cache._grds||[]).length)+' registros\n';
+    if((cache._grds||[]).length>0){
+      msg+='  últimas GRDs: '+cache._grds.slice(-5).map(function(g){return g.numero+' (obra='+(g.obra||'?')+', modulo='+(g.modulo||'?')+')';}).join(' | ')+'\n';
+    }
     if((cache.basicos||[]).length>0){
       var b0=cache.basicos[0];
       msg+='  1º básico: id='+b0.id+', obraId='+JSON.stringify(b0.obraId)+', titulo='+JSON.stringify(b0.titulo)+', status='+JSON.stringify(b0.status)+'\n';
@@ -19646,6 +19797,8 @@ function cdocAddEnvioHist(){
       if(base){
         base.envioHist[_cdocEnvioEditIdx]=entry;
         _cdocSave(db);
+        // Garante que a GRD digitada apareça em "GRDs Emitidas"
+        if(entry.grd){ try{ _cdocSyncGrdFromEnvio(base, entry); }catch(eGrdSync){ console.warn('[cdocAddEnvioHist→GRD]', eGrdSync.message); } }
         // Sincroniza cronograma se houver GRD/data
         if(entry.grd||entry.data){
           try{ _cdocGrdDetAtualizarCronograma([base], entry.data||_cdocHojeISO(), entry.grd||'', [entry.finalidade||'Para Aprovação']); }
@@ -20036,6 +20189,78 @@ function _cdocObraDeGrd(numero, fallback){
 function _cdocHojeISO(){
   var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+// Garante que uma GRD digitada manualmente no histórico de envio de um documento
+// (campo "Nº GRD" do registro de envio) também exista em db._grds — sem isso, ela
+// aparecia na coluna "Envio Cli." do documento mas não em "GRDs Emitidas".
+function _cdocSyncGrdFromEnvio(doc, envio){
+  if(!doc || !envio || !envio.grd) return;
+  var numero=(envio.grd+'').trim();
+  if(!numero) return;
+  var db=_cdocDb();
+  db._grds=db._grds||[];
+  var docEntry={docId:doc.id,num:doc.num||'',sub:doc.sub||'',cli:doc.cli||'',titulo:doc.titulo||'',desc:doc.desc||'',rev:envio.rev||doc.rev||'',peca:doc.peca||'',tipo:doc.tipo||'',finalidade:envio.finalidade||''};
+  var existente=db._grds.find(function(g){return (g.numero||'').toUpperCase()===numero.toUpperCase();});
+  if(existente){
+    existente.docs=existente.docs||[];
+    var idxDoc=existente.docs.findIndex(function(dd){return dd.docId===doc.id;});
+    if(idxDoc>=0) existente.docs[idxDoc]=docEntry; else existente.docs.push(docEntry);
+    if(envio.data && !existente.data) existente.data=envio.data;
+    if(envio.data) existente.status='enviado';
+  } else {
+    db._ids=db._ids||{bas:1,det:1,grd:0};
+    db._ids.grd=(db._ids.grd||0)+1;
+    db._grds.push({
+      id:db._ids.grd, numero:numero, data:envio.data||_cdocHojeISO(),
+      tipo:envio.finalidade||'', obs:envio.obs||'', obra:doc.obraId||'',
+      modulo:'det', prevRetorno:envio.prevRetorno||'', docs:[docEntry],
+      status:envio.data?'enviado':'rascunho'
+    });
+  }
+  _cdocSave(db);
+}
+// Reconstrói db._grds a partir do histórico de envio de TODOS os documentos —
+// corrige GRDs que ficaram registradas apenas no histórico do documento (texto
+// livre) e nunca geraram (ou perderam) o registro formal usado por "GRDs Emitidas".
+function _cdocRepararGrds(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  db._grds=db._grds||[];
+  db._ids=db._ids||{bas:1,det:1,grd:0};
+  var criados=0, atualizados=0;
+  (db.detalhados||[]).forEach(function(doc){
+    (doc.envioHist||[]).forEach(function(h){
+      if(!h.grd) return;
+      var numero=(h.grd+'').trim();
+      if(!numero) return;
+      var docEntry={docId:doc.id,num:doc.num||'',sub:doc.sub||'',cli:doc.cli||'',titulo:doc.titulo||'',desc:doc.desc||'',rev:h.rev||doc.rev||'',peca:doc.peca||'',tipo:doc.tipo||'',finalidade:h.finalidade||''};
+      var existente=db._grds.find(function(g){return (g.numero||'').toUpperCase()===numero.toUpperCase();});
+      if(existente){
+        existente.docs=existente.docs||[];
+        var idxDoc=existente.docs.findIndex(function(dd){return dd.docId===doc.id;});
+        if(idxDoc>=0){ existente.docs[idxDoc]=docEntry; } else { existente.docs.push(docEntry); atualizados++; }
+        if(h.data && !existente.data) existente.data=h.data;
+        if(h.data) existente.status='enviado';
+        if(!existente.obra || existente.obra.length<=3 || existente.obra!==doc.obraId) existente.obra=doc.obraId||existente.obra;
+      } else {
+        db._ids.grd=(db._ids.grd||0)+1;
+        db._grds.push({
+          id:db._ids.grd, numero:numero, data:h.data||_cdocHojeISO(),
+          tipo:h.finalidade||'', obs:h.obs||'', obra:doc.obraId||'',
+          modulo:'det', prevRetorno:h.prevRetorno||'', docs:[docEntry],
+          status:h.data?'enviado':'rascunho'
+        });
+        criados++;
+      }
+    });
+  });
+  _cdocSave(db);
+  cdocRenderVisao();
+  if(criados||atualizados){
+    showToast('Reparo concluído', criados+' GRD(s) recriada(s) e '+atualizados+' documento(s) vinculado(s), a partir do histórico dos documentos.', 'success');
+  } else {
+    showToast('Nada a reparar', 'Todas as GRDs do histórico já estão registradas em "GRDs Emitidas".', 'info');
+  }
+}
 function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
   // inclSels = [{doc, finalidade}]  (novo formato do step2)
   // suporte ao formato antigo (array de docs simples)
@@ -20046,14 +20271,20 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
   var hoje=new Date(); var dStr=hoje.toLocaleDateString('pt-BR');
   var dataISO=_cdocHojeISO();
   var _fObraJan=(document.getElementById('cdd-f-obra')||{}).value||'';
-  var obraRef=_fObraJan||(sels[0]?sels[0].obraId:'');
+  // Prioriza o obraId do próprio documento (sempre confiável) sobre o filtro da tela
+  // (que pode estar em branco em "Todas as obras" no momento do clique) — evita
+  // gravar a GRD com obra vazia ou só o prefixo, o que a fazia sumir do filtro depois.
+  var obraRef=(sels[0]&&sels[0].obraId)||_fObraJan||'';
   var grdNum=numCustom||_cdocGenGrdNum(obraRef);
   var db=_cdocLoad();
   db._grds=db._grds||[];
   db._ids=db._ids||{bas:1,det:1,grd:0};
   db._ids.grd=(db._ids.grd||0)+1;
   var grdId=db._ids.grd;
-  var _obraFinal=_cdocObraDeGrd(grdNum,obraRef)||obraRef;
+  // Usa sempre o obraId do documento (fonte confiável) — NÃO tenta "adivinhar" o nome
+  // pela lista do cronograma por prefixo, pois isso pode achar um texto com grafia
+  // ligeiramente diferente (espaço, maiúscula, etc.) e quebrar a busca depois.
+  var _obraFinal=obraRef;
   var tiposStr=tiposEm.join(' + ');
   var grdRec={id:grdId,numero:grdNum,data:dataISO,tipo:tiposStr,obs:obsGrd||'',obra:_obraFinal,modulo:'det',prevRetorno:prevRetGrd||'',
     docs:inclSels.map(function(ds){var d=ds.doc; return {docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||'',finalidade:ds.finalidade};})};
@@ -21092,10 +21323,17 @@ function _cdocFiltrarGrds(v){
 function cdocAbrirGrds(){
   var db=_cdocLoad();
   var _fObraGrd=(document.getElementById('cdd-f-obra')||{}).value||'';
+  var _fObraGrdN=_fObraGrd.trim().toUpperCase();
   var grds=(db._grds||[]).filter(function(g){
     if(g.modulo==='bas') return false;
     if(!_fObraGrd) return true;
-    return _cdocObraDeGrd(g.numero,g.obra)===_fObraGrd;
+    // Compara pelo campo "obra" já gravado na GRD (fonte confiável); só recorre à
+    // dedução por prefixo se o campo estiver vazio. Faz correspondência tolerante
+    // (prefixo x nome completo) para não perder GRDs de obras cadastradas fora do
+    // cronograma, onde só o prefixo pode ter sido gravado.
+    var gObraN=(g.obra||_cdocObraDeGrd(g.numero,'')||'').trim().toUpperCase();
+    if(!gObraN) return false;
+    return gObraN===_fObraGrdN || _fObraGrdN.indexOf(gObraN)===0 || gObraN.indexOf(_fObraGrdN)===0;
   }).slice().reverse();
   var box=document.createElement('div');
   box.id='cdoc-grds-overlay';
@@ -21671,6 +21909,7 @@ function cdocSalvar(){
     // ── SYNC: novo registro de envio/GRD → atualiza Etapa 2 do Cronograma ──
     if(_novosEnvios.length){
       _novosEnvios.forEach(function(envio){
+        if(envio.grd){ try{ _cdocSyncGrdFromEnvio(rec2, envio); }catch(eGrdSync){ console.warn('[cdocSalvar→GRD]', eGrdSync.message); } }
         if(!envio.grd && !envio.data) return; // nada relevante para sincronizar
         var tiposParaSync = envio.finalidade ? [envio.finalidade] : ['Para Aprovação'];
         try{
