@@ -19216,7 +19216,13 @@ function cdocRenderDet(){
     var col=btn.getAttribute('onclick').match(/'det','([^']+)'/); if(!col) return;
     btn.classList.toggle('active',!!_cdocColFltsDet[col[1]]);
   });
-  if(!rows.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum documento. Clique em + Novo.</td></tr>';}
+  if(!rows.length){
+    tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:11px;">Nenhum documento. Clique em + Novo.</td></tr>';
+    // Corrige o filtro/CSV desatualizado: sem isso, window._cdocDetRowsAll ficava
+    // com o valor da renderização anterior (podendo conter outras obras) quando o
+    // filtro atual não encontra nenhum documento.
+    window._cdocDetRowsAll=[]; window._cdocDetRowsFmt=null;
+  }
   else{
     var fmt=function(v){var n=Number(v);return (v!==null&&v!==''&&!isNaN(n))?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';};
     var PAGE_SIZE=200; // renderiza no máximo 200 linhas por vez — evita freeze com 4800+ docs
