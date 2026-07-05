@@ -12694,6 +12694,95 @@ window.addEventListener('DOMContentLoaded', function(){
   </div>
 </div>
 
+<!-- ═══ MODAL SOLICITAÇÃO DE ART AUTOMÁTICA ═══ -->
+<div id="modal-art-solic" style="display:none;position:fixed;inset:0;background:rgba(26,23,20,.6);z-index:99998;align-items:center;justify-content:center;">
+  <div class="modal-box" style="width:920px;max-width:96vw;max-height:92vh;overflow-y:auto;transform:none;">
+    <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>📄 Solicitação de Emissão de ART</span>
+      <button onclick="artFecharSolicitacao()" style="background:none;border:none;color:var(--ink3);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div class="modal-sub">Insira o contrato ou pedido de compras (PDF ou texto) e clique em "Extrair Automaticamente" — depois revise os campos antes de gerar.</div>
+
+    <div id="art-sol-lista-wrap" style="margin-bottom:1rem;">
+      <button type="button" onclick="artToggleLista()" id="art-sol-lista-toggle" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;">📂 Solicitações Salvas (<span id="art-sol-lista-count">0</span>)</button>
+      <div id="art-sol-lista-box" style="display:none;margin-top:.5rem;border:1px solid #e2e8f0;border-radius:8px;max-height:180px;overflow-y:auto;"></div>
+    </div>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:.85rem;margin-bottom:1rem;">
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem;">
+        <label style="background:#0369a1;color:#fff;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          📎 Escolher arquivo (PDF ou .txt)
+          <input type="file" id="art-sol-file" accept=".pdf,.txt" style="display:none;" onchange="artProcessarArquivo(this)">
+        </label>
+        <span id="art-sol-file-nome" style="font-size:11px;color:var(--ink3);"></span>
+        <span id="art-sol-file-status" style="font-size:11px;color:#0369a1;font-weight:600;"></span>
+      </div>
+      <label class="field-label">Ou cole aqui o texto do contrato/pedido de compras</label>
+      <textarea id="art-sol-texto" rows="5" placeholder="Cole aqui o texto do documento (Ctrl+V)…" style="width:100%;box-sizing:border-box;font-size:11px;font-family:'Courier New',monospace;border:1px solid #cbd5e1;border-radius:6px;padding:8px;"></textarea>
+      <button type="button" onclick="artExtrairAutomatico()" style="margin-top:.5rem;background:#166534;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;">🔍 Extrair Automaticamente</button>
+      <span style="font-size:10px;color:var(--ink3);margin-left:8px;">Preenchimento automático é uma tentativa best-effort — sempre revise antes de gerar.</span>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">📑 Dados do Contrato</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem;">
+      <div class="field-group" style="margin:0;"><label class="field-label">Obra</label><input type="text" class="field-input" id="art-sol-obra-cod" placeholder="Ex: S176" style="text-transform:uppercase;"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">TAG</label><input type="text" class="field-input" id="art-sol-tag" placeholder="Ex: S176B" style="text-transform:uppercase;"></div>
+      <div class="field-group" style="margin:0;grid-column:span 2;"><label class="field-label">Contrato</label><input type="text" class="field-input" id="art-sol-contrato"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:1rem;">
+      <div class="field-group" style="margin:0;grid-column:span 2;"><label class="field-label">Projeto</label><input type="text" class="field-input" id="art-sol-proj"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">Início</label><input type="date" class="field-input" id="art-sol-inicio"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">Encerramento</label><input type="date" class="field-input" id="art-sol-encerramento"></div>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">👤 Dados do Cliente</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem;">
+      <div class="field-group" style="margin:0;"><label class="field-label">Nome do Cliente</label><input type="text" class="field-input" id="art-sol-cli-nome"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">CNPJ</label><input type="text" class="field-input" id="art-sol-cli-cnpj" placeholder="00.000.000/0000-00"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">IE</label><input type="text" class="field-input" id="art-sol-cli-ie"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:.6rem;margin-bottom:1rem;">
+      <div class="field-group" style="margin:0;"><label class="field-label">Endereço Completo</label><input type="text" class="field-input" id="art-sol-cli-end"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">CEP</label><input type="text" class="field-input" id="art-sol-cli-cep" placeholder="00000-000"></div>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">🏗 Dados da Obra</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:.6rem;margin-bottom:.6rem;">
+      <div class="field-group" style="margin:0;"><label class="field-label">Projeto</label><input type="text" class="field-input" id="art-sol-obra-proj"></div>
+      <div class="field-group" style="margin:0;"><label class="field-label">CEP</label><input type="text" class="field-input" id="art-sol-obra-cep" placeholder="00000-000"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:.6rem;margin-bottom:1rem;align-items:end;">
+      <div class="field-group" style="margin:0;"><label class="field-label">Endereço Completo</label><input type="text" class="field-input" id="art-sol-obra-end"></div>
+      <div class="field-group" style="margin:0;">
+        <label class="field-label">Frete</label>
+        <div style="display:flex;gap:1rem;font-size:12px;padding:6px 0;">
+          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="radio" name="art-sol-frete" id="art-sol-frete-fob" value="FOB">FOB</label>
+          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="radio" name="art-sol-frete" id="art-sol-frete-cif" value="CIF">CIF</label>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">📦 Escopo de Fornecimento</div>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+      <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" id="art-sol-esc-montagem" style="width:15px;height:15px;">Montagem</label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" id="art-sol-esc-estrutura" style="width:15px;height:15px;">Estrutura Metálica</label>
+    </div>
+
+    <div class="field-group" style="margin-bottom:1rem;">
+      <label class="field-label">Observações</label>
+      <textarea id="art-sol-obs" rows="3" placeholder="Observações adicionais sobre esta solicitação…" style="width:100%;box-sizing:border-box;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;padding:8px;font-family:inherit;"></textarea>
+    </div>
+
+    <div id="art-sol-editando" style="display:none;font-size:11px;color:#b45309;font-weight:700;margin-bottom:.5rem;"></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="artFecharSolicitacao()">Cancelar</button>
+      <button class="btn btn-secondary" onclick="artNovaSolicitacao()" style="border-color:#94a3b8;">＋ Nova (limpar)</button>
+      <button class="btn btn-secondary" onclick="artSalvar()" style="background:#0e7490;color:#fff;border:none;">💾 Salvar</button>
+      <button class="btn btn-primary" onclick="artGerarRelatorio()">🖨 Gerar Relatório de Solicitação</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL NOVA OBRA (CONTROLE DE DOCUMENTOS) ═══ -->
 <div class="modal-overlay" id="modal-cdoc-nova-obra" onclick="cdocFecharNovaObra(event)" style="z-index:1300;">
   <div class="modal-box" style="width:460px;">
@@ -24588,6 +24677,10 @@ document.addEventListener('DOMContentLoaded', function(){
           <input type="text" class="field-input" id="mp-pit-numero" placeholder="Ex: 2026/654321" autocomplete="off">
         </div>
       </div>
+      <div style="margin:-.4rem 0 .85rem;">
+        <button type="button" onclick="artAbrirSolicitacao()" style="background:#0369a1;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">📄 Gerar Solicitação de ART Automática</button>
+        <span style="font-size:10px;color:var(--ink3);margin-left:8px;">Insira o contrato/pedido de compra e o sistema tenta preencher os dados sozinho.</span>
+      </div>
 
       <!-- Entrega Documental por Setor -->
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:.85rem 0 .6rem;">📤 Entrega Documental aos Setores</div>
@@ -26572,6 +26665,290 @@ function toggleCheck(field, val){
   document.getElementById(info.chk).checked = val;
   const ci = document.getElementById(info.ci);
   if(ci) ci.classList.toggle('done', val);
+}
+
+// ═══ SOLICITAÇÃO DE ART AUTOMÁTICA ═══
+var _artEditId=null; // null = nova solicitação; caso contrário, id da salva em edição
+function _artLoadSalvas(){
+  try{ return JSON.parse(localStorage.getItem('sider_art_solicitacoes')||'[]'); }catch(e){ return []; }
+}
+function _artSaveSalvas(arr){
+  try{ localStorage.setItem('sider_art_solicitacoes', JSON.stringify(arr)); }catch(e){}
+}
+function artAbrirSolicitacao(){
+  var modal=document.getElementById('modal-art-solic');
+  if(!modal){ alert('Não encontrei a janela de solicitação de ART. Recarregue a página e tente novamente.'); return; }
+  modal.style.display='flex';
+  _artEditId=null;
+  var edEl=document.getElementById('art-sol-editando'); if(edEl) edEl.style.display='none';
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var set=function(id,v){var e=document.getElementById(id); if(e) e.value=v||'';};
+  set('art-sol-proj', g('mp-nome'));
+  set('art-sol-obra-cod', g('mp-codigo'));
+  set('art-sol-tag','');
+  set('art-sol-contrato', g('mp-contrato'));
+  set('art-sol-inicio', g('mp-inicio'));
+  set('art-sol-encerramento', g('mp-termino'));
+  set('art-sol-obra-proj', g('mp-nome'));
+  set('art-sol-cli-nome', g('mp-cliente'));
+  set('art-sol-obs','');
+  var cnt=document.getElementById('art-sol-lista-count'); if(cnt) cnt.textContent=_artLoadSalvas().length;
+  var box=document.getElementById('art-sol-lista-box'); if(box) box.style.display='none';
+}
+function artFecharSolicitacao(){
+  var m=document.getElementById('modal-art-solic'); if(m) m.style.display='none';
+}
+function artNovaSolicitacao(){
+  var ids=['art-sol-obra-cod','art-sol-tag','art-sol-proj','art-sol-contrato','art-sol-inicio','art-sol-encerramento','art-sol-cli-nome','art-sol-cli-cnpj','art-sol-cli-ie','art-sol-cli-end','art-sol-cli-cep','art-sol-obra-proj','art-sol-obra-cep','art-sol-obra-end','art-sol-obs','art-sol-texto','art-sol-file-nome','art-sol-file-status'];
+  ids.forEach(function(id){var e=document.getElementById(id); if(e){ if('value' in e) e.value=''; else e.textContent=''; }});
+  var fob=document.getElementById('art-sol-frete-fob'); if(fob) fob.checked=false;
+  var cif=document.getElementById('art-sol-frete-cif'); if(cif) cif.checked=false;
+  var mo=document.getElementById('art-sol-esc-montagem'); if(mo) mo.checked=false;
+  var es=document.getElementById('art-sol-esc-estrutura'); if(es) es.checked=false;
+  _artEditId=null;
+  var edEl=document.getElementById('art-sol-editando'); if(edEl) edEl.style.display='none';
+}
+function artToggleLista(){
+  var box=document.getElementById('art-sol-lista-box');
+  if(!box) return;
+  var abrir=box.style.display==='none';
+  box.style.display=abrir?'block':'none';
+  if(abrir) _artRenderLista();
+}
+function _artRenderLista(){
+  var box=document.getElementById('art-sol-lista-box'); if(!box) return;
+  var arr=_artLoadSalvas();
+  var cnt=document.getElementById('art-sol-lista-count'); if(cnt) cnt.textContent=arr.length;
+  if(!arr.length){ box.innerHTML='<div style="padding:.75rem;font-size:11px;color:#94a3b8;font-style:italic;">Nenhuma solicitação salva ainda.</div>'; return; }
+  box.innerHTML=arr.slice().reverse().map(function(r){
+    var dataBR=r.atualizadoEm?new Date(r.atualizadoEm).toLocaleDateString('pt-BR'):'';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-bottom:1px solid #f1f5f9;font-size:11px;">'
+      +'<div><b>'+_esc(r.proj||'(sem projeto)')+'</b> — '+_esc(r.cliNome||'')+' <span style="color:#94a3b8;">('+dataBR+')</span></div>'
+      +'<div style="white-space:nowrap;">'
+        +'<button onclick="artCarregarSalva('+r.id+')" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:4px;padding:3px 9px;font-size:10px;cursor:pointer;margin-right:4px;">✎ Editar</button>'
+        +'<button onclick="artExcluirSalva('+r.id+')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;">🗑</button>'
+      +'</div></div>';
+  }).join('');
+}
+function _artColetarDados(){
+  var g=function(id){var e=document.getElementById(id); return e?e.value:'';};
+  var chk=function(id){var e=document.getElementById(id); return e?e.checked:false;};
+  return {
+    obraCod:g('art-sol-obra-cod'), tag:g('art-sol-tag'),
+    proj:g('art-sol-proj'), contrato:g('art-sol-contrato'), inicio:g('art-sol-inicio'), encerramento:g('art-sol-encerramento'),
+    cliNome:g('art-sol-cli-nome'), cliCnpj:g('art-sol-cli-cnpj'), cliIe:g('art-sol-cli-ie'), cliEnd:g('art-sol-cli-end'), cliCep:g('art-sol-cli-cep'),
+    obraProj:g('art-sol-obra-proj'), obraEnd:g('art-sol-obra-end'), obraCep:g('art-sol-obra-cep'),
+    freteFOB:chk('art-sol-frete-fob'), freteCIF:chk('art-sol-frete-cif'),
+    escMontagem:chk('art-sol-esc-montagem'), escEstrutura:chk('art-sol-esc-estrutura'),
+    obs:g('art-sol-obs')
+  };
+}
+function artSalvar(){
+  var dados=_artColetarDados();
+  if(!dados.proj&&!dados.cliNome&&!dados.contrato){
+    if(!confirm('O formulário está praticamente vazio. Salvar mesmo assim?')) return;
+  }
+  var arr=_artLoadSalvas();
+  var agora=new Date().toISOString();
+  if(_artEditId){
+    var rec=arr.find(function(r){return r.id===_artEditId;});
+    if(rec){ Object.assign(rec,dados); rec.atualizadoEm=agora; }
+    else { dados.id=_artEditId; dados.criadoEm=agora; dados.atualizadoEm=agora; arr.push(dados); }
+  } else {
+    dados.id=Date.now();
+    dados.criadoEm=agora; dados.atualizadoEm=agora;
+    arr.push(dados);
+    _artEditId=dados.id;
+  }
+  _artSaveSalvas(arr);
+  var edEl=document.getElementById('art-sol-editando');
+  if(edEl){ edEl.style.display='block'; edEl.textContent='✎ Editando solicitação salva (ID '+_artEditId+') — alterações futuras vão atualizar este mesmo registro.'; }
+  var cnt=document.getElementById('art-sol-lista-count'); if(cnt) cnt.textContent=arr.length;
+  var box=document.getElementById('art-sol-lista-box'); if(box&&box.style.display!=='none') _artRenderLista();
+  if(typeof showToast==='function') showToast('Solicitação salva','Os dados foram salvos neste navegador.','success');
+  else alert('Solicitação salva.');
+}
+function artCarregarSalva(id){
+  var arr=_artLoadSalvas();
+  var r=arr.find(function(x){return x.id===id;});
+  if(!r){ alert('Registro não encontrado.'); return; }
+  var set=function(fid,v){var e=document.getElementById(fid); if(e) e.value=v||'';};
+  set('art-sol-obra-cod',r.obraCod); set('art-sol-tag',r.tag);
+  set('art-sol-proj',r.proj); set('art-sol-contrato',r.contrato); set('art-sol-inicio',r.inicio); set('art-sol-encerramento',r.encerramento);
+  set('art-sol-cli-nome',r.cliNome); set('art-sol-cli-cnpj',r.cliCnpj); set('art-sol-cli-ie',r.cliIe); set('art-sol-cli-end',r.cliEnd); set('art-sol-cli-cep',r.cliCep);
+  set('art-sol-obra-proj',r.obraProj); set('art-sol-obra-end',r.obraEnd); set('art-sol-obra-cep',r.obraCep);
+  set('art-sol-obs',r.obs);
+  var fob=document.getElementById('art-sol-frete-fob'); if(fob) fob.checked=!!r.freteFOB;
+  var cif=document.getElementById('art-sol-frete-cif'); if(cif) cif.checked=!!r.freteCIF;
+  var mo=document.getElementById('art-sol-esc-montagem'); if(mo) mo.checked=!!r.escMontagem;
+  var es=document.getElementById('art-sol-esc-estrutura'); if(es) es.checked=!!r.escEstrutura;
+  _artEditId=id;
+  var edEl=document.getElementById('art-sol-editando');
+  if(edEl){ edEl.style.display='block'; edEl.textContent='✎ Editando solicitação salva (ID '+id+') — alterações futuras vão atualizar este mesmo registro.'; }
+}
+function artExcluirSalva(id){
+  if(!confirm('Excluir esta solicitação salva?')) return;
+  var arr=_artLoadSalvas().filter(function(r){return r.id!==id;});
+  _artSaveSalvas(arr);
+  if(_artEditId===id){ artNovaSolicitacao(); }
+  _artRenderLista();
+}
+
+var _artPdfJsCarregando=false;
+function _artCarregarPdfJs(cb){
+  if(typeof window.pdfjsLib!=='undefined'){ cb(); return; }
+  if(_artPdfJsCarregando){ setTimeout(function(){_artCarregarPdfJs(cb);},300); return; }
+  _artPdfJsCarregando=true;
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.onload=function(){
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    cb();
+  };
+  s.onerror=function(){
+    _artPdfJsCarregando=false;
+    alert('Não foi possível carregar o leitor de PDF (verifique sua conexão com a internet). Cole o texto do documento manualmente na caixa de texto abaixo.');
+  };
+  document.head.appendChild(s);
+}
+function artProcessarArquivo(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  document.getElementById('art-sol-file-nome').textContent=file.name;
+  var status=document.getElementById('art-sol-file-status');
+  status.textContent='⏳ Lendo arquivo...';
+  if(/\.txt$/i.test(file.name)){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      document.getElementById('art-sol-texto').value=e.target.result;
+      status.textContent='✔ Texto carregado — clique em "Extrair Automaticamente"';
+    };
+    reader.readAsText(file);
+    return;
+  }
+  if(/\.pdf$/i.test(file.name)){
+    _artCarregarPdfJs(function(){
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var typedarray=new Uint8Array(e.target.result);
+        window.pdfjsLib.getDocument(typedarray).promise.then(function(pdf){
+          var promessas=[];
+          for(var i=1;i<=pdf.numPages;i++){
+            promessas.push(pdf.getPage(i).then(function(page){
+              return page.getTextContent().then(function(tc){
+                return tc.items.map(function(it){return it.str;}).join(' ')+'\n';
+              });
+            }));
+          }
+          Promise.all(promessas).then(function(textos){
+            document.getElementById('art-sol-texto').value=textos.join('\n');
+            status.textContent='✔ PDF lido ('+pdf.numPages+' página(s)) — clique em "Extrair Automaticamente"';
+          });
+        }).catch(function(){
+          status.textContent='';
+          alert('Não foi possível ler este PDF (pode ser uma imagem escaneada, sem texto real). Cole o texto manualmente na caixa abaixo.');
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+    return;
+  }
+  status.textContent='';
+  alert('Formato não suportado. Envie um .pdf ou .txt, ou cole o texto diretamente na caixa.');
+}
+// Extração best-effort por padrões de texto (regex). Documentos variam muito de
+// formato, então isto é só um ponto de partida — sempre revisar antes de gerar.
+function artExtrairAutomatico(){
+  var texto=document.getElementById('art-sol-texto').value||'';
+  if(!texto.trim()){ alert('Cole o texto do documento ou envie um arquivo primeiro.'); return; }
+  var t=texto.replace(/\r/g,'');
+  var set=function(id,v){ if(v){ var e=document.getElementById(id); if(e&&!e.value) e.value=v; } };
+
+  var mCnpj=t.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
+  set('art-sol-cli-cnpj', mCnpj?mCnpj[0]:'');
+
+  var mIe=t.match(/(?:Inscri[çc][ãa]o\s+Estadual|I\.?E\.?)\s*[:\-]?\s*([\d.\-\/]{6,20})/i);
+  set('art-sol-cli-ie', mIe?mIe[1].trim():'');
+
+  var ceps=[]; var reCep=/\d{5}-?\d{3}/g; var m;
+  while((m=reCep.exec(t))) ceps.push(m[0].indexOf('-')>-1?m[0]:m[0].slice(0,5)+'-'+m[0].slice(5));
+  if(ceps.length){
+    set('art-sol-cli-cep', ceps[0]);
+    set('art-sol-obra-cep', ceps.length>1?ceps[1]:ceps[0]);
+  }
+
+  var toISO=function(br){ var p=br.split('/'); if(p.length!==3) return ''; var ano=p[2].length===2?'20'+p[2]:p[2]; return ano+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'); };
+  var mIni=t.match(/(?:in[íi]cio|vig[êe]ncia)[^\d]{0,20}(\d{2}\/\d{2}\/\d{2,4})/i);
+  if(mIni) set('art-sol-inicio', toISO(mIni[1]));
+  var mFim=t.match(/(?:encerramento|t[ée]rmino|fim\s+da\s+vig[êe]ncia)[^\d]{0,20}(\d{2}\/\d{2}\/\d{2,4})/i);
+  if(mFim) set('art-sol-encerramento', toISO(mFim[1]));
+
+  var mCont=t.match(/Contrato\s*(?:n[ºo°]?\.?)?\s*[:\-]?\s*([A-Z0-9\/\.\-]{3,30})/i);
+  set('art-sol-contrato', mCont?mCont[1].trim():'');
+
+  var mProj=t.match(/Projeto\s*[:\-]\s*([^\n\r]{3,80})/i);
+  set('art-sol-proj', mProj?mProj[1].trim():'');
+  set('art-sol-obra-proj', mProj?mProj[1].trim():'');
+
+  var mObra=t.match(/\bObra\s*(?:n[ºo°]?\.?)?\s*[:\-]\s*([A-Z0-9][\w\-\/\. ]{1,30})/i);
+  set('art-sol-obra-cod', mObra?mObra[1].trim():'');
+  var mTag=t.match(/\bTAG\s*[:\-]\s*([A-Z0-9][\w\-\/\.]{1,20})/i);
+  set('art-sol-tag', mTag?mTag[1].trim():'');
+
+  var mCli=t.match(/(?:Contratante|Cliente|Raz[ãa]o\s+Social)\s*[:\-]\s*([^\n\r]{3,90})/i);
+  set('art-sol-cli-nome', mCli?mCli[1].trim():'');
+
+  var enderecos=[]; var reEnd=/Endere[çc]o[^\n\r:]*:\s*([^\n\r]{5,120})/gi; var m2;
+  while((m2=reEnd.exec(t))) enderecos.push(m2[1].trim());
+  if(enderecos.length){
+    set('art-sol-cli-end', enderecos[0]);
+    set('art-sol-obra-end', enderecos.length>1?enderecos[1]:enderecos[0]);
+  }
+
+  if(/\bFOB\b/i.test(t)){ var elF=document.getElementById('art-sol-frete-fob'); if(elF) elF.checked=true; }
+  else if(/\bCIF\b/i.test(t)){ var elC=document.getElementById('art-sol-frete-cif'); if(elC) elC.checked=true; }
+
+  if(/montagem/i.test(t)){ var elM=document.getElementById('art-sol-esc-montagem'); if(elM) elM.checked=true; }
+  if(/estrutura\s+met[áa]lica/i.test(t)){ var elE=document.getElementById('art-sol-esc-estrutura'); if(elE) elE.checked=true; }
+
+  if(typeof showToast==='function') showToast('Extração concluída','Revise os campos preenchidos antes de gerar o relatório — nem todo documento segue o mesmo padrão de texto.','info');
+}
+function artGerarRelatorio(){
+  var g=function(id){var e=document.getElementById(id); return e?e.value:'';};
+  var chk=function(id){var e=document.getElementById(id); return e?e.checked:false;};
+  var dBR=function(iso){ return iso?iso.split('-').reverse().join('/'):'—'; };
+  var freteFOB=chk('art-sol-frete-fob'), freteCIF=chk('art-sol-frete-cif');
+  var linha=function(label,val){ return '<tr><td style="padding:5px 10px;font-weight:700;color:#475569;width:220px;vertical-align:top;">'+label+'</td><td style="padding:5px 10px;">'+(val||'—')+'</td></tr>'; };
+  var check=function(label,marcado){ return '<span style="display:inline-block;margin-right:22px;">('+(marcado?'✔':'&nbsp;&nbsp;')+') '+label+'</span>'; };
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Solicitação de ART</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:28px;color:#1e293b;font-size:12px;}'
+    +'h2{color:#0369a1;margin:0 0 4px;}p.sub{color:#64748b;font-size:11px;margin:0 0 18px;}'
+    +'h3{background:#0c4a6e;color:#fff;padding:6px 10px;font-size:12px;margin:18px 0 0;}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:4px;}'
+    +'td{border-bottom:1px solid #e2e8f0;font-size:12px;}'
+    +'@media print{.no-print{display:none;}}</style></head><body>'
+    +'<h2>Solicitação de Emissão de ART</h2>'
+    +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS &middot; Gerado em '+new Date().toLocaleDateString('pt-BR')+'</p>'
+    +'<h3>📑 Dados do Contrato</h3>'
+    +'<table>'+linha('Obra',_esc(g('art-sol-obra-cod')))+linha('TAG',_esc(g('art-sol-tag')))+linha('Projeto',_esc(g('art-sol-proj')))+linha('Contrato',_esc(g('art-sol-contrato')))+linha('Início',dBR(g('art-sol-inicio')))+linha('Encerramento',dBR(g('art-sol-encerramento')))+'</table>'
+    +'<h3>👤 Dados do Cliente</h3>'
+    +'<table>'+linha('Nome do Cliente',_esc(g('art-sol-cli-nome')))+linha('CNPJ',_esc(g('art-sol-cli-cnpj')))+linha('IE',_esc(g('art-sol-cli-ie')))+linha('Endereço Completo',_esc(g('art-sol-cli-end')))+linha('CEP',_esc(g('art-sol-cli-cep')))+'</table>'
+    +'<h3>🏗 Dados da Obra</h3>'
+    +'<table>'+linha('Projeto',_esc(g('art-sol-obra-proj')))+linha('Endereço Completo',_esc(g('art-sol-obra-end')))+linha('CEP',_esc(g('art-sol-obra-cep')))+linha('Frete',check('FOB',freteFOB)+check('CIF',freteCIF))+'</table>'
+    +'<h3>📦 Escopo de Fornecimento</h3>'
+    +'<table><tr><td style="padding:8px 10px;">'+check('Montagem',chk('art-sol-esc-montagem'))+check('Estrutura Metálica',chk('art-sol-esc-estrutura'))+'</td></tr></table>'
+    +(g('art-sol-obs')?('<h3>📝 Observações</h3><table><tr><td style="padding:8px 10px;">'+_esc(g('art-sol-obs')).replace(/\n/g,'<br>')+'</td></tr></table>'):'')
+    +'<div class="no-print" style="margin-top:24px;">'
+    +'<button onclick="window.print()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:7px 18px;font-size:12px;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>'
+    +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:7px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
+    +'</div></body></html>';
+
+  var w=window.open('','_blank','width=850,height=800');
+  if(!w){alert('Permita popups para gerar o relatório.');return;}
+  w.document.write(html);
+  w.document.close();
+  artFecharSolicitacao();
 }
 
 function abrirModalProjeto(id){
