@@ -22412,7 +22412,9 @@ function _cdocDownload(text, filename){
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);
 }
 function cdocExportBas(){
-  var exportRows=_cdocBasRows.length?_cdocBasRows:_cdocDb().basicos;
+  // Mesma correção do Detalhado: um filtro com zero resultados deve exportar
+  // um CSV vazio, não a base inteira.
+  var exportRows=(_cdocBasRows!==undefined&&_cdocBasRows!==null)?_cdocBasRows:_cdocDb().basicos;
   var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
   exportRows.forEach(function(b){
     if(b._virtual) return; // pular linhas virtuais
@@ -22432,9 +22434,14 @@ function cdocExportBasSel(){
 
 function cdocExportDet(){
   var db=_cdocDb();
+  // Usa apenas os documentos que estão filtrados/visíveis na tela (respeitando
+  // Obra, Tipo, TAG, Status, etc.) — antes exportava TODA a base, ignorando o filtro.
+  // Importante: um filtro que resulta em ZERO documentos deve exportar um CSV
+  // vazio, não "cair" para a base inteira.
+  var exportRows = (window._cdocDetRowsAll!==undefined && window._cdocDetRowsAll!==null) ? window._cdocDetRowsAll : db.detalhados;
   var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
   var rows=[hdr];
-  db.detalhados.forEach(function(d){
+  exportRows.forEach(function(d){
     var lh=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
     var lfSt=lh?lh.status:(d.libfab||'');
     var lfDt=lh?lh.data:(d.libfabData||'');
