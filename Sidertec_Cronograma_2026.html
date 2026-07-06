@@ -24935,10 +24935,14 @@ document.addEventListener('DOMContentLoaded', function(){
           <input type="number" class="field-input" id="mp-peso-expedido" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso total expedido para a obra">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
         <div style="background:var(--orange2);border:1px solid var(--orange);border-radius:var(--r2);padding:8px 12px;">
           <div style="font-size:9px;color:var(--orange);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Contratado</div>
           <div id="mp-peso-total-cont" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--orange);">—</div>
+        </div>
+        <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#6d28d9;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">🔧 Peso Aditivos</div>
+          <div id="mp-peso-aditivos-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#6d28d9;">—</div>
         </div>
         <div style="background:var(--green2);border:1px solid var(--green);border-radius:var(--r2);padding:8px 12px;">
           <div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Faturado</div>
@@ -26975,6 +26979,10 @@ function calcPesoModal(){
   setEl('mp-peso-bas-display',fmtKg(bas));
   setEl('mp-peso-det-display',fmtKg(det));
   setEl('mp-peso-exp-display',fmtKg(exp));
+  // Peso de Aditivos — soma o peso de TODOS os aditivos cadastrados na obra
+  // (Fornecimento + Montagem juntos), independente do tipo.
+  const pesoAditivos = (_mpAditivos||[]).reduce((a,x)=>a+(Number(x.peso)||0),0);
+  setEl('mp-peso-aditivos-display', pesoAditivos>0?fmtKg(pesoAditivos):'—');
   const sEl = document.getElementById('mp-peso-saldo');
   if(sEl){
     sEl.textContent = (totalCont>0||totalFat>0) ? fmtKg(saldo)||'0,00 kg' : '—';
@@ -27123,6 +27131,7 @@ function mpRenderAditivos(){
     }).join('');
   }
   calcValorContrato();
+  if(typeof calcPesoModal==='function') calcPesoModal();
 }
 
 function mpEditarAditivo(idx){
