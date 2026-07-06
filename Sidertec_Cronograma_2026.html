@@ -24744,28 +24744,107 @@ document.addEventListener('DOMContentLoaded', function(){
           <label class="field-label">Observações de Faturamento</label>
           <input type="text" class="field-input" id="mp-obs-faturamento" placeholder="Ex: Faturamento conforme boletim de pesagem aprovado pelo cliente…" autocomplete="off">
         </div>
-        <div class="field-group">
-          <label class="field-label">Valor Fornecimento (R$) 🏗</label>
-          <input type="number" class="field-input" id="mp-valor-forn" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Valor Montagem (R$) 🔩</label>
-          <input type="number" class="field-input" id="mp-valor-mont" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Valor Total do Contrato (R$)</label>
-          <div id="mp-valor-total-preview" style="background:var(--blue2);border:1.5px solid var(--blue);border-radius:var(--r2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--blue);">—</div>
-          <input type="hidden" id="mp-valor" value="0">
-          <span class="field-hint">Soma automática: Fornecimento + Montagem</span>
-        </div>
-
       </div><!-- end field-group grid -->
 
-      <!-- Aditivos Contratuais — logo abaixo do valor do contrato -->
+      <!-- ═══ FLUXO FINANCEIRO — cartões Fornecimento / Montagem ═══ -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">💰 Fluxo Financeiro: Contratado → Faturado → Recebido</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem;">
+
+        <!-- Cartão FORNECIMENTO -->
+        <div style="border:1.5px solid #bfdbfe;border-radius:var(--r3,10px);overflow:hidden;">
+          <div style="background:#1d4ed8;color:#fff;padding:6px 12px;font-size:11px;font-weight:700;">🏗 FORNECIMENTO</div>
+          <div style="padding:.65rem .75rem;background:#fff;">
+            <div class="field-group" style="margin:0 0 .5rem;">
+              <label class="field-label">Valor Base do Contrato (R$)</label>
+              <input type="number" class="field-input" id="mp-valor-forn" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;padding:2px 2px;">
+              <span>+ Aditivos (Fornecimento)</span><span id="mp-linha-adit-forn" style="font-family:'DM Mono',monospace;">R$ 0,00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#1d4ed8;padding:4px 2px;border-top:1px dashed #cbd5e1;margin-top:2px;">
+              <span>= Total Contratado</span><span id="mp-linha-contratado-forn" style="font-family:'DM Mono',monospace;">R$ 0,00</span>
+            </div>
+
+            <div class="field-group" style="margin:.6rem 0 .3rem;">
+              <label class="field-label">Valor Faturado (R$)</label>
+              <input type="number" class="field-input" id="mp-fat-forn" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
+            </div>
+            <div style="background:#e2e8f0;border-radius:6px;height:7px;overflow:hidden;margin-bottom:3px;">
+              <div id="mp-bar-fat-forn" style="height:100%;width:0%;background:#1d4ed8;transition:width .25s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:.4rem;">
+              <span id="mp-pct-fat-forn">0% faturado</span>
+              <span id="mp-saldo-forn" style="font-weight:700;">Saldo a faturar: R$ 0,00</span>
+            </div>
+
+            <div class="field-group" style="margin:.55rem 0 .3rem;">
+              <label class="field-label">Valor Recebido (R$)</label>
+              <input type="number" class="field-input" id="mp-rec-forn" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
+            </div>
+            <div style="background:#e2e8f0;border-radius:6px;height:7px;overflow:hidden;margin-bottom:3px;">
+              <div id="mp-bar-rec-forn" style="height:100%;width:0%;background:#059669;transition:width .25s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;">
+              <span id="mp-pct-rec-forn">0% recebido do faturado</span>
+              <span id="mp-saldo-rec-forn" style="font-weight:700;">Saldo a receber: R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cartão MONTAGEM -->
+        <div style="border:1.5px solid #fdba74;border-radius:var(--r3,10px);overflow:hidden;">
+          <div style="background:#c2410c;color:#fff;padding:6px 12px;font-size:11px;font-weight:700;">🔩 MONTAGEM</div>
+          <div style="padding:.65rem .75rem;background:#fff;">
+            <div class="field-group" style="margin:0 0 .5rem;">
+              <label class="field-label">Valor Base do Contrato (R$)</label>
+              <input type="number" class="field-input" id="mp-valor-mont" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;padding:2px 2px;">
+              <span>+ Aditivos (Montagem)</span><span id="mp-linha-adit-mont" style="font-family:'DM Mono',monospace;">R$ 0,00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#c2410c;padding:4px 2px;border-top:1px dashed #cbd5e1;margin-top:2px;">
+              <span>= Total Contratado</span><span id="mp-linha-contratado-mont" style="font-family:'DM Mono',monospace;">R$ 0,00</span>
+            </div>
+
+            <div class="field-group" style="margin:.6rem 0 .3rem;">
+              <label class="field-label">Valor Faturado (R$)</label>
+              <input type="number" class="field-input" id="mp-fat-mont" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
+            </div>
+            <div style="background:#e2e8f0;border-radius:6px;height:7px;overflow:hidden;margin-bottom:3px;">
+              <div id="mp-bar-fat-mont" style="height:100%;width:0%;background:#c2410c;transition:width .25s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:.4rem;">
+              <span id="mp-pct-fat-mont">0% faturado</span>
+              <span id="mp-saldo-mont" style="font-weight:700;">Saldo a faturar: R$ 0,00</span>
+            </div>
+
+            <div class="field-group" style="margin:.55rem 0 .3rem;">
+              <label class="field-label">Valor Recebido (R$)</label>
+              <input type="number" class="field-input" id="mp-rec-mont" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
+            </div>
+            <div style="background:#e2e8f0;border-radius:6px;height:7px;overflow:hidden;margin-bottom:3px;">
+              <div id="mp-bar-rec-mont" style="height:100%;width:0%;background:#059669;transition:width .25s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;">
+              <span id="mp-pct-rec-mont">0% recebido do faturado</span>
+              <span id="mp-saldo-rec-mont" style="font-weight:700;">Saldo a receber: R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group" style="margin-bottom:.85rem;">
+        <label class="field-label">Valor Total do Contrato (R$)</label>
+        <div id="mp-valor-total-preview" style="background:var(--blue2);border:1.5px solid var(--blue);border-radius:var(--r2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--blue);">—</div>
+        <input type="hidden" id="mp-valor" value="0">
+        <span class="field-hint">Soma automática: Fornecimento + Montagem (valor base, sem aditivos)</span>
+      </div>
+
+      <!-- Aditivos Contratuais — detalhe de cada aditivo, usado nos cálculos acima -->
       <div style="background:#fafafa;border:1px solid var(--border);border-radius:var(--r2);padding:.75rem;margin-bottom:.75rem;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">📋 Aditivos Contratuais</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">📋 Aditivos Contratuais <span style="font-weight:400;color:#94a3b8;text-transform:none;">(cada um entra automaticamente no cartão de Fornecimento ou Montagem acima, conforme o Tipo)</span></div>
         <div id="mp-aditivos-lista" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.5rem;"></div>
-        <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:var(--bg2);border-radius:var(--r2);padding:.5rem .6rem;border:1px dashed var(--border);">
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:var(--bg2);border-radius:var(--r2);padding:.5rem .6rem;border:1px dashed var(--border);">
           <div style="font-size:10px;font-weight:700;color:var(--ink3);padding-bottom:18px;">Novo</div>
           <div class="field-group" style="margin:0">
             <label class="field-label">Nº Aditivo</label>
@@ -24779,9 +24858,15 @@ document.addEventListener('DOMContentLoaded', function(){
             <label class="field-label">Peso (kg)</label>
             <input type="number" class="field-input" id="mp-adit-peso" placeholder="0" min="0" step="0.01">
           </div>
+          <div class="field-group" style="margin:0">
+            <label class="field-label">Tipo</label>
+            <select class="field-input" id="mp-adit-tipo">
+              <option value="fornecimento">Fornecimento</option>
+              <option value="montagem">Montagem</option>
+            </select>
+          </div>
           <button onclick="mpAdicionarAditivo()" style="background:var(--blue);color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;height:32px;align-self:end;">+ Add</button>
         </div>
-        <!-- Totais com aditivos -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem;">
           <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r2);padding:7px 10px;">
             <div style="font-size:9px;color:#1d4ed8;text-transform:uppercase;margin-bottom:2px;">Total Contrato + Aditivos (R$)</div>
@@ -24793,6 +24878,69 @@ document.addEventListener('DOMContentLoaded', function(){
           </div>
         </div>
       </div>
+      <!-- Peso dividido por escopo -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">⚖️ Peso por Escopo (kg)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.5rem;">
+        <div class="field-group">
+          <label class="field-label">🏗 Forn. Contratado</label>
+          <input type="number" class="field-input" id="mp-peso-forn-cont" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">🏗 Forn. Faturado</label>
+          <input type="number" class="field-input" id="mp-peso-forn-fat" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">🔩 Mont. Contratado</label>
+          <input type="number" class="field-input" id="mp-peso-mont-cont" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">🔩 Mont. Faturado</label>
+          <input type="number" class="field-input" id="mp-peso-mont-fat" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📋 Peso Básico <span style="font-size:9px;color:#0369a1;font-weight:400;">(auto)</span></label>
+          <input type="number" class="field-input" id="mp-peso-basico" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso básico total da obra (soma de allCronSubobras)">
+        </div>
+        <div class="field-group">
+          <label class="field-label">📐 Peso Detalhado <span style="font-size:9px;color:#0369a1;font-weight:400;">(auto)</span></label>
+          <input type="number" class="field-input" id="mp-peso-detalhado" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso detalhado total (soma de peso_detalhado em allCronSubobras)">
+        </div>
+        <div class="field-group">
+          <label class="field-label">🚚 Peso Expedido</label>
+          <input type="number" class="field-input" id="mp-peso-expedido" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso total expedido para a obra">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
+        <div style="background:var(--orange2);border:1px solid var(--orange);border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:var(--orange);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Contratado</div>
+          <div id="mp-peso-total-cont" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--orange);">—</div>
+        </div>
+        <div style="background:var(--green2);border:1px solid var(--green);border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Faturado</div>
+          <div id="mp-peso-total-fat" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--green);">—</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Saldo Peso</div>
+          <div id="mp-peso-saldo" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--ink3);">—</div>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#16a34a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">📋 Peso Básico</div>
+          <div id="mp-peso-bas-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#16a34a;">—</div>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">📐 Peso Detalhado</div>
+          <div id="mp-peso-det-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#1d4ed8;">—</div>
+        </div>
+        <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#be185d;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">🚚 Peso Expedido</div>
+          <div id="mp-peso-exp-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#be185d;">—</div>
+        </div>
+        <div style="background:#fefce8;border:1px solid #fde047;border-radius:var(--r2);padding:8px 12px;">
+          <div style="font-size:9px;color:#a16207;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Δ Diferenças</div>
+          <div id="mp-peso-deltas" style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#a16207;line-height:1.4;">—</div>
+        </div>
+      </div>
+
 
       <div class="field-group-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
         <div class="field-group">
@@ -24863,89 +25011,6 @@ document.addEventListener('DOMContentLoaded', function(){
             style="resize:vertical;font-size:12px;border-color:var(--red);background:#fff9f9;"></textarea>
         </div>
       </div>
-      <!-- Peso dividido por escopo -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.5rem;">⚖️ Peso por Escopo (kg)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.5rem;">
-        <div class="field-group">
-          <label class="field-label">🏗 Forn. Contratado</label>
-          <input type="number" class="field-input" id="mp-peso-forn-cont" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">🏗 Forn. Faturado</label>
-          <input type="number" class="field-input" id="mp-peso-forn-fat" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">🔩 Mont. Contratado</label>
-          <input type="number" class="field-input" id="mp-peso-mont-cont" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">🔩 Mont. Faturado</label>
-          <input type="number" class="field-input" id="mp-peso-mont-fat" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()">
-        </div>
-        <div class="field-group">
-          <label class="field-label">📋 Peso Básico <span style="font-size:9px;color:#0369a1;font-weight:400;">(auto)</span></label>
-          <input type="number" class="field-input" id="mp-peso-basico" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso básico total da obra (soma de allCronSubobras)">
-        </div>
-        <div class="field-group">
-          <label class="field-label">📐 Peso Detalhado <span style="font-size:9px;color:#0369a1;font-weight:400;">(auto)</span></label>
-          <input type="number" class="field-input" id="mp-peso-detalhado" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso detalhado total (soma de peso_detalhado em allCronSubobras)">
-        </div>
-        <div class="field-group">
-          <label class="field-label">🚚 Peso Expedido</label>
-          <input type="number" class="field-input" id="mp-peso-expedido" placeholder="0" min="0" step="0.01" oninput="calcPesoModal()" title="Peso total expedido para a obra">
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
-        <div style="background:var(--orange2);border:1px solid var(--orange);border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:var(--orange);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Contratado</div>
-          <div id="mp-peso-total-cont" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--orange);">—</div>
-        </div>
-        <div style="background:var(--green2);border:1px solid var(--green);border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total Faturado</div>
-          <div id="mp-peso-total-fat" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--green);">—</div>
-        </div>
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Saldo Peso</div>
-          <div id="mp-peso-saldo" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--ink3);">—</div>
-        </div>
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:#16a34a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">📋 Peso Básico</div>
-          <div id="mp-peso-bas-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#16a34a;">—</div>
-        </div>
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">📐 Peso Detalhado</div>
-          <div id="mp-peso-det-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#1d4ed8;">—</div>
-        </div>
-        <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:#be185d;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">🚚 Peso Expedido</div>
-          <div id="mp-peso-exp-display" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#be185d;">—</div>
-        </div>
-        <div style="background:#fefce8;border:1px solid #fde047;border-radius:var(--r2);padding:8px 12px;">
-          <div style="font-size:9px;color:#a16207;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Δ Diferenças</div>
-          <div id="mp-peso-deltas" style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#a16207;line-height:1.4;">—</div>
-        </div>
-      </div>
-
-      <!-- Aditivos Contratuais -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:.85rem 0 .5rem;">📋 Aditivos Contratuais</div>
-      <div id="mp-aditivos-lista" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.5rem;"></div>
-      <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:var(--bg2);border-radius:var(--r2);padding:.6rem .75rem;border:1px dashed var(--border);">
-        <div style="font-size:11px;font-weight:700;color:var(--ink3);padding-bottom:20px;">Novo</div>
-        <div class="field-group" style="margin:0">
-          <label class="field-label">Nº Aditivo</label>
-          <input type="text" class="field-input" id="mp-adit-num" placeholder="Ex: 01">
-        </div>
-        <div class="field-group" style="margin:0">
-          <label class="field-label">Valor (R$)</label>
-          <input type="number" class="field-input" id="mp-adit-valor" placeholder="0,00" min="0" step="0.01">
-        </div>
-        <div class="field-group" style="margin:0">
-          <label class="field-label">Peso (kg)</label>
-          <input type="number" class="field-input" id="mp-adit-peso" placeholder="0" min="0" step="0.01">
-        </div>
-        <button onclick="mpAdicionarAditivo()" style="background:var(--blue);color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;height:32px;align-self:end;">+ Add</button>
-      </div>
-
       <!-- Reunião de Comissionamento -->
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:.85rem 0 .6rem;">🤝 Reunião de Comissionamento</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.85rem;">
@@ -26785,6 +26850,57 @@ function calcValorContrato(){
   var fmtK=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg';};
   if(elV) elV.textContent=ads.length>0?fmtC(total+totAditVal):'(sem aditivos)';
   if(elP) elP.textContent=(ads.length>0&&totAditPeso>0)?fmtK(totAditPeso):'(sem aditivos)';
+
+  // Aditivos por tipo (Fornecimento / Montagem)
+  var totAditForn=ads.filter(function(x){return x.tipo!=='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+  var totAditMont=ads.filter(function(x){return x.tipo==='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+  var fatForn=parseFloat(document.getElementById('mp-fat-forn')?.value)||0;
+  var fatMont=parseFloat(document.getElementById('mp-fat-mont')?.value)||0;
+  var recForn=parseFloat(document.getElementById('mp-rec-forn')?.value)||0;
+  var recMont=parseFloat(document.getElementById('mp-rec-mont')?.value)||0;
+  var contratoForn=forn+totAditForn;
+  var contratoMont=mont+totAditMont;
+  var saldoForn=contratoForn-fatForn;
+  var saldoMont=contratoMont-fatMont;
+  var saldoRecForn=fatForn-recForn;
+  var saldoRecMont=fatMont-recMont;
+  var corSaldo=function(v){return v<0?'#dc2626':'#166534';};
+  var pct=function(num,den){ return den>0?Math.max(0,Math.min(100,Math.round(num/den*100))):0; };
+
+  // Linhas "+ Aditivos" / "= Total Contratado" dentro de cada cartão
+  var setTxt=function(id,txt){ var e=document.getElementById(id); if(e) e.textContent=txt; };
+  setTxt('mp-linha-adit-forn', fmtC(totAditForn));
+  setTxt('mp-linha-contratado-forn', fmtC(contratoForn));
+  setTxt('mp-linha-adit-mont', fmtC(totAditMont));
+  setTxt('mp-linha-contratado-mont', fmtC(contratoMont));
+
+  // Barra de Faturamento (% do contratado) — Fornecimento
+  var pctFatForn=pct(fatForn,contratoForn);
+  var barFF=document.getElementById('mp-bar-fat-forn'); if(barFF) barFF.style.width=pctFatForn+'%';
+  setTxt('mp-pct-fat-forn', pctFatForn+'% faturado');
+  var elSF=document.getElementById('mp-saldo-forn');
+  if(elSF){ elSF.textContent='Saldo a faturar: '+fmtC(saldoForn); elSF.style.color=corSaldo(saldoForn); }
+
+  // Barra de Faturamento (% do contratado) — Montagem
+  var pctFatMont=pct(fatMont,contratoMont);
+  var barFM=document.getElementById('mp-bar-fat-mont'); if(barFM) barFM.style.width=pctFatMont+'%';
+  setTxt('mp-pct-fat-mont', pctFatMont+'% faturado');
+  var elSM=document.getElementById('mp-saldo-mont');
+  if(elSM){ elSM.textContent='Saldo a faturar: '+fmtC(saldoMont); elSM.style.color=corSaldo(saldoMont); }
+
+  // Barra de Recebimento (% do faturado) — Fornecimento
+  var pctRecForn=pct(recForn,fatForn);
+  var barRF=document.getElementById('mp-bar-rec-forn'); if(barRF) barRF.style.width=pctRecForn+'%';
+  setTxt('mp-pct-rec-forn', pctRecForn+'% recebido do faturado');
+  var elSRF=document.getElementById('mp-saldo-rec-forn');
+  if(elSRF){ elSRF.textContent='Saldo a receber: '+fmtC(saldoRecForn); elSRF.style.color=corSaldo(saldoRecForn); }
+
+  // Barra de Recebimento (% do faturado) — Montagem
+  var pctRecMont=pct(recMont,fatMont);
+  var barRM=document.getElementById('mp-bar-rec-mont'); if(barRM) barRM.style.width=pctRecMont+'%';
+  setTxt('mp-pct-rec-mont', pctRecMont+'% recebido do faturado');
+  var elSRM=document.getElementById('mp-saldo-rec-mont');
+  if(elSRM){ elSRM.textContent='Saldo a receber: '+fmtC(saldoRecMont); elSRM.style.color=corSaldo(saldoRecMont); }
 }
 
 function calcPesoModal(){
@@ -26916,10 +27032,15 @@ function mpRenderAditivos(){
   } else {
     var fmtR=function(v){return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
     var fmtKg=function(v){return v>0?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—';};
+    var tipoBadge=function(t){
+      return t==='montagem'
+        ?'<span style="background:#fff7ed;color:#c2410c;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;">Montagem</span>'
+        :'<span style="background:#eff6ff;color:#1d4ed8;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;">Fornecimento</span>';
+    };
     lista.innerHTML=_mpAditivos.map(function(a,i){
       if(_mpEditandoIdx===i){
         // Modo edição — exibe campos inline
-        return '<div id="mp-adit-edit-row" style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:#eff6ff;border-radius:var(--r2);padding:6px 8px;border:1.5px solid #93c5fd;">'
+        return '<div id="mp-adit-edit-row" style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr auto;gap:.4rem;align-items:end;background:#eff6ff;border-radius:var(--r2);padding:6px 8px;border:1.5px solid #93c5fd;">'
           +'<div style="font-size:10px;font-weight:700;color:#1d4ed8;padding-bottom:18px;">Editar</div>'
           +'<div><div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px;">Nº Aditivo</div>'
           +'<input id="mp-adit-edit-num" value="'+_esc(a.num||'')+'" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;"></div>'
@@ -26927,6 +27048,11 @@ function mpRenderAditivos(){
           +'<input type="number" id="mp-adit-edit-valor" value="'+(a.valor||0)+'" min="0" step="0.01" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;"></div>'
           +'<div><div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px;">Peso (kg)</div>'
           +'<input type="number" id="mp-adit-edit-peso" value="'+(a.peso||0)+'" min="0" step="0.01" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;"></div>'
+          +'<div><div style="font-size:9px;font-weight:700;color:#64748b;margin-bottom:2px;">Tipo</div>'
+          +'<select id="mp-adit-edit-tipo" style="width:100%;font-size:12px;padding:4px 7px;border:1px solid #93c5fd;border-radius:4px;">'
+          +'<option value="fornecimento"'+(a.tipo!=='montagem'?' selected':'')+'>Fornecimento</option>'
+          +'<option value="montagem"'+(a.tipo==='montagem'?' selected':'')+'>Montagem</option>'
+          +'</select></div>'
           +'<div style="display:flex;gap:4px;align-self:end;">'
           +'<button onclick="mpSalvarAditivo('+i+')" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">💾</button>'
           +'<button onclick="_mpEditandoIdx=-1;mpRenderAditivos();" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:5px 8px;font-size:12px;cursor:pointer;">✕</button>'
@@ -26934,10 +27060,11 @@ function mpRenderAditivos(){
           +'</div>';
       }
       // Modo visualização
-      return '<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:.4rem;align-items:center;background:#fff;border-radius:var(--r2);padding:5px 8px;border:1px solid var(--border);">'
+      return '<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr auto;gap:.4rem;align-items:center;background:#fff;border-radius:var(--r2);padding:5px 8px;border:1px solid var(--border);">'
         +'<span style="font-size:11px;font-weight:700;color:var(--blue);min-width:70px;">'+_esc(a.num?'Aditivo '+a.num:'Aditivo '+(i+1))+'</span>'
         +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--green);">'+fmtR(a.valor)+'</span>'
         +'<span style="font-size:12px;font-family:\'DM Mono\',monospace;color:var(--orange);">'+fmtKg(a.peso)+'</span>'
+        +tipoBadge(a.tipo)
         +'<span></span>'
         +'<div style="display:flex;gap:2px;">'
         +'<button onclick="mpEditarAditivo('+i+')" style="background:none;border:none;color:#0369a1;cursor:pointer;font-size:14px;padding:0 4px;" title="Editar">✎</button>'
@@ -26960,8 +27087,9 @@ function mpSalvarAditivo(idx){
   var num   = (document.getElementById('mp-adit-edit-num')||{}).value||'';
   var valor = parseFloat((document.getElementById('mp-adit-edit-valor')||{}).value)||0;
   var peso  = parseFloat((document.getElementById('mp-adit-edit-peso')||{}).value)||0;
+  var tipo  = (document.getElementById('mp-adit-edit-tipo')||{}).value||'fornecimento';
   if(!num&&!valor&&!peso){ alert('Preencha ao menos um campo.'); return; }
-  _mpAditivos[idx] = {num:num.trim(), valor:valor, peso:peso};
+  _mpAditivos[idx] = {num:num.trim(), valor:valor, peso:peso, tipo:tipo};
   _mpEditandoIdx = -1;
   mpRenderAditivos();
 }
@@ -26970,8 +27098,9 @@ function mpAdicionarAditivo(){
   var num=(document.getElementById('mp-adit-num')||{}).value||'';
   var valor=parseFloat((document.getElementById('mp-adit-valor')||{}).value)||0;
   var peso=parseFloat((document.getElementById('mp-adit-peso')||{}).value)||0;
+  var tipo=(document.getElementById('mp-adit-tipo')||{}).value||'fornecimento';
   if(!num&&!valor&&!peso){alert('Preencha ao menos o Nº do Aditivo ou o Valor.');return;}
-  _mpAditivos.push({num:num.trim(),valor:valor,peso:peso});
+  _mpAditivos.push({num:num.trim(),valor:valor,peso:peso,tipo:tipo});
   _mpEditandoIdx = -1;
   mpRenderAditivos();
   ['mp-adit-num','mp-adit-valor','mp-adit-peso'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
@@ -27289,7 +27418,7 @@ function abrirModalProjeto(id){
   editingProjId = id;
   _checkState = {};
   // Reset ALL fields including new ones
-  ['mp-nome','mp-codigo','mp-cliente','mp-contrato','mp-valor-forn','mp-valor-mont',
+  ['mp-nome','mp-codigo','mp-cliente','mp-contrato','mp-valor-forn','mp-valor-mont','mp-fat-forn','mp-fat-mont','mp-rec-forn','mp-rec-mont',
    'mp-valor','mp-inicio','mp-termino','mp-obs','mp-escopo-desc','mp-peso-contratado',
    'mp-peso-faturado','mp-peso-forn-cont','mp-peso-forn-fat','mp-peso-mont-cont',
    'mp-peso-mont-fat','mp-peso-detalhado','mp-peso-basico',
@@ -27336,6 +27465,8 @@ function abrirModalProjeto(id){
     sv('mp-nome',p.nome); sv('mp-codigo',p.codigo); sv('mp-cliente',p.cliente);
     sv('mp-contrato',p.numero_contrato);
     sv('mp-valor-forn',p.valor_fornecimento); sv('mp-valor-mont',p.valor_montagem);
+    sv('mp-fat-forn',p.valor_faturado_fornecimento); sv('mp-fat-mont',p.valor_faturado_montagem);
+    sv('mp-rec-forn',p.valor_recebido_fornecimento); sv('mp-rec-mont',p.valor_recebido_montagem);
     calcValorContrato();
     sv('mp-inicio',p.data_inicio); sv('mp-termino',p.data_termino);
     sv('mp-status',p.status); sv('mp-obs',p.obs);
@@ -27417,6 +27548,10 @@ async function salvarProjeto(){
     numero_contrato:gv('mp-contrato'),
     valor_fornecimento: gn('mp-valor-forn')||0,
     valor_montagem: gn('mp-valor-mont')||0,
+    valor_faturado_fornecimento: gn('mp-fat-forn')||0,
+    valor_faturado_montagem: gn('mp-fat-mont')||0,
+    valor_recebido_fornecimento: gn('mp-rec-forn')||0,
+    valor_recebido_montagem: gn('mp-rec-mont')||0,
     valor_contrato: (gn('mp-valor-forn')||0)+(gn('mp-valor-mont')||0)||(parseFloat(document.getElementById('mp-valor')?.value)||0),
     data_inicio:gv('mp-inicio'), data_termino:gv('mp-termino'),
     status:gv('mp-status')||'ativo', obs:gv('mp-obs'),
