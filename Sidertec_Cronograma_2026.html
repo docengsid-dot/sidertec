@@ -24781,11 +24781,15 @@ document.addEventListener('DOMContentLoaded', function(){
               <label class="field-label">Valor Recebido (R$)</label>
               <input type="number" class="field-input" id="mp-rec-forn" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
             </div>
+            <div class="field-group" style="margin:0 0 .3rem;">
+              <label class="field-label" style="color:#9333ea;">Desconto em Notas Fiscais (R$)</label>
+              <input type="number" class="field-input" id="mp-desc-forn" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()" title="Desconto aplicado nas notas fiscais no momento do recebimento (ex: retenções, glosas)">
+            </div>
             <div style="background:#e2e8f0;border-radius:6px;height:7px;overflow:hidden;margin-bottom:3px;">
               <div id="mp-bar-rec-forn" style="height:100%;width:0%;background:#059669;transition:width .25s;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;">
-              <span id="mp-pct-rec-forn">0% recebido do faturado</span>
+              <span id="mp-pct-rec-forn">0% recebido do contratado</span>
               <span id="mp-saldo-rec-forn" style="font-weight:700;">Saldo a receber: R$ 0,00</span>
             </div>
           </div>
@@ -24822,11 +24826,15 @@ document.addEventListener('DOMContentLoaded', function(){
               <label class="field-label">Valor Recebido (R$)</label>
               <input type="number" class="field-input" id="mp-rec-mont" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()">
             </div>
+            <div class="field-group" style="margin:0 0 .3rem;">
+              <label class="field-label" style="color:#9333ea;">Desconto em Notas Fiscais (R$)</label>
+              <input type="number" class="field-input" id="mp-desc-mont" placeholder="0,00" min="0" step="0.01" oninput="calcValorContrato()" title="Desconto aplicado nas notas fiscais no momento do recebimento (ex: retenções, glosas)">
+            </div>
             <div style="background:#e2e8f0;border-radius:6px;height:7px;overflow:hidden;margin-bottom:3px;">
               <div id="mp-bar-rec-mont" style="height:100%;width:0%;background:#059669;transition:width .25s;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;">
-              <span id="mp-pct-rec-mont">0% recebido do faturado</span>
+              <span id="mp-pct-rec-mont">0% recebido do contratado</span>
               <span id="mp-saldo-rec-mont" style="font-weight:700;">Saldo a receber: R$ 0,00</span>
             </div>
           </div>
@@ -26210,6 +26218,10 @@ alter table contratos_projetos add column if not exists peso_detalhado       num
 alter table contratos_projetos add column if not exists peso_basico          numeric default 0;
 alter table contratos_projetos add column if not exists peso_expedido        numeric default 0;
 alter table contratos_projetos add column if not exists aditivos             jsonb default '[]';
+alter table contratos_projetos add column if not exists valor_faturado_fornecimento numeric default 0;
+alter table contratos_projetos add column if not exists valor_faturado_montagem     numeric default 0;
+alter table contratos_projetos add column if not exists valor_recebido_fornecimento numeric default 0;
+alter table contratos_projetos add column if not exists valor_recebido_montagem     numeric default 0;
 
 drop policy if exists "anon_all_projetos" on contratos_projetos;
 create policy "anon_all_projetos" on contratos_projetos
@@ -26840,67 +26852,84 @@ function calcValorContrato(){
   if(el) el.textContent = total>0 ? total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '—';
   const hidden = document.getElementById('mp-valor');
   if(hidden) hidden.value = total;
-  // Atualiza totais com aditivos
-  var ads=_mpAditivos||[];
-  var totAditVal=ads.reduce(function(a,x){return a+(Number(x.valor)||0);},0);
-  var totAditPeso=ads.reduce(function(a,x){return a+(Number(x.peso)||0);},0);
-  var elV=document.getElementById('mp-total-com-aditivos');
-  var elP=document.getElementById('mp-peso-com-aditivos');
+
   var fmtC=function(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
   var fmtK=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg';};
-  if(elV) elV.textContent=ads.length>0?fmtC(total+totAditVal):'(sem aditivos)';
-  if(elP) elP.textContent=(ads.length>0&&totAditPeso>0)?fmtK(totAditPeso):'(sem aditivos)';
+  var corSaldo=function(v){return v<0?'#dc2626':'#166534';};
+  var pct=function(num,den){ return den>0?Math.max(0,Math.min(100,Math.round(num/den*100))):0; };
+  var setTxt=function(id,txt){ var e=document.getElementById(id); if(e) e.textContent=txt; };
 
-  // Aditivos por tipo (Fornecimento / Montagem)
-  var totAditForn=ads.filter(function(x){return x.tipo!=='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
-  var totAditMont=ads.filter(function(x){return x.tipo==='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+  // Atualiza totais com aditivos — isolado em try/catch para não travar o resto
+  // do cálculo (Faturado/Recebido) se algo aqui falhar.
+  var totAditForn=0, totAditMont=0;
+  try{
+    var ads=_mpAditivos||[];
+    var totAditVal=ads.reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+    var totAditPeso=ads.reduce(function(a,x){return a+(Number(x.peso)||0);},0);
+    var elV=document.getElementById('mp-total-com-aditivos');
+    var elP=document.getElementById('mp-peso-com-aditivos');
+    if(elV) elV.textContent=ads.length>0?fmtC(total+totAditVal):'(sem aditivos)';
+    if(elP) elP.textContent=(ads.length>0&&totAditPeso>0)?fmtK(totAditPeso):'(sem aditivos)';
+    totAditForn=ads.filter(function(x){return x.tipo!=='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+    totAditMont=ads.filter(function(x){return x.tipo==='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+    setTxt('mp-linha-adit-forn', fmtC(totAditForn));
+    setTxt('mp-linha-contratado-forn', fmtC(forn+totAditForn));
+    setTxt('mp-linha-adit-mont', fmtC(totAditMont));
+    setTxt('mp-linha-contratado-mont', fmtC(mont+totAditMont));
+  }catch(eAdit){ console.error('[calcValorContrato] aditivos:',eAdit.message); }
+
+  var contratoForn=forn+totAditForn;
+  var contratoMont=mont+totAditMont;
   var fatForn=parseFloat(document.getElementById('mp-fat-forn')?.value)||0;
   var fatMont=parseFloat(document.getElementById('mp-fat-mont')?.value)||0;
   var recForn=parseFloat(document.getElementById('mp-rec-forn')?.value)||0;
   var recMont=parseFloat(document.getElementById('mp-rec-mont')?.value)||0;
-  var contratoForn=forn+totAditForn;
-  var contratoMont=mont+totAditMont;
-  var saldoForn=contratoForn-fatForn;
-  var saldoMont=contratoMont-fatMont;
-  var saldoRecForn=fatForn-recForn;
-  var saldoRecMont=fatMont-recMont;
-  var corSaldo=function(v){return v<0?'#dc2626':'#166534';};
-  var pct=function(num,den){ return den>0?Math.max(0,Math.min(100,Math.round(num/den*100))):0; };
 
-  // Linhas "+ Aditivos" / "= Total Contratado" dentro de cada cartão
-  var setTxt=function(id,txt){ var e=document.getElementById(id); if(e) e.textContent=txt; };
-  setTxt('mp-linha-adit-forn', fmtC(totAditForn));
-  setTxt('mp-linha-contratado-forn', fmtC(contratoForn));
-  setTxt('mp-linha-adit-mont', fmtC(totAditMont));
-  setTxt('mp-linha-contratado-mont', fmtC(contratoMont));
+  // Faturamento (Fornecimento) — isolado
+  try{
+    var saldoForn=contratoForn-fatForn;
+    var pctFatForn=pct(fatForn,contratoForn);
+    var barFF=document.getElementById('mp-bar-fat-forn'); if(barFF) barFF.style.width=pctFatForn+'%';
+    setTxt('mp-pct-fat-forn', pctFatForn+'% faturado');
+    var elSF=document.getElementById('mp-saldo-forn');
+    if(elSF){ elSF.textContent='Saldo a faturar: '+fmtC(saldoForn); elSF.style.color=corSaldo(saldoForn); }
+  }catch(eF){ console.error('[calcValorContrato] faturamento forn:',eF.message); }
 
-  // Barra de Faturamento (% do contratado) — Fornecimento
-  var pctFatForn=pct(fatForn,contratoForn);
-  var barFF=document.getElementById('mp-bar-fat-forn'); if(barFF) barFF.style.width=pctFatForn+'%';
-  setTxt('mp-pct-fat-forn', pctFatForn+'% faturado');
-  var elSF=document.getElementById('mp-saldo-forn');
-  if(elSF){ elSF.textContent='Saldo a faturar: '+fmtC(saldoForn); elSF.style.color=corSaldo(saldoForn); }
+  // Faturamento (Montagem) — isolado
+  try{
+    var saldoMont=contratoMont-fatMont;
+    var pctFatMont=pct(fatMont,contratoMont);
+    var barFM=document.getElementById('mp-bar-fat-mont'); if(barFM) barFM.style.width=pctFatMont+'%';
+    setTxt('mp-pct-fat-mont', pctFatMont+'% faturado');
+    var elSM=document.getElementById('mp-saldo-mont');
+    if(elSM){ elSM.textContent='Saldo a faturar: '+fmtC(saldoMont); elSM.style.color=corSaldo(saldoMont); }
+  }catch(eM){ console.error('[calcValorContrato] faturamento mont:',eM.message); }
 
-  // Barra de Faturamento (% do contratado) — Montagem
-  var pctFatMont=pct(fatMont,contratoMont);
-  var barFM=document.getElementById('mp-bar-fat-mont'); if(barFM) barFM.style.width=pctFatMont+'%';
-  setTxt('mp-pct-fat-mont', pctFatMont+'% faturado');
-  var elSM=document.getElementById('mp-saldo-mont');
-  if(elSM){ elSM.textContent='Saldo a faturar: '+fmtC(saldoMont); elSM.style.color=corSaldo(saldoMont); }
+  // Recebimento (Fornecimento) — isolado, sempre executa mesmo se algo acima falhar
+  try{
+    var descForn=parseFloat(document.getElementById('mp-desc-forn')?.value)||0;
+    // Saldo a Receber = quanto ainda falta receber do CONTRATO TOTAL (não só do
+    // que já foi faturado) — o que ainda não foi faturado também está pendente.
+    // Descontos de notas fiscais (retenções, glosas etc.) contam como "resolvido",
+    // reduzindo o saldo pendente junto com o valor recebido.
+    var saldoRecForn=contratoForn-recForn-descForn;
+    var pctRecForn=pct(recForn+descForn,contratoForn);
+    var barRF=document.getElementById('mp-bar-rec-forn'); if(barRF) barRF.style.width=pctRecForn+'%';
+    setTxt('mp-pct-rec-forn', pctRecForn+'% recebido do contratado');
+    var elSRF=document.getElementById('mp-saldo-rec-forn');
+    if(elSRF){ elSRF.textContent='Saldo a receber: '+fmtC(saldoRecForn); elSRF.style.color=corSaldo(saldoRecForn); }
+  }catch(eRF){ console.error('[calcValorContrato] recebido forn:',eRF.message); }
 
-  // Barra de Recebimento (% do faturado) — Fornecimento
-  var pctRecForn=pct(recForn,fatForn);
-  var barRF=document.getElementById('mp-bar-rec-forn'); if(barRF) barRF.style.width=pctRecForn+'%';
-  setTxt('mp-pct-rec-forn', pctRecForn+'% recebido do faturado');
-  var elSRF=document.getElementById('mp-saldo-rec-forn');
-  if(elSRF){ elSRF.textContent='Saldo a receber: '+fmtC(saldoRecForn); elSRF.style.color=corSaldo(saldoRecForn); }
-
-  // Barra de Recebimento (% do faturado) — Montagem
-  var pctRecMont=pct(recMont,fatMont);
-  var barRM=document.getElementById('mp-bar-rec-mont'); if(barRM) barRM.style.width=pctRecMont+'%';
-  setTxt('mp-pct-rec-mont', pctRecMont+'% recebido do faturado');
-  var elSRM=document.getElementById('mp-saldo-rec-mont');
-  if(elSRM){ elSRM.textContent='Saldo a receber: '+fmtC(saldoRecMont); elSRM.style.color=corSaldo(saldoRecMont); }
+  // Recebimento (Montagem) — isolado
+  try{
+    var descMont=parseFloat(document.getElementById('mp-desc-mont')?.value)||0;
+    var saldoRecMont=contratoMont-recMont-descMont;
+    var pctRecMont=pct(recMont+descMont,contratoMont);
+    var barRM=document.getElementById('mp-bar-rec-mont'); if(barRM) barRM.style.width=pctRecMont+'%';
+    setTxt('mp-pct-rec-mont', pctRecMont+'% recebido do contratado');
+    var elSRM=document.getElementById('mp-saldo-rec-mont');
+    if(elSRM){ elSRM.textContent='Saldo a receber: '+fmtC(saldoRecMont); elSRM.style.color=corSaldo(saldoRecMont); }
+  }catch(eRM){ console.error('[calcValorContrato] recebido mont:',eRM.message); }
 }
 
 function calcPesoModal(){
@@ -27418,7 +27447,7 @@ function abrirModalProjeto(id){
   editingProjId = id;
   _checkState = {};
   // Reset ALL fields including new ones
-  ['mp-nome','mp-codigo','mp-cliente','mp-contrato','mp-valor-forn','mp-valor-mont','mp-fat-forn','mp-fat-mont','mp-rec-forn','mp-rec-mont',
+  ['mp-nome','mp-codigo','mp-cliente','mp-contrato','mp-valor-forn','mp-valor-mont','mp-fat-forn','mp-fat-mont','mp-rec-forn','mp-rec-mont','mp-desc-forn','mp-desc-mont',
    'mp-valor','mp-inicio','mp-termino','mp-obs','mp-escopo-desc','mp-peso-contratado',
    'mp-peso-faturado','mp-peso-forn-cont','mp-peso-forn-fat','mp-peso-mont-cont',
    'mp-peso-mont-fat','mp-peso-detalhado','mp-peso-basico',
@@ -27467,6 +27496,7 @@ function abrirModalProjeto(id){
     sv('mp-valor-forn',p.valor_fornecimento); sv('mp-valor-mont',p.valor_montagem);
     sv('mp-fat-forn',p.valor_faturado_fornecimento); sv('mp-fat-mont',p.valor_faturado_montagem);
     sv('mp-rec-forn',p.valor_recebido_fornecimento); sv('mp-rec-mont',p.valor_recebido_montagem);
+    sv('mp-desc-forn',p.desconto_nf_fornecimento); sv('mp-desc-mont',p.desconto_nf_montagem);
     calcValorContrato();
     sv('mp-inicio',p.data_inicio); sv('mp-termino',p.data_termino);
     sv('mp-status',p.status); sv('mp-obs',p.obs);
@@ -27552,6 +27582,8 @@ async function salvarProjeto(){
     valor_faturado_montagem: gn('mp-fat-mont')||0,
     valor_recebido_fornecimento: gn('mp-rec-forn')||0,
     valor_recebido_montagem: gn('mp-rec-mont')||0,
+    desconto_nf_fornecimento: gn('mp-desc-forn')||0,
+    desconto_nf_montagem: gn('mp-desc-mont')||0,
     valor_contrato: (gn('mp-valor-forn')||0)+(gn('mp-valor-mont')||0)||(parseFloat(document.getElementById('mp-valor')?.value)||0),
     data_inicio:gv('mp-inicio'), data_termino:gv('mp-termino'),
     status:gv('mp-status')||'ativo', obs:gv('mp-obs'),
@@ -27592,8 +27624,6 @@ async function salvarProjeto(){
   };
 
   try{
-    // Remove campos que podem não existir na tabela (versões antigas do schema)
-    // Se o Supabase retornar erro de coluna inexistente, tenta sem esses campos
     var _payloadFull = Object.assign({}, payload);
     var _trySave = async function(p){
       if(editingProjId){
@@ -27607,19 +27637,38 @@ async function salvarProjeto(){
         else _ct_allProjetos.unshift(Object.assign({id:'tmp-'+Date.now()},p));
       }
     };
-    try{
-      await _trySave(_payloadFull);
-    } catch(e1){
-      // Se falhou, pode ser coluna nova não existente no Supabase
-      // Tenta sem aditivos, peso_basico, peso_detalhado
-      console.warn('[salvarProjeto] Tentativa 1 falhou:',e1.message,'. Tentando sem colunas novas...');
-      var _payloadCompat = Object.assign({}, _payloadFull);
-      delete _payloadCompat.aditivos;
-      delete _payloadCompat.peso_basico;
-      delete _payloadCompat.peso_detalhado;
-      await _trySave(_payloadCompat);
-      // Se chegou aqui, as colunas novas não existem — avisa o usuário
-      _ct_showToast('⚠ Atenção','Projeto salvo, mas as colunas peso_basico, peso_detalhado e aditivos ainda não existem no Supabase. Execute o SQL de atualização.','warn');
+    // Salva de forma genericamente resistente: se o Supabase reclamar de uma
+    // coluna que não existe ("Could not find the 'X' column..."), remove essa
+    // coluna específica do payload e tenta de novo — repete até salvar ou até
+    // não conseguir mais identificar qual coluna está faltando. Assim, qualquer
+    // campo novo que ainda não tenha migração no banco não trava o salvamento
+    // do resto do projeto.
+    var _payloadAtual = _payloadFull;
+    var _removidos = [];
+    var _ultimoErro = null;
+    for(var _tentativa=0; _tentativa<15; _tentativa++){
+      try{
+        await _trySave(_payloadAtual);
+        _ultimoErro = null;
+        break;
+      } catch(eTentativa){
+        _ultimoErro = eTentativa;
+        var _m = /Could not find the '([^']+)' column/i.exec(eTentativa.message||'')
+              || /column "?([a-zA-Z_][a-zA-Z0-9_]*)"? .*does not exist/i.exec(eTentativa.message||'');
+        if(_m && _m[1] && (_m[1] in _payloadAtual)){
+          console.warn('[salvarProjeto] Coluna "'+_m[1]+'" não existe no Supabase — removendo do envio e tentando de novo.');
+          _payloadAtual = Object.assign({}, _payloadAtual);
+          delete _payloadAtual[_m[1]];
+          _removidos.push(_m[1]);
+          continue;
+        }
+        // Erro não identificado como "coluna ausente" — não há mais o que tentar
+        throw eTentativa;
+      }
+    }
+    if(_ultimoErro) throw _ultimoErro; // esgotou as tentativas sem sucesso
+    if(_removidos.length){
+      _ct_showToast('⚠ Alguns campos não foram salvos', 'Coluna(s) ausente(s) no Supabase: '+_removidos.join(', ')+'. Peça para executar o SQL de atualização (ALTER TABLE contratos_projetos ADD COLUMN...) para essas colunas.', 'warn');
     }
     fecharModalProjeto();
     // Recarrega do Supabase para garantir que a tabela mostra dados atualizados
