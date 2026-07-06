@@ -25138,6 +25138,8 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="fecharModalProjeto()">Cancelar</button>
       <button type="button" id="btn-anx-proj" onclick="abrirAnexosDoContexto()" style="background:var(--blue2);color:var(--blue);border:1.5px solid var(--blue);border-radius:var(--r2);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:9px 16px;cursor:pointer;display:flex;align-items:center;gap:.4rem;">📎 Anexos <span id="btn-anx-proj-count" style="background:var(--blue);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;"></span></button>
+      <button type="button" onclick="mpGerarRelatorioPDF()" style="background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:var(--r2);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:9px 16px;cursor:pointer;">🖨 Relatório PDF</button>
+      <button type="button" onclick="mpExportarExcel()" style="background:#fff;color:#166534;border:1.5px solid #166534;border-radius:var(--r2);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:9px 16px;cursor:pointer;">📊 Exportar Excel</button>
       <button class="btn btn-primary" id="btn-salvar-proj" onclick="salvarProjeto()">💾 Salvar Projeto</button>
     </div>
   </div>
@@ -27565,6 +27567,227 @@ function abrirModalProjeto(id){
 function fecharModalProjeto(e){
   if(!e||e.target.id==='modal-projeto')
     document.getElementById('modal-projeto').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════════
+// RELATÓRIO PDF / EXCEL — do projeto atualmente aberto no modal
+// (usa os valores AO VIVO da tela, inclusive alterações ainda não salvas)
+// ═══════════════════════════════════════════════════════════
+function _mpColetarDadosRelatorio(){
+  var chk=function(id){ var e=document.getElementById(id); return e?e.checked:false; };
+  var ads=_mpAditivos||[];
+  var totAditForn=ads.filter(function(x){return x.tipo!=='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+  var totAditMont=ads.filter(function(x){return x.tipo==='montagem';}).reduce(function(a,x){return a+(Number(x.valor)||0);},0);
+  var forn=gn('mp-valor-forn')||0, mont=gn('mp-valor-mont')||0;
+  var fatForn=gn('mp-fat-forn')||0, fatMont=gn('mp-fat-mont')||0;
+  var recForn=gn('mp-rec-forn')||0, recMont=gn('mp-rec-mont')||0;
+  var descForn=gn('mp-desc-forn')||0, descMont=gn('mp-desc-mont')||0;
+  var contratoForn=forn+totAditForn, contratoMont=mont+totAditMont;
+  return {
+    nome: gv('mp-nome')||'(sem nome)', codigo: gv('mp-codigo')||'', cliente: gv('mp-cliente')||'',
+    numeroContrato: gv('mp-contrato')||'', cidadeObra: gv('mp-cidade-obra')||'', estadoObra: gv('mp-estado-obra')||'',
+    tipoFaturamento: gv('mp-tipo-faturamento')||'', obsFaturamento: gv('mp-obs-faturamento')||'',
+    dataInicio: gv('mp-inicio'), dataTermino: gv('mp-termino'), status: gv('mp-status')||'ativo',
+    obs: gv('mp-obs')||'', escopoDesc: gv('mp-escopo-desc')||'', escopoFora: gv('mp-escopo-fora')||'',
+    escopoFornecimento: chk('chk-fornecimento'), escopoMontagem: chk('chk-montagem'),
+    forn:forn, mont:mont, totAditForn:totAditForn, totAditMont:totAditMont,
+    contratoForn:contratoForn, contratoMont:contratoMont, totalContratado:contratoForn+contratoMont,
+    fatForn:fatForn, fatMont:fatMont, recForn:recForn, recMont:recMont, descForn:descForn, descMont:descMont,
+    saldoFaturarForn: contratoForn-fatForn, saldoFaturarMont: contratoMont-fatMont,
+    saldoReceberForn: contratoForn-recForn-descForn, saldoReceberMont: contratoMont-recMont-descMont,
+    aditivos: ads,
+    pesoFornCont: gn('mp-peso-forn-cont')||0, pesoFornFat: gn('mp-peso-forn-fat')||0,
+    pesoMontCont: gn('mp-peso-mont-cont')||0, pesoMontFat: gn('mp-peso-mont-fat')||0,
+    pesoBasico: gn('mp-peso-basico')||0, pesoDetalhado: gn('mp-peso-detalhado')||0, pesoExpedido: gn('mp-peso-expedido')||0,
+    gerenteContrato: gv('mp-gerente-contrato')||'', gestorFinanceiro: gv('mp-gestor-financeiro')||'', gestorGeral: gv('mp-gestor-geral')||'',
+    reuniaoPrevista: gv('mp-reuniao-prevista'), reuniaoRealizada: gv('mp-reuniao-realizada'), reuniaoStatus: gv('mp-reuniao-status')||'', reuniaoObs: gv('mp-reuniao-obs')||'',
+    artData: gv('mp-art-data'), artNumero: gv('mp-art-numero')||'', pitData: gv('mp-pit-data'), pitNumero: gv('mp-pit-numero')||'',
+    garantiaPossui: gv('mp-garantia-possui')||'', garantiaObs: gv('mp-garantia-obs')||'', garantias: coletarGarantias(),
+    checklist: Object.keys(CHECK_FIELDS).map(function(f){ return {campo:f, marcado: !!_checkState[f]}; })
+  };
+}
+function mpGerarRelatorioPDF(){
+  var d=_mpColetarDadosRelatorio();
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  var fmtC=function(v){return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});};
+  var fmtK=function(v){return v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—';};
+  var fmtDt=function(v){return v?v.split('-').reverse().join('/'):'—';};
+  var corSaldo=function(v){return v<0?'#dc2626':'#166534';};
+  var linha=function(label,val){ return '<tr><td style="padding:5px 10px;font-weight:700;color:#475569;width:220px;">'+label+'</td><td style="padding:5px 10px;">'+(val||'—')+'</td></tr>'; };
+
+  var checkLabels={doc_abertura_recebido:'Documentos de Abertura Recebidos',abertura_obra:'Abertura de Obra Realizada',emissao_art:'ART Emitida',emissao_pit:'PIT Emitido',entrega_engenharia:'Entrega Engenharia',entrega_suprimentos:'Entrega Suprimentos',entrega_fiscal:'Entrega Fiscal',entrega_planejamento:'Entrega Planejamento',entrega_qualidade:'Entrega Qualidade'};
+  var checklistHtml=d.checklist.map(function(c){
+    return '<span style="display:inline-block;margin:2px 8px 2px 0;font-size:11px;">'+(c.marcado?'✅':'⬜')+' '+(checkLabels[c.campo]||c.campo)+'</span>';
+  }).join('');
+
+  var aditivosHtml = d.aditivos.length ? (
+    '<table style="width:100%;border-collapse:collapse;margin-top:6px;">'
+    +'<thead><tr style="background:#0c4a6e;color:#fff;"><th style="padding:5px 8px;text-align:left;font-size:11px;">Nº Aditivo</th><th style="padding:5px 8px;text-align:left;font-size:11px;">Tipo</th><th style="padding:5px 8px;text-align:right;font-size:11px;">Valor (R$)</th><th style="padding:5px 8px;text-align:right;font-size:11px;">Peso (kg)</th></tr></thead>'
+    +'<tbody>'+d.aditivos.map(function(a){
+      return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px 8px;font-size:11px;">Aditivo '+(a.num||'—')+'</td><td style="padding:4px 8px;font-size:11px;">'+(a.tipo==='montagem'?'Montagem':'Fornecimento')+'</td><td style="padding:4px 8px;text-align:right;font-size:11px;">'+fmtC(a.valor)+'</td><td style="padding:4px 8px;text-align:right;font-size:11px;">'+fmtK(a.peso)+'</td></tr>';
+    }).join('')+'</tbody></table>'
+  ) : '<div style="font-size:11px;color:#94a3b8;font-style:italic;">Nenhum aditivo cadastrado.</div>';
+
+  var garantiasHtml = (d.garantias&&d.garantias.length) ? (
+    '<table style="width:100%;border-collapse:collapse;margin-top:6px;">'
+    +'<thead><tr style="background:#0c4a6e;color:#fff;"><th style="padding:5px 8px;text-align:left;font-size:11px;">Modalidade</th><th style="padding:5px 8px;text-align:left;font-size:11px;">Emissão Prevista</th><th style="padding:5px 8px;text-align:left;font-size:11px;">Emissão Realizada</th><th style="padding:5px 8px;text-align:right;font-size:11px;">Valor Segurado (R$)</th></tr></thead>'
+    +'<tbody>'+d.garantias.map(function(g){
+      return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px 8px;font-size:11px;">'+(g.modalidade||'—')+'</td><td style="padding:4px 8px;font-size:11px;">'+fmtDt(g.emissao_prevista)+'</td><td style="padding:4px 8px;font-size:11px;">'+fmtDt(g.emissao_realizada)+'</td><td style="padding:4px 8px;text-align:right;font-size:11px;">'+fmtC(g.valor_segurado)+'</td></tr>';
+    }).join('')+'</tbody></table>'
+  ) : '<div style="font-size:11px;color:#94a3b8;font-style:italic;">Nenhuma apólice cadastrada.</div>';
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório — '+d.nome+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:28px;color:#1e293b;font-size:12px;}'
+    +'h2{color:#0369a1;margin:0 0 4px;}p.sub{color:#64748b;font-size:11px;margin:0 0 16px;}'
+    +'h3{background:#0c4a6e;color:#fff;padding:6px 10px;font-size:12px;margin:16px 0 0;}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:4px;}'
+    +'td{border-bottom:1px solid #e2e8f0;font-size:12px;}'
+    +'.cards{display:flex;gap:10px;margin-top:8px;}'
+    +'.card{flex:1;border:1.5px solid #cbd5e1;border-radius:8px;overflow:hidden;}'
+    +'.card-hd{color:#fff;padding:5px 10px;font-weight:700;font-size:11px;}'
+    +'.card-bd{padding:8px 10px;}'
+    +'.card-bd table td{border:none;padding:2px 0;font-size:11px;}'
+    +'@media print{.no-print{display:none;}}</style></head><body>'
+    +'<h2>Relatório de Projeto/Contrato</h2>'
+    +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS &middot; Gerado em '+hoje+'</p>'
+
+    +'<h3>📑 Identificação</h3>'
+    +'<table>'+linha('Projeto',d.nome)+linha('Código/TAG',d.codigo)+linha('Cliente',d.cliente)+linha('Nº Contrato',d.numeroContrato)+linha('Status',(d.status||'').toUpperCase())+linha('Local da Obra',[d.cidadeObra,d.estadoObra].filter(Boolean).join(' — ')||'—')+linha('Data de Início',fmtDt(d.dataInicio))+linha('Data de Término Prevista',fmtDt(d.dataTermino))+'</table>'
+
+    +'<h3>💰 Fluxo Financeiro</h3>'
+    +'<div class="cards">'
+      +'<div class="card"><div class="card-hd" style="background:#1d4ed8;">🏗 FORNECIMENTO</div><div class="card-bd"><table>'
+        +'<tr><td>Valor Base</td><td style="text-align:right;">'+fmtC(d.forn)+'</td></tr>'
+        +'<tr><td>+ Aditivos</td><td style="text-align:right;">'+fmtC(d.totAditForn)+'</td></tr>'
+        +'<tr><td><b>= Total Contratado</b></td><td style="text-align:right;"><b>'+fmtC(d.contratoForn)+'</b></td></tr>'
+        +'<tr><td>Faturado</td><td style="text-align:right;">'+fmtC(d.fatForn)+'</td></tr>'
+        +'<tr><td>Saldo a Faturar</td><td style="text-align:right;color:'+corSaldo(d.saldoFaturarForn)+';font-weight:700;">'+fmtC(d.saldoFaturarForn)+'</td></tr>'
+        +'<tr><td>Recebido</td><td style="text-align:right;">'+fmtC(d.recForn)+'</td></tr>'
+        +'<tr><td>Desconto NF</td><td style="text-align:right;">'+fmtC(d.descForn)+'</td></tr>'
+        +'<tr><td>Saldo a Receber</td><td style="text-align:right;color:'+corSaldo(d.saldoReceberForn)+';font-weight:700;">'+fmtC(d.saldoReceberForn)+'</td></tr>'
+      +'</table></div></div>'
+      +'<div class="card"><div class="card-hd" style="background:#c2410c;">🔩 MONTAGEM</div><div class="card-bd"><table>'
+        +'<tr><td>Valor Base</td><td style="text-align:right;">'+fmtC(d.mont)+'</td></tr>'
+        +'<tr><td>+ Aditivos</td><td style="text-align:right;">'+fmtC(d.totAditMont)+'</td></tr>'
+        +'<tr><td><b>= Total Contratado</b></td><td style="text-align:right;"><b>'+fmtC(d.contratoMont)+'</b></td></tr>'
+        +'<tr><td>Faturado</td><td style="text-align:right;">'+fmtC(d.fatMont)+'</td></tr>'
+        +'<tr><td>Saldo a Faturar</td><td style="text-align:right;color:'+corSaldo(d.saldoFaturarMont)+';font-weight:700;">'+fmtC(d.saldoFaturarMont)+'</td></tr>'
+        +'<tr><td>Recebido</td><td style="text-align:right;">'+fmtC(d.recMont)+'</td></tr>'
+        +'<tr><td>Desconto NF</td><td style="text-align:right;">'+fmtC(d.descMont)+'</td></tr>'
+        +'<tr><td>Saldo a Receber</td><td style="text-align:right;color:'+corSaldo(d.saldoReceberMont)+';font-weight:700;">'+fmtC(d.saldoReceberMont)+'</td></tr>'
+      +'</table></div></div>'
+    +'</div>'
+    +'<table style="margin-top:8px;"><tr><td style="padding:6px 10px;font-weight:700;background:#eff6ff;">Total Contratado Geral</td><td style="padding:6px 10px;text-align:right;font-weight:700;background:#eff6ff;">'+fmtC(d.totalContratado)+'</td></tr></table>'
+
+    +'<h3>📋 Aditivos Contratuais</h3>'+aditivosHtml
+
+    +'<h3>⚖️ Peso por Escopo</h3>'
+    +'<table><tr><td>Forn. Contratado</td><td style="text-align:right;">'+fmtK(d.pesoFornCont)+'</td><td>Forn. Faturado</td><td style="text-align:right;">'+fmtK(d.pesoFornFat)+'</td></tr>'
+    +'<tr><td>Mont. Contratado</td><td style="text-align:right;">'+fmtK(d.pesoMontCont)+'</td><td>Mont. Faturado</td><td style="text-align:right;">'+fmtK(d.pesoMontFat)+'</td></tr>'
+    +'<tr><td>Peso Básico</td><td style="text-align:right;">'+fmtK(d.pesoBasico)+'</td><td>Peso Detalhado</td><td style="text-align:right;">'+fmtK(d.pesoDetalhado)+'</td></tr>'
+    +'<tr><td>Peso Expedido</td><td style="text-align:right;" colspan="3">'+fmtK(d.pesoExpedido)+'</td></tr></table>'
+
+    +'<h3>📦 Escopo Contratado</h3>'
+    +'<table>'+linha('Fornecimento', d.escopoFornecimento?'✅ Incluso':'⬜ Não incluso')+linha('Montagem', d.escopoMontagem?'✅ Incluso':'⬜ Não incluso')+'</table>'
+    +(d.escopoDesc?('<div style="margin-top:6px;font-size:11px;"><b>Descrição:</b> '+_esc(d.escopoDesc)+'</div>'):'')
+    +(d.escopoFora?('<div style="margin-top:4px;font-size:11px;color:#dc2626;"><b>Fora do escopo:</b> '+_esc(d.escopoFora)+'</div>'):'')
+
+    +'<h3>📄 Documentação (ART / PIT)</h3>'
+    +'<table>'+linha('ART — Data de Emissão',fmtDt(d.artData))+linha('ART — Nº do Registro',d.artNumero)+linha('PIT — Data de Emissão',fmtDt(d.pitData))+linha('PIT — Nº do Registro',d.pitNumero)+'</table>'
+
+    +'<h3>✅ Entrega Documental / Checklist</h3>'
+    +'<div style="padding:8px 0;">'+checklistHtml+'</div>'
+
+    +'<h3>🤝 Reunião de Comissionamento</h3>'
+    +'<table>'+linha('Data Prevista',fmtDt(d.reuniaoPrevista))+linha('Data Realizada',fmtDt(d.reuniaoRealizada))+linha('Status',d.reuniaoStatus||'—')+(d.reuniaoObs?linha('Observações',_esc(d.reuniaoObs)):'')+'</table>'
+
+    +'<h3>👤 Gestores do Contrato</h3>'
+    +'<table>'+linha('Gerente do Contrato',d.gerenteContrato||'—')+linha('Gestor Financeiro',d.gestorFinanceiro||'—')+linha('Gestor Geral',d.gestorGeral||'—')+'</table>'
+
+    +'<h3>🛡 Garantias Contratuais</h3>'
+    +'<table>'+linha('Possui garantia?', d.garantiaPossui==='sim'?'✅ Sim':(d.garantiaPossui==='nao'?'❌ Não':(d.garantiaPossui==='dispensada'?'⚠️ Dispensada':'Não informado')))+(d.garantiaObs?linha('Observações',_esc(d.garantiaObs)):'')+'</table>'
+    +garantiasHtml
+
+    +(d.obs?('<h3>📝 Observações Gerais</h3><div style="padding:8px 0;font-size:11px;">'+_esc(d.obs)+'</div>'):'')
+
+    +'<div class="no-print" style="margin-top:20px;">'
+    +'<button onclick="window.print()" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:7px 18px;font-size:12px;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>'
+    +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:7px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
+    +'</div></body></html>';
+
+  var w=window.open('','_blank','width=900,height=850');
+  if(!w){ alert('Permita popups para gerar o relatório.'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+var _mpXlsxCarregando=false;
+function _mpCarregarXlsxLib(cb){
+  if(typeof window.XLSX!=='undefined'){ cb(); return; }
+  if(_mpXlsxCarregando){ setTimeout(function(){_mpCarregarXlsxLib(cb);},300); return; }
+  _mpXlsxCarregando=true;
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload=function(){ cb(); };
+  s.onerror=function(){ _mpXlsxCarregando=false; alert('Não foi possível carregar a biblioteca de Excel (verifique sua conexão com a internet).'); };
+  document.head.appendChild(s);
+}
+function mpExportarExcel(){
+  _mpCarregarXlsxLib(function(){
+    var d=_mpColetarDadosRelatorio();
+    var fmtDt=function(v){return v?v.split('-').reverse().join('/'):'';};
+    var wb=window.XLSX.utils.book_new();
+
+    var resumo=[
+      ['Relatório de Projeto/Contrato — '+d.nome],
+      ['Gerado em', new Date().toLocaleDateString('pt-BR')],
+      [],
+      ['Projeto', d.nome],['Código/TAG', d.codigo],['Cliente', d.cliente],['Nº Contrato', d.numeroContrato],
+      ['Status', d.status],['Cidade da Obra', d.cidadeObra],['Estado (UF)', d.estadoObra],
+      ['Data de Início', fmtDt(d.dataInicio)],['Data de Término Prevista', fmtDt(d.dataTermino)],
+      [],
+      ['FLUXO FINANCEIRO','Fornecimento','Montagem'],
+      ['Valor Base', d.forn, d.mont],
+      ['+ Aditivos', d.totAditForn, d.totAditMont],
+      ['= Total Contratado', d.contratoForn, d.contratoMont],
+      ['Faturado', d.fatForn, d.fatMont],
+      ['Saldo a Faturar', d.saldoFaturarForn, d.saldoFaturarMont],
+      ['Recebido', d.recForn, d.recMont],
+      ['Desconto NF', d.descForn, d.descMont],
+      ['Saldo a Receber', d.saldoReceberForn, d.saldoReceberMont],
+      [],
+      ['Total Contratado Geral', d.totalContratado],
+      [],
+      ['PESO POR ESCOPO (kg)'],
+      ['Forn. Contratado', d.pesoFornCont],['Forn. Faturado', d.pesoFornFat],
+      ['Mont. Contratado', d.pesoMontCont],['Mont. Faturado', d.pesoMontFat],
+      ['Peso Básico', d.pesoBasico],['Peso Detalhado', d.pesoDetalhado],['Peso Expedido', d.pesoExpedido],
+      [],
+      ['Gerente do Contrato', d.gerenteContrato],['Gestor Financeiro', d.gestorFinanceiro],['Gestor Geral', d.gestorGeral],
+      [],
+      ['Observações', d.obs]
+    ];
+    var wsResumo=window.XLSX.utils.aoa_to_sheet(resumo);
+    wsResumo['!cols']=[{wch:22},{wch:20},{wch:20}];
+    window.XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+    var aditivosRows=[['Nº Aditivo','Tipo','Valor (R$)','Peso (kg)']].concat(
+      (d.aditivos||[]).map(function(a){ return [a.num||'', a.tipo==='montagem'?'Montagem':'Fornecimento', Number(a.valor)||0, Number(a.peso)||0]; })
+    );
+    var wsAdit=window.XLSX.utils.aoa_to_sheet(aditivosRows);
+    wsAdit['!cols']=[{wch:14},{wch:14},{wch:16},{wch:14}];
+    window.XLSX.utils.book_append_sheet(wb, wsAdit, 'Aditivos');
+
+    var garRows=[['Modalidade','Emissão Prevista','Emissão Realizada','Valor Segurado (R$)']].concat(
+      (d.garantias||[]).map(function(g){ return [g.modalidade||'', fmtDt(g.emissao_prevista), fmtDt(g.emissao_realizada), Number(g.valor_segurado)||0]; })
+    );
+    var wsGar=window.XLSX.utils.aoa_to_sheet(garRows);
+    wsGar['!cols']=[{wch:20},{wch:16},{wch:18},{wch:18}];
+    window.XLSX.utils.book_append_sheet(wb, wsGar, 'Garantias');
+
+    var nomeArquivo=('Relatorio_'+(d.codigo||d.nome||'projeto')).replace(/[^a-zA-Z0-9_\-]/g,'_')+'.xlsx';
+    window.XLSX.writeFile(wb, nomeArquivo);
+  });
 }
 
 async function salvarProjeto(){
