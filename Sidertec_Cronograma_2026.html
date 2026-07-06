@@ -24841,6 +24841,23 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
       </div>
 
+      <!-- Ocorrências Financeiras — log de eventos/observações ao longo do tempo -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r2);padding:.75rem;margin-bottom:.85rem;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#92400e;margin-bottom:.5rem;">📝 Ocorrências Financeiras <span style="font-weight:400;color:#a16207;text-transform:none;">(atrasos, motivos de desconto, negociações, etc.)</span></div>
+        <div id="mp-ocorrencias-lista" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.5rem;"></div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto;gap:.4rem;align-items:end;background:#fff;border-radius:var(--r2);padding:.5rem .6rem;border:1px dashed #fde68a;">
+          <div class="field-group" style="margin:0;">
+            <label class="field-label">Data</label>
+            <input type="date" class="field-input" id="mp-ocor-data" style="width:150px;">
+          </div>
+          <div class="field-group" style="margin:0;">
+            <label class="field-label">Descrição da Ocorrência</label>
+            <input type="text" class="field-input" id="mp-ocor-texto" placeholder="Ex: Cliente solicitou prorrogação do pagamento por 15 dias…" onkeydown="if(event.key==='Enter')mpAdicionarOcorrencia();">
+          </div>
+          <button onclick="mpAdicionarOcorrencia()" style="background:#b45309;color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;height:32px;align-self:end;">+ Add</button>
+        </div>
+      </div>
+
       <div class="field-group" style="margin-bottom:.85rem;">
         <label class="field-label">Valor Total do Contrato (R$)</label>
         <div id="mp-valor-total-preview" style="background:var(--blue2);border:1.5px solid var(--blue);border-radius:var(--r2);padding:8px 10px;font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--blue);">—</div>
@@ -27053,6 +27070,7 @@ function mpAutoFillPesosCronograma(codigoObra){
 
 // ── ADITIVOS ──────────────────────────────────────────────────────────────
 var _mpAditivos = [];
+var _mpOcorrencias = [];
 
 var _mpEditandoIdx = -1; // índice do aditivo sendo editado (-1 = nenhum)
 
@@ -27143,6 +27161,39 @@ function mpRemoverAditivo(idx){
   _mpAditivos.splice(idx,1);
   if(_mpEditandoIdx===idx) _mpEditandoIdx=-1;
   mpRenderAditivos();
+}
+
+// ═══ OCORRÊNCIAS FINANCEIRAS ═══
+function mpRenderOcorrencias(){
+  var lista=document.getElementById('mp-ocorrencias-lista'); if(!lista) return;
+  if(!_mpOcorrencias.length){
+    lista.innerHTML='<div style="font-size:11px;color:#a16207;font-style:italic;padding:4px 0;">Nenhuma ocorrência registrada.</div>';
+    return;
+  }
+  // Mais recentes primeiro
+  var ordenadas=_mpOcorrencias.map(function(o,i){return {o:o,i:i};}).sort(function(a,b){return (b.o.data||'').localeCompare(a.o.data||'');});
+  lista.innerHTML=ordenadas.map(function(item){
+    var o=item.o, i=item.i;
+    var dataBR=o.data?o.data.split('-').reverse().join('/'):'—';
+    return '<div style="display:flex;align-items:flex-start;gap:.5rem;background:#fff;border-radius:var(--r2);padding:6px 9px;border:1px solid #fde68a;">'
+      +'<span style="font-family:\'DM Mono\',monospace;font-size:11px;font-weight:700;color:#b45309;white-space:nowrap;padding-top:1px;">'+dataBR+'</span>'
+      +'<span style="font-size:12px;color:var(--ink);flex:1;">'+_esc(o.texto||'')+'</span>'
+      +'<button onclick="mpRemoverOcorrencia('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;flex-shrink:0;" title="Excluir">✕</button>'
+      +'</div>';
+  }).join('');
+}
+function mpAdicionarOcorrencia(){
+  var data=(document.getElementById('mp-ocor-data')||{}).value||new Date().toISOString().slice(0,10);
+  var texto=(document.getElementById('mp-ocor-texto')||{}).value||'';
+  if(!texto.trim()){ alert('Descreva a ocorrência antes de adicionar.'); return; }
+  _mpOcorrencias.push({data:data, texto:texto.trim()});
+  mpRenderOcorrencias();
+  var elT=document.getElementById('mp-ocor-texto'); if(elT){ elT.value=''; elT.focus(); }
+}
+function mpRemoverOcorrencia(idx){
+  if(!confirm('Remover esta ocorrência?')) return;
+  _mpOcorrencias.splice(idx,1);
+  mpRenderOcorrencias();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -27474,6 +27525,9 @@ function abrirModalProjeto(id){
   _mpAditivos=[];
   _mpEditandoIdx=-1;
   mpRenderAditivos();
+  // Reset ocorrências financeiras
+  _mpOcorrencias=[];
+  mpRenderOcorrencias();
   // Reset escopo checkboxes
   ['fornecimento','montagem'].forEach(f=>{
     document.getElementById('chk-'+f).checked=false;
@@ -27513,6 +27567,9 @@ function abrirModalProjeto(id){
     // Carrega aditivos
     _mpAditivos = Array.isArray(p.aditivos) ? JSON.parse(JSON.stringify(p.aditivos)) : [];
     mpRenderAditivos();
+    // Carrega ocorrências financeiras
+    _mpOcorrencias = Array.isArray(p.ocorrencias_financeiras) ? JSON.parse(JSON.stringify(p.ocorrencias_financeiras)) : [];
+    mpRenderOcorrencias();
     // Auto-preenche pesos do Cronograma se o campo estiver vazio ou for 0
     mpAutoFillPesosCronograma(p.codigo);
     calcPesoModal();
@@ -27603,7 +27660,8 @@ function _mpColetarDadosRelatorio(){
     reuniaoPrevista: gv('mp-reuniao-prevista'), reuniaoRealizada: gv('mp-reuniao-realizada'), reuniaoStatus: gv('mp-reuniao-status')||'', reuniaoObs: gv('mp-reuniao-obs')||'',
     artData: gv('mp-art-data'), artNumero: gv('mp-art-numero')||'', pitData: gv('mp-pit-data'), pitNumero: gv('mp-pit-numero')||'',
     garantiaPossui: gv('mp-garantia-possui')||'', garantiaObs: gv('mp-garantia-obs')||'', garantias: coletarGarantias(),
-    checklist: Object.keys(CHECK_FIELDS).map(function(f){ return {campo:f, marcado: !!_checkState[f]}; })
+    checklist: Object.keys(CHECK_FIELDS).map(function(f){ return {campo:f, marcado: !!_checkState[f]}; }),
+    ocorrencias: (_mpOcorrencias||[]).slice().sort(function(a,b){return (b.data||'').localeCompare(a.data||'');})
   };
 }
 function mpGerarRelatorioPDF(){
@@ -27635,6 +27693,14 @@ function mpGerarRelatorioPDF(){
       return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px 8px;font-size:11px;">'+(g.modalidade||'—')+'</td><td style="padding:4px 8px;font-size:11px;">'+fmtDt(g.emissao_prevista)+'</td><td style="padding:4px 8px;font-size:11px;">'+fmtDt(g.emissao_realizada)+'</td><td style="padding:4px 8px;text-align:right;font-size:11px;">'+fmtC(g.valor_segurado)+'</td></tr>';
     }).join('')+'</tbody></table>'
   ) : '<div style="font-size:11px;color:#94a3b8;font-style:italic;">Nenhuma apólice cadastrada.</div>';
+
+  var ocorrenciasHtml = (d.ocorrencias&&d.ocorrencias.length) ? (
+    '<table style="width:100%;border-collapse:collapse;margin-top:6px;">'
+    +'<thead><tr style="background:#b45309;color:#fff;"><th style="padding:5px 8px;text-align:left;font-size:11px;width:90px;">Data</th><th style="padding:5px 8px;text-align:left;font-size:11px;">Descrição</th></tr></thead>'
+    +'<tbody>'+d.ocorrencias.map(function(o){
+      return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px 8px;font-size:11px;font-weight:700;">'+fmtDt(o.data)+'</td><td style="padding:4px 8px;font-size:11px;">'+_esc(o.texto||'')+'</td></tr>';
+    }).join('')+'</tbody></table>'
+  ) : '<div style="font-size:11px;color:#94a3b8;font-style:italic;">Nenhuma ocorrência registrada.</div>';
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório — '+d.nome+'</title>'
     +'<style>body{font-family:Arial,sans-serif;margin:28px;color:#1e293b;font-size:12px;}'
@@ -27678,6 +27744,8 @@ function mpGerarRelatorioPDF(){
       +'</table></div></div>'
     +'</div>'
     +'<table style="margin-top:8px;"><tr><td style="padding:6px 10px;font-weight:700;background:#eff6ff;">Total Contratado Geral</td><td style="padding:6px 10px;text-align:right;font-weight:700;background:#eff6ff;">'+fmtC(d.totalContratado)+'</td></tr></table>'
+
+    +'<h3 style="background:#b45309;">📝 Ocorrências Financeiras</h3>'+ocorrenciasHtml
 
     +'<h3>📋 Aditivos Contratuais</h3>'+aditivosHtml
 
@@ -27785,6 +27853,13 @@ function mpExportarExcel(){
     wsGar['!cols']=[{wch:20},{wch:16},{wch:18},{wch:18}];
     window.XLSX.utils.book_append_sheet(wb, wsGar, 'Garantias');
 
+    var ocorRows=[['Data','Descrição']].concat(
+      (d.ocorrencias||[]).map(function(o){ return [fmtDt(o.data), o.texto||'']; })
+    );
+    var wsOcor=window.XLSX.utils.aoa_to_sheet(ocorRows);
+    wsOcor['!cols']=[{wch:14},{wch:60}];
+    window.XLSX.utils.book_append_sheet(wb, wsOcor, 'Ocorrências');
+
     var nomeArquivo=('Relatorio_'+(d.codigo||d.nome||'projeto')).replace(/[^a-zA-Z0-9_\-]/g,'_')+'.xlsx';
     window.XLSX.writeFile(wb, nomeArquivo);
   });
@@ -27823,6 +27898,7 @@ async function salvarProjeto(){
     peso_contratado: (gn('mp-peso-forn-cont')||0)+(gn('mp-peso-mont-cont')||0),
     peso_faturado:   (gn('mp-peso-forn-fat')||0)+(gn('mp-peso-mont-fat')||0),
     aditivos: JSON.parse(JSON.stringify(_mpAditivos||[])),
+    ocorrencias_financeiras: JSON.parse(JSON.stringify(_mpOcorrencias||[])),
     reuniao_prevista:  gv('mp-reuniao-prevista')||null,
     reuniao_realizada: gv('mp-reuniao-realizada')||null,
     reuniao_status:    gv('mp-reuniao-status')||'',
@@ -27891,7 +27967,9 @@ async function salvarProjeto(){
     }
     if(_ultimoErro) throw _ultimoErro; // esgotou as tentativas sem sucesso
     if(_removidos.length){
-      _ct_showToast('⚠ Alguns campos não foram salvos', 'Coluna(s) ausente(s) no Supabase: '+_removidos.join(', ')+'. Peça para executar o SQL de atualização (ALTER TABLE contratos_projetos ADD COLUMN...) para essas colunas.', 'warn');
+      _ct_showToast('⚠ Alguns campos não foram salvos', 'Coluna(s) ausente(s) no Supabase: '+_removidos.join(', ')+'.', 'warn');
+      var _sqlFaltando=_removidos.map(function(col){ return 'ALTER TABLE contratos_projetos ADD COLUMN IF NOT EXISTS '+col+' numeric DEFAULT 0;'; }).join('\n')+'\nNOTIFY pgrst, \'reload schema\';';
+      alert('⚠ ATENÇÃO — o projeto foi salvo, MAS os seguintes campos NÃO foram gravados (a tabela do Supabase ainda não tem essas colunas):\n\n'+_removidos.join(', ')+'\n\nRode este SQL no Supabase (SQL Editor) e tente salvar de novo:\n\n'+_sqlFaltando);
     }
     fecharModalProjeto();
     // Recarrega do Supabase para garantir que a tabela mostra dados atualizados
