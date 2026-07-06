@@ -17451,6 +17451,22 @@ function cotExportarCSV(){
       <button onclick="fecharCtrlDoc()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">✕</button>
     </div>
     <div class="cron-mbody">
+      <div id="cdoc-alerta-prazo" style="display:none;margin:.3rem 0 0;">
+        <div id="cdoc-alerta-pill" onclick="cdocAlertaPrazoToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#fda4af,#fecdd3);border:1.5px solid #f43f5e;border-radius:20px;padding:.2rem .75rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os documentos em alerta">
+          <span style="font-size:13px;">🚨</span>
+          <span id="cdoc-alerta-pill-txt" style="font-size:11px;font-weight:700;color:#9f1239;white-space:nowrap;"></span>
+          <span id="cdoc-alerta-pill-chevron" style="font-size:10px;color:#9f1239;transition:transform .2s;">▼</span>
+        </div>
+        <div id="cdoc-alerta-painel" style="display:none;margin-top:.3rem;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:8px;padding:.35rem .75rem;max-height:180px;overflow-y:auto;">
+          <div style="display:flex;align-items:flex-start;gap:.5rem;">
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:700;color:#9f1239;margin-bottom:.25rem;">ALERTA DE PRAZO — Retorno do cliente vencido, sem ação registrada</div>
+              <div id="cdoc-alerta-prazo-lista" style="font-size:10px;color:#be123c;"></div>
+            </div>
+            <button onclick="cdocAlertaPrazoToggle()" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;flex-shrink:0;">▲ Recolher</button>
+          </div>
+        </div>
+      </div>
       <div class="cdoc-tabs">
         <div class="cdoc-tab active" onclick="cdocTab('visao')">&#128200; Visão Geral</div>
         <div class="cdoc-tab" onclick="cdocTab('basico')">&#128196; Projeto Básico</div>
@@ -18422,7 +18438,55 @@ function cdocRefreshAll(){
   try{ cdocRenderBas(); }catch(e){ console.error('[CDOC] RenderBas error:',e); }
   try{ cdocRenderDet(); }catch(e){ console.error('[CDOC] RenderDet error:',e); }
   try{ cdocPopFilters(); }catch(e){ console.error('[CDOC] PopFilters error:',e); }
+  try{ _cdocAtualizarAlertaPrazo(); }catch(e){ console.error('[CDOC] AlertaPrazo error:',e); }
   setTimeout(function(){ if(typeof syncScrollMirrors==='function') syncScrollMirrors(); }, 200);
+}
+function cdocAlertaPrazoToggle(){
+  var painel=document.getElementById('cdoc-alerta-painel');
+  var chevron=document.getElementById('cdoc-alerta-pill-chevron');
+  if(!painel) return;
+  var aberto=painel.style.display!=='none';
+  painel.style.display=aberto?'none':'block';
+  if(chevron) chevron.style.transform=aberto?'rotate(0deg)':'rotate(180deg)';
+}
+// Levanta todos os documentos de TODAS as obras que estão com o retorno do
+// cliente vencido (Prev. Retorno < hoje, sem Retorno Real) e ainda sem
+// nenhuma "Ação" registrada — são os que precisam de atenção imediata.
+function _cdocAtualizarAlertaPrazo(){
+  var banner=document.getElementById('cdoc-alerta-prazo');
+  var pillTxt=document.getElementById('cdoc-alerta-pill-txt');
+  var lista=document.getElementById('cdoc-alerta-prazo-lista');
+  if(!banner||!pillTxt||!lista) return;
+  var db=_cdocLoad();
+  var hoje=_cdocHojeISO();
+  var vencidos=(db.detalhados||[]).filter(function(d){
+    var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
+    if(!eh||!eh.prevRetorno||eh.retornoReal) return false;
+    if(eh.prevRetorno>=hoje) return false;
+    if(d.acaoPendente&&d.acaoPendente.texto) return false; // já tem ação definida
+    return true;
+  });
+  if(!vencidos.length){ banner.style.display='none'; return; }
+  banner.style.display='block';
+  pillTxt.textContent=vencidos.length+' documento'+(vencidos.length>1?'s':'')+' com prazo vencido sem ação';
+  lista.innerHTML=vencidos.map(function(d){
+    var eh=d.envioHist[d.envioHist.length-1];
+    var dias=_cdocDiasRetorno(eh.prevRetorno,hoje);
+    var fmtP=eh.prevRetorno.split('-').reverse().join('/');
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fda4af;color:#9f1239;border-radius:3px;padding:1px 7px;font-weight:700;margin:.15rem .2rem .15rem 0;cursor:pointer;" onclick="_cdocIrParaDocAlerta(\''+d.obraId.replace(/'/g,"\\'")+'\','+d.id+')" title="Clique para abrir este documento">'
+      + (d.num||d.sub||'—') + ' (' + d.obraId + ')'
+      + ' — Prev. Retorno: ' + fmtP + ' (' + dias + 'd atrás)'
+      + ' ↗</span>';
+  }).join('');
+}
+// Ao clicar num item do alerta: vai para a obra/documento na aba Proj. Detalhado
+function _cdocIrParaDocAlerta(obraId, docId){
+  cdocTab('detalhado');
+  setTimeout(function(){
+    var sel=document.getElementById('cdd-f-obra'); if(sel){ sel.value=obraId; _cdocSyncGlobalFromTab&&_cdocSyncGlobalFromTab('cdd-f-obra'); }
+    cdocRenderDet();
+    setTimeout(function(){ if(typeof cdocEditDet==='function') cdocEditDet(docId); },150);
+  },50);
 }
 
 // Garante valores mínimos para contadores de GRD de obras conhecidas.
@@ -18703,6 +18767,32 @@ function _cdocBadgeHtml(s){
   if(!s||s==='-'||s==='—') return '<span style="color:#94a3b8;">—</span>';
   var st=_cdocBadge[s]||{bg:'#f1f5f9',c:'#475569'};
   return '<span class="cdoc-badge" style="background:'+st.bg+';color:'+st.c+';">'+s+'</span>';
+}
+// Badge/sino que indica uma "Ação" pendente registrada via "Lista para Responsável"
+// — mostra ícone de acordo com a prioridade e destaca em vermelho se o prazo já venceu.
+function _cdocAcaoPendenteBadge(d){
+  var ap=d.acaoPendente;
+  if(!ap||!ap.texto) return '';
+  var prioIcon={'Urgente':'🔴','Alta':'🟠','Média':'🟡','Baixa':'🟢'}[ap.prioridade]||'';
+  var hoje=_cdocHojeISO();
+  var atrasado=ap.prazo && ap.prazo<hoje;
+  var sino=prioIcon?prioIcon:'🔔';
+  var tt='Ação definida em '+(ap.data?ap.data.split('-').reverse().join('/'):'')+': '+ap.texto
+    +(ap.revisaoSugerida?' | Rev. a enviar: '+ap.revisaoSugerida:'')
+    +(ap.finalidadeSugerida?' | Finalidade: '+ap.finalidadeSugerida:'')
+    +(ap.prazo?' | Prazo: '+ap.prazo.split('-').reverse().join('/')+(atrasado?' (VENCIDO)':''):'')
+    +(ap.prioridade?' | Prioridade: '+ap.prioridade:'')
+    +(ap.obsTexto?' | Obs: '+ap.obsTexto:'')
+    +(ap.obsImagem?' | 📎 tem imagem anexada':'')
+    +' — Clique para editar';
+  // Data do prazo, visível direto na célula (sem precisar passar o mouse) — logo
+  // abaixo do sino/status, ao lado de onde ficam os ícones.
+  var prazoLinha='';
+  if(ap.prazo){
+    var prazoBR=ap.prazo.split('-').reverse().join('/');
+    prazoLinha='<br><span style="font-size:9px;font-weight:700;color:'+(atrasado?'#dc2626':'#92400e')+';">'+prazoBR+'</span>';
+  }
+  return '&nbsp;<span onclick="event.stopPropagation();cdocEditarAcaoPendente('+d.id+')" title="'+_esc(tt)+'" style="cursor:pointer;'+(atrasado?'text-decoration:underline;text-decoration-color:#dc2626;':'')+'">'+sino+(atrasado?'⏰':'')+(ap.obsImagem?'📎':'')+'</span>'+prazoLinha;
 }
 
 // ─── GERENCIAR STATUS CDOC DETALHADO ────────────────────────────────
@@ -19241,7 +19331,7 @@ function cdocRenderDet(){
         +'<td style="font-size:9px;">'+_esc(d.tipo||'—')+'</td>'
         +'<td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(d.titulo||'')+'">'+_esc(d.titulo||'—')+'</td>'
         +'<td style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_esc(d.desc||'')+'">'+_esc(d.desc||'—')+'</td>'
-        +'<td>'+_cdocBadgeHtml(d.statusGeral)+(d.acaoPendente&&d.acaoPendente.texto?'&nbsp;<span title="Ação definida em '+(d.acaoPendente.data?d.acaoPendente.data.split('-').reverse().join('/'):'')+': '+_esc(d.acaoPendente.texto)+'" style="cursor:help;">🔔</span>':'')+'</td>'
+        +'<td>'+_cdocBadgeHtml(d.statusGeral)+_cdocAcaoPendenteBadge(d)+'</td>'
         +'<td style="font-size:10px;">'+_esc(d.peca||'—')+'</td>'
         +'<td style="text-align:right;font-family:Courier New,monospace;font-size:10px;">'+fmt(d.peso)+'</td>'
         +'<td style="font-size:10px;">'+_esc(d.rev||'—')+'</td>'
@@ -20065,7 +20155,119 @@ function _grdCalcPrevRetDias(){
 // sem precisar emitir uma GRD formal.
 // Chamada pela janela popup "Lista para Responsável" (via window.opener) para
 // gravar a Ação definida de volta nos documentos que estavam naquela lista.
-function _cdocSalvarAcaoLista(docIds, acaoTexto){
+// ═══ EDITAR/REMOVER AÇÃO PENDENTE DIRETO NA TELA (sem precisar gerar a lista de novo) ═══
+var _eapNovaImagem=null; // base64 da nova imagem escolhida no modal de edição, se houver
+function cdocEditarAcaoPendente(docId){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  var doc=db.detalhados.find(function(d){return d.id===docId;});
+  if(!doc||!doc.acaoPendente){ alert('Ação não encontrada para este documento.'); return; }
+  var ap=doc.acaoPendente;
+  _eapNovaImagem=null;
+  var acoesFixas=['EMITIR PACOTE DE FABRICAÇÃO','CORRIGIR MODELO E REENVIAR PARA APROVAÇÃO','ATENDER COMENTÁRIOS E REENVIAR PARA APROVAÇÃO','ENVIAR EM REVISÃO SUPERIOR PARA CERTIFICAR','FINALIZAR'];
+  var isFixa=acoesFixas.indexOf(ap.texto)!==-1;
+
+  var ov=document.createElement('div');
+  ov.id='cdoc-edit-acao-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;width:520px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 16px 60px rgba(0,0,0,.3);">'
+    +'<div style="background:#b45309;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:10px;">'
+      +'<span style="font-size:15px;font-weight:800;">✎ Editar Ação — '+_esc(doc.num||doc.sub||'')+'</span>'
+      +'<button onclick="document.getElementById(\'cdoc-edit-acao-ov\').remove()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;cursor:pointer;margin-left:auto;">✕</button>'
+    +'</div>'
+    +'<div style="padding:18px 20px;">'
+      +'<label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Ação</label>'
+      +'<select id="eap-acao" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:8px;box-sizing:border-box;">'
+        +'<option value="">-- Selecione --</option>'
+        +acoesFixas.map(function(a){return '<option value="'+a+'"'+(a===ap.texto?' selected':'')+'>'+a+'</option>';}).join('')
+        +'<option value="__custom__"'+(!isFixa?' selected':'')+'>Outra (especificar)...</option>'
+      +'</select>'
+      +'<input id="eap-acao-custom" placeholder="Descreva a ação..." value="'+(isFixa?'':_esc(ap.texto))+'" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:12px;box-sizing:border-box;'+(isFixa?'display:none;':'')+'">'
+      +'<div style="display:flex;gap:10px;margin-bottom:12px;">'
+        +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Revisão a Enviar</label><input id="eap-rev" type="text" value="'+_esc(ap.revisaoSugerida||'')+'" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;box-sizing:border-box;"></div>'
+        +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Finalidade</label><select id="eap-finalidade" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;box-sizing:border-box;">'
+          +['','Para Aprovação','Para Certificação','Para Informação'].map(function(f){return '<option value="'+f+'"'+(f===ap.finalidadeSugerida?' selected':'')+'>'+(f||'-- Selecione --')+'</option>';}).join('')
+        +'</select></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;margin-bottom:12px;">'
+        +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Prazo de Atendimento</label><input id="eap-prazo" type="date" value="'+(ap.prazo||'')+'" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;box-sizing:border-box;"></div>'
+        +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Prioridade</label><select id="eap-prioridade" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;box-sizing:border-box;">'
+          +['','Baixa','Média','Alta','Urgente'].map(function(p){return '<option value="'+p+'"'+(p===ap.prioridade?' selected':'')+'>'+(p||'-- Selecione --')+'</option>';}).join('')
+        +'</select></div>'
+      +'</div>'
+      +'<label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Observação</label>'
+      +'<textarea id="eap-obs" rows="4" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:inherit;margin-bottom:8px;">'+_esc(ap.obsTexto||'')+'</textarea>'
+      +(ap.obsImagem?('<img id="eap-obs-img-preview" src="'+ap.obsImagem+'" style="max-width:260px;max-height:180px;border:1px solid #cbd5e1;border-radius:6px;display:block;margin-bottom:6px;">'):'<img id="eap-obs-img-preview" style="display:none;max-width:260px;max-height:180px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:6px;">')
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+        +'<label style="background:#0369a1;color:#fff;border-radius:4px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">📎 '+(ap.obsImagem?'Trocar imagem':'Anexar imagem')+'<input type="file" id="eap-obs-img-input" accept="image/*" style="display:none;" onchange="_eapCarregarImagem(this)"></label>'
+        +(ap.obsImagem?'<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#991b1b;cursor:pointer;"><input type="checkbox" id="eap-remover-img" onchange="if(this.checked){document.getElementById(\'eap-obs-img-preview\').style.display=\'none\';}else if(_eapNovaImagem){document.getElementById(\'eap-obs-img-preview\').style.display=\'block\';}else{document.getElementById(\'eap-obs-img-preview\').src=\''+ap.obsImagem+'\';document.getElementById(\'eap-obs-img-preview\').style.display=\'block\';}">Remover</label>':'')
+      +'</div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:10px;">'
+      +'<button onclick="cdocRemoverAcaoPendente('+docId+')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;">🗑 Remover Ação</button>'
+      +'<div style="display:flex;gap:10px;">'
+        +'<button onclick="document.getElementById(\'cdoc-edit-acao-ov\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:8px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
+        +'<button onclick="cdocSalvarEdicaoAcaoPendente('+docId+')" style="background:#166534;color:#fff;border:none;border-radius:6px;padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;">✓ Salvar</button>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  var acaoSel=document.getElementById('eap-acao');
+  acaoSel.addEventListener('change',function(){
+    document.getElementById('eap-acao-custom').style.display=this.value==='__custom__'?'block':'none';
+  });
+}
+function _eapCarregarImagem(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  if(file.size>1500000){ alert('Imagem muito grande (máx. ~1,5MB). Use uma imagem menor.'); return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    _eapNovaImagem=e.target.result;
+    var prev=document.getElementById('eap-obs-img-preview');
+    if(prev){ prev.src=_eapNovaImagem; prev.style.display='block'; }
+    var rm=document.getElementById('eap-remover-img'); if(rm) rm.checked=false;
+  };
+  reader.readAsDataURL(file);
+}
+function cdocSalvarEdicaoAcaoPendente(docId){
+  var db=_cdocDb();
+  var doc=db.detalhados.find(function(d){return d.id===docId;});
+  if(!doc||!doc.acaoPendente) return;
+  var sel=document.getElementById('eap-acao').value;
+  var acao=sel==='__custom__'?document.getElementById('eap-acao-custom').value.trim():sel;
+  if(!acao){ alert('Selecione ou digite uma ação.'); return; }
+  var removerImg=(document.getElementById('eap-remover-img')||{}).checked;
+  doc.acaoPendente.texto=acao;
+  doc.acaoPendente.revisaoSugerida=document.getElementById('eap-rev').value;
+  doc.acaoPendente.finalidadeSugerida=document.getElementById('eap-finalidade').value;
+  doc.acaoPendente.prazo=document.getElementById('eap-prazo').value;
+  doc.acaoPendente.prioridade=document.getElementById('eap-prioridade').value;
+  doc.acaoPendente.obsTexto=document.getElementById('eap-obs').value;
+  if(_eapNovaImagem) doc.acaoPendente.obsImagem=_eapNovaImagem;
+  else if(removerImg) doc.acaoPendente.obsImagem='';
+  doc.acaoPendente.editadoEm=_cdocHojeISO();
+  doc.acaoPendente.editadoPor=(_siderCurrentUser?_siderCurrentUser.nome:'');
+  _cdocSave(db);
+  var ov=document.getElementById('cdoc-edit-acao-ov'); if(ov) ov.remove();
+  _eapNovaImagem=null;
+  cdocRenderDet();
+  try{ _cdocAtualizarAlertaPrazo(); }catch(e){}
+  showToast('Ação atualizada','As alterações foram salvas.','success');
+}
+function cdocRemoverAcaoPendente(docId){
+  if(!confirm('Remover a ação registrada para este documento?')) return;
+  var db=_cdocDb();
+  var doc=db.detalhados.find(function(d){return d.id===docId;});
+  if(!doc) return;
+  delete doc.acaoPendente;
+  _cdocSave(db);
+  var ov=document.getElementById('cdoc-edit-acao-ov'); if(ov) ov.remove();
+  cdocRenderDet();
+  try{ _cdocAtualizarAlertaPrazo(); }catch(e){}
+  showToast('Ação removida','A ação foi removida deste documento.','success');
+}
+function _cdocSalvarAcaoLista(docIds, acaoTexto, prazo, prioridade, revisao, finalidade, obsTexto, obsImagem){
   if(!_siderRequireEdit()) return {ok:false, erro:'Sessão sem permissão de edição — faça login novamente na aba principal.'};
   if(!acaoTexto) return {ok:false, erro:'Ação vazia.'};
   var db=_cdocDb();
@@ -20074,7 +20276,12 @@ function _cdocSalvarAcaoLista(docIds, acaoTexto){
   (docIds||[]).forEach(function(id){
     var doc=db.detalhados.find(function(d){return d.id===id;});
     if(!doc) return;
-    doc.acaoPendente={texto:acaoTexto,data:hoje,por:(_siderCurrentUser?_siderCurrentUser.nome:'')};
+    doc.acaoPendente={
+      texto:acaoTexto, data:hoje, por:(_siderCurrentUser?_siderCurrentUser.nome:''),
+      revisaoSugerida: revisao||'', finalidadeSugerida: finalidade||'',
+      prazo: prazo||'', prioridade: prioridade||'',
+      obsTexto: obsTexto||'', obsImagem: obsImagem||''
+    };
     qtd++;
   });
   _cdocSave(db);
@@ -20112,19 +20319,20 @@ function cdocImprimirListaResponsavel(){
   });
   var docIds=docs.map(function(d){return d.id;});
   var acoesFixas=['EMITIR PACOTE DE FABRICAÇÃO','CORRIGIR MODELO E REENVIAR PARA APROVAÇÃO','ATENDER COMENTÁRIOS E REENVIAR PARA APROVAÇÃO','ENVIAR EM REVISÃO SUPERIOR PARA CERTIFICAR','FINALIZAR'];
-  var w=window.open('','_blank','width=1100,height=800');
+  var w=window.open('','_blank','width=1100,height=850');
   if(!w){alert('Permita popups para gerar a lista.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista para Responsável</title>'
     +'<style>body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;font-size:12px;}'
     +'h2{color:#0e7490;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 12px;}'
     +'table{width:100%;border-collapse:collapse;}thead th{background:#0c4a6e;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}'
     +'tbody td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;}'
-    +'@media print{.no-print{display:none;}}</style></head><body>'
+    +'@media print{.no-print{display:none;}.print-only{display:block !important;}}</style></head><body>'
     +'<h2>Lista de Documentos — Para Verificação</h2>'
     +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS &middot; Gerado em '+hoje+' &middot; Total: '+docs.length+' documento(s)</p>'
     +'<table><thead><tr><th style="width:25px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Tipo</th><th>Título/Descrição</th><th>Status</th><th>Status Final</th></tr></thead>'
     +'<tbody>'+rowsHtml+'</tbody></table>'
-    +'<div class="no-print" style="margin-top:20px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;max-width:460px;">'
+    +'<div id="lra-print-summary" class="print-only" style="display:none;margin-top:18px;border-top:2px solid #0c4a6e;padding-top:10px;"></div>'
+    +'<div class="no-print" style="margin-top:20px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;max-width:560px;">'
     +'<div style="font-weight:700;font-size:13px;color:#0e7490;margin-bottom:8px;">📌 Ação</div>'
     +'<select id="lra-acao" onchange="document.getElementById(\'lra-acao-custom\').style.display=this.value===\'__custom__\'?\'block\':\'none\';" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:100%;box-sizing:border-box;">'
       +'<option value="">-- Selecione uma ação --</option>'
@@ -20132,22 +20340,113 @@ function cdocImprimirListaResponsavel(){
       +'<option value="__custom__">Outra (especificar manualmente)...</option>'
     +'</select>'
     +'<input id="lra-acao-custom" placeholder="Descreva a ação específica..." style="display:none;margin-top:8px;width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;">'
-    +'<button id="lra-salvar-btn" onclick="_lraSalvar()" style="margin-top:10px;background:#166534;color:#fff;border:none;border-radius:4px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">💾 Salvar Ação</button>'
+    +'<div style="display:flex;gap:10px;margin-top:12px;">'
+      +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Revisão a Enviar</label>'
+        +'<input id="lra-rev" type="text" placeholder="Ex: RB1" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:100%;box-sizing:border-box;"></div>'
+      +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Finalidade de Emissão</label>'
+        +'<select id="lra-finalidade" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:100%;box-sizing:border-box;">'
+          +'<option value="">-- Selecione --</option>'
+          +'<option value="Para Aprovação">Para Aprovação</option>'
+          +'<option value="Para Certificação">Para Certificação</option>'
+          +'<option value="Para Informação">Para Informação</option>'
+        +'</select></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;margin-top:12px;">'
+      +'<div style="flex:1.3;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Prazo de Atendimento</label>'
+        +'<div style="display:flex;gap:6px;align-items:center;">'
+          +'<input id="lra-prazo-dias" type="number" min="0" placeholder="Nº dias" title="Preencha em dias a partir de hoje — a data ao lado é calculada automaticamente" oninput="_lraCalcularPrazo()" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:80px;flex-shrink:0;">'
+          +'<span style="font-size:10px;color:#94a3b8;">dias &rarr;</span>'
+          +'<input id="lra-prazo" type="date" onchange="document.getElementById(\'lra-prazo-dias\').value=\'\';" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:0;">'
+        +'</div></div>'
+      +'<div style="flex:1;"><label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:3px;">Prioridade</label>'
+        +'<select id="lra-prioridade" style="font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;width:100%;box-sizing:border-box;">'
+          +'<option value="">-- Selecione --</option>'
+          +'<option value="Baixa">🟢 Baixa</option>'
+          +'<option value="Média">🟡 Média</option>'
+          +'<option value="Alta">🟠 Alta</option>'
+          +'<option value="Urgente">🔴 Urgente</option>'
+        +'</select></div>'
+    +'</div>'
+    +'<label style="font-size:10px;font-weight:700;color:#475569;display:block;margin:14px 0 3px;">Observação (texto e/ou imagem)</label>'
+    +'<textarea id="lra-obs" rows="5" placeholder="Escreva aqui... Também pode colar uma imagem (Ctrl+V) ou anexar um arquivo abaixo." style="width:100%;box-sizing:border-box;font-size:12px;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;"></textarea>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">'
+      +'<label style="background:#0369a1;color:#fff;border-radius:4px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">📎 Anexar imagem<input type="file" id="lra-obs-img-input" accept="image/*" style="display:none;"></label>'
+      +'<button type="button" onclick="document.getElementById(\'lra-obs-img-preview\').style.display=\'none\';document.getElementById(\'lra-obs-img-b64\').value=\'\';document.getElementById(\'lra-obs-img-input\').value=\'\';" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:5px 10px;font-size:11px;cursor:pointer;">Remover imagem</button>'
+    +'</div>'
+    +'<img id="lra-obs-img-preview" style="display:none;max-width:260px;max-height:180px;margin-top:8px;border:1px solid #cbd5e1;border-radius:6px;">'
+    +'<input type="hidden" id="lra-obs-img-b64">'
+    +'<button id="lra-salvar-btn" onclick="_lraSalvar()" style="margin-top:14px;background:#166534;color:#fff;border:none;border-radius:4px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">💾 Salvar Ação</button>'
     +'<div id="lra-resultado" style="margin-top:8px;font-size:11px;color:#166534;font-weight:700;"></div>'
     +'</div>'
     +'<br><div class="no-print" style="margin-top:16px;">'
-    +'<button onclick="window.print()" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>'
+    +'<button onclick="_lraAtualizarResumoImpressao();window.print();" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;cursor:pointer;margin-right:8px;">🖨 Imprimir / PDF</button>'
     +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Fechar</button>'
     +'</div>'
     +'<script>'
     +'var _lraDocIds='+JSON.stringify(docIds)+';'
+    +'function _lraCalcularPrazo(){'
+      +'var dias=parseInt(document.getElementById("lra-prazo-dias").value,10);'
+      +'if(isNaN(dias)){ return; }'
+      +'var d=new Date(); d.setDate(d.getDate()+dias);'
+      +'var iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");'
+      +'document.getElementById("lra-prazo").value=iso;'
+    +'}'
+    +'function _lraLerImagem(file){'
+      +'if(!file) return;'
+      +'if(file.size>1500000){ alert("Imagem muito grande (máx. ~1,5MB). Use uma imagem menor ou comprima antes de anexar."); return; }'
+      +'var reader=new FileReader();'
+      +'reader.onload=function(e){'
+        +'document.getElementById("lra-obs-img-b64").value=e.target.result;'
+        +'var img=document.getElementById("lra-obs-img-preview"); img.src=e.target.result; img.style.display="block";'
+      +'};'
+      +'reader.readAsDataURL(file);'
+    +'}'
+    +'document.getElementById("lra-obs-img-input").addEventListener("change",function(){ _lraLerImagem(this.files&&this.files[0]); });'
+    +'document.getElementById("lra-obs").addEventListener("paste",function(e){'
+      +'var items=(e.clipboardData&&e.clipboardData.items)||[];'
+      +'for(var i=0;i<items.length;i++){'
+        +'if(items[i].type&&items[i].type.indexOf("image")===0){ _lraLerImagem(items[i].getAsFile()); e.preventDefault(); break; }'
+      +'}'
+    +'});'
+    +'function _lraAtualizarResumoImpressao(){'
+      +'var el=document.getElementById("lra-print-summary"); if(!el) return;'
+      +'var sel=document.getElementById("lra-acao").value;'
+      +'var acao = sel==="__custom__" ? document.getElementById("lra-acao-custom").value.trim() : sel;'
+      +'var revisao=document.getElementById("lra-rev").value;'
+      +'var finalidade=document.getElementById("lra-finalidade").value;'
+      +'var prazo=document.getElementById("lra-prazo").value;'
+      +'var prioridade=document.getElementById("lra-prioridade").value;'
+      +'var obsTexto=document.getElementById("lra-obs").value;'
+      +'var obsImg=document.getElementById("lra-obs-img-b64").value;'
+      +'var prazoBR=prazo?prazo.split("-").reverse().join("/"):"";'
+      +'function esc(s){return (s||"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}'
+      +'function linha(label,val){return \'<tr><td style="padding:4px 8px;font-weight:700;color:#475569;width:180px;vertical-align:top;border-bottom:1px solid #e2e8f0;">\'+label+\'</td><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;">\'+(val||"—")+\'</td></tr>\';}'
+      +'var html=\'<div style="font-weight:700;font-size:13px;color:#0e7490;margin-bottom:6px;">📌 Ação Registrada</div>\''
+        +'+\'<table style="width:100%;border-collapse:collapse;font-size:12px;">\''
+        +'+linha("Ação",esc(acao))'
+        +'+linha("Revisão a Enviar",esc(revisao))'
+        +'+linha("Finalidade de Emissão",esc(finalidade))'
+        +'+linha("Prazo de Atendimento",esc(prazoBR))'
+        +'+linha("Prioridade",esc(prioridade))'
+        +'+linha("Observação",esc(obsTexto).replace(/\\n/g,"<br>"))'
+        +'+\'</table>\';'
+      +'if(obsImg){ html+=\'<div style="margin-top:8px;"><img src="\'+obsImg+\'" style="max-width:400px;max-height:280px;border:1px solid #cbd5e1;border-radius:6px;"></div>\'; }'
+      +'el.innerHTML=html;'
+      +'el.style.display=(acao||revisao||finalidade||prazo||prioridade||obsTexto||obsImg)?"block":"none";'
+    +'}'
     +'function _lraSalvar(){'
       +'var sel=document.getElementById("lra-acao").value;'
       +'var acao = sel==="__custom__" ? document.getElementById("lra-acao-custom").value.trim() : sel;'
       +'if(!acao){ alert("Selecione ou digite uma ação."); return; }'
       +'if(!window.opener || !window.opener._cdocSalvarAcaoLista){ alert("Não foi possível conectar à janela principal. Feche esta janela e gere a lista novamente."); return; }'
-      +'var r=window.opener._cdocSalvarAcaoLista(_lraDocIds, acao);'
-      +'if(r&&r.ok){ document.getElementById("lra-resultado").textContent="✔ Ação \\""+acao+"\\" registrada em "+r.qtd+" documento(s) em "+r.dataBR+"."; }'
+      +'var prazo=document.getElementById("lra-prazo").value;'
+      +'var prioridade=document.getElementById("lra-prioridade").value;'
+      +'var revisao=document.getElementById("lra-rev").value;'
+      +'var finalidade=document.getElementById("lra-finalidade").value;'
+      +'var obsTexto=document.getElementById("lra-obs").value;'
+      +'var obsImagem=document.getElementById("lra-obs-img-b64").value;'
+      +'var r=window.opener._cdocSalvarAcaoLista(_lraDocIds, acao, prazo, prioridade, revisao, finalidade, obsTexto, obsImagem);'
+      +'if(r&&r.ok){ document.getElementById("lra-resultado").textContent="✔ Ação \\""+acao+"\\" registrada em "+r.qtd+" documento(s) em "+r.dataBR+"."; _lraAtualizarResumoImpressao(); }'
       +'else if(r&&r.erro){ alert(r.erro); }'
     +'}'
     +'<\/script>'
@@ -22486,6 +22785,13 @@ function cdocExportDetSel(){
   var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='detalhado_selecionados.csv';a.click();URL.revokeObjectURL(url);
 }
+// Valores "placeholder" que NÃO devem ser usados como chave de correspondência ao
+// importar CSV — ex: várias linhas com Nº Cliente = "N/A" não são o mesmo documento!
+function _cdocEhPlaceholder(v){
+  if(!v) return true;
+  var s=v.trim().toUpperCase();
+  return s===''||s==='N/A'||s==='NA'||s==='N/D'||s==='ND'||s==='-'||s==='--'||s==='—'||s==='S/N'||s==='SN';
+}
 function cdocImportBas(input){
   if(!_siderRequireEdit()) return;
   if(!input.files||!input.files[0]) return;
@@ -22506,8 +22812,9 @@ function cdocImportBas(input){
       var cli=(row['Nº Cliente']||row['No Cliente']||'').trim();
       // Nº Cliente é o único identificador válido — Obra+TAG não é único
       if(!cli&&(!obra||!titulo)){erros.push('Linha '+(i+1)+': Nº Cliente (ou Obra+Título) obrigatórios'); continue;}
-      // Upsert apenas por Nº Cliente; sem fallback por obra+TAG para não sobrescrever registros distintos
-      var existing=cli?db.basicos.find(function(b){return b.cli===cli;}):null;
+      // Upsert apenas por Nº Cliente (quando não é um valor placeholder como "N/A");
+      // sem fallback por obra+TAG para não sobrescrever registros distintos
+      var existing=(cli&&!_cdocEhPlaceholder(cli))?db.basicos.find(function(b){return b.cli===cli;}):null;
       var newData={
         obraId:obra,sub:sub,titulo:titulo,cli:cli,
         proj:row['Projetista']||'',
@@ -22623,12 +22930,14 @@ function cdocImportDet(input){
       });
     }
 
+    // Valores "placeholder" já são tratados pela função global _cdocEhPlaceholder()
+
     // Monta índice para lookup O(1) em vez de find() O(n) por linha
     var numIdx={};   // num+obra → doc
-    var cliIdx={};   // cli+obra → doc
+    var cliIdx={};   // cli+obra → doc (só para valores de Nº Cliente que não sejam placeholder)
     db.detalhados.forEach(function(d){
       if(d.num&&d.obraId) numIdx[d.num+'|'+d.obraId]=d;
-      if(d.cli&&d.obraId) cliIdx[d.cli+'|'+d.obraId]=d;
+      if(d.cli&&d.obraId&&!_cdocEhPlaceholder(d.cli)) cliIdx[d.cli+'|'+d.obraId]=d;
     });
 
     for(var i=1;i<lines.length;i++){
@@ -22653,9 +22962,9 @@ function cdocImportDet(input){
       var enSfinal=row['Status Final']||row['Status Final Aprovação']||row['Status Final Aprovacao']||'';
       var enObs=row['Obs Envio']||'';
 
-      // Lookup O(1)
+      // Lookup O(1) — só usa Nº Cliente como plano B se for um valor real (não placeholder)
       var existing=numIdx[num+'|'+obra];
-      if(!existing&&cli) existing=cliIdx[cli+'|'+obra];
+      if(!existing&&cli&&!_cdocEhPlaceholder(cli)) existing=cliIdx[cli+'|'+obra];
 
       var _tipoRaw = (row['Tipo']||row['TIPO']||'').trim();
       var _descRaw = (row['Descrição']||row['Descricao']||row['DESCRIÇÃO']||'').trim();
@@ -22737,7 +23046,7 @@ function cdocImportDet(input){
         }
         db.detalhados.push(newData);
         numIdx[num+'|'+obra]=newData;
-        if(cli) cliIdx[cli+'|'+obra]=newData;
+        if(cli&&!_cdocEhPlaceholder(cli)) cliIdx[cli+'|'+obra]=newData;
         added++;
       }
     }
