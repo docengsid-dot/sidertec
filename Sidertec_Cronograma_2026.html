@@ -22603,33 +22603,76 @@ function cdocSalvar(){
     if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
-    // ── SYNC: CDOC Projeto Básico → Cronograma equipe ──────────────
+    // ── SYNC: CDOC Projeto Básico → Cronograma ──────────────────────
+    // Sincroniza: equipe (projetista), descricao e peso_previsto
     (function(){
-      if(!rec.proj || typeof allCronSubobras==='undefined') return;
+      if(typeof allCronSubobras==='undefined') return;
       var _subUp=(rec.sub||'').toUpperCase(), _obraUp=(rec.obraId||'').toUpperCase();
       var _cronS = allCronSubobras.find(function(s){
         return (s.subobra||'').toUpperCase()===_subUp &&
                (s.obra||'').toUpperCase()===_obraUp;
       });
       if(!_cronS) return;
-      _cronS.equipe = rec.proj;
+
+      // Monta payload com campos que mudaram
+      var upd = {atualizado_em:new Date().toISOString()};
+      var mudou = false;
+
+      // Projetista → equipe
+      if(rec.proj && rec.proj!==_cronS.equipe){
+        upd.equipe = rec.proj;
+        _cronS.equipe = rec.proj;
+        mudou = true;
+      }
+      // Descrição do básico → descricao do cronograma
+      var novaDesc = rec.descbas || rec.titulo || '';
+      if(novaDesc && novaDesc!==_cronS.descricao){
+        upd.descricao = novaDesc;
+        _cronS.descricao = novaDesc;
+        mudou = true;
+      }
+      // Peso do básico → peso_previsto do cronograma
+      var novoPeso = parseFloat(rec.peso) || 0;
+      if(novoPeso>0 && novoPeso!==parseFloat(_cronS.peso_previsto||0)){
+        upd.peso_previsto = novoPeso;
+        _cronS.peso_previsto = novoPeso;
+        mudou = true;
+      }
+
+      if(!mudou) return;
+
+      // Atualiza localStorage cache
       var _lsc = _lsGet('cronograma_subobras');
       var _lsi = _lsc.findIndex(function(s){ return String(s.id)===String(_cronS.id); });
-      if(_lsi>=0){ _lsc[_lsi].equipe=rec.proj; _lsSet('cronograma_subobras',_lsc); }
+      if(_lsi>=0){ Object.assign(_lsc[_lsi], upd); _lsSet('cronograma_subobras',_lsc); }
+
+      // Persiste no Supabase
       if(typeof sbClient!=='undefined'){
         sbClient.from('cronograma_subobras').eq('id',_cronS.id)
-          .update({equipe:rec.proj,atualizado_em:new Date().toISOString()})
-          .select().catch(function(){});
+          .update(upd).select().catch(function(){});
       }
-      // Atualiza o select do modal cronograma se estiver aberto na mesma TAG
-      var _elEq=document.getElementById('cm-equipe');
-      if(_elEq && typeof editingCronId!=='undefined' && editingCronId===_cronS.id){
-        if(![..._elEq.options].some(function(o){return o.value===rec.proj;})){
-          var _op=document.createElement('option'); _op.value=rec.proj; _op.textContent=rec.proj;
-          _elEq.appendChild(_op);
+
+      // Atualiza modal do cronograma se estiver aberto na mesma TAG
+      if(typeof editingCronId!=='undefined' && editingCronId===_cronS.id){
+        // Equipe
+        var _elEq=document.getElementById('cm-equipe');
+        if(_elEq && upd.equipe){
+          if(![..._elEq.options].some(function(o){return o.value===upd.equipe;})){
+            var _op=document.createElement('option'); _op.value=upd.equipe; _op.textContent=upd.equipe;
+            _elEq.appendChild(_op);
+          }
+          _elEq.value=upd.equipe;
         }
-        _elEq.value=rec.proj;
+        // Descrição
+        var _elDesc=document.getElementById('cm-descricao');
+        if(_elDesc && upd.descricao) _elDesc.value=upd.descricao;
+        // Peso
+        var _elPeso=document.getElementById('cm-peso');
+        if(_elPeso && upd.peso_previsto) _elPeso.value=upd.peso_previsto;
       }
+
+      // Rebusca o cronograma para refletir na tabela
+      if(typeof renderCronograma==='function') setTimeout(renderCronograma, 300);
     })();
     document.getElementById('cdoc-edit-overlay').classList.remove('show');
     cdocRenderBas(); cdocRenderVisao();
