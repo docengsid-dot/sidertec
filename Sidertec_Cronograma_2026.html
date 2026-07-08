@@ -1416,7 +1416,11 @@ ALTER TABLE medicao_terceiros
           <div style="font-size:11px;font-weight:700;color:#9f1239;margin-bottom:.25rem;">ALERTA DE PRAZO — Limite Fábrica &lt; Data Planejada para Fabricação</div>
           <div id="cron-alerta-limite-fab-lista" style="font-size:10px;color:#be123c;"></div>
         </div>
-        <button onclick="cronAlertaToggle()" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);flex-shrink:0;">▲ Recolher</button>
+        <div style="display:flex;flex-direction:column;gap:.3rem;flex-shrink:0;">
+          <button onclick="exportarAlertaPrazoPDF()" style="background:#fff;border:1px solid #f43f5e;border-radius:3px;color:#9f1239;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);font-weight:700;white-space:nowrap;">🖨 PDF</button>
+          <button onclick="exportarAlertaPrazoExcel()" style="background:#fff;border:1px solid #f43f5e;border-radius:3px;color:#9f1239;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);font-weight:700;white-space:nowrap;">📊 Excel</button>
+          <button onclick="cronAlertaToggle()" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);">▲ Recolher</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1496,6 +1500,7 @@ ALTER TABLE medicao_terceiros
     <button class="btn" onclick="exportarCSVSelecionados()" id="btn-csv-selecionados" style="padding:3px 10px;font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-weight:700;display:none;">⬇ CSV (<span id="csv-sel-count">0</span>)</button>
     <button class="btn" onclick="exportarPDFSelecionados()" id="btn-pdf-selecionados" style="padding:3px 10px;font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700;display:none;">🖨 PDF (<span id="pdf-sel-count">0</span>)</button>
     <button class="btn" onclick="excluirSubobrasSelecionadas()" id="btn-excluir-selecionados" style="padding:3px 10px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;display:none;">🗑 Excluir (<span id="excluir-sel-count">0</span>)</button>
+    <button class="btn" onclick="abrirModalLote()" id="btn-lote-selecionados" style="padding:3px 10px;font-size:11px;background:var(--blue2);color:var(--blue);border:1px solid var(--blue);font-weight:700;display:none;">🔀 Alterar em Lote (<span id="lote-sel-count">0</span>)</button>
     <button class="btn" onclick="abrirNovaObraGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">🏗 Nova Obra</button>
     <button class="btn" onclick="abrirNovaEquipeGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">👥 Equipe</button>
     <div class="fsep"></div>
@@ -1610,11 +1615,11 @@ ALTER TABLE medicao_terceiros
 <!-- MODAL NOVA/EDITAR PROPOSTA DE SERVIÇO -->
 <style>
 /* ── MODAL MEDIÇÃO — COMPACTO ─────────────────────────────────────── */
-#modal-medicao .cron-modal-box          { width:min(1200px,96vw); max-height:96vh; }
+#modal-medicao .cron-modal-box          { width:min(1500px,98vw); max-height:98vh; }
 #modal-medicao .cron-mhd               { padding:.5rem 1.2rem; }
 #modal-medicao .cron-mhd-title         { font-size:14px; }
 #modal-medicao .cron-mhd-sub           { font-size:10px; }
-#modal-medicao .cron-mbody             { padding:.7rem 1.1rem; max-height:calc(96vh - 90px); }
+#modal-medicao .cron-mbody             { padding:.7rem 1.1rem; max-height:calc(98vh - 90px); }
 #modal-medicao .cron-mfooter           { padding:.5rem 1.1rem; }
 #modal-medicao .field-group            { gap:.15rem; margin-bottom:0; }
 #modal-medicao .field-label            { font-size:9px; letter-spacing:.05em; }
@@ -1625,8 +1630,8 @@ ALTER TABLE medicao_terceiros
 #modal-medicao #med-valor-total-preview{ font-size:12px; padding:4px 8px; min-height:28px; }
 #modal-medicao #med-modal-totais       { font-size:10px; margin-top:.15rem; }
 #modal-medicao .btn                    { font-size:11px; padding:5px 14px; }
-/* TAG list compacta */
-#modal-medicao #med-tags-lista         { max-height:380px; padding:.35rem .55rem; }
+/* TAG list — mais espaço vertical para melhor visualização */
+#modal-medicao #med-tags-lista         { max-height:520px; padding:.35rem .55rem; }
 #modal-medicao #med-tags-resumo        { padding:.35rem .65rem; font-size:9px; }
 </style>
 
@@ -1802,6 +1807,7 @@ ALTER TABLE medicao_terceiros
             <button onclick="medTagsSelectAll(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;">✓ Todos</button>
             <button onclick="medTagsSelectAll(false)" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;">✕ Limpar</button>
             <button id="btn-apenas-selecionadas" onclick="toggleApenasSelMedTags()" style="background:rgba(255,200,0,.18);border:1px solid rgba(255,200,0,.35);color:#fde68a;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;transition:all .15s;" title="Mostrar apenas TAGs já selecionadas">☑ Só selecionadas</button>
+            <button id="btn-saldo-med" onclick="toggleSaldoMed()" style="background:rgba(56,189,248,.18);border:1px solid rgba(56,189,248,.4);color:#bae6fd;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;transition:all .15s;" title="Mostrar apenas TAGs da Obra + Equipe selecionadas que ainda têm saldo (%) a medir">🎯 Só c/ saldo a medir</button>
           </div>
         </div>
         <div id="med-tags-lista" style="overflow-y:auto;background:#f8fafc;">
@@ -2356,6 +2362,69 @@ ALTER TABLE medicao_terceiros
     </div>
   </div>
 </div>
+
+<!-- MODAL ALTERAÇÃO EM LOTE (múltiplas TAGs) -->
+<div class="cron-modal-overlay" id="modal-lote" onclick="fecharModalLote(event)">
+  <div class="cron-modal-box" style="width:680px;max-height:88vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="cron-mhd">
+      <div style="flex:1;">
+        <div class="cron-mhd-title">🔀 Alterar Status/Etapas em Lote</div>
+        <div class="cron-mhd-sub" id="lote-subobra-label">0 TAGs selecionadas</div>
+      </div>
+      <button onclick="fecharModalLote()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div class="cron-mbody" style="padding:1.25rem;overflow-y:auto;flex:1;">
+
+      <!-- Lista das TAGs selecionadas -->
+      <div class="field-group" style="margin-bottom:1rem;">
+        <label class="field-label">TAGs que serão alteradas</label>
+        <div id="lote-tags-chips" style="display:flex;flex-wrap:wrap;gap:4px;max-height:110px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:.5rem;"></div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Novo status -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="lote-chk-status" onchange="document.getElementById('lote-status').disabled=!this.checked;" style="accent-color:var(--blue);width:13px;height:13px;">
+          Alterar Status para todas as TAGs selecionadas
+        </label>
+        <select class="field-input" id="lote-status" disabled style="font-size:16px;">
+          <option value="">— Selecione —</option>
+          <option>AG. PROJ. BÁSICO</option>
+          <option>AG. MODELO PARA APROV.</option>
+          <option>MODELO EM APROV.</option>
+          <option>EMISSÃO PCTE FAB.</option>
+          <option>INSP. INTERNA</option>
+          <option>LIB. FABRICAÇÃO</option>
+          <option>EM COTAÇÃO ENG.</option>
+          <option>AG. DOCUMENTOS</option>
+          <option>HOLD</option>
+        </select>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Etapas (múltiplas) -->
+      <div class="field-group" style="margin-bottom:.5rem;">
+        <label class="field-label">Atualizar Etapa(s) para todas as TAGs selecionadas</label>
+        <div style="font-size:9px;color:var(--ink3);margin-bottom:.4rem;">Marque quantas etapas quiser atualizar de uma vez. Cada etapa marcada abre seus próprios campos de data/observação.</div>
+        <div id="lote-etapas-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r2);padding:.4rem;background:var(--bg);"></div>
+      </div>
+      <div style="font-size:9px;color:var(--ink3);margin-bottom:.5rem;">
+        Campos de data/observação deixados em branco não alteram o valor já existente em cada TAG — apenas o que for preenchido é aplicado a todas.
+      </div>
+
+      <div id="lote-progresso" style="display:none;margin-top:.5rem;background:var(--blue2);color:var(--blue);border-radius:var(--r2);padding:.5rem .75rem;font-size:16px;font-weight:600;"></div>
+
+    </div>
+    <div class="cron-mfooter">
+      <button class="btn btn-secondary" onclick="fecharModalLote()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-aplicar-lote" onclick="aplicarLote()">✓ Aplicar em Lote</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- MODAL RELATÓRIO CRONOGRAMA -->
 <div class="cron-rel-modal" id="modal-rel-cron" onclick="fecharRelatorioCron(event)">
@@ -5626,6 +5695,8 @@ function limparFiltrosCron(){
   if(btnGrid) btnGrid.style.display = 'none';
   const selCnt = document.getElementById('sel-count');
   if(selCnt) selCnt.textContent = '0';
+  const btnLote0 = document.getElementById('btn-lote-selecionados');
+  if(btnLote0) btnLote0.style.display = 'none';
   renderCronograma();
 }
 
@@ -9873,6 +9944,234 @@ async function salvarAndamento(){
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// ALTERAÇÃO EM LOTE — Status + Etapa para múltiplas TAGs selecionadas
+// Reaproveita _selectedIds (mesmo mecanismo de seleção usado pelo
+// Grid/CSV/PDF/Excluir selecionados) e a estrutura de ETAPAS_DEF.
+// ═══════════════════════════════════════════════════════════════════════
+function _loteSubsSelecionadas(){
+  var listaBase = (window._cronSubsFiltradas && window._cronSubsFiltradas.length)
+    ? window._cronSubsFiltradas
+    : allCronSubobras;
+  var subs = listaBase.filter(function(s){ return _selectedIds.has(s.id); });
+  // fallback: se algum id selecionado não estiver na lista filtrada, busca em allCronSubobras
+  if(subs.length < _selectedIds.size){
+    var achados = new Set(subs.map(function(s){return s.id;}));
+    _selectedIds.forEach(function(id){
+      if(!achados.has(id)){
+        var f = allCronSubobras.find(function(x){return x.id===id;});
+        if(f) subs.push(f);
+      }
+    });
+  }
+  return subs;
+}
+
+function abrirModalLote(){
+  if(!_selectedIds.size){ showToast('Nenhuma selecionada','Marque ao menos uma TAG na tabela do cronograma.','warn'); return; }
+  var subs = _loteSubsSelecionadas();
+
+  document.getElementById('lote-subobra-label').textContent = subs.length + ' TAG' + (subs.length!==1?'s':'') + ' selecionada' + (subs.length!==1?'s':'');
+  document.getElementById('lote-tags-chips').innerHTML = subs.map(function(s){
+    return '<span style="display:inline-block;background:var(--blue2);color:var(--blue);border-radius:3px;font-size:9px;padding:2px 7px;font-family:\'Courier New\',monospace,monospace;font-weight:700;white-space:nowrap;">'
+      + (s.subobra||'—') + '<span style="opacity:.65;font-weight:400;margin-left:4px;">' + (s.obra||'') + '</span></span>';
+  }).join('');
+
+  // Reset status
+  document.getElementById('lote-chk-status').checked = false;
+  var selStatus = document.getElementById('lote-status'); selStatus.value=''; selStatus.disabled=true;
+
+  // Monta lista de etapas — cada uma com checkbox próprio + campos que só aparecem quando marcada
+  var etapasList = ETAPAS_DEF.filter(function(e){ return !e.isFabPct; });
+  document.getElementById('lote-etapas-list').innerHTML = etapasList.map(function(e){
+    var idx = ETAPAS_DEF.indexOf(e)+1;
+    var grdField = (e.key==='envio_modelo')
+      ? '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--accent);font-weight:600;">GRD</label><input type="text" class="field-input" id="lote-et-grd-'+e.key+'" placeholder="Ex: GRD-0042" style="font-size:12px;padding:3px 6px;"></div>'
+      : '';
+    return '<div class="lote-etapa-row" style="border:1px solid var(--border);border-radius:4px;margin-bottom:4px;overflow:hidden;background:#fff;">'
+      + '<label style="display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--ink2);">'
+      + '<input type="checkbox" id="lote-et-chk-'+e.key+'" onchange="onLoteEtapaRowToggle(\''+e.key+'\')" style="accent-color:var(--blue);width:13px;height:13px;">'
+      + idx+'. '+e.label
+      + '</label>'
+      + '<div id="lote-et-fields-'+e.key+'" style="display:none;padding:.5rem .6rem .6rem;border-top:1px solid var(--border);background:var(--bg);">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">'
+      + '<div><label style="font-size:9px;color:var(--ink3);">Data Prevista</label><input type="date" class="field-input" id="lote-et-prev-'+e.key+'" style="font-size:12px;padding:3px 6px;"></div>'
+      + '<div><label style="font-size:9px;color:var(--ink3);">Data Realizada</label><input type="date" class="field-input" id="lote-et-real-'+e.key+'" style="font-size:12px;padding:3px 6px;"></div>'
+      + '</div>'
+      + grdField
+      + '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--ink3);">Observação / Conclusão</label><input type="text" class="field-input" id="lote-et-obs-'+e.key+'" placeholder="Ex: Enviado ao cliente em lote…" style="font-size:12px;padding:3px 6px;"></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('lote-progresso').style.display='none';
+  document.getElementById('lote-progresso').textContent='';
+  var btn=document.getElementById('btn-aplicar-lote'); btn.disabled=false; btn.textContent='✓ Aplicar em Lote';
+
+  document.getElementById('modal-lote').classList.add('show');
+}
+
+function fecharModalLote(e){
+  if(!e||e.target.id==='modal-lote') document.getElementById('modal-lote').classList.remove('show');
+}
+
+function onLoteEtapaRowToggle(key){
+  var chk = document.getElementById('lote-et-chk-'+key).checked;
+  var box = document.getElementById('lote-et-fields-'+key);
+  if(box) box.style.display = chk ? 'block' : 'none';
+}
+
+// Lê todas as etapas marcadas no modal e retorna um array com os campos preenchidos
+function _loteEtapasSelecionadas(){
+  var etapasList = ETAPAS_DEF.filter(function(e){ return !e.isFabPct; });
+  var out = [];
+  etapasList.forEach(function(e){
+    var chkEl = document.getElementById('lote-et-chk-'+e.key);
+    if(!chkEl || !chkEl.checked) return;
+    var prevEl = document.getElementById('lote-et-prev-'+e.key);
+    var realEl = document.getElementById('lote-et-real-'+e.key);
+    var obsEl  = document.getElementById('lote-et-obs-'+e.key);
+    var grdEl  = document.getElementById('lote-et-grd-'+e.key);
+    out.push({
+      def: e,
+      prev: prevEl && prevEl.value ? prevEl.value : null,
+      real: realEl && realEl.value ? realEl.value : null,
+      obs:  obsEl ? obsEl.value.trim() : '',
+      grd:  grdEl ? grdEl.value.trim() : ''
+    });
+  });
+  return out;
+}
+
+async function aplicarLote(){
+  var subs = _loteSubsSelecionadas();
+  if(!subs.length){ showToast('Nenhuma selecionada','Marque ao menos uma TAG.','warn'); return; }
+
+  var alterarStatus = document.getElementById('lote-chk-status').checked;
+  var novoStatus = alterarStatus ? (document.getElementById('lote-status').value||'') : '';
+  if(alterarStatus && !novoStatus){ showToast('Selecione o status','Escolha o novo status ou desmarque a opção.','error'); return; }
+
+  var etapas = _loteEtapasSelecionadas();
+
+  if(!alterarStatus && !etapas.length){
+    showToast('Nada para aplicar','Marque "Alterar Status" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
+  }
+
+  // Validação: GRD obrigatória se marcar Data Realizada do envio do modelo
+  for(var v=0; v<etapas.length; v++){
+    if(etapas[v].def.key==='envio_modelo' && etapas[v].real && !etapas[v].grd){
+      showToast('GRD obrigatória','Informe a GRD para a etapa "'+etapas[v].def.label+'".','error'); return;
+    }
+  }
+
+  // ── Confirmação antes de aplicar ────────────────────────────────────
+  var resumoLinhas = [];
+  resumoLinhas.push(subs.length + ' TAG' + (subs.length!==1?'s':'') + ' será' + (subs.length!==1?'ão':'') + ' alterada' + (subs.length!==1?'s':'') + ':');
+  resumoLinhas.push(subs.map(function(s){ return '  • '+(s.subobra||s.id)+' ('+(s.obra||'—')+')'; }).join('\n'));
+  if(alterarStatus){
+    resumoLinhas.push('\nStatus → ' + novoStatus);
+  }
+  if(etapas.length){
+    resumoLinhas.push('\nEtapas a atualizar:');
+    etapas.forEach(function(et){
+      var partes=[];
+      if(et.prev) partes.push('Prev: '+new Date(et.prev+'T12:00:00').toLocaleDateString('pt-BR'));
+      if(et.real) partes.push('Real: '+new Date(et.real+'T12:00:00').toLocaleDateString('pt-BR'));
+      if(et.grd) partes.push('GRD: '+et.grd);
+      if(et.obs) partes.push('Obs: '+et.obs);
+      resumoLinhas.push('  • '+et.def.label+(partes.length?' — '+partes.join(' · '):' (sem data/observação preenchida)'));
+    });
+  }
+  resumoLinhas.push('\nEsta ação grava direto no banco de dados e não pode ser desfeita automaticamente. Confirmar?');
+  if(!confirm(resumoLinhas.join('\n'))) return;
+
+  var btn = document.getElementById('btn-aplicar-lote');
+  var prog = document.getElementById('lote-progresso');
+  btn.disabled = true;
+  prog.style.display='block';
+
+  var okCount=0, errCount=0;
+  for(var i=0;i<subs.length;i++){
+    var s = subs[i];
+    prog.textContent = 'Aplicando ' + (i+1) + '/' + subs.length + '… (' + (s.subobra||s.id) + ')';
+    btn.textContent = 'Aplicando ' + (i+1) + '/' + subs.length + '…';
+    try{
+      var statusAnterior = s.status;
+      var updates = { atualizado_em: new Date().toISOString() };
+      if(alterarStatus) updates.status = novoStatus;
+      etapas.forEach(function(et){
+        var eDef = et.def;
+        if(et.prev!=null) updates[eDef.prev] = et.prev;
+        if(et.real!=null) updates[eDef.real] = et.real;
+        if(eDef.obs && et.obs) updates[eDef.obs] = et.obs;
+        if(eDef.grd && et.grd) updates[eDef.grd] = et.grd;
+      });
+
+      var data=null, error=null;
+      try{
+        var sbRes = await sbClient.from('cronograma_subobras').update(updates).eq('id', s.id).select();
+        data = sbRes.data; error = sbRes.error;
+        if(error) throw new Error(error.message||JSON.stringify(error));
+      }catch(sbErr){
+        // Fallback local (mesma estratégia usada em salvarCronSubobra)
+        console.warn('[aplicarLote] Supabase falhou p/ '+s.id+', salvando localmente:', sbErr.message);
+        var _rs = _lsGet('cronograma_subobras'), _found=false;
+        _rs = _rs.map(function(r){
+          if(String(r.id)===String(s.id)){ _found=true; return Object.assign({}, r, updates); }
+          return r;
+        });
+        if(!_found){ _rs.push(Object.assign({}, s, updates)); }
+        _lsSet('cronograma_subobras', _rs);
+        data = [Object.assign({}, s, updates)];
+      }
+
+      // Histórico
+      try{
+        var obsHist = [];
+        if(alterarStatus) obsHist.push('Status alterado em lote para ' + novoStatus);
+        etapas.forEach(function(et){
+          var eDef = et.def;
+          var partes=[];
+          if(et.real) partes.push(eDef.label+' realizado em '+new Date(et.real+'T12:00:00').toLocaleDateString('pt-BR'));
+          else if(et.prev) partes.push('Previsão de '+eDef.label+' atualizada');
+          if(et.obs) partes.push(et.obs);
+          if(et.grd) partes.push('GRD: '+et.grd);
+          if(partes.length) obsHist.push(partes.join(' — '));
+        });
+        if(obsHist.length){
+          await sbClient.from('cronograma_historico').insert([{
+            id:_genId(), criado_em:new Date().toISOString(), subobra_id:s.id, autor:'Usuário',
+            status_anterior: statusAnterior, status_novo: alterarStatus?novoStatus:statusAnterior,
+            observacao: 'Alteração em lote — ' + obsHist.join(' | ')
+          }]);
+        }
+      }catch(he){ console.warn('Histórico (lote):', he.message); }
+
+      // Atualiza estado local
+      var idx = allCronSubobras.findIndex(function(x){return x.id===s.id;});
+      if(idx>=0){
+        if(data && data[0]) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], data[0]);
+        else Object.assign(allCronSubobras[idx], updates);
+      }
+      okCount++;
+    }catch(err){
+      console.warn('[aplicarLote] erro em '+s.id+':', err.message);
+      errCount++;
+    }
+  }
+
+  fecharModalLote();
+  _selectedIds.clear();
+  _atualizarBtnGrid();
+  renderCronograma();
+
+  if(errCount===0){
+    showToast('✓ Alteração em lote concluída', okCount + ' TAG' + (okCount!==1?'s':'') + ' atualizada' + (okCount!==1?'s':'') + ' com sucesso.', 'success');
+  } else {
+    showToast('Concluído com erros', okCount + ' atualizada(s), ' + errCount + ' com erro. Verifique o console.', 'warn');
+  }
+}
+
 </script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════
@@ -10526,6 +10825,7 @@ function renderAnexosMed(parcela){
 // pct é calculado dinamicamente: soma dos pct de cada etapa marcada
 var _medTagsMap = new Map();
 var _medApenasSelected = false; // filtro "Só selecionadas"
+var _medSoComSaldo = false; // filtro "Só com saldo a medir" (Obra + Equipe)
 
 const MED_ETAPAS = [
   {key:'modelo',   label:'Modelo p/ Aprovação', pct:40, cor:'#0e7490', bg:'#cffafe', icon:'🔷'},
@@ -12132,7 +12432,8 @@ function atualizarAlerteLimiteFab(){
     var prev = new Date(s.prev_lib_fab+"T12:00:00");
     return lim < prev;
   });
-  if(!conflitos.length){ banner.style.display="none"; return; }
+  if(!conflitos.length){ banner.style.display="none"; window._cronAlertaConflitos=[]; return; }
+  window._cronAlertaConflitos = conflitos;
   // Mostra só a pill — painel permanece recolhido
   banner.style.display="block";
   if(pillTxt) pillTxt.textContent = conflitos.length + ' obra' + (conflitos.length>1?'s':'') + ' com alerta de prazo';
@@ -12147,6 +12448,105 @@ function atualizarAlerteLimiteFab(){
       + ' — Lim.: ' + fmtL + ' · Prev. Fab.: ' + fmtP + ' (' + dias + 'd atrás do limite)'
       + ' ↗</span>';
   }).join("");
+}
+
+// ── EXPORTAR ALERTA DE PRAZO — EXCEL (CSV) ─────────────────────────────
+function exportarAlertaPrazoExcel(){
+  var conflitos = window._cronAlertaConflitos || [];
+  if(!conflitos.length){ showToast('Nada para exportar','Não há obras em alerta de prazo no momento.','warn'); return; }
+
+  var fmtD = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : ''; };
+  var cols = ['obra','subobra','descricao','equipe','status','data_limite_fab','prev_lib_fab','dias_atraso'];
+  var header = ['Obra','TAG / Sub-obra','Descrição','Equipe','Status','Data Limite Fábrica','Prev. Fabricação','Dias Além do Limite'];
+
+  var rows = conflitos.map(function(s){
+    var lim  = new Date(s.data_limite_fab+'T12:00:00');
+    var prev = new Date(s.prev_lib_fab+'T12:00:00');
+    var dias = Math.round((prev-lim)/86400000);
+    var linha = {
+      obra: s.obra||'', subobra: s.subobra||'', descricao: s.descricao||'', equipe: s.equipe||'',
+      status: s.status||'', data_limite_fab: fmtD(s.data_limite_fab), prev_lib_fab: fmtD(s.prev_lib_fab),
+      dias_atraso: dias
+    };
+    return cols.map(function(c){
+      var v = linha[c]!=null ? String(linha[c]) : '';
+      return v.includes(';') ? '"'+v+'"' : v;
+    }).join(';');
+  });
+
+  var csv = '\uFEFF'+header.join(';')+'\n'+rows.join('\n');
+  var blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='alerta_prazo_fabrica_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Excel exportado!',conflitos.length+' obra(s) em alerta exportadas.','success');
+}
+
+// ── EXPORTAR ALERTA DE PRAZO — PDF ─────────────────────────────────────
+function exportarAlertaPrazoPDF(){
+  var conflitos = window._cronAlertaConflitos || [];
+  if(!conflitos.length){ showToast('Nada para exportar','Não há obras em alerta de prazo no momento.','warn'); return; }
+
+  var fmtD = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'; };
+  var hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  var rows = conflitos.map(function(s){
+    var cfg = (typeof STATUS_CFG_CRON !== 'undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569',bg:'#f1f5f9',icon:'•'};
+    var lim  = new Date(s.data_limite_fab+'T12:00:00');
+    var prev = new Date(s.prev_lib_fab+'T12:00:00');
+    var dias = Math.round((prev-lim)/86400000);
+    return '<tr style="border-bottom:1px solid #e2e8f0;">'+
+      '<td style="padding:4px 7px;font-family:Courier New,monospace;font-size:9px;font-weight:700;color:#9f1239;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.subobra||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.obra||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;max-width:200px;">'+(s.descricao||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.equipe||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:8px;text-align:center;border:1px solid #e2e8f0;"><span style="background:'+cfg.bg+';color:'+cfg.color+';border-radius:3px;padding:1px 5px;white-space:nowrap;">'+(s.status||'—')+'</span></td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(s.data_limite_fab)+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(s.prev_lib_fab)+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;font-weight:700;color:#9f1239;border:1px solid #e2e8f0;white-space:nowrap;">'+dias+'d</td>'+
+      '</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<title>Alerta de Prazo — Sidertec</title>'+
+    '<style>'+
+    '@page{size:A4 landscape;margin:12mm;}'+
+    'body{font-family:Arial,sans-serif;font-size:9px;color:#1e293b;margin:0;}'+
+    '.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f43f5e;}'+
+    '.logo{font-size:18px;font-weight:900;color:#c4501a;letter-spacing:.05em;}'+
+    '.titulo{font-size:16px;font-weight:700;margin-top:2px;color:#9f1239;}'+
+    '.meta{font-size:8px;color:#64748b;text-align:right;}'+
+    'table{width:100%;border-collapse:collapse;font-size:9px;}'+
+    'thead tr{background:#9f1239;}'+
+    'thead th{color:#fff;text-align:left;padding:6px 7px;white-space:nowrap;border:1px solid #7f1d3a;font-size:9px;}'+
+    'tbody tr:nth-child(even){background:#fff1f2;}'+
+    '.footer{margin-top:10px;font-size:7px;color:#94a3b8;display:flex;justify-content:space-between;}'+
+    '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+    '<div><div class="logo">SIDERTEC</div><div class="titulo">🚨 Alerta de Prazo — Limite Fábrica &lt; Data Planejada para Fabricação</div></div>'+
+    '<div class="meta">'+
+    '<div><strong>'+conflitos.length+'</strong> obra(s) em alerta</div>'+
+    '<div>Gerado em '+hoje+'</div>'+
+    '</div>'+
+    '</div>'+
+    '<table><thead><tr>'+
+    '<th>TAG / Sub-obra</th><th>Obra</th><th>Descrição</th><th>Equipe</th><th>Status</th>'+
+    '<th style="text-align:center;">Lim. Fábrica</th><th style="text-align:center;">Prev. Fabricação</th><th style="text-align:center;">Dias Além do Limite</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="footer">'+
+    '<span>Itens onde a Data Limite Fábrica é anterior à Data Planejada para Fabricação (Lib. Fab.)</span>'+
+    '<span>Sidertec Engenharia — gerado pelo sistema de cronograma</span>'+
+    '</div>'+
+    '</body></html>';
+
+  var win = window.open('','_blank','width=1300,height=850,scrollbars=yes');
+  if(!win){ showToast('Pop-up bloqueado','Permita pop-ups para gerar o PDF.','warn'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = function(){ win.focus(); setTimeout(function(){ win.print(); },400); };
+  showToast('PDF pronto!',conflitos.length+' obra(s) em alerta — use Ctrl+P ou Salvar como PDF.','success');
 }
 
 var _origLimparFiltrosCron = typeof limparFiltrosCron === 'function' ? limparFiltrosCron : function(){};
@@ -12442,6 +12842,10 @@ function _atualizarBtnGrid(){
   var cntPdf = document.getElementById('pdf-sel-count');
   if(btnPdf){ btnPdf.style.display = _selectedIds.size>0?'inline-flex':'none'; }
   if(cntPdf){ cntPdf.textContent = _selectedIds.size; }
+  var btnLote = document.getElementById('btn-lote-selecionados');
+  var cntLote = document.getElementById('lote-sel-count');
+  if(btnLote){ btnLote.style.display = _selectedIds.size>0?'inline-flex':'none'; }
+  if(cntLote){ cntLote.textContent = _selectedIds.size; }
 }
 
 function gerarGridSelecionados(){
@@ -15002,9 +15406,38 @@ function toggleApenasSelMedTags(){
   renderMedTags();
 }
 
+function toggleSaldoMed(){
+  _medSoComSaldo = !_medSoComSaldo;
+  const btn = document.getElementById('btn-saldo-med');
+  if(btn){
+    btn.style.background = _medSoComSaldo ? 'rgba(56,189,248,.5)' : 'rgba(56,189,248,.18)';
+    btn.style.color = _medSoComSaldo ? '#fff' : '#bae6fd';
+    btn.style.fontWeight = '700';
+  }
+  renderMedTags();
+}
+
+// ── DIVERGÊNCIA DE PESO — Básico x Detalhado x Medido ──────────────────
+// Compara os valores disponíveis para a TAG e sinaliza quando a diferença
+// entre o maior e o menor deles é "gritante" (acima do limite definido).
+var MED_DIVERGENCIA_LIMITE_PCT = 10; // % de diferença considerada divergência grave
+function _calcDivergenciaPeso(pesoB, pesoD, pesoM){
+  var vals = [];
+  if(pesoB>0) vals.push({label:'Básico', v:pesoB});
+  if(pesoD>0) vals.push({label:'Detalhado', v:pesoD});
+  if(pesoM>0) vals.push({label:'Medido', v:pesoM});
+  if(vals.length<2) return {divergente:false, pct:0, detalhe:''};
+  var max = vals.reduce(function(a,b){return a.v>b.v?a:b;});
+  var min = vals.reduce(function(a,b){return a.v<b.v?a:b;});
+  var pctDiff = max.v>0 ? Math.round(((max.v-min.v)/max.v)*100) : 0;
+  var detalhe = vals.map(function(x){return x.label+': '+x.v.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg';}).join(' · ');
+  return { divergente: pctDiff > MED_DIVERGENCIA_LIMITE_PCT, pct: pctDiff, detalhe: detalhe, maiorLabel:max.label, menorLabel:min.label };
+}
+
 function renderMedTags(){
-  const obra  = document.getElementById('med-obra')?.value;
-  const busca = (document.getElementById('med-tags-busca')?.value||'').toLowerCase().trim();
+  const obra   = document.getElementById('med-obra')?.value;
+  const equipe = document.getElementById('med-equipe')?.value;
+  const busca  = (document.getElementById('med-tags-busca')?.value||'').toLowerCase().trim();
   const lista = document.getElementById('med-tags-lista');
   const count = document.getElementById('med-tags-count');
   if(!lista) return;
@@ -15028,9 +15461,22 @@ function renderMedTags(){
     }
   }
 
+  // Filtro "Só com saldo a medir" — restringe à Equipe selecionada (quando houver)
+  // e mantém apenas TAGs cujo % já medido em BMs anteriores ainda não chegou a 100%.
+  const _histPctMapFiltro = (typeof _buildMedHistoricoPctMap==='function') ? _buildMedHistoricoPctMap() : new Map();
+  if(_medSoComSaldo){
+    subs = subs.filter(function(s){
+      const matchEquipe = !equipe || !s.equipe || s.equipe === equipe;
+      const hist = _histPctMapFiltro.get(String(s.id)) || 0;
+      const emAndamento = _medTagsMap.has(String(s.id)) ? _medPct(_medTagsMap.get(String(s.id))) : 0;
+      const saldo = Math.max(0, 100 - hist - emAndamento);
+      return matchEquipe && saldo > 0;
+    });
+  }
+
   if(!subs.length){
     lista.innerHTML = '<span style="font-size:11px;color:var(--ink3);font-style:italic;padding:.5rem;">'
-      +(_medApenasSelected?'Nenhuma TAG selecionada ainda.':'Nenhuma TAG encontrada para esta obra.')+'</span>';
+      +(_medApenasSelected?'Nenhuma TAG selecionada ainda.':_medSoComSaldo?'Nenhuma TAG com saldo a medir para esta Obra/Equipe.':'Nenhuma TAG encontrada para esta obra.')+'</span>';
     if(count) count.textContent = _medTagsMap.size + ' selecionada' + (_medTagsMap.size!==1?'s':'');
     return;
   }
@@ -15054,6 +15500,15 @@ function renderMedTags(){
   });
   var fmtR=function(v){ return v>0?'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'R$ 0,00'; };
 
+  // ── Divergência de peso (Básico x Detalhado x Medido) entre as TAGs visíveis ──
+  var divergentesQtd = 0;
+  subs.forEach(function(s){
+    var entry=_medTagsMap.get(String(s.id));
+    var pesoB=Number(s.peso_previsto)||0, pesoD=Number(s.peso_detalhado)||0;
+    var pm=(entry&&entry.peso_med>0)?Number(entry.peso_med):0;
+    if(_calcDivergenciaPeso(pesoB,pesoD,pm).divergente) divergentesQtd++;
+  });
+
   var summaryBar = _medTagsMap.size>0 ? (
     '<div style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px;font-size:9px;font-weight:700;">'+
       '<span style="color:#475569;">📋 '+_medTagsMap.size+' TAG'+ (_medTagsMap.size!==1?'s':'')+' na medição</span>'+
@@ -15061,6 +15516,14 @@ function renderMedTags(){
       (totAceito>0?'<span style="background:#dcfce7;color:#166534;border-radius:4px;padding:2px 8px;">✅ '+totAceito+' Aceita'+(totAceito!==1?'s':'')+' — '+fmtR(valAceito)+'</span>':'<span style="color:#94a3b8;">✅ 0 Aceitas</span>')+
       (totCorrecao>0?'<span style="background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 8px;">❌ '+totCorrecao+' Correção — '+fmtR(valCorrecao)+'</span>':'<span style="color:#94a3b8;">❌ 0 Correção</span>')+
       (totPendente>0?'<span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 8px;">⏳ '+totPendente+' Pendente'+(totPendente!==1?'s':'')+' — '+fmtR(valPendente)+'</span>':'<span style="color:#94a3b8;">⏳ 0 Pendentes</span>')+
+    '</div>'
+  ) : '';
+
+  var divergenciaBanner = divergentesQtd>0 ? (
+    '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:6px;margin-bottom:6px;">'+
+      '<span style="font-size:16px;">🚨</span>'+
+      '<span style="font-size:10.5px;font-weight:800;color:#9f1239;">'+divergentesQtd+' TAG'+(divergentesQtd!==1?'s':'')+' com DIVERGÊNCIA GRITANTE de peso (Básico × Detalhado × Medido acima de '+MED_DIVERGENCIA_LIMITE_PCT+'%)</span>'+
+      '<span style="font-size:9px;color:#be123c;">— confira o alerta 🚨 destacado em cada linha antes de fechar a medição</span>'+
     '</div>'
   ) : '';
 
@@ -15072,6 +15535,7 @@ function renderMedTags(){
     var pesoB = Number(s.peso_previsto)||0;
     var pesoD = Number(s.peso_detalhado)||0;
     var pm    = (sel&&entry.peso_med>0)?Number(entry.peso_med):0;
+    var _diverg = _calcDivergenciaPeso(pesoB, pesoD, pm);
     var pesoRef= pm>0?pm:(pesoD>0?pesoD:pesoB);
     var pct   = sel?_medPct(entry):0;
     var val   = vkg>0&&pesoRef>0&&pct>0?vkg*pesoRef*(pct/100):0;
@@ -15086,18 +15550,21 @@ function renderMedTags(){
     }).filter(Boolean).join(' + ')||'—' : '—';
 
     // ── Cores da linha ──
-    var rowBg = !sel ? '#fafafa'
+    var rowBg = _diverg.divergente ? '#fff1f2'
+      : !sel ? '#fafafa'
       : _st==='aceito'   ? '#f0fdf4'
       : _st==='correcao' ? '#fff1f2'
       : _dp              ? '#fffbeb'
       : '#eff6ff';
-    var rowBorder = !sel ? '#e2e8f0'
+    var rowBorder = _diverg.divergente ? '#f43f5e'
+      : !sel ? '#e2e8f0'
       : _st==='aceito'   ? '#86efac'
       : _st==='correcao' ? '#fca5a5'
       : '#93c5fd';
 
     // ── Badges extras ──
     var extraBadges = ''
+      +(_diverg.divergente?'<span title="'+_diverg.detalhe+'" style="background:#f43f5e;color:#fff;border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:800;white-space:nowrap;">🚨 DIVERGÊNCIA '+_diverg.pct+'%</span>':'')
       +(_histPct>=100?'<span style="background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⛔ 100% já med.</span>':
         _histPct>0?'<span style="background:#fef9c3;color:#854d0e;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⚠ '+_histPct+'% med.</span>':'')
       +(_dp&&sel?'<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⏳ Et.11</span>':'');
@@ -15202,12 +15669,13 @@ function renderMedTags(){
         +'<span style="background:'+cfg.bg+';color:'+cfg.color+';border-radius:3px;padding:2px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+cfg.icon+' '+s.status+'</span>'
       +'</td>'
       +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:center;font-size:8.5px;color:#475569;white-space:nowrap;">'+(sel?etapasLabel:'—')+'</td>'
-      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:right;font-family:monospace;font-size:9px;color:#166534;white-space:nowrap;">'+(pesoB>0?pesoB.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'<span style="color:#94a3b8;">—</span>')+'</td>'
-      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:right;font-family:monospace;font-size:9px;color:#1d4ed8;white-space:nowrap;">'+(pesoD>0?pesoD.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'<span style="color:#94a3b8;">—</span>')+'</td>'
-      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:right;font-family:monospace;font-size:9px;white-space:nowrap;">'
-        +(sel&&pesoRef>0?'<span style="color:'+(pm>0?'#b45309':'#475569')+';font-weight:'+(pm>0?'700':'400')+';">'+( pm>0?'📏 ':'')+pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg</span>':'<span style="color:#94a3b8;">—</span>')
+      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:right;font-family:monospace;font-size:9px;color:'+(_diverg.divergente?'#9f1239':'#166534')+';white-space:nowrap;'+(_diverg.divergente?'background:#ffe4e6;font-weight:800;':'')+'" title="'+(_diverg.divergente?_diverg.detalhe:'')+'">'+(pesoB>0?pesoB.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'<span style="color:#94a3b8;">—</span>')+'</td>'
+      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:right;font-family:monospace;font-size:9px;color:'+(_diverg.divergente?'#9f1239':'#1d4ed8')+';white-space:nowrap;'+(_diverg.divergente?'background:#ffe4e6;font-weight:800;':'')+'" title="'+(_diverg.divergente?_diverg.detalhe:'')+'">'+(pesoD>0?pesoD.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'<span style="color:#94a3b8;">—</span>')+'</td>'
+      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:right;font-family:monospace;font-size:9px;white-space:nowrap;'+(_diverg.divergente?'background:#ffe4e6;':'')+'" title="'+(_diverg.divergente?'🚨 Divergência de '+_diverg.pct+'% — '+_diverg.detalhe:'')+'">'
+        +(sel&&pesoRef>0?'<span style="color:'+(_diverg.divergente?'#9f1239':pm>0?'#b45309':'#475569')+';font-weight:'+(pm>0||_diverg.divergente?'800':'400')+';">'+( pm>0?'📏 ':'')+pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg</span>':'<span style="color:#94a3b8;">—</span>')
         +(sel&&pct>0?'<br><span id="med-pct-bm-'+s.id+'" style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+pct+'%</span>':'')
         +(sel&&val>0?'<br><span id="med-val-bm-'+s.id+'" style="color:'+(sel?(_st==='aceito'?'#16a34a':_st==='correcao'?'#dc2626':'#166534'):'#94a3b8')+';font-weight:700;font-size:9.5px;">R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')
+        +(_diverg.divergente?'<br><span style="background:#f43f5e;color:#fff;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:800;">🚨 '+_diverg.pct+'% diverg.</span>':'')
       +'</td>'
       +'<td style="padding:4px 6px;text-align:center;white-space:nowrap;" onclick="event.stopPropagation();">'
         +'<div style="display:flex;gap:3px;justify-content:center;">'+bmBtns+'</div>'
@@ -15230,7 +15698,8 @@ function renderMedTags(){
     +'<th style="padding:5px 8px;text-align:center;white-space:nowrap;">BM ✅❌</th>'
     +'</tr></thead>';
 
-  lista.innerHTML = summaryBar
+  lista.innerHTML = divergenciaBanner
+    +summaryBar
     +'<div style="overflow-x:auto;">'
     +'<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">'
     +tableHeader
