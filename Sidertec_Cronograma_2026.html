@@ -2447,7 +2447,30 @@ const _SB_H   = {'Content-Type':'application/json','apikey':_SB_KEY,'Authorizati
 const _sbUrl  = function(path){ return _SB_URL+'/rest/v1/'+path+(path.includes('?')?'&':'?')+'apikey='+_SB_KEY; };
 
 function _lsGet(t){try{return JSON.parse(localStorage.getItem('sider_'+t)||'[]');}catch(e){return[];}}
-function _lsSet(t,v){try{localStorage.setItem('sider_'+t,JSON.stringify(v));}catch(e){}}
+function _lsSet(t,v){
+  try{
+    var json=JSON.stringify(v);
+    // Evita overflow: pula tabelas grandes (>500KB) no localStorage
+    // Dados grandes ficam apenas no Supabase
+    if(json.length>512*1024 && t==='cronograma_subobras'){
+      console.info('[lsSet] '+t+' muito grande ('+Math.round(json.length/1024)+'KB) — usando apenas Supabase');
+      return;
+    }
+    localStorage.setItem('sider_'+t,json);
+  }catch(e){
+    // Quota exceeded — limpa chaves grandes e tenta novamente
+    try{
+      ['cronograma_subobras','cronograma_historico','liberacoes','medicao_bm'].forEach(function(k){
+        try{ localStorage.removeItem('sider_'+k); }catch(e2){}
+      });
+      // Remove chaves de pesos migrados
+      ['sidertec_peso_detalhado','sidertec_peso_pcp','sidertec_data_limite_fab'].forEach(function(k){
+        try{ localStorage.removeItem(k); }catch(e2){}
+      });
+    }catch(e3){}
+    console.warn('[lsSet] Quota excedida para '+t+' — dados no Supabase');
+  }
+}
 
 // ── PERFORMANCE: debounce genérico ──────────────────────────────────────────
 // Evita que renders consecutivos (filtro, oninput) disparem dezenas de vezes
@@ -6624,45 +6647,45 @@ function carregarLimiteFabLocal(){
   });
 }
 
-// ── PESO DETALHADO (localStorage — aguardando coluna no Supabase) ────
+// ── PESO DETALHADO ────────────────────────────────────────────────────
 const PESO_DET_KEY = 'sidertec_peso_detalhado';
 function salvarPesoDetLocal(id, valor){
   if(!id) return;
-  // localStorage (cache local)
-  const store = JSON.parse(localStorage.getItem(PESO_DET_KEY)||'{}');
-  if(valor > 0) store[id] = valor;
-  else delete store[id];
-  localStorage.setItem(PESO_DET_KEY, JSON.stringify(store));
-  // Supabase (fonte verdadeira)
+  // Atualiza memória imediatamente
+  var s=allCronSubobras.find(function(x){return String(x.id)===String(id);});
+  if(s) s.peso_detalhado = valor||null;
+  // Persiste no Supabase (fonte de verdade) — não usa localStorage para evitar quota overflow
   sbClient.from('cronograma_subobras').eq('id',id).update({peso_detalhado: valor||null, atualizado_em: new Date().toISOString()}).select()
     .then(r=>{ if(r.error) console.warn('[peso_det SB]',r.error.message); })
     .catch(e=>console.warn('[peso_det SB]',e.message));
 }
 function carregarPesoDetLocal(){
-  const store = JSON.parse(localStorage.getItem(PESO_DET_KEY)||'{}');
-  allCronSubobras.forEach(s=>{
-    if(store[s.id] != null) s.peso_detalhado = Number(store[s.id]);
-  });
+  // Dados já vêm do Supabase no carregamento inicial — função mantida por compatibilidade
+  try{
+    var store=JSON.parse(localStorage.getItem(PESO_DET_KEY)||'{}');
+    allCronSubobras.forEach(function(s){if(store[s.id]!=null&&!s.peso_detalhado)s.peso_detalhado=Number(store[s.id]);});
+    // Limpa localStorage após migrar para Supabase
+    localStorage.removeItem(PESO_DET_KEY);
+  }catch(e){}
 }
 
 const PESO_PCP_KEY = 'sidertec_peso_pcp';
 function salvarPesoPcpLocal(id, valor){
   if(!id) return;
-  // localStorage (cache local)
-  const store = JSON.parse(localStorage.getItem(PESO_PCP_KEY)||'{}');
-  if(valor > 0) store[id] = valor;
-  else delete store[id];
-  localStorage.setItem(PESO_PCP_KEY, JSON.stringify(store));
-  // Supabase (fonte verdadeira)
+  // Atualiza memória imediatamente
+  var s=allCronSubobras.find(function(x){return String(x.id)===String(id);});
+  if(s) s.peso_pcp = valor||null;
+  // Persiste no Supabase — não usa localStorage
   sbClient.from('cronograma_subobras').eq('id',id).update({peso_pcp: valor||null, atualizado_em: new Date().toISOString()}).select()
     .then(r=>{ if(r.error) console.warn('[peso_pcp SB]',r.error.message); })
     .catch(e=>console.warn('[peso_pcp SB]',e.message));
 }
 function carregarPesoPcpLocal(){
-  const store = JSON.parse(localStorage.getItem(PESO_PCP_KEY)||'{}');
-  allCronSubobras.forEach(s=>{
-    if(store[s.id] != null) s.peso_pcp = Number(store[s.id]);
-  });
+  try{
+    var store=JSON.parse(localStorage.getItem(PESO_PCP_KEY)||'{}');
+    allCronSubobras.forEach(function(s){if(store[s.id]!=null&&!s.peso_pcp)s.peso_pcp=Number(store[s.id]);});
+    localStorage.removeItem(PESO_PCP_KEY);
+  }catch(e){}
 }
 
 // ── SALVAR SUB-OBRA ───────────────────────────────────────────────────
