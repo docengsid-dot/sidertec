@@ -18149,6 +18149,9 @@ function _cdocPainelToggleDet(){
             <option value="libfab">🔧 Aguardando Lib. Fabricação</option>
             <option value="cliente">🔄 Fluxo com o Cliente</option>
           </select>
+          <select id="cdd-df-status" onchange="cdocRenderDiario()" title="Filtrar pelo status do documento" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:190px;">
+            <option value="">Todos status</option>
+          </select>
           <select id="cdd-df-obra" onchange="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:130px;"><option value="">Toda obra</option></select>
           <input id="cdd-df-eng" placeholder="Eng. Resp..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:100px;">
           <input id="cdd-df-sub" placeholder="Sub-obra..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:90px;">
@@ -18163,7 +18166,7 @@ function _cdocPainelToggleDet(){
             <option>APROVADO</option><option>COM COMENTÁRIOS</option><option>CERTIFICADO</option><option>REPROVADO</option>
           </select>
           <button id="cdd-df-sortdir" onclick="cdocDiarioToggleSort()" title="Ordenar por data prevista de retorno / prazo" style="font-size:10px;font-weight:700;padding:2px 9px;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;background:#fff;color:#334155;">Prazo &#8593; Crescente</button>
-          <button onclick="['cdd-df-secao','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});_cdocDiarioSortDir=1;cdocRenderDiario();" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
+          <button onclick="['cdd-df-secao','cdd-df-status','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});_cdocDiarioSortDir=1;cdocRenderDiario();" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
         </div>
         <div id="cdd-diario-content" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:.6rem;"></div>
       </div>
@@ -23672,8 +23675,22 @@ function _cdocPopulateDiarioObras(){
   sel.innerHTML='<option value="">Toda obra</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'">'+_esc(o)+'</option>';}).join('');
   sel.value=cur;
 }
+function _cdocPopulateDiarioStatus(){
+  var sel=document.getElementById('cdd-df-status'); if(!sel) return;
+  var cur=sel.value;
+  var lista=_cdocTodosStatuses();
+  var atual=Array.from(sel.options).slice(1).map(function(o){return o.value;}).join('|');
+  if(atual===lista.join('|')){ if(cur) sel.value=cur; return; }
+  sel.innerHTML='<option value="">Todos status</option>';
+  lista.forEach(function(s){
+    var op=document.createElement('option'); op.value=s; op.textContent=s;
+    if(s===cur) op.selected=true;
+    sel.appendChild(op);
+  });
+}
 function cdocRenderDiario(){
   _cdocPopulateDiarioObras();
+  _cdocPopulateDiarioStatus();
   var db=_cdocDb();
   var hoje=new Date(); hoje.setHours(0,0,0,0);
   var domSem=hoje.getDay();
@@ -23682,6 +23699,7 @@ function cdocRenderDiario(){
 
   // --- Lê filtros ---
   var fSecao=(document.getElementById('cdd-df-secao')||{}).value||'';
+  var fStatusGeral=(document.getElementById('cdd-df-status')||{}).value||'';
   var fObra=(document.getElementById('cdd-df-obra')||{}).value||'';
   var fEng=((document.getElementById('cdd-df-eng')||{}).value||'').toLowerCase();
   var fSub=((document.getElementById('cdd-df-sub')||{}).value||'').toLowerCase();
@@ -23718,10 +23736,11 @@ function cdocRenderDiario(){
     if(p==='atrasados') return d<hoje;
     return true;
   }
-  // Aplica filtros comuns (obra, eng, sub, finalidade, grd, prevRetorno, statusFinal)
+  // Aplica filtros comuns (obra, eng, sub, finalidade, grd, prevRetorno, statusFinal, status)
   function applyFiltros(docs){
     return docs.filter(function(d){
       if(fObra && d.obraId!==fObra) return false;
+      if(fStatusGeral && (d.statusGeral||'')!==fStatusGeral) return false;
       if(fEng && !(d.engResp||'').toLowerCase().includes(fEng)) return false;
       if(fSub && !_cdocSubMatch(d.sub||'',fSub)) return false;
       var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
