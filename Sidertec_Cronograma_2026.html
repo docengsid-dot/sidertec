@@ -23172,6 +23172,20 @@ function cdocSalvar(){
   } else {
     var obra2=g('cef-obra'), sub2=g('cef-sub'), num=g('cef-num');
     if(!obra2||!sub2||!num){alert('Obra, Sub-obra e Nº Sidertec são obrigatórios.');return;}
+    var cli2=g('cef-cli');
+    // Verifica duplicidade de numeração (Nº Sidertec e Nº Cliente) em relação aos demais documentos já cadastrados
+    var _numNorm=(num||'').trim().toLowerCase();
+    var _cliNorm=(cli2||'').trim().toLowerCase();
+    var _fmtDup=function(d){return '• Obra '+(d.obraId||'-')+' / TAG '+(d.sub||'-')+' — '+(d.titulo||d.desc||'sem título');};
+    var _dupNum=_numNorm?db.detalhados.filter(function(d){return d.id!==_cdocEditId && (String(d.num||'')).trim().toLowerCase()===_numNorm;}):[];
+    var _dupCli=_cliNorm?db.detalhados.filter(function(d){return d.id!==_cdocEditId && (String(d.cli||'')).trim().toLowerCase()===_cliNorm;}):[];
+    if(_dupNum.length||_dupCli.length){
+      var _dupMsg='⚠ Numeração já cadastrada em outro documento:\n\n';
+      if(_dupNum.length) _dupMsg+='Nº Sidertec "'+num+'" já usado em:\n'+_dupNum.map(_fmtDup).join('\n')+'\n\n';
+      if(_dupCli.length) _dupMsg+='Nº Cliente "'+cli2+'" já usado em:\n'+_dupCli.map(_fmtDup).join('\n')+'\n\n';
+      _dupMsg+='Deseja salvar mesmo assim?';
+      if(!confirm(_dupMsg)) return;
+    }
     // Guardar sub-obra nova no localStorage
     (function(){if(!db._subsCadastr)db._subsCadastr={};
       if(typeof allCronSubobras!=='undefined'&&allCronSubobras.find(function(s){return s.subobra===sub2;})) return;
