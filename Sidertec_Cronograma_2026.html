@@ -18143,6 +18143,12 @@ function _cdocPainelToggleDet(){
         <!-- linha 2: filtros -->
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:.4rem .7rem;margin-bottom:.6rem;flex-shrink:0;">
           <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Filtros:</span>
+          <select id="cdd-df-secao" onchange="cdocRenderDiario()" title="Filtrar por seção/status" style="font-size:10px;font-weight:700;padding:2px 5px;border:1.5px solid #0e7490;border-radius:4px;max-width:190px;color:#0e7490;background:#fff;">
+            <option value="">Todas as seções</option>
+            <option value="emissao">🖊 Aguardando Emissão</option>
+            <option value="libfab">🔧 Aguardando Lib. Fabricação</option>
+            <option value="cliente">🔄 Fluxo com o Cliente</option>
+          </select>
           <select id="cdd-df-obra" onchange="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:130px;"><option value="">Toda obra</option></select>
           <input id="cdd-df-eng" placeholder="Eng. Resp..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:100px;">
           <input id="cdd-df-sub" placeholder="Sub-obra..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:90px;">
@@ -18156,7 +18162,8 @@ function _cdocPainelToggleDet(){
             <option value="">Status Final</option>
             <option>APROVADO</option><option>COM COMENTÁRIOS</option><option>CERTIFICADO</option><option>REPROVADO</option>
           </select>
-          <button onclick="['cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});cdocRenderDiario();" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
+          <button id="cdd-df-sortdir" onclick="cdocDiarioToggleSort()" title="Ordenar por data prevista de retorno / prazo" style="font-size:10px;font-weight:700;padding:2px 9px;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;background:#fff;color:#334155;">Prazo &#8593; Crescente</button>
+          <button onclick="['cdd-df-secao','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});_cdocDiarioSortDir=1;cdocRenderDiario();" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
         </div>
         <div id="cdd-diario-content" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:.6rem;"></div>
       </div>
@@ -23639,6 +23646,13 @@ function _cdocParseCsvLine(line,sep){
    DIÁRIO DE DOCUMENTOS
 ══════════════════════════════════════ */
 var _cdocDiarioPeriodo='hoje';
+var _cdocDiarioSortDir=1; // 1=crescente (mais próximo/atrasado primeiro), -1=decrescente
+function cdocDiarioToggleSort(){
+  _cdocDiarioSortDir = _cdocDiarioSortDir===1 ? -1 : 1;
+  var btn=document.getElementById('cdd-df-sortdir');
+  if(btn) btn.innerHTML = _cdocDiarioSortDir===1 ? 'Prazo &#8593; Crescente' : 'Prazo &#8595; Decrescente';
+  cdocRenderDiario();
+}
 function cdocDiarioPeriodo(p){
   _cdocDiarioPeriodo=p;
   ['hoje','atrasados','semana','todos'].forEach(function(k){
@@ -23667,6 +23681,7 @@ function cdocRenderDiario(){
   var fimSem=new Date(inicioSem); fimSem.setDate(inicioSem.getDate()+6);
 
   // --- Lê filtros ---
+  var fSecao=(document.getElementById('cdd-df-secao')||{}).value||'';
   var fObra=(document.getElementById('cdd-df-obra')||{}).value||'';
   var fEng=((document.getElementById('cdd-df-eng')||{}).value||'').toLowerCase();
   var fSub=((document.getElementById('cdd-df-sub')||{}).value||'').toLowerCase();
@@ -23717,6 +23732,20 @@ function cdocRenderDiario(){
       return true;
     });
   }
+  function _cdocUltimoEnvio(d){ return d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null; }
+  // Ordena um array de docs pela data de referência (dataFn). Datas vazias/sem prazo vão para o final.
+  // dir=1 crescente (prazo mais próximo/mais atrasado primeiro), dir=-1 decrescente.
+  function _cdocOrdenarPorData(docs,dataFn){
+    var dir=_cdocDiarioSortDir||1;
+    return docs.slice().sort(function(a,b){
+      var da=parseData(dataFn(a)), db2=parseData(dataFn(b));
+      if(!da&&!db2) return 0;
+      if(!da) return 1;   // sem data vai para o final
+      if(!db2) return -1;
+      return dir*(da-db2);
+    });
+  }
+
 
   // badge helpers
   var finMap={'PARA APROVAÇÃO':'background:#ede9fe;color:#6d28d9;','CERTIFICAÇÃO':'background:#e0f2fe;color:#0369a1;','INFORMAÇÃO':'background:#f1f5f9;color:#475569;'};
@@ -23772,9 +23801,23 @@ function cdocRenderDiario(){
   var res=document.getElementById('cdd-diario-resumo');
   if(res) res.textContent=total+' pendência(s)';
 
+  // ── Funções de data de referência de cada seção (usadas também para ordenar) ──
+  var dfEmissao=function(d){return d.data||'';};
+  var dfLibfab=function(d){var u=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;return u?u.data:d.data||'';};
+  var dfEnvio=function(d){return d.data||'';};
+  var dfPrevVencida=function(d){var eh=_cdocUltimoEnvio(d);return eh&&eh.prevRetorno?eh.prevRetorno:d.data||'';};
+  var dfRetorno=function(d){var eh=_cdocUltimoEnvio(d);return eh?(eh.prevRetorno||eh.data||d.data||''):d.data||'';};
+
+  // Ordena cada seção pela sua data de referência (crescente por padrão — prazo mais próximo/mais atrasado primeiro)
+  emissao=_cdocOrdenarPorData(emissao,dfEmissao);
+  libfab=_cdocOrdenarPorData(libfab,dfLibfab);
+  envio=_cdocOrdenarPorData(envio,dfEnvio);
+  prevVencida=_cdocOrdenarPorData(prevVencida,dfPrevVencida);
+  retorno=_cdocOrdenarPorData(retorno,dfRetorno);
+
   // ── Monta HTML da seção ──
   // showEnvioExtra=true para seções que têm envioHist relevante
-  function secaoHtml(titulo,cor,icone,docs,dataFn,showEnvioExtra){
+  function secaoHtml(titulo,cor,icone,docs,dataFn,showEnvioExtra,situacaoFn){
     var headerHtml='<div style="background:#fff;border:1px solid #e2e8f0;border-left:4px solid '+cor+';border-radius:6px;padding:.5rem .9rem;">'
       +'<div style="font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.06em;">'+icone+' '+titulo+'</div>'
       +'<div style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic;">✔ Nenhum pendente.</div>'
@@ -23786,6 +23829,7 @@ function cdocRenderDiario(){
         +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">PREV. RETORNO</th>'
         +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">STATUS FINAL</th>'
       : '';
+    var situacaoTh=situacaoFn?'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">SITUAÇÃO</th>':'';
     var rows=docs.map(function(d){
       var dataRef=dataFn?dataFn(d):(d.data||'');
       var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
@@ -23795,6 +23839,7 @@ function cdocRenderDiario(){
           +'<td style="padding:6px 8px;font-size:11px;font-family:Courier New,monospace;white-space:nowrap;">'+dateFmt(eh&&eh.prevRetorno?eh.prevRetorno:'')+'</td>'
           +'<td style="padding:6px 8px;">'+sfBadge(eh&&eh.statusFinal?eh.statusFinal:'')+'</td>'
         : '';
+      var situacaoTd=situacaoFn?'<td style="padding:6px 8px;font-size:10px;font-weight:700;color:'+cor+';white-space:nowrap;">'+_esc(situacaoFn(d))+'</td>':'';
       return '<tr style="border-bottom:1px solid #f1f5f9;">'
         +'<td style="padding:6px 8px;font-size:12px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(d.obraId||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:12px;font-family:Courier New,monospace;font-weight:700;white-space:nowrap;">'+_esc(d.sub||'—')+'</td>'
@@ -23802,6 +23847,7 @@ function cdocRenderDiario(){
         +'<td style="padding:6px 8px;font-size:12px;color:#334155;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(d.desc||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;color:#334155;white-space:nowrap;">'+_esc(d.tipo||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;">'+_cdocBadgeHtml(d.statusGeral)+'</td>'
+        +situacaoTd
         +'<td style="padding:6px 8px;white-space:nowrap;">'+diaLabel(dataRef)+'</td>'
         +extraTds
         +'</tr>';
@@ -23820,6 +23866,7 @@ function cdocRenderDiario(){
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">DESCRIÇÃO</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">TIPO</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">STATUS</th>'
+      +situacaoTh
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">PRAZO/DATA</th>'
       +extraThs
       +'</tr></thead>'
@@ -23828,12 +23875,37 @@ function cdocRenderDiario(){
 
   var content=document.getElementById('cdd-diario-content');
   if(!content) return;
-  content.innerHTML=
-    secaoHtml('Aguardando Emissão','#dc2626','&#128394;',emissao,function(d){return d.data||'';},false)
-    +secaoHtml('Aguardando Lib. para Fabricação','#d97706','&#128295;',libfab,function(d){var u=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;return u?u.data:d.data||'';},false)
-    +secaoHtml('Aguardando Envio ao Cliente','#0369a1','&#128228;',envio,function(d){return d.data||'';},false)
-    +secaoHtml('Prev. Retorno Vencida — Aguardando Resposta','#b45309','&#9888;',prevVencida,function(d){var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;return eh&&eh.prevRetorno?eh.prevRetorno:d.data||'';},true)
-    +secaoHtml('Aguardando Retorno / Aprovação / Certificação','#7c3aed','&#128336;',retorno,function(d){var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;return eh?(eh.prevRetorno||eh.data||d.data||''):d.data||'';},true);
+
+  if(fSecao==='emissao'){
+    content.innerHTML=secaoHtml('Aguardando Emissão','#dc2626','&#128394;',emissao,dfEmissao,false);
+  } else if(fSecao==='libfab'){
+    content.innerHTML=secaoHtml('Aguardando Lib. para Fabricação','#d97706','&#128295;',libfab,dfLibfab,false);
+  } else if(fSecao==='cliente'){
+    // ── Visão consolidada "Fluxo com o Cliente": Aguardando Envio + Prev. Retorno Vencida + Aguardando Retorno ──
+    // Cada documento recebe uma marca de SITUAÇÃO e todos são ordenados juntos pela data de referência (prazo/prev. retorno).
+    var _situacaoMap={};
+    envio.forEach(function(d){ _situacaoMap[d.id]='Aguard. Envio'; });
+    prevVencida.forEach(function(d){ _situacaoMap[d.id]='Prev. Vencida'; });
+    retorno.forEach(function(d){ if(!_situacaoMap[d.id]) _situacaoMap[d.id]='Aguard. Retorno'; });
+    var _dataRefMap={};
+    envio.forEach(function(d){ _dataRefMap[d.id]=dfEnvio(d); });
+    prevVencida.forEach(function(d){ _dataRefMap[d.id]=dfPrevVencida(d); });
+    retorno.forEach(function(d){ if(!_dataRefMap[d.id]) _dataRefMap[d.id]=dfRetorno(d); });
+    var fluxoIds={};
+    var fluxoCliente=[].concat(envio,prevVencida,retorno).filter(function(d){
+      if(fluxoIds[d.id]) return false;
+      fluxoIds[d.id]=true; return true;
+    });
+    fluxoCliente=_cdocOrdenarPorData(fluxoCliente,function(d){return _dataRefMap[d.id]||'';});
+    content.innerHTML=secaoHtml('Fluxo com o Cliente (Envio · Prev. Vencida · Aguard. Retorno)','#0e7490','&#128260;',fluxoCliente,function(d){return _dataRefMap[d.id]||'';},true,function(d){return _situacaoMap[d.id]||'';});
+  } else {
+    content.innerHTML=
+      secaoHtml('Aguardando Emissão','#dc2626','&#128394;',emissao,dfEmissao,false)
+      +secaoHtml('Aguardando Lib. para Fabricação','#d97706','&#128295;',libfab,dfLibfab,false)
+      +secaoHtml('Aguardando Envio ao Cliente','#0369a1','&#128228;',envio,dfEnvio,false)
+      +secaoHtml('Prev. Retorno Vencida — Aguardando Resposta','#b45309','&#9888;',prevVencida,dfPrevVencida,true)
+      +secaoHtml('Aguardando Retorno / Aprovação / Certificação','#7c3aed','&#128336;',retorno,dfRetorno,true);
+  }
 }
 /* ── Seleção de linhas ── */
 var _cdocDetSort={col:null,dir:1};
