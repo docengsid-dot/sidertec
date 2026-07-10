@@ -18138,7 +18138,11 @@ function _cdocPainelToggleDet(){
           <button id="cdd-periodo-atrasados" onclick="cdocDiarioPeriodo('atrasados')" style="font-size:10px;font-weight:700;padding:3px 12px;border-radius:4px;cursor:pointer;border:1.5px solid #dc2626;background:#fff;color:#dc2626;">Atrasados</button>
           <button id="cdd-periodo-semana" onclick="cdocDiarioPeriodo('semana')" style="font-size:10px;font-weight:700;padding:3px 12px;border-radius:4px;cursor:pointer;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;">Semana</button>
           <button id="cdd-periodo-todos" onclick="cdocDiarioPeriodo('todos')" style="font-size:10px;font-weight:700;padding:3px 12px;border-radius:4px;cursor:pointer;border:1.5px solid #64748b;background:#fff;color:#64748b;">Todos</button>
-          <div style="margin-left:auto;font-size:10px;color:#64748b;" id="cdd-diario-resumo"></div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:.5rem;">
+            <span style="font-size:10px;color:#64748b;" id="cdd-diario-resumo"></span>
+            <button onclick="cdocDiarioExportPDF()" title="Gerar relatório em PDF com os documentos filtrados/exibidos" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">📄 PDF</button>
+            <button onclick="cdocDiarioExportXLSX()" title="Exportar para Excel os documentos filtrados/exibidos" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">📊 Excel</button>
+          </div>
         </div>
         <!-- linha 2: filtros -->
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:.4rem .7rem;margin-bottom:.6rem;flex-shrink:0;">
@@ -18152,7 +18156,7 @@ function _cdocPainelToggleDet(){
           <select id="cdd-df-status" onchange="cdocRenderDiario()" title="Filtrar pelo status do documento" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:190px;">
             <option value="">Todos status</option>
           </select>
-          <select id="cdd-df-obra" onchange="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:130px;"><option value="">Toda obra</option></select>
+          <select id="cdd-df-obra" onchange="_cdocSyncGlobalFromTab('cdd-df-obra');cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:130px;"><option value="">Toda obra</option></select>
           <input id="cdd-df-eng" placeholder="Eng. Resp..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:100px;">
           <input id="cdd-df-sub" placeholder="Sub-obra..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:90px;">
           <select id="cdd-df-fin" onchange="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;">
@@ -18166,7 +18170,7 @@ function _cdocPainelToggleDet(){
             <option>APROVADO</option><option>COM COMENTÁRIOS</option><option>CERTIFICADO</option><option>REPROVADO</option>
           </select>
           <button id="cdd-df-sortdir" onclick="cdocDiarioToggleSort()" title="Ordenar por data prevista de retorno / prazo" style="font-size:10px;font-weight:700;padding:2px 9px;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;background:#fff;color:#334155;">Prazo &#8593; Crescente</button>
-          <button onclick="['cdd-df-secao','cdd-df-status','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});_cdocDiarioSortDir=1;cdocRenderDiario();" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
+          <button onclick="cdocLimparDiario()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
         </div>
         <div id="cdd-diario-content" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:.6rem;"></div>
       </div>
@@ -18932,7 +18936,7 @@ function _cdocSyncGlobalFromTab(srcId){
   _cdocVisaoObra=v;
   var vSel=document.getElementById('cdv-f-obra'); if(vSel) vSel.value=v;
   // Sync other tab filters
-  ['cdb-f-obra','cdd-f-obra'].forEach(function(id){
+  ['cdb-f-obra','cdd-f-obra','cdd-df-obra'].forEach(function(id){
     if(id!==srcId){ var el=document.getElementById(id); if(el) el.value=v; }
   });
   _cdocGlobalObraInfo();
@@ -18951,6 +18955,7 @@ function cdocRefreshAll(){
   try{ cdocRenderVisao(); }catch(e){ console.error('[CDOC] RenderVisao error:',e); }
   try{ cdocRenderBas(); }catch(e){ console.error('[CDOC] RenderBas error:',e); }
   try{ cdocRenderDet(); }catch(e){ console.error('[CDOC] RenderDet error:',e); }
+  try{ cdocRenderDiario(); }catch(e){ console.error('[CDOC] RenderDiario error:',e); }
   try{ cdocPopFilters(); }catch(e){ console.error('[CDOC] PopFilters error:',e); }
   try{ _cdocAtualizarAlertaPrazo(); }catch(e){ console.error('[CDOC] AlertaPrazo error:',e); }
   setTimeout(function(){ if(typeof syncScrollMirrors==='function') syncScrollMirrors(); }, 200);
@@ -19032,7 +19037,7 @@ function cdocPopFilters(){
   if(_cdocPopFiltersTimer) return;
   _cdocPopFiltersTimer=setTimeout(function(){_cdocPopFiltersTimer=null;},500);
   var obras=_cdocObras();
-  ['cdoc-g-obra','cdb-f-obra','cdd-f-obra'].forEach(function(id){
+  ['cdoc-g-obra','cdb-f-obra','cdd-f-obra','cdd-df-obra'].forEach(function(id){
     var sel=document.getElementById(id); if(!sel) return;
     // Só reconstrói se as obras mudaram de fato
     var cur=sel.value;
@@ -19077,7 +19082,7 @@ function cdocGlobalObraChange(){
   var sel=document.getElementById('cdoc-g-obra'); if(!sel) return;
   var obra=sel.value;
   // Propaga para todos os filtros por aba
-  ['cdb-f-obra','cdd-f-obra'].forEach(function(id){
+  ['cdb-f-obra','cdd-f-obra','cdd-df-obra'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value=obra;
   });
   // Propaga para Visão Geral
@@ -20098,6 +20103,7 @@ function cdocBumpRev(modulo, dir){
 /* ── Limpar filtros ── */
 function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli','cdb-f-grd','cdb-f-proj','cdb-f-data'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
 function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-desc','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
+function cdocLimparDiario(){ ['cdd-df-secao','cdd-df-status','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; _cdocDiarioSortDir=1; cdocRenderDiario(); }
 
 /* ── Formulário Básico ── */
 function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
@@ -23668,13 +23674,6 @@ function cdocDiarioPeriodo(p){
   });
   cdocRenderDiario();
 }
-function _cdocPopulateDiarioObras(){
-  var sel=document.getElementById('cdd-df-obra'); if(!sel) return;
-  var cur=sel.value;
-  var obras=_cdocObras();
-  sel.innerHTML='<option value="">Toda obra</option>'+obras.map(function(o){return '<option value="'+_esc(o)+'">'+_esc(o)+'</option>';}).join('');
-  sel.value=cur;
-}
 function _cdocPopulateDiarioStatus(){
   var sel=document.getElementById('cdd-df-status'); if(!sel) return;
   var cur=sel.value;
@@ -23689,7 +23688,7 @@ function _cdocPopulateDiarioStatus(){
   });
 }
 function cdocRenderDiario(){
-  _cdocPopulateDiarioObras();
+  setTimeout(cdocPopFilters,0);
   _cdocPopulateDiarioStatus();
   var db=_cdocDb();
   var hoje=new Date(); hoje.setHours(0,0,0,0);
@@ -23724,6 +23723,13 @@ function cdocRenderDiario(){
     if(n===0) return '<span style="color:#0e7490;font-weight:700;font-size:11px;">Hoje</span>';
     if(n>0) return '<span style="color:#16a34a;font-size:11px;">em '+n+' dia(s)</span>';
     return '<span style="color:#dc2626;font-weight:700;font-size:11px;">'+Math.abs(n)+'d atrasado</span>';
+  }
+  function diaLabelTxt(dataStr){
+    var n=diasRestantes(dataStr);
+    if(n===null) return 'sem prazo';
+    if(n===0) return 'Hoje';
+    if(n>0) return 'em '+n+' dia(s)';
+    return Math.abs(n)+'d atrasado';
   }
   // Filtra por período usando a data de referência
   function inclui(dataRef){
@@ -23863,6 +23869,7 @@ function cdocRenderDiario(){
         +'<td style="padding:6px 8px;font-size:12px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;white-space:nowrap;">'+_esc(d.obraId||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:12px;font-family:Courier New,monospace;font-weight:700;white-space:nowrap;">'+_esc(d.sub||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:12px;font-family:Courier New,monospace;color:#475569;white-space:nowrap;">'+_esc(d.num||'—')+'</td>'
+        +'<td style="padding:6px 8px;font-size:12px;font-family:Courier New,monospace;color:#475569;white-space:nowrap;">'+_esc(d.cli||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:12px;color:#334155;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(d.desc||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;color:#334155;white-space:nowrap;">'+_esc(d.tipo||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;">'+_cdocBadgeHtml(d.statusGeral)+'</td>'
@@ -23882,6 +23889,7 @@ function cdocRenderDiario(){
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;border-bottom:1px solid #e2e8f0;">OBRA</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">TAG</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Nº SIDERTEC</th>'
+      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Nº CLIENTE</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">DESCRIÇÃO</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">TIPO</th>'
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">STATUS</th>'
@@ -23895,10 +23903,28 @@ function cdocRenderDiario(){
   var content=document.getElementById('cdd-diario-content');
   if(!content) return;
 
+  // Monta uma linha "plana" (sem HTML) para exportação em PDF/Excel
+  function _cdocLinhaExport(d,secaoLabel,dataRef,situacao){
+    var eh=_cdocUltimoEnvio(d);
+    return {
+      secao:secaoLabel, obra:d.obraId||'', tag:d.sub||'', numSidertec:d.num||'', numCliente:d.cli||'',
+      descricao:d.desc||'', tipo:d.tipo||'', status:d.statusGeral||'', situacao:situacao||'',
+      prazo:diaLabelTxt(dataRef), finalidade:(eh&&eh.finalidade)||'', grd:(eh&&eh.grd)||'',
+      prevRetorno:(eh&&eh.prevRetorno)||'', statusFinal:(eh&&eh.statusFinal)||''
+    };
+  }
+
+  var _tituloExport='Diário de Documentos';
+  var _exportRows=[];
+
   if(fSecao==='emissao'){
     content.innerHTML=secaoHtml('Aguardando Emissão','#dc2626','&#128394;',emissao,dfEmissao,false);
+    _tituloExport='Aguardando Emissão';
+    _exportRows=emissao.map(function(d){return _cdocLinhaExport(d,'Aguardando Emissão',dfEmissao(d),'');});
   } else if(fSecao==='libfab'){
     content.innerHTML=secaoHtml('Aguardando Lib. para Fabricação','#d97706','&#128295;',libfab,dfLibfab,false);
+    _tituloExport='Aguardando Lib. para Fabricação';
+    _exportRows=libfab.map(function(d){return _cdocLinhaExport(d,'Aguardando Lib. Fabricação',dfLibfab(d),'');});
   } else if(fSecao==='cliente'){
     // ── Visão consolidada "Fluxo com o Cliente": Aguardando Envio + Prev. Retorno Vencida + Aguardando Retorno ──
     // Cada documento recebe uma marca de SITUAÇÃO e todos são ordenados juntos pela data de referência (prazo/prev. retorno).
@@ -23917,6 +23943,8 @@ function cdocRenderDiario(){
     });
     fluxoCliente=_cdocOrdenarPorData(fluxoCliente,function(d){return _dataRefMap[d.id]||'';});
     content.innerHTML=secaoHtml('Fluxo com o Cliente (Envio · Prev. Vencida · Aguard. Retorno)','#0e7490','&#128260;',fluxoCliente,function(d){return _dataRefMap[d.id]||'';},true,function(d){return _situacaoMap[d.id]||'';});
+    _tituloExport='Fluxo com o Cliente';
+    _exportRows=fluxoCliente.map(function(d){return _cdocLinhaExport(d,'Fluxo com o Cliente',_dataRefMap[d.id],_situacaoMap[d.id]);});
   } else {
     content.innerHTML=
       secaoHtml('Aguardando Emissão','#dc2626','&#128394;',emissao,dfEmissao,false)
@@ -23924,9 +23952,133 @@ function cdocRenderDiario(){
       +secaoHtml('Aguardando Envio ao Cliente','#0369a1','&#128228;',envio,dfEnvio,false)
       +secaoHtml('Prev. Retorno Vencida — Aguardando Resposta','#b45309','&#9888;',prevVencida,dfPrevVencida,true)
       +secaoHtml('Aguardando Retorno / Aprovação / Certificação','#7c3aed','&#128336;',retorno,dfRetorno,true);
+    _tituloExport='Diário de Documentos — Todas as Seções';
+    _exportRows=[].concat(
+      emissao.map(function(d){return _cdocLinhaExport(d,'Aguardando Emissão',dfEmissao(d),'');}),
+      libfab.map(function(d){return _cdocLinhaExport(d,'Aguardando Lib. Fabricação',dfLibfab(d),'');}),
+      envio.map(function(d){return _cdocLinhaExport(d,'Aguardando Envio ao Cliente',dfEnvio(d),'');}),
+      prevVencida.map(function(d){return _cdocLinhaExport(d,'Prev. Retorno Vencida',dfPrevVencida(d),'');}),
+      retorno.map(function(d){return _cdocLinhaExport(d,'Aguardando Retorno/Aprovação/Certificação',dfRetorno(d),'');})
+    );
   }
+
+  // Guarda dados/contexto para os botões de exportação (PDF e Excel)
+  window._cdocDiarioExportRows=_exportRows;
+  window._cdocDiarioExportTitulo=_tituloExport;
+  window._cdocDiarioExportFiltros=[
+    'Período: '+({hoje:'Hoje',atrasados:'Atrasados',semana:'Semana',todos:'Todos'}[_cdocDiarioPeriodo]||_cdocDiarioPeriodo),
+    fStatusGeral?('Status: '+fStatusGeral):'',
+    fObra?('Obra: '+fObra):'',
+    fSub?('Sub-obra: '+fSub):'',
+    fEng?('Eng. Resp.: '+fEng):''
+  ].filter(Boolean).join(' · ');
 }
-/* ── Seleção de linhas ── */
+/* ── Exportação do Diário: Excel (.xlsx) e PDF (impressão) ── */
+function cdocDiarioExportXLSX(){
+  var rows=window._cdocDiarioExportRows||[];
+  if(!rows.length){ alert('Nenhum registro para exportar com os filtros/seção atuais.'); return; }
+  if(typeof XLSX==='undefined'){ alert('Biblioteca de Excel ainda carregando. Aguarde alguns segundos e tente novamente.'); return; }
+  var fmtBR=function(s){ return s?s.split('-').reverse().join('/'):''; };
+  var hdr=['Seção','Obra','TAG','Nº Sidertec','Nº Cliente','Descrição','Tipo','Status','Situação','Prazo','Finalidade','GRD','Prev. Retorno','Status Final'];
+  var aoa=[hdr].concat(rows.map(function(r){
+    return [r.secao,r.obra,r.tag,r.numSidertec,r.numCliente,r.descricao,r.tipo,r.status,r.situacao,r.prazo,r.finalidade,r.grd,fmtBR(r.prevRetorno),r.statusFinal];
+  }));
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:24},{wch:16},{wch:9},{wch:16},{wch:16},{wch:32},{wch:18},{wch:24},{wch:14},{wch:13},{wch:16},{wch:13},{wch:13},{wch:16}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Diário');
+  var hoje=new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb,'diario_documentos_'+hoje+'.xlsx');
+}
+function cdocDiarioExportPDF(){
+  var rows=window._cdocDiarioExportRows||[];
+  if(!rows.length){ alert('Nenhum registro para exportar com os filtros/seção atuais.'); return; }
+  var titulo=window._cdocDiarioExportTitulo||'Diário de Documentos';
+  var filtros=window._cdocDiarioExportFiltros||'';
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  var fmtBR=function(s){ return s?s.split('-').reverse().join('/'):'—'; };
+
+  // Mesmas cores usadas na tela para cada seção
+  var CORES={
+    'Aguardando Emissão':'#dc2626',
+    'Aguardando Lib. Fabricação':'#d97706',
+    'Aguardando Envio ao Cliente':'#0369a1',
+    'Prev. Retorno Vencida':'#b45309',
+    'Aguardando Retorno/Aprovação/Certificação':'#7c3aed',
+    'Fluxo com o Cliente':'#0e7490'
+  };
+  // Mesmos badges de cor usados na tabela em tela
+  var finMap={'PARA APROVAÇÃO':{bg:'#ede9fe',c:'#6d28d9'},'CERTIFICAÇÃO':{bg:'#e0f2fe',c:'#0369a1'},'INFORMAÇÃO':{bg:'#f1f5f9',c:'#475569'}};
+  var sfMap={'APROVADO':{bg:'#dcfce7',c:'#166534'},'CERTIFICADO':{bg:'#f0fdf4',c:'#14532d'},'COM COMENTÁRIOS':{bg:'#fef3c7',c:'#92400e'},'REPROVADO':{bg:'#fee2e2',c:'#991b1b'}};
+  function badge(v,map){
+    if(!v) return '<span style="color:#cbd5e1;">—</span>';
+    var st=(map&&map[v])||{bg:'#f1f5f9',c:'#475569'};
+    return '<span style="background:'+st.bg+';color:'+st.c+';border-radius:3px;padding:1px 6px;font-weight:700;font-size:8px;white-space:nowrap;">'+_esc(v)+'</span>';
+  }
+  function statusBadge(v){
+    if(!v) return '<span style="color:#cbd5e1;">—</span>';
+    var st=(typeof _cdocBadge!=='undefined'&&_cdocBadge[v])||{bg:'#f1f5f9',c:'#475569'};
+    return '<span style="background:'+st.bg+';color:'+st.c+';border-radius:3px;padding:1px 6px;font-weight:700;font-size:8px;white-space:nowrap;">'+_esc(v)+'</span>';
+  }
+  function prazoColor(p){
+    if(!p||p==='sem prazo') return '#94a3b8';
+    if(p==='Hoje') return '#0e7490';
+    if(p.indexOf('atrasado')>-1) return '#dc2626';
+    return '#16a34a';
+  }
+
+  // Agrupa por seção para exibir com sub-cabeçalhos, na mesma ordem em que aparecem na tela
+  var grupos={}, ordem=[];
+  rows.forEach(function(r){
+    if(!grupos[r.secao]){ grupos[r.secao]=[]; ordem.push(r.secao); }
+    grupos[r.secao].push(r);
+  });
+  var corpo=ordem.map(function(sec){
+    var lin=grupos[sec];
+    var cor=CORES[sec]||'#334155';
+    var trs=lin.map(function(r,i){
+      var zebra=i%2===1?'background:#f8fafc;':'';
+      return '<tr style="'+zebra+'">'
+        +'<td style="font-weight:700;color:#0369a1;">'+_esc(r.obra)+'</td><td style="font-weight:700;">'+_esc(r.tag)+'</td>'
+        +'<td>'+_esc(r.numSidertec)+'</td><td>'+_esc(r.numCliente)+'</td>'
+        +'<td>'+_esc(r.descricao)+'</td><td>'+_esc(r.tipo)+'</td><td>'+statusBadge(r.status)+'</td>'
+        +(r.situacao?'<td style="font-weight:700;color:'+cor+';">'+_esc(r.situacao)+'</td>':'')
+        +'<td style="font-weight:700;color:'+prazoColor(r.prazo)+';">'+_esc(r.prazo)+'</td>'
+        +'<td>'+badge(r.finalidade,finMap)+'</td><td>'+_esc(r.grd||'—')+'</td><td>'+fmtBR(r.prevRetorno)+'</td>'
+        +'<td>'+badge(r.statusFinal,sfMap)+'</td>'
+        +'</tr>';
+    }).join('');
+    var temSituacao=lin.some(function(r){return r.situacao;});
+    return '<div style="border-left:4px solid '+cor+';background:'+cor+'15;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;margin:.8rem 0 0;">'
+      +'<span style="font-size:11px;font-weight:800;color:'+cor+';text-transform:uppercase;letter-spacing:.03em;">'+_esc(sec)+'</span>'
+      +'<span style="background:'+cor+';color:#fff;border-radius:10px;padding:1px 9px;font-size:10px;font-weight:700;">'+lin.length+'</span>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:.5rem;border:1px solid '+cor+'55;">'
+      +'<thead><tr style="background:'+cor+'12;">'
+      +'<th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Descrição</th><th>Tipo</th><th>Status</th>'
+      +(temSituacao?'<th>Situação</th>':'')
+      +'<th>Prazo</th><th>Finalidade</th><th>GRD</th><th>Prev. Retorno</th><th>Status Final</th>'
+      +'</tr></thead><tbody>'+trs+'</tbody></table>';
+  }).join('');
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_esc(titulo)+'</title><style>'
+    +'*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}'
+    +'body{font-family:Arial,Helvetica,sans-serif;margin:24px;color:#1e293b;}'
+    +'table{border:1px solid #e2e8f0;} th,td{border:1px solid #e2e8f0;padding:4px 6px;text-align:left;white-space:nowrap;}'
+    +'th{color:#334155;font-weight:700;}'
+    +'.no-print{margin-bottom:16px;}'
+    +'@media print{.no-print{display:none;} body{margin:10px;}}'
+    +'</style></head><body>'
+    +'<div class="no-print"><button onclick="window.print()" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;">🖨 Imprimir / Salvar PDF</button></div>'
+    +'<div style="border-bottom:2px solid #0e7490;padding-bottom:8px;margin-bottom:8px;">'
+    +'<div style="font-size:16px;font-weight:800;color:#0e7490;">SIDERTEC — '+_esc(titulo)+'</div>'
+    +'<div style="font-size:10px;color:#64748b;margin-top:2px;">Gerado em '+hoje+(filtros?' · '+_esc(filtros):'')+' · '+rows.length+' documento(s)</div>'
+    +'</div>'
+    +corpo
+    +'</body></html>');
+  w.document.close();
+}
+
 var _cdocDetSort={col:null,dir:1};
 var _cdocBasSort={col:null,dir:1};
 function _cdocSort(e,tbl,col){
