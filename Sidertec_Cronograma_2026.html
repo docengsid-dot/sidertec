@@ -2391,19 +2391,33 @@ ALTER TABLE medicao_terceiros
         </label>
         <select class="field-input" id="lote-status" disabled style="font-size:16px;">
           <option value="">— Selecione —</option>
-          <option>AG. PROJ. BÁSICO</option>
-          <option>AG. MODELO PARA APROV.</option>
-          <option>MODELO EM APROV.</option>
-          <option>EMISSÃO PCTE FAB.</option>
-          <option>INSP. INTERNA</option>
-          <option>LIB. FABRICAÇÃO</option>
-          <option>EM COTAÇÃO ENG.</option>
-          <option>AG. DOCUMENTOS</option>
-          <option>HOLD</option>
         </select>
       </div>
 
       <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Observação geral -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="lote-chk-obs-geral" onchange="document.getElementById('lote-obs-geral').disabled=!this.checked;" style="accent-color:var(--blue);width:13px;height:13px;">
+          Adicionar Observação (registrada no histórico de todas as TAGs selecionadas)
+        </label>
+        <textarea class="field-input" id="lote-obs-geral" disabled rows="2" placeholder="Ex: Prazo renegociado com o cliente…" style="font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Peso Detalhado por estrutura -->
+      <div class="field-group" style="margin-bottom:.5rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="lote-chk-peso-det" onchange="onLotePesoDetToggle()" style="accent-color:var(--blue);width:13px;height:13px;">
+          Atualizar <u>Peso Detalhado (kg)</u> por estrutura
+        </label>
+        <div style="font-size:9px;color:var(--ink3);margin-bottom:.4rem;">Cada TAG tem seu próprio peso — preencha só as que quiser atualizar; deixe em branco para não alterar.</div>
+        <div id="lote-peso-det-list" style="display:none;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r2);padding:.4rem;background:var(--bg);"></div>
+      </div>
 
       <!-- Etapas (múltiplas) -->
       <div class="field-group" style="margin-bottom:.5rem;">
@@ -9902,12 +9916,14 @@ async function salvarAndamento(){
     }
     // Histórico no Supabase
     try{
-      await sbClient.from('cronograma_historico').insert([{
+      var _hAnd={
         id: _genId(), criado_em: new Date().toISOString(),
         subobra_id: editingCronId, autor: autor,
         status_anterior: statusAnterior, status_novo: novoStatus||statusAnterior,
         observacao: obsText+(grd?' — GRD: '+grd:'')
-      }]);
+      };
+      await sbClient.from('cronograma_historico').insert([_hAnd]);
+      var _hsAnd=_lsGet('cronograma_historico'); _hsAnd.unshift(_hAnd); _lsSet('cronograma_historico',_hsAnd);
     }catch(he){ console.warn('Histórico:', he.message); }
 
     // Update local state
@@ -9920,6 +9936,16 @@ async function salvarAndamento(){
         // Aplica updates diretamente se localStorage não retornou data
         Object.assign(allCronSubobras[idx], updates);
       }
+      // IMPORTANTE: sincroniza o cache local também — abrirCronModal() mescla o
+      // registro do cache local (_lsGet) por cima do estado em memória, e sem isso
+      // essa data recém-salva seria revertida ao reabrir a TAG.
+      var _rsAnd = _lsGet('cronograma_subobras'), _foundAnd=false;
+      _rsAnd = _rsAnd.map(function(r){
+        if(String(r.id)===String(editingCronId)){ _foundAnd=true; return Object.assign({}, r, allCronSubobras[idx]); }
+        return r;
+      });
+      if(!_foundAnd) _rsAnd.push(allCronSubobras[idx]);
+      _lsSet('cronograma_subobras', _rsAnd);
     }
 
     // Refresh modal fields
@@ -9977,9 +10003,34 @@ function abrirModalLote(){
       + (s.subobra||'—') + '<span style="opacity:.65;font-weight:400;margin-left:4px;">' + (s.obra||'') + '</span></span>';
   }).join('');
 
-  // Reset status
+  // Reset status — reconstrói as opções a partir de STATUS_ORDER (fixos + personalizados)
+  // criados em "+ Novo Status", para que o lote sempre reflita todos os status existentes.
   document.getElementById('lote-chk-status').checked = false;
-  var selStatus = document.getElementById('lote-status'); selStatus.value=''; selStatus.disabled=true;
+  var selStatus = document.getElementById('lote-status');
+  selStatus.innerHTML = '<option value="">— Selecione —</option>' + STATUS_ORDER.map(function(st){
+    var cfg = STATUS_CFG_CRON[st] || {};
+    var ic = cfg.icon ? cfg.icon+' ' : '';
+    return '<option value="'+st+'">'+ic+st+'</option>';
+  }).join('');
+  selStatus.value=''; selStatus.disabled=true;
+
+  // Reset observação geral
+  document.getElementById('lote-chk-obs-geral').checked = false;
+  var obsGeralEl = document.getElementById('lote-obs-geral');
+  obsGeralEl.value=''; obsGeralEl.disabled=true;
+
+  // Reset peso detalhado por estrutura — um input por TAG selecionada, pré-preenchido
+  // com o valor atual (se houver), para facilitar ajustes pontuais.
+  document.getElementById('lote-chk-peso-det').checked = false;
+  var pesoDetList = document.getElementById('lote-peso-det-list');
+  pesoDetList.style.display = 'none';
+  pesoDetList.innerHTML = subs.map(function(s){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:3px 4px;border-bottom:1px solid var(--border);">'
+      + '<span style="font-family:\'Courier New\',monospace;font-size:11px;font-weight:700;color:var(--blue);min-width:90px;">'+(s.subobra||s.id)+'</span>'
+      + '<span style="font-size:9px;color:var(--ink3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(s.descricao||'')+'</span>'
+      + '<input type="number" step="0.01" class="field-input" id="lote-pd-'+s.id+'" placeholder="'+(s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'" style="width:110px;font-size:12px;padding:3px 6px;">'
+      + '</div>';
+  }).join('');
 
   // Monta lista de etapas — cada uma com checkbox próprio + campos que só aparecem quando marcada
   var etapasList = ETAPAS_DEF.filter(function(e){ return !e.isFabPct; });
@@ -10020,6 +10071,26 @@ function onLoteEtapaRowToggle(key){
   var box = document.getElementById('lote-et-fields-'+key);
   if(box) box.style.display = chk ? 'block' : 'none';
 }
+function onLotePesoDetToggle(){
+  var chk = document.getElementById('lote-chk-peso-det').checked;
+  var box = document.getElementById('lote-peso-det-list');
+  if(box) box.style.display = chk ? 'block' : 'none';
+}
+
+// Lê os campos de Peso Detalhado preenchidos no modal — retorna {subobraId: valorNumerico}
+// apenas para as TAGs cujo campo foi de fato preenchido (em branco = não alterar).
+function _lotePesoDetPreenchidos(subs){
+  var out = {};
+  subs.forEach(function(s){
+    var el = document.getElementById('lote-pd-'+s.id);
+    if(!el) return;
+    var v = (el.value||'').trim();
+    if(v==='') return;
+    var n = parseFloat(v.replace(',','.'));
+    if(!isNaN(n)) out[s.id] = n;
+  });
+  return out;
+}
 
 // Lê todas as etapas marcadas no modal e retorna um array com os campos preenchidos
 function _loteEtapasSelecionadas(){
@@ -10051,10 +10122,18 @@ async function aplicarLote(){
   var novoStatus = alterarStatus ? (document.getElementById('lote-status').value||'') : '';
   if(alterarStatus && !novoStatus){ showToast('Selecione o status','Escolha o novo status ou desmarque a opção.','error'); return; }
 
+  var alterarObsGeral = document.getElementById('lote-chk-obs-geral').checked;
+  var obsGeral = alterarObsGeral ? (document.getElementById('lote-obs-geral').value||'').trim() : '';
+  if(alterarObsGeral && !obsGeral){ showToast('Digite a observação','Escreva a observação ou desmarque a opção.','error'); return; }
+
+  var alterarPesoDet = document.getElementById('lote-chk-peso-det').checked;
+  var pesoDetMap = alterarPesoDet ? _lotePesoDetPreenchidos(subs) : {};
+  if(alterarPesoDet && !Object.keys(pesoDetMap).length){ showToast('Preencha ao menos um peso','Digite o Peso Detalhado de ao menos uma TAG, ou desmarque a opção.','error'); return; }
+
   var etapas = _loteEtapasSelecionadas();
 
-  if(!alterarStatus && !etapas.length){
-    showToast('Nada para aplicar','Marque "Alterar Status" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
+  if(!alterarStatus && !etapas.length && !alterarObsGeral && !alterarPesoDet){
+    showToast('Nada para aplicar','Marque "Alterar Status", "Observação", "Peso Detalhado" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
   }
 
   // Validação: GRD obrigatória se marcar Data Realizada do envio do modelo
@@ -10070,6 +10149,13 @@ async function aplicarLote(){
   resumoLinhas.push(subs.map(function(s){ return '  • '+(s.subobra||s.id)+' ('+(s.obra||'—')+')'; }).join('\n'));
   if(alterarStatus){
     resumoLinhas.push('\nStatus → ' + novoStatus);
+  }
+  if(alterarObsGeral){
+    resumoLinhas.push('\nObservação (todas as TAGs) → ' + obsGeral);
+  }
+  if(alterarPesoDet){
+    resumoLinhas.push('\nPeso Detalhado a atualizar em '+Object.keys(pesoDetMap).length+' TAG(s):');
+    subs.forEach(function(s){ if(pesoDetMap[s.id]!==undefined) resumoLinhas.push('  • '+(s.subobra||s.id)+': '+pesoDetMap[s.id].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg'); });
   }
   if(etapas.length){
     resumoLinhas.push('\nEtapas a atualizar:');
@@ -10099,6 +10185,7 @@ async function aplicarLote(){
       var statusAnterior = s.status;
       var updates = { atualizado_em: new Date().toISOString() };
       if(alterarStatus) updates.status = novoStatus;
+      if(alterarPesoDet && pesoDetMap[s.id]!==undefined) updates.peso_detalhado = pesoDetMap[s.id];
       etapas.forEach(function(et){
         var eDef = et.def;
         if(et.prev!=null) updates[eDef.prev] = et.prev;
@@ -10129,6 +10216,8 @@ async function aplicarLote(){
       try{
         var obsHist = [];
         if(alterarStatus) obsHist.push('Status alterado em lote para ' + novoStatus);
+        if(alterarObsGeral) obsHist.push(obsGeral);
+        if(alterarPesoDet && pesoDetMap[s.id]!==undefined) obsHist.push('Peso Detalhado atualizado em lote para '+pesoDetMap[s.id].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg');
         etapas.forEach(function(et){
           var eDef = et.def;
           var partes=[];
@@ -10139,19 +10228,39 @@ async function aplicarLote(){
           if(partes.length) obsHist.push(partes.join(' — '));
         });
         if(obsHist.length){
-          await sbClient.from('cronograma_historico').insert([{
+          var _hLote={
             id:_genId(), criado_em:new Date().toISOString(), subobra_id:s.id, autor:'Usuário',
             status_anterior: statusAnterior, status_novo: alterarStatus?novoStatus:statusAnterior,
             observacao: 'Alteração em lote — ' + obsHist.join(' | ')
-          }]);
+          };
+          await sbClient.from('cronograma_historico').insert([_hLote]);
+          // Sem isso, a observação/etapa registrada em lote só aparecia depois de um
+          // recarregamento da página — a lista de observações do editor individual lê
+          // do cache local (_lsGet), não direto do Supabase.
+          var _hsLote=_lsGet('cronograma_historico'); _hsLote.unshift(_hLote); _lsSet('cronograma_historico',_hsLote);
         }
       }catch(he){ console.warn('Histórico (lote):', he.message); }
 
       // Atualiza estado local
       var idx = allCronSubobras.findIndex(function(x){return x.id===s.id;});
+      var _novoRegistro = null;
       if(idx>=0){
         if(data && data[0]) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], data[0]);
         else Object.assign(allCronSubobras[idx], updates);
+        _novoRegistro = allCronSubobras[idx];
+      }
+      // IMPORTANTE: sem isso, reabrir a TAG (abrirCronModal) mesclava o registro
+      // salvo no Supabase com uma cópia ANTIGA vinda do cache local (_lsGet), e essa
+      // cópia antiga vencia — por isso as datas de etapa (Prev./Real) e outros campos
+      // alterados em lote pareciam "não salvar" ao reabrir a TAG.
+      if(_novoRegistro){
+        var _rsSync = _lsGet('cronograma_subobras'), _foundSync=false;
+        _rsSync = _rsSync.map(function(r){
+          if(String(r.id)===String(s.id)){ _foundSync=true; return Object.assign({}, r, _novoRegistro); }
+          return r;
+        });
+        if(!_foundSync) _rsSync.push(_novoRegistro);
+        _lsSet('cronograma_subobras', _rsSync);
       }
       okCount++;
     }catch(err){
@@ -13516,7 +13625,7 @@ function carregarCustomStatuses(){
     STATUS_CFG_CRON[cs.nome] = {color: parts[0]||'#475569', bg: parts[1]||'#f1f5f9', icon: cs.icone||'•'};
     if(!STATUS_ORDER.includes(cs.nome)) STATUS_ORDER.push(cs.nome);
     // Adiciona no select do modal se ainda não estiver
-    ['cm-status','and-etapa'].forEach(function(id){
+    ['cm-status','and-etapa','lote-status'].forEach(function(id){
       var sel = document.getElementById(id);
       if(!sel) return;
       if(!Array.from(sel.options).find(function(o){ return o.value === cs.nome; })){
@@ -13553,7 +13662,7 @@ function excluirCustomStatus(nome){
   delete STATUS_CFG_CRON[nome];
   var i = STATUS_ORDER.indexOf(nome);
   if(i >= 0) STATUS_ORDER.splice(i, 1);
-  ['cm-status','and-etapa'].forEach(function(id){
+  ['cm-status','and-etapa','lote-status'].forEach(function(id){
     var sel = document.getElementById(id);
     if(!sel) return;
     var op = Array.from(sel.options).find(function(o){ return o.value === nome; });
@@ -13605,7 +13714,7 @@ function salvarNovoStatus(){
   STATUS_CFG_CRON[nome] = {color: parts[0], bg: parts[1], icon: icone};
   STATUS_ORDER.push(nome);
   // Add to cm-status select
-  ['cm-status','and-etapa'].forEach(function(id){
+  ['cm-status','and-etapa','lote-status'].forEach(function(id){
     var sel = document.getElementById(id);
     if(sel && ![...sel.options].some(o=>o.value===nome)){
       var op = document.createElement('option');
