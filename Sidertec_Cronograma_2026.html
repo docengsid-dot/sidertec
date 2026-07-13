@@ -19306,6 +19306,30 @@ function _cdocBadgeHtml(s){
   var st=_cdocBadge[s]||{bg:'#f1f5f9',c:'#475569'};
   return '<span class="cdoc-badge" style="background:'+st.bg+';color:'+st.c+';">'+s+'</span>';
 }
+// ── Finalidade (Para Aprovação / Para Certificação / Para Informação) ──────
+// Historicamente esse valor foi salvo com grafias diferentes pelo sistema
+// (modal de Emissão de GRD grava "Para Aprovação"/"Para Certificação"/
+// "Para Informação"; importações de CSV e alguns selects antigos gravam
+// "PARA APROVAÇÃO"/"CERTIFICAÇÃO"/"INFORMAÇÃO"). Isso fazia a cor do badge
+// não "linkar" com a finalidade real da GRD. _cdocFinInfo() normaliza
+// qualquer uma dessas variações para o mesmo rótulo/cor, e _cdocFinBadge()
+// deve ser usado em todo lugar que exibe a Finalidade — assim a cor fica
+// sempre consistente, esteja o valor vindo da emissão de GRD, de um CSV
+// importado ou de um registro manual antigo.
+function _cdocFinInfo(v){
+  var k=(v||'').toString().trim().toUpperCase().replace(/^PARA\s+/,'');
+  var MAP={
+    'APROVAÇÃO'   :{label:'Para Aprovação',   bg:'#ede9fe',c:'#6d28d9'},
+    'CERTIFICAÇÃO':{label:'Para Certificação',bg:'#e0f2fe',c:'#0369a1'},
+    'INFORMAÇÃO'  :{label:'Para Informação',  bg:'#f1f5f9',c:'#475569'}
+  };
+  return MAP[k]||null;
+}
+function _cdocFinBadge(v){
+  var info=_cdocFinInfo(v);
+  if(!info) return '<span style="color:#cbd5e1;font-size:10px;">—</span>';
+  return '<span style="background:'+info.bg+';color:'+info.c+';border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(info.label)+'</span>';
+}
 // Badge/sino que indica uma "Ação" pendente registrada via "Lista para Responsável"
 // — mostra ícone de acordo com a prioridade e destaca em vermelho se o prazo já venceu.
 function _cdocAcaoPendenteBadge(d){
@@ -19895,7 +19919,7 @@ function cdocRenderDet(){
           var evCnt=d.envioHist&&d.envioHist.length>1?'<span style="font-size:8px;color:#7c3aed;font-weight:700;">x'+d.envioHist.length+'</span>':'';
           return '<td style="min-width:100px;">'+evBadge+evRev+evCnt+evDate+evGrd+'</td>';
         })()
-        +(function(){var eh2=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;var fin=eh2&&eh2.finalidade?eh2.finalidade:'';var finMap={'PARA APROVAÇÃO':'background:#ede9fe;color:#6d28d9;','CERTIFICAÇÃO':'background:#e0f2fe;color:#0369a1;','INFORMAÇÃO':'background:#f1f5f9;color:#475569;'};var sfMap={'APROVADO':'background:#dcfce7;color:#166534;','CERTIFICADO':'background:#f0fdf4;color:#14532d;','COM COMENTÁRIOS':'background:#fef3c7;color:#92400e;','REPROVADO':'background:#fee2e2;color:#991b1b;'};var sf=eh2&&eh2.statusFinal?eh2.statusFinal:'';var pr=eh2&&eh2.prevRetorno?eh2.prevRetorno:'';var rr=eh2&&eh2.retornoReal?eh2.retornoReal:'';var dias=_cdocDiasRetorno(pr,rr);var diasSpan='';if(dias!==null){var dCor=dias>0?'#991b1b':dias<0?'#1d4ed8':'#166534';var dTxt=dias>0?'+'+dias+'d':dias<0?dias+'d':'no prazo';diasSpan='<br><span style="font-size:8px;font-weight:700;color:'+dCor+';">'+dTxt+'</span>';}else if(pr&&!rr){var atrasado=new Date(pr+'T12:00:00')<new Date();if(atrasado){diasSpan='<br><span style="font-size:8px;font-weight:700;color:#b45309;">⏳ aguardando</span>';}}return '<td style="min-width:90px;">'+(fin?'<span style="'+finMap[fin]+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(fin)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>')+'</td>'+'<td style="font-family:Courier New,monospace;font-size:9px;color:#64748b;white-space:nowrap;">'+(pr?pr.split('-').reverse().join('/'):'<span style="color:#cbd5e1;">—</span>')+diasSpan+'</td>'+'<td style="font-family:Courier New,monospace;font-size:9px;color:#059669;font-weight:700;white-space:nowrap;">'+(rr?rr.split('-').reverse().join('/'):'<span style="color:#cbd5e1;">—</span>')+'</td>'+'<td style="min-width:90px;">'+(sf?'<span style="'+sfMap[sf]+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(sf)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>')+'</td>';})()
+        +(function(){var eh2=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;var fin=eh2&&eh2.finalidade?eh2.finalidade:'';var sfMap={'APROVADO':'background:#dcfce7;color:#166534;','CERTIFICADO':'background:#f0fdf4;color:#14532d;','COM COMENTÁRIOS':'background:#fef3c7;color:#92400e;','REPROVADO':'background:#fee2e2;color:#991b1b;'};var sf=eh2&&eh2.statusFinal?eh2.statusFinal:'';var pr=eh2&&eh2.prevRetorno?eh2.prevRetorno:'';var rr=eh2&&eh2.retornoReal?eh2.retornoReal:'';var dias=_cdocDiasRetorno(pr,rr);var diasSpan='';if(dias!==null){var dCor=dias>0?'#991b1b':dias<0?'#1d4ed8':'#166534';var dTxt=dias>0?'+'+dias+'d':dias<0?dias+'d':'no prazo';diasSpan='<br><span style="font-size:8px;font-weight:700;color:'+dCor+';">'+dTxt+'</span>';}else if(pr&&!rr){var atrasado=new Date(pr+'T12:00:00')<new Date();if(atrasado){diasSpan='<br><span style="font-size:8px;font-weight:700;color:#b45309;">⏳ aguardando</span>';}}return '<td style="min-width:90px;">'+_cdocFinBadge(fin)+'</td>'+'<td style="font-family:Courier New,monospace;font-size:9px;color:#64748b;white-space:nowrap;">'+(pr?pr.split('-').reverse().join('/'):'<span style="color:#cbd5e1;">—</span>')+diasSpan+'</td>'+'<td style="font-family:Courier New,monospace;font-size:9px;color:#059669;font-weight:700;white-space:nowrap;">'+(rr?rr.split('-').reverse().join('/'):'<span style="color:#cbd5e1;">—</span>')+'</td>'+'<td style="min-width:90px;">'+(sf?'<span style="'+sfMap[sf]+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(sf)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>')+'</td>';})()
         +'<td style="font-size:10px;">'+_esc(d.engResp||'—')+'</td>'
         +'<td style="white-space:nowrap;">'
           +'<button onclick="cdocEditDet('+d.id+')" style="background:none;border:none;cursor:pointer;color:#0369a1;font-size:12px;padding:1px 4px;" title="Editar">✎</button>'
@@ -20455,11 +20479,6 @@ function _cdocEnvioHistHtml(rec){
     'COM COMENTÁRIOS':'background:#fef3c7;color:#92400e;',
     'REPROVADO':'background:#fee2e2;color:#991b1b;'
   };
-  var _finBadge={
-    'PARA APROVAÇÃO':'background:#ede9fe;color:#6d28d9;',
-    'CERTIFICAÇÃO':'background:#e0f2fe;color:#0369a1;',
-    'INFORMAÇÃO':'background:#f1f5f9;color:#475569;'
-  };
   return '<div style="max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:5px;">'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f1f5f9;">'
     +'<th style="padding:5px 8px;font-size:11px;text-transform:uppercase;color:#475569;">Rev.</th>'
@@ -20474,7 +20493,6 @@ function _cdocEnvioHistHtml(rec){
     +'<th style="width:28px;"></th></tr></thead><tbody>'
     +h.map(function(r,i){
       var sfStyle=_sfBadge[r.statusFinal]||'';
-      var finStyle=_finBadge[r.finalidade]||'';
       var diasHtml='<span style="color:#cbd5e1;">—</span>';
       var dias=_cdocDiasRetorno(r.prevRetorno,r.retornoReal);
       if(dias!==null){
@@ -20485,7 +20503,7 @@ function _cdocEnvioHistHtml(rec){
       return '<tr style="border-top:1px solid #e2e8f0;">'
       +'<td style="padding:4px 8px;font-weight:700;color:#0369a1;font-family:Courier New,monospace;">'+_esc(r.rev||'—')+'</td>'
       +'<td style="padding:4px 8px;font-family:Courier New,monospace;white-space:nowrap;">'+_fD2(r.data||'')+'</td>'
-      +'<td style="padding:4px 7px;">'+(r.finalidade?'<span style="'+finStyle+'border-radius:3px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap;">'+_esc(r.finalidade)+'</span>':'<span style="color:#cbd5e1;">—</span>')+'</td>'
+      +'<td style="padding:4px 7px;">'+_cdocFinBadge(r.finalidade)+'</td>'
       +'<td style="padding:4px 8px;font-family:Courier New,monospace;color:#7c3aed;font-weight:700;">'+_esc(r.grd||'—')+'</td>'
       +'<td style="padding:4px 8px;font-family:Courier New,monospace;white-space:nowrap;color:#64748b;">'+_fD2(r.prevRetorno||'')+'</td>'
       +'<td style="padding:4px 8px;font-family:Courier New,monospace;white-space:nowrap;color:#059669;font-weight:700;">'+_fD2(r.retornoReal||'')+'</td>'
@@ -21012,16 +21030,29 @@ function cdocAbrirStatusLote(){
     +'</div>'
     +'<div style="padding:18px 20px;">'
       +'<div style="font-size:12px;color:#475569;margin-bottom:14px;">'+docs.length+' documento(s) selecionado(s)'+(comEnvio<docs.length?' — '+(docs.length-comEnvio)+' sem histórico de envio (Status Final e Retorno não serão aplicados a esses)':'')+'.</div>'
-      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-sg" checked style="width:15px;height:15px;cursor:pointer;">Alterar <u>Status</u> para:</label>'
-      +'<select id="csl-sg" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-sg" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-sg\').disabled=!this.checked;">Alterar <u>Status</u> para:</label>'
+      +'<select id="csl-sg" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
         +'<option value="">-- Selecione --</option>'
         +statusOptions.map(function(s){return '<option value="'+_esc(s)+'">'+_esc(s)+'</option>';}).join('')
       +'</select>'
-      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-sf" style="width:15px;height:15px;cursor:pointer;">Alterar <u>Status Final</u> (do último envio) para:</label>'
-      +'<select id="csl-sf" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-sf" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-sf\').disabled=!this.checked;">Alterar <u>Status Final</u> (do último envio) para:</label>'
+      +'<select id="csl-sf" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
         +'<option value="">-- Selecione --</option>'
         +sfOptions.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('')
       +'</select>'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-rev" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-rev\').disabled=!this.checked;">Alterar <u>Revisão Enviada</u> (do último envio) para:</label>'
+      +'<input type="text" id="csl-rev" disabled placeholder="Ex: R1" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-data" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-data\').disabled=!this.checked;">Alterar <u>Data</u> do envio (do último envio) para:</label>'
+      +'<input type="date" id="csl-data" value="'+hoje+'" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-fin" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-fin\').disabled=!this.checked;">Alterar <u>Finalidade</u> (do último envio) para:</label>'
+      +'<select id="csl-fin" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+        +'<option value="">-- Selecione --</option>'
+        +'<option value="Para Aprovação">Para Aprovação</option>'
+        +'<option value="Para Certificação">Para Certificação</option>'
+        +'<option value="Para Informação">Para Informação</option>'
+      +'</select>'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-pr" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-pr\').disabled=!this.checked;">Alterar <u>Retorno Previsto</u> (do último envio) para:</label>'
+      +'<input type="date" id="csl-pr" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
       +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-rr" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-rr\').disabled=!this.checked;">Registrar <u>Retorno Real</u> (data) do último envio:</label>'
       +'<input type="date" id="csl-rr" value="'+hoje+'" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
       +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-obs" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-obs\').disabled=!this.checked;">Adicionar <u>Observação</u> ao último envio:</label>'
@@ -21037,6 +21068,14 @@ function cdocAbrirStatusLote(){
 function _cdocAplicarStatusLote(){
   var alterarSg=(document.getElementById('csl-chk-sg')||{}).checked;
   var novoSg=(document.getElementById('csl-sg')||{}).value;
+  var alterarRev=(document.getElementById('csl-chk-rev')||{}).checked;
+  var novoRev=((document.getElementById('csl-rev')||{}).value||'').trim();
+  var alterarData=(document.getElementById('csl-chk-data')||{}).checked;
+  var novoData=(document.getElementById('csl-data')||{}).value;
+  var alterarFin=(document.getElementById('csl-chk-fin')||{}).checked;
+  var novoFin=(document.getElementById('csl-fin')||{}).value;
+  var alterarPr=(document.getElementById('csl-chk-pr')||{}).checked;
+  var novoPr=(document.getElementById('csl-pr')||{}).value;
   var alterarSf=(document.getElementById('csl-chk-sf')||{}).checked;
   var novoSf=(document.getElementById('csl-sf')||{}).value;
   var alterarRr=(document.getElementById('csl-chk-rr')||{}).checked;
@@ -21044,19 +21083,27 @@ function _cdocAplicarStatusLote(){
   var alterarObs=(document.getElementById('csl-chk-obs')||{}).checked;
   var novoObs=((document.getElementById('csl-obs')||{}).value||'').trim();
   if(alterarSg&&!novoSg){ alert('Selecione o novo Status, ou desmarque a opção.'); return; }
+  if(alterarRev&&!novoRev){ alert('Digite a Revisão Enviada, ou desmarque a opção.'); return; }
+  if(alterarData&&!novoData){ alert('Selecione a Data do envio, ou desmarque a opção.'); return; }
+  if(alterarFin&&!novoFin){ alert('Selecione a Finalidade, ou desmarque a opção.'); return; }
+  if(alterarPr&&!novoPr){ alert('Selecione a data de Retorno Previsto, ou desmarque a opção.'); return; }
   if(alterarSf&&!novoSf){ alert('Selecione o novo Status Final, ou desmarque a opção.'); return; }
   if(alterarRr&&!novoRr){ alert('Selecione a data de Retorno Real, ou desmarque a opção.'); return; }
   if(alterarObs&&!novoObs){ alert('Digite a Observação, ou desmarque a opção.'); return; }
-  if(!alterarSg&&!alterarSf&&!alterarRr&&!alterarObs){ alert('Marque pelo menos uma das opções (Status, Status Final, Retorno Real e/ou Observação).'); return; }
+  if(!alterarSg&&!alterarRev&&!alterarData&&!alterarFin&&!alterarPr&&!alterarSf&&!alterarRr&&!alterarObs){ alert('Marque pelo menos uma das opções.'); return; }
   var db=_cdocDb();
-  var qtdSg=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdSemEnvio=0;
+  var qtdSg=0, qtdRev=0, qtdData=0, qtdFin=0, qtdPr=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdSemEnvio=0;
   _cdocDetSel.forEach(function(id){
     var doc=db.detalhados.find(function(d){return d.id===id;});
     if(!doc) return;
     if(alterarSg){ doc.statusGeral=novoSg; qtdSg++; }
-    if(alterarSf||alterarRr||alterarObs){
+    if(alterarRev||alterarData||alterarFin||alterarPr||alterarSf||alterarRr||alterarObs){
       if(doc.envioHist&&doc.envioHist.length){
         var ult=doc.envioHist[doc.envioHist.length-1];
+        if(alterarRev){ ult.rev=novoRev; doc.rev=novoRev; qtdRev++; }
+        if(alterarData){ ult.data=novoData; qtdData++; }
+        if(alterarFin){ ult.finalidade=novoFin; qtdFin++; }
+        if(alterarPr){ ult.prevRetorno=novoPr; qtdPr++; }
         if(alterarSf){ ult.statusFinal=novoSf; qtdSf++; }
         if(alterarRr){ ult.retornoReal=novoRr; qtdRr++; }
         if(alterarObs){ ult.obs=ult.obs?(ult.obs+' | '+novoObs):novoObs; qtdObs++; }
@@ -21070,10 +21117,14 @@ function _cdocAplicarStatusLote(){
   cdocRenderDet();
   var msg=[];
   if(alterarSg) msg.push(qtdSg+' com Status atualizado');
+  if(alterarRev) msg.push(qtdRev+' com Revisão Enviada atualizada');
+  if(alterarData) msg.push(qtdData+' com Data atualizada');
+  if(alterarFin) msg.push(qtdFin+' com Finalidade atualizada');
+  if(alterarPr) msg.push(qtdPr+' com Retorno Previsto atualizado');
   if(alterarSf) msg.push(qtdSf+' com Status Final atualizado');
   if(alterarRr) msg.push(qtdRr+' com Retorno Real registrado');
   if(alterarObs) msg.push(qtdObs+' com Observação adicionada');
-  if((alterarSf||alterarRr||alterarObs)&&qtdSemEnvio) msg.push(qtdSemEnvio+' ignorado(s) por não terem envio registrado');
+  if((alterarRev||alterarData||alterarFin||alterarPr||alterarSf||alterarRr||alterarObs)&&qtdSemEnvio) msg.push(qtdSemEnvio+' ignorado(s) por não terem envio registrado');
   showToast('Atualizado em lote', msg.join(' · ')+'.', 'success');
 }
 function cdocEmitirGrd(){
@@ -23852,9 +23903,8 @@ function cdocRenderDiario(){
 
 
   // badge helpers
-  var finMap={'PARA APROVAÇÃO':'background:#ede9fe;color:#6d28d9;','CERTIFICAÇÃO':'background:#e0f2fe;color:#0369a1;','INFORMAÇÃO':'background:#f1f5f9;color:#475569;'};
   var sfMap={'APROVADO':'background:#dcfce7;color:#166534;','CERTIFICADO':'background:#f0fdf4;color:#14532d;','COM COMENTÁRIOS':'background:#fef3c7;color:#92400e;','REPROVADO':'background:#fee2e2;color:#991b1b;'};
-  function finBadge(v){return v?'<span style="'+( finMap[v]||'background:#f1f5f9;color:#475569;' )+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(v)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>';}
+  function finBadge(v){return _cdocFinBadge(v);}
   function sfBadge(v){return v?'<span style="'+( sfMap[v]||'background:#f1f5f9;color:#475569;' )+'border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">'+_esc(v)+'</span>':'<span style="color:#cbd5e1;font-size:10px;">—</span>';}
   function dateFmt(s){return s?s.split('-').reverse().join('/'):'—';}
 
@@ -24087,7 +24137,6 @@ function cdocDiarioExportPDF(){
     'Fluxo com o Cliente':'#0e7490'
   };
   // Mesmos badges de cor usados na tabela em tela
-  var finMap={'PARA APROVAÇÃO':{bg:'#ede9fe',c:'#6d28d9'},'CERTIFICAÇÃO':{bg:'#e0f2fe',c:'#0369a1'},'INFORMAÇÃO':{bg:'#f1f5f9',c:'#475569'}};
   var sfMap={'APROVADO':{bg:'#dcfce7',c:'#166534'},'CERTIFICADO':{bg:'#f0fdf4',c:'#14532d'},'COM COMENTÁRIOS':{bg:'#fef3c7',c:'#92400e'},'REPROVADO':{bg:'#fee2e2',c:'#991b1b'}};
   function badge(v,map){
     if(!v) return '<span style="color:#cbd5e1;">—</span>';
@@ -24123,7 +24172,7 @@ function cdocDiarioExportPDF(){
         +'<td>'+_esc(r.descricao)+'</td><td>'+_esc(r.tipo)+'</td><td>'+statusBadge(r.status)+'</td>'
         +(r.situacao?'<td style="font-weight:700;color:'+cor+';">'+_esc(r.situacao)+'</td>':'')
         +'<td style="font-weight:700;color:'+prazoColor(r.prazo)+';">'+_esc(r.prazo)+'</td>'
-        +'<td>'+badge(r.finalidade,finMap)+'</td><td>'+_esc(r.grd||'—')+'</td><td>'+fmtBR(r.prevRetorno)+'</td>'
+        +'<td>'+_cdocFinBadge(r.finalidade)+'</td><td>'+_esc(r.grd||'—')+'</td><td>'+fmtBR(r.prevRetorno)+'</td>'
         +'<td>'+badge(r.statusFinal,sfMap)+'</td>'
         +'</tr>';
     }).join('');
@@ -24356,10 +24405,26 @@ function _cdocShowColFlt(e,tbl,col){
     },true);
   },50);
 }
+// Mesma convenção usada no filtro de TAG da barra superior (_cdocSubMatchSingle):
+// termo terminando em espaço = correspondência exata (ou prefixo seguido de
+// caractere não-alfanumérico) — evita que "S176D " também encontre "S176DA"/"S176DB".
+function _cdocFltMatchVal(val, termo){
+  if(!termo) return true;
+  var t = termo;
+  var exact = t.endsWith(' ');
+  t = t.trim().toLowerCase();
+  if(!t) return true;
+  var s = (val||'').toLowerCase();
+  if(exact){
+    return s === t || (s.startsWith(t) && (s.length===t.length || !/[a-z0-9]/i.test(s[t.length])));
+  }
+  return s.includes(t);
+}
 function _cdocFltSearch(q){
-  q=q.toLowerCase();
   document.querySelectorAll('#cdoc-flt-list .cdoc-flt-item').forEach(function(el){
-    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+    var cb=el.querySelector('input[type=checkbox]');
+    var val=cb?cb.value:el.textContent;
+    el.style.display=_cdocFltMatchVal(val,q)?'':'none';
   });
 }
 function _cdocFltSelAll(tbl,col,sel){
