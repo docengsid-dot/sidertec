@@ -14873,15 +14873,24 @@ function renderLibFab(){
     subs.forEach(function(s){var c=_lfCategoria(s,ano,mes);if(G[c])G[c].push(s);});
   }
   function tP(a){return a.reduce(function(x,r){return x+Number(r.peso_previsto||0);},0);}
+  function tD(a){return a.reduce(function(x,r){return x+Number(r.peso_detalhado||0);},0);}
+  function pesoLbl(a){
+    var b=tP(a),d=tD(a);
+    if(!b&&!d) return '—';
+    var parts=[];
+    if(b) parts.push('Básico: '+_lfFmtKg(b));
+    if(d) parts.push('Detalhado: '+_lfFmtKg(d));
+    return parts.join(' · ');
+  }
   function sc(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
-  sc('lf-s-atrasado',G.atrasado.length); sc('lf-s-atrasado-kg',_lfFmtKg(tP(G.atrasado)));
-  sc('lf-s-mes',G.mes.length);           sc('lf-s-mes-kg',_lfFmtKg(tP(G.mes)));
-  sc('lf-s-sem',G.sem.length);           sc('lf-s-sem-kg',_lfFmtKg(tP(G.sem)));
+  sc('lf-s-atrasado',G.atrasado.length); sc('lf-s-atrasado-kg',pesoLbl(G.atrasado));
+  sc('lf-s-mes',G.mes.length);           sc('lf-s-mes-kg',pesoLbl(G.mes));
+  sc('lf-s-sem',G.sem.length);           sc('lf-s-sem-kg',pesoLbl(G.sem));
   var pL=(iA?G.atrasado:[]).concat(iM?G.mes:[]).concat(iS?G.sem:[]);
-  sc('lf-s-total',pL.length);            sc('lf-s-total-kg',_lfFmtKg(tP(pL)));
+  sc('lf-s-total',pL.length);            sc('lf-s-total-kg',pesoLbl(pL));
   // libM: no período ativo mostra todos; senão filtra pelo mês selecionado
   var libM=periodoRealAtivo?G.liberado:G.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;});
-  sc('lf-s-liberado',libM.length);       sc('lf-s-liberado-kg',_lfFmtKg(tP(libM)));
+  sc('lf-s-liberado',libM.length);       sc('lf-s-liberado-kg',pesoLbl(libM));
   // Título dinâmico para seção liberados
   var lblIni=rMI?(MN[rMI-1]+(rAI?'/'+rAI:'')):(rIni?_lfFmtD(rIni):'');
   var lblFim=rMF?(MN[rMF-1]+(rAF?'/'+rAF:'')):(rFim?_lfFmtD(rFim):'');
@@ -14903,21 +14912,24 @@ function renderLibFab(){
 
 function _lfSecao(tipo,subs,titulo,descr,bgC,txC,mes,ano,hoje){
   var tPS=subs.reduce(function(a,r){return a+Number(r.peso_previsto||0);},0);
+  var tDS=subs.reduce(function(a,r){return a+Number(r.peso_detalhado||0);},0);
   var obras=[]; subs.forEach(function(s){var o=s.obra||'(Sem Obra)';if(obras.indexOf(o)<0)obras.push(o);}); obras.sort();
   var vG=!_lfObraAtiva;
   var p1=new Date(ano,mes-1,1); p1.setHours(0,0,0,0);
   var h='<div class="lf-sec-hd"><span style="font-family:\'Georgia\',serif;font-size:13px;color:'+txC+';">'+titulo+'</span>';
   h+='<span style="background:'+bgC+';color:'+txC+';border:1px solid '+txC+';border-radius:10px;font-size:9px;font-weight:700;padding:1px 7px;">'+subs.length+'</span>';
-  if(tPS>0) h+='<span style="font-size:9px;color:var(--ink3);font-weight:700;">'+_lfFmtKg(tPS)+'</span>';
+  if(tPS>0) h+='<span style="font-size:9px;color:var(--ink3);font-weight:700;">Básico: '+_lfFmtKg(tPS)+'</span>';
+  if(tDS>0) h+='<span style="font-size:9px;color:var(--ink3);font-weight:700;">Detalhado: '+_lfFmtKg(tDS)+'</span>';
   h+='<span style="font-size:9px;color:var(--ink3);font-style:italic;">'+descr+'</span></div>';
   obras.forEach(function(obra){
     var rows=subs.filter(function(s){return (s.obra||'(Sem Obra)')===obra;});
     var pP=rows.reduce(function(a,r){return a+Number(r.peso_previsto||0);},0);
-    if(vG) h+='<div class="lf-grp-hd"><span style="color:#86efac;">🏗 '+obra+'</span><span style="font-family:\'Courier New\',monospace;font-size:9px;color:rgba(255,255,255,.5);">'+rows.length+' sub-obras'+(pP>0?' · '+_lfFmtKg(pP):'')+' </span></div>';
+    var pD=rows.reduce(function(a,r){return a+Number(r.peso_detalhado||0);},0);
+    if(vG) h+='<div class="lf-grp-hd"><span style="color:#86efac;">🏗 '+obra+'</span><span style="font-family:\'Courier New\',monospace;font-size:9px;color:rgba(255,255,255,.5);">'+rows.length+' sub-obras'+(pP>0?' · Básico: '+_lfFmtKg(pP):'')+(pD>0?' · Detalhado: '+_lfFmtKg(pD):'')+' </span></div>';
     h+='<div class="lf-tbl-wrap"><table class="lf-tbl"><thead><tr>';
     h+='<th style="min-width:130px;">TAG Sub-obra</th><th>Descrição</th><th>Status</th><th>Equipe</th><th>Prev. Lib. Fab.</th><th>Real Lib. Fab.</th>';
     if(tipo==='atrasado') h+='<th>Atraso</th>';
-    h+='<th>Lim. Fábrica</th><th style="text-align:right;">Peso (kg)</th><th>Nº Proj. Básico</th><th>Área</th></tr></thead><tbody>';
+    h+='<th>Lim. Fábrica</th><th style="text-align:right;">Peso Básico (kg)</th><th style="text-align:right;">Peso Detalhado (kg)</th><th>Nº Proj. Básico</th><th>Área</th></tr></thead><tbody>';
     rows.forEach(function(s){
       var rC=tipo==='atrasado'?'lf-row-atrasado':tipo==='sem'?'lf-row-sem':'';
       var st=_lfStSt(s.status);
@@ -14937,13 +14949,16 @@ function _lfSecao(tipo,subs,titulo,descr,bgC,txC,mes,ano,hoje){
       if(tipo==='atrasado') h+='<td>'+dA+'</td>';
       h+='<td>'+lH+'</td>';
       h+='<td style="text-align:right;font-family:\'Courier New\',monospace;font-size:9px;">'+(s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
+      h+='<td style="text-align:right;font-family:\'Courier New\',monospace;font-size:9px;color:#1d4ed8;">'+(s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
       h+='<td style="font-family:\'Courier New\',monospace;font-size:9px;font-weight:700;color:#7c3aed;">'+(s.num_proj_basico||'—')+'</td>';
       h+='<td style="font-size:9px;color:var(--blue);">'+(s.area||'—')+'</td></tr>';
     });
     var cs=4+(tipo==='atrasado'?1:0);
     h+='</tbody><tfoot><tr><td colspan="'+cs+'" style="color:#fff;">TOTAL'+(vG?' — '+obra:'')+' ('+rows.length+')</td><td></td><td></td><td></td>';
     if(tipo==='atrasado') h+='<td></td>';
-    h+='<td style="text-align:right;font-family:\'Courier New\',monospace;color:var(--accent2);">'+_lfFmtKg(pP)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
+    h+='<td style="text-align:right;font-family:\'Courier New\',monospace;color:var(--accent2);">'+_lfFmtKg(pP)+'</td>';
+    h+='<td style="text-align:right;font-family:\'Courier New\',monospace;color:var(--accent2);">'+_lfFmtKg(pD)+'</td>';
+    h+='<td colspan="2"></td></tr></tfoot></table></div>';
   });
   return h;
 }
@@ -15065,6 +15080,7 @@ function gerarRelatorioLibFab(){
   }
 
   var pesoTotal=linhas.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0);
+  var pesoTotalDet=linhas.reduce(function(a,s){return a+Number(s.peso_detalhado||0);},0);
   var dataRel=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   var horaRel=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
@@ -15081,7 +15097,8 @@ function gerarRelatorioLibFab(){
   obras.forEach(function(obra){
     var gr=linhas.filter(function(s){return (s.obra||'(Sem Obra)')===obra;});
     var pO=gr.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0);
-    tRows+='<tr><td colspan="11" style="background:#1e293b;color:#86efac;font-size:8px;font-weight:700;padding:3px 6px;border:none;">🏗 '+obra+' <span style="opacity:.6;font-weight:400;">('+gr.length+' sub-obras'+( pO>0?' · '+_lfFmtKg(pO):'')+')</span></td></tr>';
+    var pOD=gr.reduce(function(a,s){return a+Number(s.peso_detalhado||0);},0);
+    tRows+='<tr><td colspan="12" style="background:#1e293b;color:#86efac;font-size:8px;font-weight:700;padding:3px 6px;border:none;">🏗 '+obra+' <span style="opacity:.6;font-weight:400;">('+gr.length+' sub-obras'+( pO>0?' · Básico: '+_lfFmtKg(pO):'')+( pOD>0?' · Detalhado: '+_lfFmtKg(pOD):'')+')</span></td></tr>';
     gr.forEach(function(s){
       var bg=alt?'#f9fafb':'#fff'; alt=!alt;
       var cat=catLabel[s._cat]||'';
@@ -15099,6 +15116,7 @@ function gerarRelatorioLibFab(){
       tRows+='<td style="font-size:7px;color:#991b1b;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+atraso+'</td>';
       tRows+='<td style="font-size:7px;border:1px solid #e2e8f0;padding:3px 5px;">'+fmtLimite(s)+'</td>';
       tRows+='<td style="font-family:Courier New,monospace;font-size:8px;text-align:right;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.peso_previsto?Number(s.peso_previsto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
+      tRows+='<td style="font-family:Courier New,monospace;font-size:8px;text-align:right;color:#1d4ed8;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.peso_detalhado?Number(s.peso_detalhado).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—')+'</td>';
       tRows+='<td style="font-family:Courier New,monospace;font-size:7px;color:#7c3aed;font-weight:700;border:1px solid #e2e8f0;padding:3px 5px;">'+(s.num_proj_basico||'—')+'</td>';
       tRows+='</tr>';
     });
@@ -15161,7 +15179,7 @@ function gerarRelatorioLibFab(){
   html+='<div class="rel-kpi"><div class="rel-kpi-label">⚠ Atrasados</div><div class="rel-kpi-val" style="color:#991b1b;">'+grupos.atrasado.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(grupos.atrasado.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0))+'</div></div>';
   html+='<div class="rel-kpi"><div class="rel-kpi-label">📅 Do Mês</div><div class="rel-kpi-val" style="color:#1e40af;">'+grupos.mes.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(grupos.mes.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0))+'</div></div>';
   html+='<div class="rel-kpi"><div class="rel-kpi-label">🔲 Sem Previsão</div><div class="rel-kpi-val" style="color:#475569;">'+grupos.sem.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(grupos.sem.reduce(function(a,s){return a+Number(s.peso_previsto||0);},0))+'</div></div>';
-  html+='<div class="rel-kpi"><div class="rel-kpi-label">📋 Total Listado</div><div class="rel-kpi-val" style="color:#1A1714;">'+linhas.length+'</div><div class="rel-kpi-sub">'+_lfFmtKg(pesoTotal)+'</div></div>';
+  html+='<div class="rel-kpi"><div class="rel-kpi-label">📋 Total Listado</div><div class="rel-kpi-val" style="color:#1A1714;">'+linhas.length+'</div><div class="rel-kpi-sub">Básico: '+_lfFmtKg(pesoTotal)+(pesoTotalDet>0?' · Det.: '+_lfFmtKg(pesoTotalDet):'')+'</div></div>';
   html+='<div class="rel-kpi"><div class="rel-kpi-label">✅ Liberados</div><div class="rel-kpi-val" style="color:#166534;">'+grupos.liberado.filter(function(s){if(!s.real_lib_fab)return false;var d=new Date(s.real_lib_fab+'T12:00:00');return d.getFullYear()===ano&&(d.getMonth()+1)===mes;}).length+'</div><div class="rel-kpi-sub">do mês</div></div>';
   html+='</div>';
 
@@ -15176,11 +15194,12 @@ function gerarRelatorioLibFab(){
   html+='<th>Real Lib. Fab.</th>';
   html+='<th>Atraso</th>';
   html+='<th>Lim. Fábrica</th>';
-  html+='<th class="num">Peso (kg)</th>';
+  html+='<th class="num">Peso Básico (kg)</th>';
+  html+='<th class="num">Peso Detalhado (kg)</th>';
   html+='<th>Nº Proj. Básico</th>';
   html+='</tr></thead><tbody>';
   html+=tRows;
-  html+='</tbody><tfoot><tr><td colspan="9" style="background:#1A1714;color:#fff;font-size:8px;font-weight:700;padding:4px 6px;">TOTAL GERAL ('+linhas.length+' sub-obras)</td><td style="background:#1A1714;color:#C4501A;font-family:Courier New,monospace;font-size:8px;font-weight:700;padding:4px 6px;text-align:right;">'+_lfFmtKg(pesoTotal)+'</td><td style="background:#1A1714;"></td></tr></tfoot></table>';
+  html+='</tbody><tfoot><tr><td colspan="9" style="background:#1A1714;color:#fff;font-size:8px;font-weight:700;padding:4px 6px;">TOTAL GERAL ('+linhas.length+' sub-obras)</td><td style="background:#1A1714;color:#C4501A;font-family:Courier New,monospace;font-size:8px;font-weight:700;padding:4px 6px;text-align:right;">'+_lfFmtKg(pesoTotal)+'</td><td style="background:#1A1714;color:#C4501A;font-family:Courier New,monospace;font-size:8px;font-weight:700;padding:4px 6px;text-align:right;">'+_lfFmtKg(pesoTotalDet)+'</td><td style="background:#1A1714;"></td></tr></tfoot></table>';
 
   html+='<div class="rel-footer">Sidertec — Cronograma & Medição 2026 · Gerado em '+dataRel+' às '+horaRel+'</div>';
   html+='</body></html>';
@@ -15212,8 +15231,8 @@ function exportarLibFabCSV(){
   var MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   var cM={atrasado:'Atrasado',mes:'Do Mês',sem:'Sem Previsão',liberado:'Liberado'};
   var para=fonte.filter(function(s){var c=_lfCategoria(s,ano,mes);return(c==='atrasado'&&iA)||(c==='mes'&&iM)||(c==='sem'&&iS);});
-  var hds=['TAG Sub-obra','Obra','Descrição','Área','Equipe','Status','Nº Proj. Básico','Prev. Lib. Fab.','Real Lib. Fab.','Data Limite Fáb.','Peso Prev. (kg)','Categoria'];
-  var rows=para.map(function(s){return[s.subobra||'',s.obra||'',s.descricao||'',s.area||'',s.equipe||'',s.status||'',s.num_proj_basico||'',s.prev_lib_fab||'',s.real_lib_fab||'',s.data_limite_fab||'',s.peso_previsto||'',cM[_lfCategoria(s,ano,mes)]||''].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');});
+  var hds=['TAG Sub-obra','Obra','Descrição','Área','Equipe','Status','Nº Proj. Básico','Prev. Lib. Fab.','Real Lib. Fab.','Data Limite Fáb.','Peso Básico (kg)','Peso Detalhado (kg)','Categoria'];
+  var rows=para.map(function(s){return[s.subobra||'',s.obra||'',s.descricao||'',s.area||'',s.equipe||'',s.status||'',s.num_proj_basico||'',s.prev_lib_fab||'',s.real_lib_fab||'',s.data_limite_fab||'',s.peso_previsto||'',s.peso_detalhado||'',cM[_lfCategoria(s,ano,mes)]||''].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');});
   var csv='\uFEFF'+hds.map(function(h){return'"'+h+'"';}).join(',')+'\n'+rows.join('\n');
   var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='Sidertec_LibFab_'+MN[mes-1]+'_'+ano+'.csv'; a.click();
   if(typeof showToast==='function') showToast('✓ CSV Exportado',para.length+' sub-obras','success');
