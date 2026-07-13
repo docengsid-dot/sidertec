@@ -21029,7 +21029,7 @@ function cdocAbrirStatusLote(){
       +'<button onclick="document.getElementById(\'cdoc-status-lote-ov\').remove()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;cursor:pointer;margin-left:auto;">✕</button>'
     +'</div>'
     +'<div style="padding:18px 20px;">'
-      +'<div style="font-size:12px;color:#475569;margin-bottom:14px;">'+docs.length+' documento(s) selecionado(s)'+(comEnvio<docs.length?' — '+(docs.length-comEnvio)+' sem histórico de envio (Status Final e Retorno não serão aplicados a esses)':'')+'.</div>'
+      +'<div style="font-size:12px;color:#475569;margin-bottom:14px;">'+docs.length+' documento(s) selecionado(s)'+(comEnvio<docs.length?' — '+(docs.length-comEnvio)+' sem histórico de envio ainda (para esses, um primeiro envio será criado com os campos marcados abaixo)':'')+'.</div>'
       +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-sg" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-sg\').disabled=!this.checked;">Alterar <u>Status</u> para:</label>'
       +'<select id="csl-sg" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
         +'<option value="">-- Selecione --</option>'
@@ -21092,7 +21092,7 @@ function _cdocAplicarStatusLote(){
   if(alterarObs&&!novoObs){ alert('Digite a Observação, ou desmarque a opção.'); return; }
   if(!alterarSg&&!alterarRev&&!alterarData&&!alterarFin&&!alterarPr&&!alterarSf&&!alterarRr&&!alterarObs){ alert('Marque pelo menos uma das opções.'); return; }
   var db=_cdocDb();
-  var qtdSg=0, qtdRev=0, qtdData=0, qtdFin=0, qtdPr=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdSemEnvio=0;
+  var qtdSg=0, qtdRev=0, qtdData=0, qtdFin=0, qtdPr=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdNovoEnvio=0;
   _cdocDetSel.forEach(function(id){
     var doc=db.detalhados.find(function(d){return d.id===id;});
     if(!doc) return;
@@ -21108,7 +21108,29 @@ function _cdocAplicarStatusLote(){
         if(alterarRr){ ult.retornoReal=novoRr; qtdRr++; }
         if(alterarObs){ ult.obs=ult.obs?(ult.obs+' | '+novoObs):novoObs; qtdObs++; }
       } else {
-        qtdSemEnvio++;
+        // Documento ainda não tem nenhum envio registrado — cria o primeiro
+        // envio com os campos marcados, em vez de simplesmente ignorar.
+        var novoEntry={
+          rev: alterarRev?novoRev:'',
+          data: alterarData?novoData:'',
+          finalidade: alterarFin?novoFin:'',
+          grd:'',
+          prevRetorno: alterarPr?novoPr:'',
+          retornoReal: alterarRr?novoRr:'',
+          statusFinal: alterarSf?novoSf:'',
+          obs: alterarObs?novoObs:'',
+          status: (alterarData&&novoData)?'Concluído':'Pendente'
+        };
+        doc.envioHist=doc.envioHist||[];
+        doc.envioHist.push(novoEntry);
+        if(alterarRev){ doc.rev=novoRev; qtdRev++; }
+        if(alterarData) qtdData++;
+        if(alterarFin) qtdFin++;
+        if(alterarPr) qtdPr++;
+        if(alterarSf) qtdSf++;
+        if(alterarRr) qtdRr++;
+        if(alterarObs) qtdObs++;
+        qtdNovoEnvio++;
       }
     }
   });
@@ -21124,7 +21146,7 @@ function _cdocAplicarStatusLote(){
   if(alterarSf) msg.push(qtdSf+' com Status Final atualizado');
   if(alterarRr) msg.push(qtdRr+' com Retorno Real registrado');
   if(alterarObs) msg.push(qtdObs+' com Observação adicionada');
-  if((alterarRev||alterarData||alterarFin||alterarPr||alterarSf||alterarRr||alterarObs)&&qtdSemEnvio) msg.push(qtdSemEnvio+' ignorado(s) por não terem envio registrado');
+  if(qtdNovoEnvio) msg.push(qtdNovoEnvio+' sem envio anterior — primeiro envio criado agora');
   showToast('Atualizado em lote', msg.join(' · ')+'.', 'success');
 }
 function cdocEmitirGrd(){
