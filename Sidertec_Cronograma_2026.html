@@ -21004,7 +21004,9 @@ function cdocAbrirStatusLote(){
         +sfOptions.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('')
       +'</select>'
       +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-rr" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-rr\').disabled=!this.checked;">Registrar <u>Retorno Real</u> (data) do último envio:</label>'
-      +'<input type="date" id="csl-rr" value="'+hoje+'" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">'
+      +'<input type="date" id="csl-rr" value="'+hoje+'" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-obs" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-obs\').disabled=!this.checked;">Adicionar <u>Observação</u> ao último envio:</label>'
+      +'<textarea id="csl-obs" rows="2" disabled placeholder="Ex: Aguardando pacote de fabricação…" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;">'
       +'<button onclick="document.getElementById(\'cdoc-status-lote-ov\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:8px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
@@ -21020,21 +21022,25 @@ function _cdocAplicarStatusLote(){
   var novoSf=(document.getElementById('csl-sf')||{}).value;
   var alterarRr=(document.getElementById('csl-chk-rr')||{}).checked;
   var novoRr=(document.getElementById('csl-rr')||{}).value;
+  var alterarObs=(document.getElementById('csl-chk-obs')||{}).checked;
+  var novoObs=((document.getElementById('csl-obs')||{}).value||'').trim();
   if(alterarSg&&!novoSg){ alert('Selecione o novo Status, ou desmarque a opção.'); return; }
   if(alterarSf&&!novoSf){ alert('Selecione o novo Status Final, ou desmarque a opção.'); return; }
   if(alterarRr&&!novoRr){ alert('Selecione a data de Retorno Real, ou desmarque a opção.'); return; }
-  if(!alterarSg&&!alterarSf&&!alterarRr){ alert('Marque pelo menos uma das opções (Status, Status Final e/ou Retorno Real).'); return; }
+  if(alterarObs&&!novoObs){ alert('Digite a Observação, ou desmarque a opção.'); return; }
+  if(!alterarSg&&!alterarSf&&!alterarRr&&!alterarObs){ alert('Marque pelo menos uma das opções (Status, Status Final, Retorno Real e/ou Observação).'); return; }
   var db=_cdocDb();
-  var qtdSg=0, qtdSf=0, qtdRr=0, qtdSemEnvio=0;
+  var qtdSg=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdSemEnvio=0;
   _cdocDetSel.forEach(function(id){
     var doc=db.detalhados.find(function(d){return d.id===id;});
     if(!doc) return;
     if(alterarSg){ doc.statusGeral=novoSg; qtdSg++; }
-    if(alterarSf||alterarRr){
+    if(alterarSf||alterarRr||alterarObs){
       if(doc.envioHist&&doc.envioHist.length){
         var ult=doc.envioHist[doc.envioHist.length-1];
         if(alterarSf){ ult.statusFinal=novoSf; qtdSf++; }
         if(alterarRr){ ult.retornoReal=novoRr; qtdRr++; }
+        if(alterarObs){ ult.obs=ult.obs?(ult.obs+' | '+novoObs):novoObs; qtdObs++; }
       } else {
         qtdSemEnvio++;
       }
@@ -21047,7 +21053,8 @@ function _cdocAplicarStatusLote(){
   if(alterarSg) msg.push(qtdSg+' com Status atualizado');
   if(alterarSf) msg.push(qtdSf+' com Status Final atualizado');
   if(alterarRr) msg.push(qtdRr+' com Retorno Real registrado');
-  if((alterarSf||alterarRr)&&qtdSemEnvio) msg.push(qtdSemEnvio+' ignorado(s) por não terem envio registrado');
+  if(alterarObs) msg.push(qtdObs+' com Observação adicionada');
+  if((alterarSf||alterarRr||alterarObs)&&qtdSemEnvio) msg.push(qtdSemEnvio+' ignorado(s) por não terem envio registrado');
   showToast('Atualizado em lote', msg.join(' · ')+'.', 'success');
 }
 function cdocEmitirGrd(){
@@ -23447,6 +23454,26 @@ function cdocImportDet(input){
     var sep=lines[0].includes(';')?';':',';
     var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
 
+    // Mapa de colunas presentes no CSV — permite diferenciar "coluna não existe no
+    // arquivo" (não deve alterar o valor já salvo) de "coluna existe mas está vazia
+    // nesta linha" (o usuário está deliberadamente limpando/removendo aquele valor,
+    // ex: apagou a Data de Retorno Real numa linha e reimportou o CSV).
+    var _headerSet={}; headers.forEach(function(h){_headerSet[h]=true;});
+    function colPresent(names){ return names.some(function(n){return _headerSet[n];}); }
+    var ALIASES_LF_ST=['Lib.Fab','Status Lib. Fab.','Lib. Fab.','libfab'];
+    var ALIASES_LF_DT=['Data Lib.Fab','Data Liberação','data_libfab'];
+    var ALIASES_LF_GRD=['GRD Lib.Fab','GRD'];
+    var ALIASES_LF_OBS=['Obs Lib.Fab'];
+    var ALIASES_EN_ST=['Envio','Status Envio','envio'];
+    var ALIASES_EN_DT=['Data Envio','data_envio'];
+    var ALIASES_EN_REV=['Rev Enviada','Rev.Enviada'];
+    var ALIASES_EN_FIN=['Finalidade','Finalidade Emissão','Finalidade Emissao'];
+    var ALIASES_EN_GRD=['GRD Envio','GRD'];
+    var ALIASES_EN_PREVRET=['Prev. Retorno','Prev Retorno','Data Prev. Retorno'];
+    var ALIASES_EN_RETREAL=['Retorno Real','Data Retorno Real','Data Retorno'];
+    var ALIASES_EN_SFINAL=['Status Final','Status Final Aprovação','Status Final Aprovacao'];
+    var ALIASES_EN_OBS=['Obs Envio'];
+
     // Usa cache em memória diretamente — evita JSON.parse do localStorage
     var db=_cdocSBCache||_cdocLoad();
     if(!Array.isArray(db.detalhados)) db.detalhados=[];
@@ -23476,9 +23503,12 @@ function cdocImportDet(input){
       };
       var idx = hist.findIndex(keyMatch);
       if(idx >= 0){
-        // Atualiza apenas campos que vieram preenchidos no CSV (não apaga o que já existe)
+        // Atualiza os campos que vieram no objeto entry — inclusive quando vazios,
+        // pois a ausência da chave (não incluída pelo chamador) já indica "coluna
+        // não existe no CSV, não tocar". Uma chave presente com valor '' significa
+        // que a coluna existe e o usuário está limpando aquele campo de propósito.
         Object.keys(entry).forEach(function(k){
-          if(entry[k]!==undefined && entry[k]!=='') hist[idx][k]=entry[k];
+          if(entry[k]!==undefined) hist[idx][k]=entry[k];
         });
       } else {
         hist.push(entry);
@@ -23539,6 +23569,36 @@ function cdocImportDet(input){
       var enSfinal=row['Status Final']||row['Status Final Aprovação']||row['Status Final Aprovacao']||'';
       var enObs=row['Obs Envio']||'';
 
+      // Presença das colunas nesta importação (não depende do valor da linha) —
+      // usado para saber se um campo vazio é "limpar" ou "coluna nem existe".
+      var lfStP=colPresent(ALIASES_LF_ST), lfDtP=colPresent(ALIASES_LF_DT), lfGrdP=colPresent(ALIASES_LF_GRD), lfObsP=colPresent(ALIASES_LF_OBS);
+      var enStP=colPresent(ALIASES_EN_ST), enDtP=colPresent(ALIASES_EN_DT), enRevP=colPresent(ALIASES_EN_REV), enFinP=colPresent(ALIASES_EN_FIN),
+          enGrdP=colPresent(ALIASES_EN_GRD), enPrevRetP=colPresent(ALIASES_EN_PREVRET), enRetRealP=colPresent(ALIASES_EN_RETREAL),
+          enSfinalP=colPresent(ALIASES_EN_SFINAL), enObsP=colPresent(ALIASES_EN_OBS);
+      var temColLf = lfStP||lfDtP||lfGrdP||lfObsP;
+      var temColEn = enStP||enDtP||enRevP||enFinP||enGrdP||enPrevRetP||enRetRealP||enSfinalP||enObsP;
+      function _lfEntry(){
+        var o={};
+        if(lfStP) o.status = lfSt||'Liberado';
+        if(lfDtP) o.data = lfDt;
+        if(lfGrdP) o.grd = lfGrd;
+        if(lfObsP) o.obs = lfObs;
+        return o;
+      }
+      function _enEntry(){
+        var o={};
+        if(enStP) o.status = enSt||'Concluído';
+        if(enRevP) o.rev = enRev;
+        if(enFinP) o.finalidade = enFin;
+        if(enDtP) o.data = enDt;
+        if(enGrdP) o.grd = enGrd;
+        if(enPrevRetP) o.prevRetorno = enPrevRet;
+        if(enRetRealP) o.retornoReal = enRetReal;
+        if(enSfinalP) o.statusFinal = enSfinal;
+        if(enObsP) o.obs = enObs;
+        return o;
+      }
+
       // Lookup O(1) — só usa Nº Cliente como plano B se for um valor real (não placeholder)
       var existing=numIdx[num+'|'+obra];
       if(!existing&&cli&&!_cdocEhPlaceholder(cli)) existing=cliIdx[cli+'|'+obra];
@@ -23563,9 +23623,9 @@ function cdocImportDet(input){
       if(existing){
         var lhist=dedupEnvio(existing.libfabHist||[]);
         var ehist=dedupEnvio(existing.envioHist||[]);
-        if(lfSt||lfDt) lhist=upsertLibfab(lhist,{status:lfSt||'Liberado',data:lfDt,grd:lfGrd,obs:lfObs});
-        if(enSt||enDt||enPrevRet||enRetReal||enSfinal||enGrd||enRev){
-          ehist=upsertEnvio(ehist,{status:enSt||'Concluído',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs});
+        if(temColLf) lhist=upsertLibfab(lhist,_lfEntry());
+        if(temColEn){
+          ehist=upsertEnvio(ehist,_enEntry());
         }
         // ── STATUS GERAL: captura ANTES do Object.assign (que pode sobrescrever com null) ──
         var _csvStatus = (row['Status Geral']||row['Status']||'').trim();
@@ -23603,9 +23663,9 @@ function cdocImportDet(input){
         newData.id=_cdocGenId(db,'det');
         var lhistNew=[];
         var ehistNew=[];
-        if(lfSt||lfDt) lhistNew=[{status:lfSt||'Liberado',data:lfDt,grd:lfGrd,obs:lfObs}];
+        if(lfSt||lfDt) lhistNew=[_lfEntry()];
         if(enSt||enDt||enPrevRet||enRetReal||enSfinal||enGrd||enRev){
-          ehistNew=[{status:enSt||'Concluído',rev:enRev,finalidade:enFin,data:enDt,grd:enGrd,prevRetorno:enPrevRet,retornoReal:enRetReal,statusFinal:enSfinal,obs:enObs}];
+          ehistNew=[_enEntry()];
         }
         newData.libfabHist=lhistNew;
         newData.envioHist=ehistNew;
