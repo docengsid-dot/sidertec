@@ -23335,7 +23335,7 @@ async function _cdocCriarNoCronograma(rec){
     area:rec.area||'',
     num_proj_basico:rec.cli||'',
     peso_previsto:rec.peso?parseFloat(rec.peso)||null:null,
-    equipe:rec.proj||'',status:'Planejado',prioridade:'',
+    equipe:rec.proj||'',status:'AG.LIB.BÁSICO',prioridade:'',
     prev_lib_fab:null,real_lib_fab:null,data_limite_fab:null,
     peso_detalhado:null,peso_pcp:null,
     criado_em:new Date().toISOString(),
@@ -23348,8 +23348,10 @@ async function _cdocCriarNoCronograma(rec){
   try{
     var res=await sbClient.from('cronograma_subobras').insert([newSub]).select();
     if(res.data&&res.data[0]){ Object.assign(newSub,res.data[0]); }
+    if(res.error){ console.error('[_cdocCriarNoCronograma] Supabase rejeitou o insert:', res.error, newSub); }
     _cdocToast('Sub-obra '+rec.sub+' inserida no Cronograma automaticamente!');
   }catch(e){
+    console.error('[_cdocCriarNoCronograma] Falha ao inserir sub-obra no Supabase:', e, newSub);
     _cdocToast('Sub-obra '+rec.sub+' inserida localmente no Cronograma (Supabase offline).');
   }
 }
@@ -23800,11 +23802,17 @@ function cdocImportBas(input){
           }
         }
         updated++;
+        // BUG corrigido: a importação em massa nunca sincronizava com o Cronograma
+        // (só o formulário de "+ Novo" fazia isso) — por isso TAGs importadas via
+        // CSV nunca apareciam/atualizavam no modal do Cronograma.
+        _cdocCriarNoCronograma(existing);
       } else {
         newData.id=_cdocGenId(db,'bas');
         newData.revisoes=histEntries?histEntries:(revEntry?[revEntry]:[]);
         db.basicos.push(newData);
         added++;
+        // Mesma correção: garante que a TAG nova também nasça no Cronograma.
+        _cdocCriarNoCronograma(newData);
       }
     }
     _cdocSave(db);
@@ -23812,6 +23820,9 @@ function cdocImportBas(input){
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
     alert(msg);
     cdocRenderBas(); cdocRenderVisao();
+    // Atualiza a tela do Cronograma (se estiver visível) para refletir as TAGs
+    // recém-criadas/sincronizadas pelo import — antes só o "+ Novo" fazia isso.
+    if(typeof renderCronograma==='function') setTimeout(renderCronograma, 400);
   };
   reader.readAsText(file,'UTF-8');
 }
