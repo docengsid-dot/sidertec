@@ -2586,17 +2586,19 @@ function _genId(){return 'loc_'+Date.now()+'_'+Math.random().toString(36).slice(
 
 const sbClient = {
   from: function(table){
-    var self={_table:table,_filters:[],_ord:null,_asc:true,_changes:null,_del:false,_lim:5000};
+    var self={_table:table,_filters:[],_ord:null,_asc:true,_changes:null,_del:false,_lim:5000,_off:0};
     self._qs=function(){
       var q='';
       self._filters.forEach(function(f){q+=f[0]+'=eq.'+encodeURIComponent(f[1])+'&';});
       if(self._ord) q+='order='+self._ord+'.'+(self._asc?'asc':'desc')+'&';
+      if(self._off) q+='offset='+self._off+'&';
       q+='limit='+self._lim;
       return q;
     };
     self._url=function(){ return _sbUrl(table+'?'+self._qs()); };
     self.order =function(c,o){self._ord=c;self._asc=!o||o.ascending!==false;return self;};
     self.limit =function(n){self._lim=n||5000;return self;};
+    self.offset=function(n){self._off=n||0;return self;};
     self.eq    =function(c,v){self._filters.push([c,v]);return self;};
     self._match=function(row){return self._filters.every(function(f){return String(row[f[0]])===String(f[1]);});};
     self.update=function(changes){self._changes=changes;return self;};
@@ -5178,10 +5180,23 @@ async function carregarCronograma(){
   // Inicia probe em paralelo com o carregamento (ficará pronto antes do primeiro save)
   probeColunasSupabase().catch(()=>{});
   try {
-    const {data,error}=await sbClient.from('cronograma_subobras').order('criado_em',{ascending:false}).limit(5000).select();
-    if(error) throw new Error(error.message||JSON.stringify(error));
+    // Busca em PÁGINAS até esgotar a tabela — antes parava sempre em 5000 linhas,
+    // então qualquer sub-obra mais antiga que isso ficava invisível na memória
+    // (allCronSubobras), fazendo a checagem de "essa TAG já existe?" achar que não
+    // existia e criar duplicata, ou o Cronograma simplesmente não mostrar a TAG.
+    var PAGE=5000, offset=0, rawData=[], safety=0;
+    while(true){
+      var {data,error}=await sbClient.from('cronograma_subobras').order('criado_em',{ascending:false}).limit(PAGE).offset(offset).select();
+      if(error) throw new Error(error.message||JSON.stringify(error));
+      var page=data||[];
+      rawData=rawData.concat(page);
+      if(page.length<PAGE) break; // última página (veio menos que o pedido)
+      offset+=PAGE;
+      safety++;
+      if(safety>50) { console.warn('[carregarCronograma] Parou a paginação por segurança (>250k linhas?)'); break; }
+    }
+    rawData = rawData.map(normalizarStatusLegado);
     // Deduplicar: manter apenas o registro mais recente de cada obra+subobra
-    var rawData = (data||[]).map(normalizarStatusLegado);
     var _deduped = {};
     rawData.forEach(function(s){
       var chave = (s.obra||'') + '|||' + (s.subobra||'');
@@ -5196,7 +5211,7 @@ async function carregarCronograma(){
       }
     });
     var duplicatas = rawData.length - Object.keys(_deduped).length;
-    if(duplicatas > 0) console.warn('[Cronograma] ' + duplicatas + ' sub-obra(s) duplicada(s) removida(s) da exibição.');
+    if(duplicatas > 0) console.warn('[Cronograma] ' + duplicatas + ' sub-obra(s) duplicada(s) removida(s) da exibição. Total carregado: '+rawData.length+' linha(s).');
     allCronSubobras = Object.values(_deduped).map(function(r){ return Object.assign({},r,{peso_previsto:r.peso_previsto!=null?Number(r.peso_previsto)||0:null}); });
     carregarPesoDetLocal();
     carregarLimiteFabLocal();
@@ -23307,11 +23322,30 @@ function cdocDetObraChange(){
 /* ── Inserção automática no Cronograma ao cadastrar Proj. Básico ── */
 async function _cdocCriarNoCronograma(rec){
   if(typeof allCronSubobras==='undefined'||typeof sbClient==='undefined') return;
-  // Verifica se já existe sub-obra com a mesma TAG e Obra
+  // Verifica se já existe sub-obra com a mesma TAG e Obra — primeiro na memória local
   var exists=allCronSubobras.find(function(s){
     return (s.subobra||'').toUpperCase()===(rec.sub||'').toUpperCase()&&
            (s.obra||'').toUpperCase()===(rec.obraId||'').toUpperCase();
   });
+  // Segunda checagem, direto no Supabase — cobre o caso da memória local estar
+  // incompleta ou desatualizada (foi exatamente isso que causava criação de TAGs
+  // duplicadas / inserts rejeitados silenciosamente sem essa confirmação extra).
+  if(!exists){
+    try{
+      var chk=await sbClient.from('cronograma_subobras').eq('obra',rec.obraId||'').eq('subobra',rec.sub||'').limit(5).select();
+      if(chk&&chk.data&&chk.data.length){
+        exists=chk.data.find(function(s){
+          return (s.subobra||'').toUpperCase()===(rec.sub||'').toUpperCase()&&
+                 (s.obra||'').toUpperCase()===(rec.obraId||'').toUpperCase();
+        })||chk.data[0];
+        if(exists){
+          // Traz pra memória pra próximas checagens do mesmo lote não repetirem a consulta
+          var jaNaMemoria=allCronSubobras.some(function(s){return s.id===exists.id;});
+          if(!jaNaMemoria) allCronSubobras.push(exists);
+        }
+      }
+    }catch(eChk){ console.warn('[_cdocCriarNoCronograma] checagem remota falhou, seguindo só com a memória local:', eChk); }
+  }
   if(exists){
     // Se já existe, apenas atualiza peso_previsto e num_proj_basico se estiverem vazios
     var updates={};
@@ -23321,7 +23355,10 @@ async function _cdocCriarNoCronograma(rec){
     if(Object.keys(updates).length){
       Object.assign(exists,updates);
       updates.atualizado_em=new Date().toISOString();
-      try{ await sbClient.from('cronograma_subobras').eq('id',exists.id).update(updates).select(); }catch(e){}
+      try{
+        var upRes=await sbClient.from('cronograma_subobras').update(updates).eq('id',exists.id).select();
+        if(upRes&&upRes.error) console.error('[_cdocCriarNoCronograma] Supabase rejeitou o update:', upRes.error, exists.id, updates);
+      }catch(eUp){ console.error('[_cdocCriarNoCronograma] Falha ao atualizar sub-obra existente:', eUp); }
     }
     return;
   }
@@ -23715,7 +23752,7 @@ function cdocImportBas(input){
   if(!input.files||!input.files[0]) return;
   var file=input.files[0]; input.value='';
   var reader=new FileReader();
-  reader.onload=function(e){
+  reader.onload=async function(e){
     var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
     if(!lines.length){alert('Arquivo vazio.');return;}
     var sep=lines[0].includes(';')?';':',';
@@ -23804,15 +23841,17 @@ function cdocImportBas(input){
         updated++;
         // BUG corrigido: a importação em massa nunca sincronizava com o Cronograma
         // (só o formulário de "+ Novo" fazia isso) — por isso TAGs importadas via
-        // CSV nunca apareciam/atualizavam no modal do Cronograma.
-        _cdocCriarNoCronograma(existing);
+        // CSV nunca apareciam/atualizavam no modal do Cronograma. Agora espera
+        // (await) a confirmação real do Supabase antes de seguir pra próxima linha,
+        // evitando corrida entre TAGs do mesmo lote.
+        await _cdocCriarNoCronograma(existing);
       } else {
         newData.id=_cdocGenId(db,'bas');
         newData.revisoes=histEntries?histEntries:(revEntry?[revEntry]:[]);
         db.basicos.push(newData);
         added++;
         // Mesma correção: garante que a TAG nova também nasça no Cronograma.
-        _cdocCriarNoCronograma(newData);
+        await _cdocCriarNoCronograma(newData);
       }
     }
     _cdocSave(db);
@@ -23820,9 +23859,13 @@ function cdocImportBas(input){
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
     alert(msg);
     cdocRenderBas(); cdocRenderVisao();
-    // Atualiza a tela do Cronograma (se estiver visível) para refletir as TAGs
-    // recém-criadas/sincronizadas pelo import — antes só o "+ Novo" fazia isso.
-    if(typeof renderCronograma==='function') setTimeout(renderCronograma, 400);
+    // Recarrega o Cronograma direto do Supabase (não só re-renderiza a memória)
+    // para confirmar que as TAGs sincronizadas nesta importação realmente foram
+    // persistidas, e refletir isso na tela se ela estiver visível.
+    if(typeof carregarCronograma==='function'){
+      try{ await carregarCronograma(); }catch(eRel){ console.warn('[cdocImportBas] Falha ao recarregar Cronograma pós-import:', eRel); }
+    }
+    if(typeof renderCronograma==='function') setTimeout(renderCronograma, 100);
   };
   reader.readAsText(file,'UTF-8');
 }
@@ -25738,7 +25781,7 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="hd-sep"></div>
   <div class="hd-sub">Controle Contratual · 2026</div>
   <div class="hd-right">
-    <div class="sync-status"><div class="sync-dot ok" id="sync-dot"></div><span id="sync-label">Dados locais</span></div>
+    <div class="sync-status"><div class="sync-dot syncing" id="sync-dot"></div><span id="sync-label">Conectando…</span></div>
     <button class="hbtn" onclick="_ct_recarregarTudo()">↺ Atualizar</button>
   </div>
 </header>
@@ -25912,6 +25955,9 @@ document.addEventListener('DOMContentLoaded', function(){
         <th>Projeto</th>
         <th style="text-align:center;">Doc. Abertura Recebido</th>
         <th style="text-align:center;">Abertura de Obra</th>
+        <th style="text-align:center;">ART</th>
+        <th style="text-align:center;">PIT</th>
+        <th style="text-align:center;">Data Book</th>
         <th style="text-align:center;">Engenharia</th>
         <th style="text-align:center;">Suprimentos</th>
         <th style="text-align:center;">Fiscal</th>
@@ -25921,7 +25967,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <th style="text-align:center;">Anexos</th>
         <th></th>
       </tr></thead>
-      <tbody id="tbody-docs"><tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--ink3)">Carregando…</td></tr></tbody>
+      <tbody id="tbody-docs"><tr><td colspan="14" style="text-align:center;padding:2rem;color:var(--ink3)">Carregando…</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -26335,9 +26381,13 @@ document.addEventListener('DOMContentLoaded', function(){
           <input type="checkbox" id="chk-pit" onchange="toggleCheck('emissao_pit',this.checked)">
           <label for="chk-pit" style="cursor:pointer;">📋 PIT Emitido</label>
         </div>
+        <div class="check-item" id="ci-databook">
+          <input type="checkbox" id="chk-databook" onchange="toggleCheck('emissao_databook',this.checked)">
+          <label for="chk-databook" style="cursor:pointer;">📚 Data Book Emitido</label>
+        </div>
       </div>
       <!-- Datas ART/PIT -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-top:.5rem;margin-bottom:.85rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:.5rem;margin-top:.5rem;margin-bottom:.85rem;">
         <div class="field-group" style="margin:0;">
           <label class="field-label">ART — Data de Emissão</label>
           <input type="date" class="field-input" id="mp-art-data">
@@ -26347,12 +26397,34 @@ document.addEventListener('DOMContentLoaded', function(){
           <input type="text" class="field-input" id="mp-art-numero" placeholder="Ex: 2026/123456" autocomplete="off">
         </div>
         <div class="field-group" style="margin:0;">
+          <label class="field-label">ART — Situação da Assinatura</label>
+          <select class="field-input" id="mp-art-assinatura">
+            <option value="">— Não informado —</option>
+            <option value="assinada">✍️ Assinada</option>
+            <option value="falta_assinatura">⚠️ Falta Assinatura</option>
+          </select>
+        </div>
+        <div class="field-group" style="margin:0;">
           <label class="field-label">PIT — Data de Emissão</label>
           <input type="date" class="field-input" id="mp-pit-data">
         </div>
         <div class="field-group" style="margin:0;">
           <label class="field-label">PIT — Nº do Registro</label>
           <input type="text" class="field-input" id="mp-pit-numero" placeholder="Ex: 2026/654321" autocomplete="off">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:-.35rem;margin-bottom:.85rem;">
+        <div class="field-group" style="margin:0;">
+          <label class="field-label">Data Book — Data de Emissão</label>
+          <input type="date" class="field-input" id="mp-databook-data">
+        </div>
+        <div class="field-group" style="margin:0;">
+          <label class="field-label">Data Book — Situação de Aprovação</label>
+          <select class="field-input" id="mp-databook-aprovacao">
+            <option value="">— Não informado —</option>
+            <option value="aprovado">✅ Aprovado</option>
+            <option value="pendente_aprovacao">⏳ Pendente de Aprovação</option>
+          </select>
         </div>
       </div>
       <div style="margin:-.4rem 0 .85rem;">
@@ -26426,8 +26498,9 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
         <div class="field-group" style="grid-column:1/-1;">
-          <label class="field-label">Projeto *</label>
+          <label class="field-label">Projeto * &nbsp;<a href="javascript:void(0)" id="ev-proj-toggle-link" onclick="evToggleProjManual()" style="font-size:10px;font-weight:400;color:var(--blue);">✏️ Digitar projeto manualmente</a></label>
           <select class="field-input" id="ev-proj"><option value="">— Selecione —</option></select>
+          <input type="text" class="field-input" id="ev-proj-manual" placeholder="Nome do novo projeto…" autocomplete="off" style="display:none;margin-top:.3rem;">
         </div>
         <div class="field-group" style="grid-column:1/-1;">
           <label class="field-label">Descrição do Evento *</label>
@@ -26798,8 +26871,9 @@ document.addEventListener('DOMContentLoaded', function(){
           <textarea class="field-input" id="tc-ct-trabalho" rows="2" placeholder="Ex: Montagem de estrutura metálica Pipe Rack área 02 — incluindo içamento, alinhamento e fixação…" style="resize:vertical;font-size:12px;"></textarea>
         </div>
         <div class="field-group">
-          <label class="field-label">Projeto</label>
+          <label class="field-label">Projeto &nbsp;<a href="javascript:void(0)" id="tc-ct-proj-toggle-link" onclick="tcCtToggleProjManual()" style="font-size:10px;font-weight:400;color:var(--blue);">✏️ Digitar manualmente</a></label>
           <select class="field-input" id="tc-ct-projeto"><option value="">— Selecione —</option></select>
+          <input type="text" class="field-input" id="tc-ct-projeto-manual" placeholder="Nome do novo projeto…" autocomplete="off" style="display:none;margin-top:.3rem;">
         </div>
         <div class="field-group" style="grid-column:1/-1;">
           <label class="field-label">TAGs / Áreas <span style="font-weight:400;color:var(--ink3);font-size:9px;">(sem limite — pressione Enter ou vírgula para adicionar)</span></label>
@@ -27081,7 +27155,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <select id="dcts-f-proj" onchange="dctsRender()"><option value="">Todos</option></select>
     <div class="fsep"></div>
     <label>Status</label>
-    <select id="dcts-f-status" onchange="dctsRender()">
+    <select id="ct-dcts-f-status" onchange="dctsRender()">
       <option value="">Todos</option>
       <option value="completo">✅ Completo</option>
       <option value="andamento">🔄 Em Andamento</option>
@@ -27092,6 +27166,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <label>Doc. Pendente</label>
     <select id="dcts-f-doc" onchange="dctsRender()">
       <option value="">Qualquer</option>
+      <option value="art_assinada">ART Assinada</option>
       <option value="sol_sig_real">Solic. Signatário</option>
       <option value="atestado_real">Atestado</option>
       <option value="aceite_real">Aceite</option>
@@ -27103,6 +27178,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <input type="text" id="dcts-f-busca" placeholder="Buscar projeto, cliente…" oninput="dctsRender()" style="width:160px;">
     <div style="margin-left:auto;display:flex;gap:.5rem;">
       <button onclick="dctsExportCSV()" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);font-size:11px;font-weight:600;padding:6px 14px;cursor:pointer;font-family:'Outfit',sans-serif;">⬇ CSV</button>
+      <button onclick="_ct_exportarExcel('dcts')" style="background:#166534;color:#fff;border:none;border-radius:var(--r2);font-size:11px;font-weight:600;padding:6px 14px;cursor:pointer;font-family:'Outfit',sans-serif;">⬇ Excel</button>
       <button onclick="dctsExportPDF()" style="background:#92400e;color:#fff;border:none;border-radius:var(--r2);font-size:11px;font-weight:600;padding:6px 14px;cursor:pointer;font-family:'Outfit',sans-serif;">🖨 Relatório</button>
     </div>
   </div>
@@ -27111,25 +27187,26 @@ document.addEventListener('DOMContentLoaded', function(){
       <thead>
         <tr>
           <th>Projeto</th><th>Cliente</th>
-          <th title="Verde = retorno recebido | Âmbar = emitido aguardando | — = não iniciado">Solic. Signatário</th>
+          <th title="Verde = assinada | Âmbar = emitida, falta assinar | — = não iniciado">ART</th>
+          <th title="Verde = retorno recebido | Âmbar = solicitado, aguardando | — = não iniciado">Solic. Signatário</th>
           <th>Emissão Atestado</th><th>Emissão Aceite</th>
           <th>Emissão Quest.</th><th>Envio Cliente</th>
-          <th>Retorno Assinado</th><th>Status</th>
+          <th>Retorno Assinado</th><th>Cobranças</th><th>Status</th><th>Ação</th>
           <th>Obs. Gerais</th><th style="text-align:center;">Ações</th>
         </tr>
       </thead>
       <tbody id="tbody-dcts">
-        <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--ink3);">Carregando…</td></tr>
+        <tr><td colspan="14" style="text-align:center;padding:2rem;color:var(--ink3);">Carregando…</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
 <!-- ═══ MODAL DCTS ═══ -->
-<div class="modal-overlay" id="modal-dcts" onclick="if(event.target.id==='modal-dcts')dctsFecharModal()">
+<div class="modal-overlay" id="modal-ct-dcts" onclick="if(event.target.id==='modal-ct-dcts')dctsFecharModal()">
   <div class="modal-box" style="width:880px;max-height:93vh;overflow-y:auto;" onclick="event.stopPropagation()">
     <div class="modal-hd" style="background:linear-gradient(90deg,#92400e,#b45309);">
-      <div class="modal-hd-title" id="dcts-modal-title">📄 DCTS — Encerramento Contratual</div>
+      <div class="modal-hd-title" id="ct-dcts-modal-title">📄 DCTS — Encerramento Contratual</div>
       <button onclick="dctsFecharModal()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;line-height:1;">✕</button>
     </div>
     <div class="modal-body">
@@ -27151,7 +27228,22 @@ document.addEventListener('DOMContentLoaded', function(){
       <!-- Etapa 1 -->
       <div style="background:#fef3e2;border:1px solid rgba(146,64,14,.25);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.5rem;">
         <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="background:#92400e;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">1</span>Solicitação de Signatário
+          <span style="background:#92400e;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">1</span>ART — Emitida e Assinada
+        </div>
+        <div style="display:flex;gap:1.25rem;">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:12px;font-weight:600;color:#78350f;cursor:pointer;">
+            <input type="checkbox" id="dcts-art-emitida" onchange="dctsCalcStatus()" style="width:16px;height:16px;cursor:pointer;"> 📋 ART Emitida
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:12px;font-weight:600;color:#78350f;cursor:pointer;">
+            <input type="checkbox" id="dcts-art-assinada" onchange="dctsCalcStatus()" style="width:16px;height:16px;cursor:pointer;"> ✍️ ART Assinada
+          </label>
+        </div>
+      </div>
+
+      <!-- Etapa 2 -->
+      <div style="background:#fdf2f8;border:1px solid rgba(157,23,77,.2);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.5rem;">
+        <div style="font-size:11px;font-weight:700;color:#9d174d;margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
+          <span style="background:#9d174d;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">2</span>Solicitação de Signatário
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
           <div class="field-group"><label class="field-label">Data da Solicitação</label><input type="date" class="field-input" id="dcts-sol-sig-data" oninput="dctsCalcStatus()"></div>
@@ -27161,10 +27253,10 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
       </div>
 
-      <!-- Etapa 2 -->
+      <!-- Etapa 3 -->
       <div style="background:#eff6ff;border:1px solid rgba(26,74,122,.2);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.5rem;">
         <div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">2</span>Emissão do Atestado
+          <span style="background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">3</span>Emissão do Atestado
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
           <div class="field-group"><label class="field-label">Data de Emissão</label><input type="date" class="field-input" id="dcts-atestado-data" oninput="dctsCalcStatus()"></div>
@@ -27177,7 +27269,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <!-- Etapa 3 -->
       <div style="background:#f0fdf4;border:1px solid rgba(42,122,74,.2);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.5rem;">
         <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="background:var(--green);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">3</span>Emissão do Aceite
+          <span style="background:var(--green);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">4</span>Emissão do Aceite
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
           <div class="field-group"><label class="field-label">Data de Emissão</label><input type="date" class="field-input" id="dcts-aceite-data" oninput="dctsCalcStatus()"></div>
@@ -27190,7 +27282,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <!-- Etapa 4 -->
       <div style="background:var(--purple2,#f5f3ff);border:1px solid rgba(107,33,168,.2);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.5rem;">
         <div style="font-size:11px;font-weight:700;color:var(--purple,#6b21a8);margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="background:var(--purple,#6b21a8);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">4</span>Emissão do Questionário
+          <span style="background:var(--purple,#6b21a8);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">5</span>Emissão do Questionário
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
           <div class="field-group"><label class="field-label">Data de Emissão</label><input type="date" class="field-input" id="dcts-quest-data" oninput="dctsCalcStatus()"></div>
@@ -27203,7 +27295,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <!-- Etapa 5 -->
       <div style="background:#fef3c7;border:1px solid rgba(212,160,23,.3);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.5rem;">
         <div style="font-size:11px;font-weight:700;color:var(--yellow,#b45309);margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="background:var(--yellow,#b45309);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">5</span>Envio ao Cliente para Assinatura
+          <span style="background:var(--yellow,#b45309);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">6</span>Envio ao Cliente para Assinatura
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
           <div class="field-group"><label class="field-label">Data do Envio</label><input type="date" class="field-input" id="dcts-envio-data" oninput="dctsCalcStatus()"></div>
@@ -27216,7 +27308,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <!-- Etapa 6 -->
       <div style="background:#f0fdf4;border:2px solid var(--green);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.75rem;">
         <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="background:var(--green);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">6</span>Retorno Assinado pelo Cliente
+          <span style="background:var(--green);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">7</span>Retorno Assinado pelo Cliente
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
           <div class="field-group"><label class="field-label">Data de Retorno</label><input type="date" class="field-input" id="dcts-retorno-data" oninput="dctsCalcStatus()"></div>
@@ -27225,12 +27317,33 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
       </div>
 
+      <!-- Histórico estruturado de Cobranças de Retorno (data + observação, várias entradas) -->
+      <div style="background:#fff7ed;border:2px solid #f59e0b;border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.75rem;">
+        <div style="font-size:11px;font-weight:700;color:#b45309;margin-bottom:.55rem;">📞 Histórico de Cobranças de Retorno</div>
+        <div id="dcts-cobrancas-list" style="margin-bottom:.5rem;"></div>
+        <div style="display:flex;gap:.4rem;align-items:center;">
+          <input type="date" class="field-input" id="dcts-cobranca-data" style="width:150px;">
+          <input type="text" class="field-input" id="dcts-cobranca-obs" placeholder="Observação (quem contatou, resposta…)" style="flex:1;">
+          <button type="button" onclick="dctsAddCobranca()" style="background:#b45309;color:#fff;border:none;border-radius:5px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Registrar</button>
+        </div>
+      </div>
+
       <!-- Status + Obs gerais -->
-      <div style="display:grid;grid-template-columns:1fr 180px;gap:.75rem;align-items:start;">
+      <div style="display:grid;grid-template-columns:1fr 180px 200px;gap:.75rem;align-items:start;">
         <div class="field-group"><label class="field-label">Observações Gerais</label><textarea class="field-input" id="dcts-obs-geral" rows="2" style="resize:vertical;"></textarea></div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1rem;text-align:center;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.4rem;">Status</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.4rem;">Status (automático)</div>
           <div id="dcts-status-preview" style="font-size:14px;font-weight:700;">—</div>
+        </div>
+        <div class="field-group" style="margin:0;">
+          <label class="field-label">Ação</label>
+          <select class="field-input" id="dcts-status-manual">
+            <option value="">— Não informado —</option>
+            <option value="ag_signatario">EM ANDAMENTO - AG. SIGNATÁRIO</option>
+            <option value="em_emissao_documento">EM EMISSÃO DE DOCUMENTO</option>
+            <option value="ag_assinatura">AG. ASSINATURA</option>
+            <option value="concluido">CONCLUÍDO</option>
+          </select>
         </div>
       </div>
     </div>
@@ -27249,12 +27362,19 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
 
 function _ct_setSyncOk(){
-  var el=document.getElementById('ct-sync-status');
-  if(el){el.textContent='● Conectado';el.style.color='#16a34a';}
+  // BUG corrigido: procurava um elemento id="ct-sync-status" que não existe —
+  // por isso o indicador ficava travado no texto estático "Dados locais" da
+  // primeira renderização, mesmo depois de conectar com sucesso ao Supabase.
+  var dot=document.querySelector('#ct-modal-wrap #sync-dot');
+  var label=document.querySelector('#ct-modal-wrap #sync-label');
+  if(dot) dot.className='sync-dot ok';
+  if(label){ label.textContent='☁ Online'; label.style.color=''; }
 }
 function _ct_setSyncErr(){
-  var el=document.getElementById('ct-sync-status');
-  if(el){el.textContent='● Offline';el.style.color='#dc2626';}
+  var dot=document.querySelector('#ct-modal-wrap #sync-dot');
+  var label=document.querySelector('#ct-modal-wrap #sync-label');
+  if(dot) dot.className='sync-dot err';
+  if(label){ label.textContent='⚠ Offline'; label.style.color=''; }
 }
 
 window.abrirContratos=function(){
@@ -27302,6 +27422,7 @@ const CHECK_FIELDS = {
   'abertura_obra':         {chk:'chk-abertura-obra', ci:'ci-abertura-obra'},
   'emissao_art':           {chk:'chk-art',   ci:'ci-art'},
   'emissao_pit':           {chk:'chk-pit',   ci:'ci-pit'},
+  'emissao_databook':      {chk:'chk-databook', ci:'ci-databook'},
   'entrega_engenharia':    {chk:'chk-eng',   ci:'ci-eng'},
   'entrega_suprimentos':   {chk:'chk-sup',   ci:'ci-sup'},
   'entrega_fiscal':        {chk:'chk-fis',   ci:'ci-fis'},
@@ -27351,7 +27472,13 @@ function _ct_hideLoading(){
 function _ct_showPage(id, el){
   document.querySelectorAll('#ct-modal-wrap .page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('#ct-modal-wrap .tab').forEach(t=>t.classList.remove('active'));
-  var pg=document.getElementById('page-'+id);
+  // BUG corrigido: existe outro elemento com o mesmo id em outro módulo do arquivo
+  // (ex: "page-dcts" também é usado pela página antiga "DCTS — Documentação
+  // Técnica por Sub-obra", do Cronograma). document.getElementById() sempre
+  // pega o primeiro do documento inteiro, que não é este — por isso a aba ficava
+  // marcada como ativa mas o conteúdo nunca aparecia (tela em branco). Agora a
+  // busca é restrita ao modal do Controle Contratual, evitando essa colisão.
+  var pg=document.querySelector('#ct-modal-wrap #page-'+id);
   if(pg) pg.classList.add('active');
   if(el) el.classList.add('active');
   if(id==='dashboard')  _ct_renderDashboard();
@@ -27582,8 +27709,8 @@ function calcProjeto(proj){
   const totalEvs = evs.reduce((s,e)=>s+(Number(e.valor)||0),0);
   const saldo = valorContrato - faturado;
   const setores = ['entrega_engenharia','entrega_suprimentos','entrega_fiscal','entrega_planejamento','entrega_qualidade'];
-  const docsTotal = 4 + setores.length; // doc_abertura + abertura_obra + ART + PIT + 5 setores
-  const docsDone = (proj.doc_abertura_recebido?1:0)+(proj.abertura_obra?1:0)+(proj.emissao_art?1:0)+(proj.emissao_pit?1:0)+setores.filter(s=>proj[s]).length;
+  const docsTotal = 5 + setores.length; // doc_abertura + abertura_obra + ART + PIT + Data Book + 5 setores
+  const docsDone = (proj.doc_abertura_recebido?1:0)+(proj.abertura_obra?1:0)+(proj.emissao_art?1:0)+(proj.emissao_pit?1:0)+(proj.emissao_databook?1:0)+setores.filter(s=>proj[s]).length;
   const docsPct = Math.round(docsDone/docsTotal*100);
   return {faturado, recebido, saldo, totalEvs, docsPct, docsDone, docsTotal};
 }
@@ -27713,8 +27840,9 @@ function abrirDetalheProjeto(id){
         <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.entrega_fiscal)}<span style="font-size:11px;font-weight:600;">🧾 Fiscal</span></div>
         <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.entrega_planejamento)}<span style="font-size:11px;font-weight:600;">📅 Planejamento</span></div>
         <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.entrega_qualidade)}<span style="font-size:11px;font-weight:600;">✅ Qualidade</span></div>
-        <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.emissao_art)}<span style="font-size:11px;font-weight:600;">📋 ART${p.art_numero?' <span style=\"font-size:9px;color:var(--ink3);\">#'+p.art_numero+'</span>':''}</span></div>
+        <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.emissao_art)}<span style="font-size:11px;font-weight:600;">📋 ART${p.art_numero?' <span style=\"font-size:9px;color:var(--ink3);\">#'+p.art_numero+'</span>':''}${p.art_assinatura==='assinada'?' <span style=\"font-size:9px;color:var(--green);\">✍️ Assinada</span>':p.art_assinatura==='falta_assinatura'?' <span style=\"font-size:9px;color:#b45309;\">⚠️ Falta assinatura</span>':''}</span></div>
         <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.emissao_pit)}<span style="font-size:11px;font-weight:600;">📋 PIT${p.pit_numero?' <span style=\"font-size:9px;color:var(--ink3);\">#'+p.pit_numero+'</span>':''}</span></div>
+        <div style="display:flex;align-items:center;gap:.35rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.4rem .75rem;">${chk(p.emissao_databook)}<span style="font-size:11px;font-weight:600;">📚 Data Book${p.databook_aprovacao==='aprovado'?' <span style=\"font-size:9px;color:var(--green);\">✅ Aprovado</span>':p.databook_aprovacao==='pendente_aprovacao'?' <span style=\"font-size:9px;color:#b45309;\">⏳ Pend. Aprov.</span>':''}</span></div>
       </div>
       <div style="margin-top:.65rem;">
         <div style="display:flex;align-items:center;gap:.5rem;">
@@ -28077,11 +28205,21 @@ function _ct_renderDocumentos(){
     if(campo) lista = lista.filter(p=>!p[campo]);
   }
   const tbody=document.getElementById('tbody-docs');
-  if(!lista.length){ tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhum projeto encontrado.</td></tr>'; return; }
+  if(!lista.length){ tbody.innerHTML='<tr><td colspan="14" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhum projeto encontrado.</td></tr>'; return; }
   tbody.innerHTML = lista.map(p=>{
     const c=calcProjeto(p);
     const anx = getAnexosDoProjeto(p.id);
     const circ=(val,tip)=>`<span title="${tip}" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${val?'var(--green2)':'#fee2e2'};border:1.5px solid ${val?'var(--green)':'#fca5a5'};font-size:11px;cursor:pointer;">${val?'✓':'○'}</span>`;
+    const artSigLabel = p.art_assinatura==='assinada' ? '✍️ Assinada' : p.art_assinatura==='falta_assinatura' ? '⚠️ Falta assinatura' : 'Assinatura não informada';
+    const artTip = 'ART Emitida'+(p.art_numero?' — nº '+p.art_numero:'')+' — '+artSigLabel;
+    const artCell = p.emissao_art
+      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;">${circ(true,artTip)}${p.art_assinatura==='assinada'?'<span style="font-size:7px;color:var(--green);font-weight:700;">ASSINADA</span>':p.art_assinatura==='falta_assinatura'?'<span style="font-size:7px;color:#b45309;font-weight:700;">S/ ASSIN.</span>':''}</div>`
+      : circ(false,'ART não emitida');
+    const dbAprovLabel = p.databook_aprovacao==='aprovado' ? '✅ Aprovado' : p.databook_aprovacao==='pendente_aprovacao' ? '⏳ Pendente de aprovação' : 'Aprovação não informada';
+    const dbTip = 'Data Book Emitido — '+dbAprovLabel;
+    const databookCell = p.emissao_databook
+      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;">${circ(true,dbTip)}${p.databook_aprovacao==='aprovado'?'<span style="font-size:7px;color:var(--green);font-weight:700;">APROVADO</span>':p.databook_aprovacao==='pendente_aprovacao'?'<span style="font-size:7px;color:#b45309;font-weight:700;">PEND.</span>':''}</div>`
+      : circ(false,'Data Book não emitido');
     return `<tr>
       <td onclick="abrirModalProjeto('${p.id}')" style="cursor:pointer;">
         <div style="font-weight:600;">${p.nome}</div>
@@ -28089,6 +28227,9 @@ function _ct_renderDocumentos(){
       </td>
       <td style="text-align:center;">${circ(p.doc_abertura_recebido,'Documentos de Abertura Recebidos')}</td>
       <td style="text-align:center;">${circ(p.abertura_obra,'Abertura de Obra Realizada')}</td>
+      <td style="text-align:center;">${artCell}</td>
+      <td style="text-align:center;">${circ(p.emissao_pit,p.emissao_pit&&p.pit_numero?'PIT Emitido — nº '+p.pit_numero:'PIT Emitido')}</td>
+      <td style="text-align:center;">${databookCell}</td>
       <td style="text-align:center;">${circ(p.entrega_engenharia,'Entrega Engenharia')}</td>
       <td style="text-align:center;">${circ(p.entrega_suprimentos,'Entrega Suprimentos')}</td>
       <td style="text-align:center;">${circ(p.entrega_fiscal,'Entrega Fiscal')}</td>
@@ -28766,7 +28907,7 @@ function abrirModalProjeto(id){
    'mp-reuniao-prevista','mp-reuniao-realizada','mp-reuniao-obs',
    'mp-escopo-fora','mp-garantia-obs','mp-gerente-contrato','mp-gestor-financeiro',
    'mp-gestor-geral','mp-cidade-obra','mp-obs-faturamento',
-   'mp-art-data','mp-art-numero','mp-pit-data','mp-pit-numero'].forEach(fid=>{
+   'mp-art-data','mp-art-numero','mp-art-assinatura','mp-pit-data','mp-pit-numero','mp-databook-data','mp-databook-aprovacao'].forEach(fid=>{
     const el=document.getElementById(fid); if(el){ el.value=''; el.style.background=''; }
   });
   document.getElementById('mp-status').value='ativo';
@@ -28842,8 +28983,11 @@ function abrirModalProjeto(id){
     sv('mp-obs-faturamento',   p.obs_faturamento||'');
     sv('mp-art-data',          p.art_data||'');
     sv('mp-art-numero',        p.art_numero||'');
+    sv('mp-art-assinatura',    p.art_assinatura||'');
     sv('mp-pit-data',          p.pit_data||'');
     sv('mp-pit-numero',        p.pit_numero||'');
+    sv('mp-databook-data',       p.databook_data||'');
+    sv('mp-databook-aprovacao',  p.databook_aprovacao||'');
     sv('mp-gerente-contrato',  p.gerente_contrato||'');
     sv('mp-gestor-financeiro', p.gestor_financeiro||'');
     sv('mp-gestor-geral',      p.gestor_geral||'');
@@ -28932,7 +29076,7 @@ function mpGerarRelatorioPDF(){
   var corSaldo=function(v){return v<0?'#dc2626':'#166534';};
   var linha=function(label,val){ return '<tr><td style="padding:5px 10px;font-weight:700;color:#475569;width:220px;">'+label+'</td><td style="padding:5px 10px;">'+(val||'—')+'</td></tr>'; };
 
-  var checkLabels={doc_abertura_recebido:'Documentos de Abertura Recebidos',abertura_obra:'Abertura de Obra Realizada',emissao_art:'ART Emitida',emissao_pit:'PIT Emitido',entrega_engenharia:'Entrega Engenharia',entrega_suprimentos:'Entrega Suprimentos',entrega_fiscal:'Entrega Fiscal',entrega_planejamento:'Entrega Planejamento',entrega_qualidade:'Entrega Qualidade'};
+  var checkLabels={doc_abertura_recebido:'Documentos de Abertura Recebidos',abertura_obra:'Abertura de Obra Realizada',emissao_art:'ART Emitida',emissao_pit:'PIT Emitido',emissao_databook:'Data Book Emitido',entrega_engenharia:'Entrega Engenharia',entrega_suprimentos:'Entrega Suprimentos',entrega_fiscal:'Entrega Fiscal',entrega_planejamento:'Entrega Planejamento',entrega_qualidade:'Entrega Qualidade'};
   var checklistHtml=d.checklist.map(function(c){
     return '<span style="display:inline-block;margin:2px 8px 2px 0;font-size:11px;">'+(c.marcado?'✅':'⬜')+' '+(checkLabels[c.campo]||c.campo)+'</span>';
   }).join('');
@@ -29168,8 +29312,11 @@ async function salvarProjeto(){
     obs_faturamento:   gv('mp-obs-faturamento')||'',
     art_data:          gv('mp-art-data')||null,
     art_numero:        gv('mp-art-numero')||'',
+    art_assinatura:    gv('mp-art-assinatura')||null,
     pit_data:          gv('mp-pit-data')||null,
     pit_numero:        gv('mp-pit-numero')||'',
+    databook_data:       gv('mp-databook-data')||null,
+    databook_aprovacao:  gv('mp-databook-aprovacao')||null,
     gerente_contrato:  gv('mp-gerente-contrato')||'',
     gestor_financeiro: gv('mp-gestor-financeiro')||'',
     gestor_geral:      gv('mp-gestor-geral')||'',
@@ -29280,6 +29427,11 @@ function abrirModalEvento(id){
   ['ev-proj','ev-num','ev-desc','ev-venc','ev-valor','ev-faturado','ev-recibo','ev-obs'].forEach(f=>{
     const el=document.getElementById(f); if(el) el.value='';
   });
+  // Reset manual project field
+  const evSel=document.getElementById('ev-proj'), evManual=document.getElementById('ev-proj-manual'), evLink=document.getElementById('ev-proj-toggle-link');
+  if(evSel) evSel.style.display='block';
+  if(evManual){ evManual.style.display='none'; evManual.value=''; }
+  if(evLink) evLink.textContent='✏️ Digitar projeto manualmente';
   document.getElementById('ev-status').value='pendente';
   const prev=document.getElementById('ev-saldo-preview');
   if(prev) prev.style.display='none';
@@ -29310,18 +29462,57 @@ function abrirModalEvento(id){
   setTimeout(()=>document.getElementById('ev-desc').focus(),100);
 }
 
+function evToggleProjManual(){
+  const sel=document.getElementById('ev-proj'), manual=document.getElementById('ev-proj-manual'), link=document.getElementById('ev-proj-toggle-link');
+  if(manual.style.display==='none'){
+    sel.style.display='none'; manual.style.display='block'; manual.focus();
+    link.textContent='📋 Selecionar da lista';
+  } else {
+    sel.style.display='block'; manual.style.display='none'; manual.value='';
+    link.textContent='✏️ Digitar projeto manualmente';
+  }
+}
+
+// Garante que existe um projeto com esse nome em _ct_allProjetos — cria um
+// registro mínimo se ainda não existir, e devolve o id pra usar como FK.
+// Mesma ideia do "Digitar projeto manualmente" do DCTS, só que aqui os
+// eventos/contratos referenciam projeto_id (não o nome puro como no DCTS),
+// então precisamos de um projeto real por trás para não quebrar o resto do
+// app (relatórios, filtros etc. que resolvem nome/cliente a partir do id).
+async function _ctGarantirProjetoPorNome(nome){
+  nome=(nome||'').trim();
+  if(!nome) return null;
+  const existente=_ct_allProjetos.find(p=>(p.nome||'').trim().toLowerCase()===nome.toLowerCase());
+  if(existente) return existente.id;
+  const novo={nome, status:'ativo'};
+  const data=await sbPost('contratos_projetos', novo);
+  const criado=data?.[0]||{...novo, id:genUUID()};
+  _ct_allProjetos.push(criado);
+  if(typeof popularSelectsProjetos==='function') popularSelectsProjetos();
+  return criado.id;
+}
+
 function fecharModalEvento(e){
   if(!e||e.target.id==='modal-evento')
     document.getElementById('modal-evento').classList.remove('show');
 }
 
 async function salvarEvento(){
-  const proj_id = gv('ev-proj');
+  const evManual=document.getElementById('ev-proj-manual');
+  const isManual = evManual && evManual.style.display!=='none';
+  let proj_id = isManual ? null : gv('ev-proj');
+  const nomeManual = isManual ? evManual.value.trim() : '';
+  if(isManual && !nomeManual){ _ct_showToast('Campo obrigatório','Informe o nome do projeto.','error'); return; }
+  if(!isManual && !proj_id){ _ct_showToast('Campo obrigatório','Selecione o projeto.','error'); return; }
   const desc    = gv('ev-desc');
-  if(!proj_id){ _ct_showToast('Campo obrigatório','Selecione o projeto.','error'); return; }
   if(!desc){ _ct_showToast('Campo obrigatório','Informe a descrição do evento.','error'); return; }
   const btn=document.getElementById('btn-salvar-ev');
   btn.disabled=true; btn.textContent='Salvando…';
+
+  if(isManual){
+    try{ proj_id = await _ctGarantirProjetoPorNome(nomeManual); }
+    catch(e){ _ct_showToast('Erro ao criar projeto', e.message, 'error'); btn.disabled=false; btn.textContent='💾 Salvar Evento'; return; }
+  }
 
   const payload = {
     projeto_id:proj_id, numero_evento:gv('ev-num'),
@@ -30038,6 +30229,11 @@ function tcAbrirModalContrato(id){
   ['tc-ct-empresa','tc-ct-projeto','tc-ct-proposta','tc-ct-valor-kg','tc-ct-peso','tc-ct-inicio','tc-ct-termino','tc-ct-obs'].forEach(f=>{
     const el=document.getElementById(f); if(el) el.value='';
   });
+  // Reset manual project field
+  const tcSel=document.getElementById('tc-ct-projeto'), tcManual=document.getElementById('tc-ct-projeto-manual'), tcLink=document.getElementById('tc-ct-proj-toggle-link');
+  if(tcSel) tcSel.style.display='block';
+  if(tcManual){ tcManual.style.display='none'; tcManual.value=''; }
+  if(tcLink) tcLink.textContent='✏️ Digitar manualmente';
   _tcTags=[];tcRenderChips();
   document.getElementById('tc-ct-status').value='ativo';
   document.getElementById('tc-ct-valor-total-preview').textContent='—';
@@ -30061,6 +30257,17 @@ function tcAbrirModalContrato(id){
 }
 function tcFecharModalContrato(){ document.getElementById('modal-tc-contrato').classList.remove('show'); }
 
+function tcCtToggleProjManual(){
+  const sel=document.getElementById('tc-ct-projeto'), manual=document.getElementById('tc-ct-projeto-manual'), link=document.getElementById('tc-ct-proj-toggle-link');
+  if(manual.style.display==='none'){
+    sel.style.display='none'; manual.style.display='block'; manual.focus();
+    link.textContent='📋 Selecionar da lista';
+  } else {
+    sel.style.display='block'; manual.style.display='none'; manual.value='';
+    link.textContent='✏️ Digitar manualmente';
+  }
+}
+
 function tcCalcContrato(){
   const vkg  = parseFloat(document.getElementById('tc-ct-valor-kg')?.value)||0;
   const peso = parseFloat(document.getElementById('tc-ct-peso')?.value)||0;
@@ -30068,17 +30275,26 @@ function tcCalcContrato(){
   if(el) el.textContent = vkg>0&&peso>0 ? fmtC(vkg*peso) : '—';
 }
 
-function tcSalvarContrato(){
+async function tcSalvarContrato(){
   const empId=(document.getElementById('tc-ct-empresa')?.value||'').trim();
   const trabalho=(document.getElementById('tc-ct-trabalho')?.value||'').trim();
   if(!empId){ _ct_showToast('Campo obrigatório','Selecione a empresa.','error'); return; }
   if(!trabalho){ _ct_showToast('Campo obrigatório','Informe o trabalho executado.','error'); return; }
+  const tcManualEl=document.getElementById('tc-ct-projeto-manual');
+  const tcIsManual = tcManualEl && tcManualEl.style.display!=='none';
+  const tcNomeManual = tcIsManual ? tcManualEl.value.trim() : '';
+  if(tcIsManual && !tcNomeManual){ _ct_showToast('Campo obrigatório','Informe o nome do projeto ou volte a selecionar da lista.','error'); return; }
+  let projetoId = tcIsManual ? null : ((document.getElementById('tc-ct-projeto')?.value||'')||null);
+  if(tcIsManual){
+    try{ projetoId = await _ctGarantirProjetoPorNome(tcNomeManual); }
+    catch(e){ _ct_showToast('Erro ao criar projeto', e.message, 'error'); return; }
+  }
   const vkg  = parseFloat(document.getElementById('tc-ct-valor-kg')?.value)||0;
   const peso = parseFloat(document.getElementById('tc-ct-peso')?.value)||0;
   const obj = {
     id: tcEditCtId||tcGenId(),
     empresa_id: empId,
-    projeto_id: (document.getElementById('tc-ct-projeto')?.value||'')||null,
+    projeto_id: projetoId,
     trabalho, tags: tcGetTagsString(), tag: tcGetTagsString(),
     proposta:(document.getElementById('tc-ct-proposta')?.value||'').trim(),
     valor_kg: vkg, peso: peso, valor_total: vkg*peso,
@@ -30373,27 +30589,36 @@ function tcAbrirAnxPg(pgId){ _ct_showToast('Pagamento','Abra o pagamento (✏️
 const _origShowPage = _ct_showPage;
 _ct_showPage = function(id, el){
   if(id==='dcts'){
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('page-dcts').classList.add('active');
-    el.classList.add('active');
+    document.querySelectorAll('#ct-modal-wrap .page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('#ct-modal-wrap .tab').forEach(t=>t.classList.remove('active'));
+    // BUG corrigido: "page-dcts" também é o id de uma página antiga e sem
+    // relação (Cronograma > Documentação Técnica por Sub-obra). Esse override
+    // reimplementava a troca de aba sem o escopo correto e ficava pegando o
+    // elemento errado com getElementById — por isso a tela continuava em
+    // branco mesmo depois da primeira correção (que só tinha alcançado a
+    // função original, não este override que na prática é quem manda).
+    var pg=document.querySelector('#ct-modal-wrap #page-dcts');
+    if(pg) pg.classList.add('active');
+    if(el) el.classList.add('active');
     dctsLoad();
     return;
   }
   if(id==='terceiros'){
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('page-terceiros').classList.add('active');
-    el.classList.add('active');
+    document.querySelectorAll('#ct-modal-wrap .page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('#ct-modal-wrap .tab').forEach(t=>t.classList.remove('active'));
+    var pgT=document.querySelector('#ct-modal-wrap #page-terceiros');
+    if(pgT) pgT.classList.add('active');
+    if(el) el.classList.add('active');
     tcLoadAll();
     tcShowSub(_tcActiveSub);
     return;
   }
   if(id==='relatorios'){
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('page-relatorios').classList.add('active');
-    el.classList.add('active');
+    document.querySelectorAll('#ct-modal-wrap .page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('#ct-modal-wrap .tab').forEach(t=>t.classList.remove('active'));
+    var pgR=document.querySelector('#ct-modal-wrap #page-relatorios');
+    if(pgR) pgR.classList.add('active');
+    if(el) el.classList.add('active');
     _ct_renderRelatorios();
     return;
   }
@@ -30854,6 +31079,36 @@ function tcSetTagsFromString(str){
 // ═══════════════════════════════════════════════════════════
 function getExportData(modulo){
   switch(modulo){
+    case 'dcts':
+      return {
+        nome: 'DCTS_Encerramento',
+        headers: ['Projeto','Cliente','Responsável',
+          'ART.Emitida','ART.Assinada',
+          'Sol.Sig.Data','Sol.Sig.Prev','Sol.Sig.Real','Sol.Sig.Obs',
+          'Atestado.Data','Atestado.Prev','Atestado.Real','Atestado.Obs',
+          'Aceite.Data','Aceite.Prev','Aceite.Real','Aceite.Obs',
+          'Quest.Data','Quest.Prev','Quest.Real','Quest.Obs',
+          'Envio.Data','Envio.Prev','Envio.Real','Envio.Obs',
+          'Retorno.Data','Retorno.Resp','Retorno.Obs',
+          'Cobrancas.Qtd','Cobrancas.Ultima','Cobrancas.Historico',
+          'Obs.Gerais','Status','Ação'],
+        rows: (typeof _ct_allDcts!=='undefined'?_ct_allDcts:[]).map(d=>{
+          const cobs=_dctsCobrancasSorted(d.cobrancas);
+          const cobHist=cobs.map(c=>(c.data||'')+(c.obs?': '+c.obs:'')).join(' | ');
+          return [
+            d.projeto_nome||'',d.cliente||'',d.responsavel||'',
+            d.art_emitida?'Sim':'Não',d.art_assinada?'Sim':'Não',
+            d.sol_sig_data||'',d.sol_sig_prev||'',d.sol_sig_real||'',d.sol_sig_obs||'',
+            d.atestado_data||'',d.atestado_prev||'',d.atestado_real||'',d.atestado_obs||'',
+            d.aceite_data||'',d.aceite_prev||'',d.aceite_real||'',d.aceite_obs||'',
+            d.quest_data||'',d.quest_prev||'',d.quest_real||'',d.quest_obs||'',
+            d.envio_data||'',d.envio_prev||'',d.envio_real||'',d.envio_obs||'',
+            d.retorno_data||'',d.retorno_resp||'',d.retorno_obs||'',
+            cobs.length||0, cobs.length?cobs[0].data:'', cobHist,
+            d.obs_geral||'',dctsCalcStatusItem(d), (DCTS_STATUS_MANUAL_LABELS[d.status_manual]||'')
+          ];
+        })
+      };
     case 'dashboard':
     case 'projetos':
       return {
@@ -30882,13 +31137,18 @@ function getExportData(modulo){
     case 'documentos':
       return {
         nome: 'Status_Documental',
-        headers: ['Projeto','Código','Status','Doc Abertura','Abertura Obra','Engenharia','Suprimentos','Fiscal','Planejamento','Qualidade','% Docs'],
+        headers: ['Projeto','Código','Status','Doc Abertura','Abertura Obra','ART','ART Nº','ART Assinatura','PIT','PIT Nº','Data Book','Data Book Aprovação','Engenharia','Suprimentos','Fiscal','Planejamento','Qualidade','% Docs'],
         rows: _ct_allProjetos.map(p=>{
           const setores=['entrega_engenharia','entrega_suprimentos','entrega_fiscal','entrega_planejamento','entrega_qualidade'];
-          const done=(p.doc_abertura_recebido?1:0)+(p.abertura_obra?1:0)+setores.filter(s=>p[s]).length;
-          const pct=Math.round(done/(2+setores.length)*100);
+          const done=(p.doc_abertura_recebido?1:0)+(p.abertura_obra?1:0)+(p.emissao_art?1:0)+(p.emissao_pit?1:0)+(p.emissao_databook?1:0)+setores.filter(s=>p[s]).length;
+          const pct=Math.round(done/(5+setores.length)*100);
+          const artSig = p.art_assinatura==='assinada'?'Assinada':p.art_assinatura==='falta_assinatura'?'Falta assinatura':'—';
+          const dbAprov = p.databook_aprovacao==='aprovado'?'Aprovado':p.databook_aprovacao==='pendente_aprovacao'?'Pendente de aprovação':'—';
           return [p.nome||'',p.codigo||'',p.status||'',
             p.doc_abertura_recebido?'✓':'○',p.abertura_obra?'✓':'○',
+            p.emissao_art?'✓':'○', p.art_numero||'', artSig,
+            p.emissao_pit?'✓':'○', p.pit_numero||'',
+            p.emissao_databook?'✓':'○', dbAprov,
             p.entrega_engenharia?'✓':'○',p.entrega_suprimentos?'✓':'○',
             p.entrega_fiscal?'✓':'○',p.entrega_planejamento?'✓':'○',
             p.entrega_qualidade?'✓':'○', pct+'%'];
@@ -31604,6 +31864,36 @@ body{font-family:'Outfit',sans-serif;background:#fff;color:#1A1714;font-size:10p
 const DCTS_TABLE = 'dcts_encerramento';
 let _ct_allDcts = [];
 let dctsEditingId = null;
+let _dctsCobrancasAtual = []; // estado das cobranças de retorno em edição no modal atual
+
+function _dctsCobrancasSorted(list){
+  return (list||[]).slice().sort(function(a,b){ return (b.data||'').localeCompare(a.data||''); });
+}
+function _dctsCobrancasHtml(list){
+  var ordenada=_dctsCobrancasSorted(list);
+  if(!ordenada.length) return '<div style="font-size:11px;color:#a8a29e;font-style:italic;">Nenhuma cobrança registrada.</div>';
+  return '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#fef3c7;">'
+    +'<th style="padding:4px 8px;text-align:left;">Data de Cobrança</th><th style="padding:4px 8px;text-align:left;">Observação</th><th style="width:26px;"></th></tr></thead><tbody>'
+    +ordenada.map(function(c){
+      var idxReal=_dctsCobrancasAtual.indexOf(c);
+      return '<tr style="border-top:1px solid #fde68a;"><td style="padding:4px 8px;font-family:monospace;">'+fmtD(c.data)+'</td>'
+        +'<td style="padding:4px 8px;">'+(c.obs?c.obs.replace(/</g,'&lt;'):'<span style="color:#ccc;">—</span>')+'</td>'
+        +'<td style="text-align:center;"><button type="button" onclick="dctsDelCobranca('+idxReal+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;" title="Remover">✕</button></td></tr>';
+    }).join('')
+    +'</tbody></table>';
+}
+function dctsAddCobranca(){
+  var dataEl=document.getElementById('dcts-cobranca-data'), obsEl=document.getElementById('dcts-cobranca-obs');
+  var data=dataEl?dataEl.value:''; var obs=obsEl?obsEl.value.trim():'';
+  if(!data){ _ct_showToast('Atenção','Informe a data da cobrança.','warn'); return; }
+  _dctsCobrancasAtual.push({data:data, obs:obs});
+  if(dataEl) dataEl.value=''; if(obsEl) obsEl.value='';
+  var wrap=document.getElementById('dcts-cobrancas-list'); if(wrap) wrap.innerHTML=_dctsCobrancasHtml(_dctsCobrancasAtual);
+}
+function dctsDelCobranca(idx){
+  _dctsCobrancasAtual.splice(idx,1);
+  var wrap=document.getElementById('dcts-cobrancas-list'); if(wrap) wrap.innerHTML=_dctsCobrancasHtml(_dctsCobrancasAtual);
+}
 
 async function dctsLoad(){
   _ct_hideLoading();
@@ -31628,6 +31918,7 @@ function dctsPopularFiltroProj(){
 function dctsCalcStatusItem(d){
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const et = [
+    {real:d.art_assinada?1:0},
     {real:d.sol_sig_real, prev:d.sol_sig_prev},
     {real:d.atestado_real, prev:d.atestado_prev},
     {real:d.aceite_real,   prev:d.aceite_prev},
@@ -31636,8 +31927,8 @@ function dctsCalcStatusItem(d){
     {real:d.retorno_data}
   ];
   const n = et.filter(e=>e.real).length;
-  if(n===0 && !d.sol_sig_data && !d.atestado_data && !d.aceite_data && !d.quest_data && !d.envio_data) return 'pendente';
-  if(n===6) return 'completo';
+  if(n===0 && !d.art_emitida && !d.sol_sig_data && !d.atestado_data && !d.aceite_data && !d.quest_data && !d.envio_data) return 'pendente';
+  if(n===7) return 'completo';
   const atrasado = et.some(e=>{ if(e.real) return false; if(e.prev){ return new Date(e.prev+'T12:00:00') < hoje; } return false; });
   return atrasado ? 'atrasado' : 'andamento';
 }
@@ -31652,12 +31943,75 @@ function dctsStatusBadge(st){
   return m[st] || m.pendente;
 }
 
+const DCTS_STATUS_MANUAL_LABELS = {
+  ag_signatario:          'EM ANDAMENTO - AG. SIGNATÁRIO',
+  em_emissao_documento:   'EM EMISSÃO DE DOCUMENTO',
+  ag_assinatura:          'AG. ASSINATURA',
+  concluido:              'CONCLUÍDO'
+};
+function dctsStatusManualBadge(v){
+  if(!v) return '<span style="color:#ccc;">—</span>';
+  const cores = {
+    ag_signatario:        {bg:'#fef3c7',fg:'#92400e'},
+    em_emissao_documento: {bg:'#dbeafe',fg:'#1e40af'},
+    ag_assinatura:        {bg:'#fce7f3',fg:'#9d174d'},
+    concluido:            {bg:'#dcfce7',fg:'#166534'}
+  };
+  const c = cores[v]||{bg:'#f1f5f9',fg:'#475569'};
+  return '<span style="background:'+c.bg+';color:'+c.fg+';font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;white-space:nowrap;">'+(DCTS_STATUS_MANUAL_LABELS[v]||v)+'</span>';
+}
+
 function fmtD(s){ if(!s) return '<span style="color:#ccc;">—</span>'; const[y,m,d]=s.split('-'); return d+'/'+m+'/'+y; }
+
+// Alterna ART direto na tabela, sem abrir o modal — clique cíclico:
+// — (nada) → 📋 Emitida → ✍️ Assinada → volta pra — 
+async function dctsToggleArtInline(id){
+  const d = _ct_allDcts.find(x=>x.id===id);
+  if(!d) return;
+  let novoEmitida, novoAssinada;
+  if(!d.art_emitida && !d.art_assinada){ novoEmitida=true; novoAssinada=false; }
+  else if(d.art_emitida && !d.art_assinada){ novoEmitida=true; novoAssinada=true; }
+  else { novoEmitida=false; novoAssinada=false; }
+  // Atualiza local imediatamente (feedback instantâneo) e reverte se der erro
+  const antesEmitida=d.art_emitida, antesAssinada=d.art_assinada;
+  d.art_emitida=novoEmitida; d.art_assinada=novoAssinada;
+  dctsRender();
+  try{
+    const patchRes = await sbPatch(DCTS_TABLE, id, {art_emitida:novoEmitida, art_assinada:novoAssinada});
+    if(!patchRes || !patchRes.length){
+      // Confirma de verdade antes de recriar — array vazio pode só significar
+      // que uma política de segurança (RLS) escondeu a linha, não que ela
+      // não exista (tentar inserir sem confirmar arrisca duplicar o id e
+      // travar o salvamento).
+      let existeDeVerdade = false;
+      try{
+        const chk = await fetch(_sbUrlCt(DCTS_TABLE+'?id=eq.'+id+'&select=id'), {headers:_SB_H_CT});
+        if(chk.ok){ const rows = await chk.json(); existeDeVerdade = Array.isArray(rows) && rows.length>0; }
+      }catch(eChk){ console.warn('[dctsToggleArtInline] Falha ao verificar existência do registro:', eChk); }
+      if(!existeDeVerdade){
+        console.warn('[dctsToggleArtInline] Confirmado: registro não existe no banco — recriando via INSERT:', id);
+        const payloadCompleto = {...d, art_emitida:novoEmitida, art_assinada:novoAssinada};
+        const res = await sbPost(DCTS_TABLE, payloadCompleto);
+        const novo = res[0]||payloadCompleto;
+        const i0 = _ct_allDcts.findIndex(x=>x.id===id);
+        if(i0>=0) _ct_allDcts[i0]=novo;
+        dctsRender();
+        _ct_showToast('Registro recriado', 'Esse DCTS não existia mais no banco — foi salvo como novo registro.', 'warn');
+      }
+      // Se existeDeVerdade===true, o update funcionou — só não veio representação de volta; nada a fazer.
+    }
+  }catch(e){
+    console.error('[dctsToggleArtInline] Falha ao salvar ART:', e);
+    d.art_emitida=antesEmitida; d.art_assinada=antesAssinada;
+    dctsRender();
+    _ct_showToast('Erro ao salvar ART', e.message, 'error');
+  }
+}
 
 function dctsRender(){
   const tbody = document.getElementById('tbody-dcts'); if(!tbody) return;
   const fP = document.getElementById('dcts-f-proj')?.value||'';
-  const fS = document.getElementById('dcts-f-status')?.value||'';
+  const fS = document.getElementById('ct-dcts-f-status')?.value||'';
   const fD = document.getElementById('dcts-f-doc')?.value||'';
   const fB = (document.getElementById('dcts-f-busca')?.value||'').toLowerCase();
   let lista = _ct_allDcts.map(d=>({...d, _st:dctsCalcStatusItem(d)}));
@@ -31666,21 +32020,42 @@ function dctsRender(){
   if(fD) lista = lista.filter(d=>!d[fD]);
   if(fB) lista = lista.filter(d=>(d.projeto_nome||'').toLowerCase().includes(fB)||(d.cliente||'').toLowerCase().includes(fB));
   if(!lista.length){
-    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:1.5rem;color:var(--ink3);">Nenhum registro. Clique em <b>+ Novo Registro</b> para começar.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="14" style="text-align:center;padding:1.5rem;color:var(--ink3);">Nenhum registro. Clique em <b>+ Novo Registro</b> para começar.</td></tr>';
     dctsAtualizarKPIs(lista); return;
   }
   const obs = o => o ? ` <span title="${(o||'').replace(/"/g,"'")}" style="cursor:help;font-size:11px;">📝</span>` : '';
   const cel = (real, data) => real ? '<b style="color:var(--green);">'+fmtD(real)+'</b>' : data ? '<span style="color:#b45309;">'+fmtD(data)+'</span>' : fmtD('');
+  const artCel = (d) => {
+    let label;
+    if(d.art_emitida && d.art_assinada){
+      label = '<span style="color:#b45309;">📋 Emitida</span> <b style="color:var(--green);">✍️ Assinada</b>';
+    } else if(d.art_assinada){
+      label = '<b style="color:var(--green);">✍️ Assinada</b>';
+    } else if(d.art_emitida){
+      label = '<span style="color:#b45309;">📋 Emitida</span>';
+    } else {
+      label = '<span style="color:#ccc;">—</span>';
+    }
+    return `<span onclick="event.stopPropagation();dctsToggleArtInline('${d.id}')" style="cursor:pointer;display:inline-block;padding:2px 6px;border-radius:3px;white-space:nowrap;" title="Clique para alternar: — → Emitida → Assinada → —">${label}</span>`;
+  };
+  const cobCel = (list) => {
+    if(!list||!list.length) return '<span style="color:#ccc;">—</span>';
+    const ult = _dctsCobrancasSorted(list)[0];
+    return '<span style="color:#b45309;font-weight:600;">'+fmtD(ult.data)+'</span> <span style="color:var(--ink3);font-size:9px;">('+list.length+')</span>';
+  };
   tbody.innerHTML = lista.map(d=>`<tr>
     <td style="font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.projeto_nome||''}">${d.projeto_nome||'—'}</td>
     <td style="font-size:11px;color:var(--ink3);">${d.cliente||'—'}</td>
+    <td style="text-align:center;">${artCel(d)}</td>
     <td style="text-align:center;">${cel(d.sol_sig_real,d.sol_sig_data)}${obs(d.sol_sig_obs)}</td>
     <td style="text-align:center;">${cel(d.atestado_real,d.atestado_data)}${obs(d.atestado_obs)}</td>
     <td style="text-align:center;">${cel(d.aceite_real,d.aceite_data)}${obs(d.aceite_obs)}</td>
     <td style="text-align:center;">${cel(d.quest_real,d.quest_data)}${obs(d.quest_obs)}</td>
     <td style="text-align:center;">${cel(d.envio_real,d.envio_data)}${obs(d.envio_obs)}</td>
     <td style="text-align:center;">${d.retorno_data?'<b style="color:var(--green);">'+fmtD(d.retorno_data)+'</b>':fmtD('')}${obs(d.retorno_obs)}</td>
+    <td style="text-align:center;">${cobCel(d.cobrancas)}</td>
     <td style="text-align:center;">${dctsStatusBadge(d._st)}</td>
+    <td style="text-align:center;">${dctsStatusManualBadge(d.status_manual)}</td>
     <td style="font-size:10px;color:var(--ink3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(d.obs_geral||'').replace(/"/g,"'")}">${d.obs_geral||'—'}</td>
     <td style="text-align:center;white-space:nowrap;"><button onclick="dctsAbrirModal('${d.id}')" style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;font-size:10px;padding:3px 10px;cursor:pointer;font-family:'Outfit',sans-serif;">✏️ Editar</button></td>
   </tr>`).join('');
@@ -31698,6 +32073,7 @@ function dctsAtualizarKPIs(lista){
 function dctsCalcStatus(){
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const et = [
+    {real:document.getElementById('dcts-art-assinada')?.checked},
     {real:document.getElementById('dcts-sol-sig-real')?.value,  prev:document.getElementById('dcts-sol-sig-prev')?.value},
     {real:document.getElementById('dcts-atestado-real')?.value, prev:document.getElementById('dcts-atestado-prev')?.value},
     {real:document.getElementById('dcts-aceite-real')?.value,   prev:document.getElementById('dcts-aceite-prev')?.value},
@@ -31706,7 +32082,7 @@ function dctsCalcStatus(){
     {real:document.getElementById('dcts-retorno-data')?.value}
   ];
   const n = et.filter(e=>e.real).length;
-  let st = n===6 ? 'completo' : n>0 ? 'andamento' : 'pendente';
+  let st = n===7 ? 'completo' : n>0 ? 'andamento' : 'pendente';
   if(st!=='completo' && et.some(e=>{ if(e.real) return false; if(e.prev){ return new Date(e.prev+'T12:00:00')<hoje; } return false; })) st='atrasado';
   const el = document.getElementById('dcts-status-preview');
   if(el){ const lb={completo:'✅ Completo',andamento:'🔄 Em Andamento',pendente:'⏳ Pendente',atrasado:'🔴 Atrasado'}; el.textContent=lb[st]||st; }
@@ -31715,6 +32091,7 @@ function dctsCalcStatus(){
 // mapa id-html → campo-banco
 const _dctsMap = {
   'proj':'projeto_nome','cliente':'cliente','responsavel':'responsavel',
+  'status-manual':'status_manual',
   'sol-sig-data':'sol_sig_data','sol-sig-prev':'sol_sig_prev','sol-sig-real':'sol_sig_real','sol-sig-obs':'sol_sig_obs',
   'atestado-data':'atestado_data','atestado-prev':'atestado_prev','atestado-real':'atestado_real','atestado-obs':'atestado_obs',
   'aceite-data':'aceite_data','aceite-prev':'aceite_prev','aceite-real':'aceite_real','aceite-obs':'aceite_obs',
@@ -31744,9 +32121,12 @@ function dctsAbrirModal(id){
   if(id){
     const d = _ct_allDcts.find(x=>x.id===id);
     if(!d){ _ct_showToast('Erro','Registro não encontrado.','error'); return; }
-    document.getElementById('dcts-modal-title').textContent = '✏️ Editar DCTS — '+d.projeto_nome;
+    document.getElementById('ct-dcts-modal-title').textContent = '✏️ Editar DCTS — '+d.projeto_nome;
     document.getElementById('dcts-btn-excluir').style.display = 'inline-flex';
     Object.entries(_dctsMap).forEach(([fid,campo])=>{ const el=document.getElementById('dcts-'+fid); if(el) el.value=d[campo]||''; });
+    document.getElementById('dcts-art-emitida').checked = !!d.art_emitida;
+    document.getElementById('dcts-art-assinada').checked = !!d.art_assinada;
+    _dctsCobrancasAtual = (d.cobrancas||[]).slice();
     // Check if project exists in list, else show manual
     const exists = _ct_allProjetos.find(p=>p.nome===d.projeto_nome);
     if(!exists && d.projeto_nome){
@@ -31758,14 +32138,20 @@ function dctsAbrirModal(id){
       sel.value = d.projeto_nome||'';
     }
   } else {
-    document.getElementById('dcts-modal-title').textContent = '📄 DCTS — Novo Encerramento Contratual';
+    document.getElementById('ct-dcts-modal-title').textContent = '📄 DCTS — Novo Encerramento Contratual';
     document.getElementById('dcts-btn-excluir').style.display = 'none';
     Object.keys(_dctsMap).forEach(fid=>{ const el=document.getElementById('dcts-'+fid); if(el) el.value=''; });
+    document.getElementById('dcts-art-emitida').checked = false;
+    document.getElementById('dcts-art-assinada').checked = false;
     // Clear cliente when opening new
     document.getElementById('dcts-cliente').value = '';
+    _dctsCobrancasAtual = [];
   }
+  var _cobWrap=document.getElementById('dcts-cobrancas-list'); if(_cobWrap) _cobWrap.innerHTML=_dctsCobrancasHtml(_dctsCobrancasAtual);
+  var _cobData=document.getElementById('dcts-cobranca-data'); if(_cobData) _cobData.value='';
+  var _cobObs=document.getElementById('dcts-cobranca-obs'); if(_cobObs) _cobObs.value='';
   dctsCalcStatus();
-  document.getElementById('modal-dcts').classList.add('show');
+  document.getElementById('modal-ct-dcts').classList.add('show');
 }
 
 function dctsToggleProjManual(){
@@ -31800,7 +32186,7 @@ function dctsOnProjSelect(sel){
   }
 }
 
-function dctsFecharModal(){ document.getElementById('modal-dcts').classList.remove('show'); dctsEditingId=null; }
+function dctsFecharModal(){ document.getElementById('modal-ct-dcts').classList.remove('show'); dctsEditingId=null; }
 
 async function dctsSalvar(){
   const _projSel = document.getElementById('dcts-proj');
@@ -31811,26 +32197,55 @@ async function dctsSalvar(){
   const d = {
     id: dctsEditingId||genUUID(), projeto_nome,
     cliente:gv('cliente'), responsavel:gv('responsavel'),
+    art_emitida: !!document.getElementById('dcts-art-emitida')?.checked,
+    art_assinada: !!document.getElementById('dcts-art-assinada')?.checked,
+    status_manual: gv('status-manual'),
     sol_sig_data:gv('sol-sig-data'), sol_sig_prev:gv('sol-sig-prev'), sol_sig_real:gv('sol-sig-real'), sol_sig_obs:gv('sol-sig-obs'),
     atestado_data:gv('atestado-data'), atestado_prev:gv('atestado-prev'), atestado_real:gv('atestado-real'), atestado_obs:gv('atestado-obs'),
     aceite_data:gv('aceite-data'), aceite_prev:gv('aceite-prev'), aceite_real:gv('aceite-real'), aceite_obs:gv('aceite-obs'),
     quest_data:gv('quest-data'), quest_prev:gv('quest-prev'), quest_real:gv('quest-real'), quest_obs:gv('quest-obs'),
     envio_data:gv('envio-data'), envio_prev:gv('envio-prev'), envio_real:gv('envio-real'), envio_obs:gv('envio-obs'),
     retorno_data:gv('retorno-data'), retorno_resp:gv('retorno-resp'), retorno_obs:gv('retorno-obs'),
+    cobrancas: _dctsCobrancasAtual.slice(),
     obs_geral:gv('obs-geral'), atualizado_em:new Date().toISOString()
   };
   try{
     if(dctsEditingId){
-      await sbPatch(DCTS_TABLE, dctsEditingId, d);
-      const i = _ct_allDcts.findIndex(x=>x.id===dctsEditingId);
-      if(i>=0) _ct_allDcts[i]={..._ct_allDcts[i],...d}; else _ct_allDcts.push(d);
+      const patchRes = await sbPatch(DCTS_TABLE, dctsEditingId, d);
+      if(!patchRes || !patchRes.length){
+        // Array vazio pode significar (a) o registro não existe de verdade, OU
+        // (b) o update funcionou mas uma política de segurança (RLS) escondeu
+        // a linha retornada. Confirma com uma consulta direta antes de decidir
+        // — recriar sem confirmar arriscava tentar inserir um id duplicado e
+        // travar o salvamento (foi exatamente isso que piorou na tentativa anterior).
+        let existeDeVerdade = false;
+        try{
+          const chk = await fetch(_sbUrlCt(DCTS_TABLE+'?id=eq.'+dctsEditingId+'&select=id'), {headers:_SB_H_CT});
+          if(chk.ok){ const rows = await chk.json(); existeDeVerdade = Array.isArray(rows) && rows.length>0; }
+        }catch(eChk){ console.warn('[dctsSalvar] Falha ao verificar existência do registro:', eChk); }
+        if(existeDeVerdade){
+          // O update de fato funcionou — só não veio representação de volta.
+          const i = _ct_allDcts.findIndex(x=>x.id===dctsEditingId);
+          if(i>=0) _ct_allDcts[i]={..._ct_allDcts[i],...d}; else _ct_allDcts.push(d);
+        } else {
+          console.warn('[dctsSalvar] Confirmado: registro não existe no banco — recriando via INSERT:', dctsEditingId);
+          const res = await sbPost(DCTS_TABLE, d);
+          const novo = res[0]||d;
+          const i0 = _ct_allDcts.findIndex(x=>x.id===dctsEditingId);
+          if(i0>=0) _ct_allDcts[i0]=novo; else _ct_allDcts.unshift(novo);
+          _ct_showToast('Registro recriado', 'Esse DCTS não existia mais no banco — foi salvo como novo registro.', 'warn');
+        }
+      } else {
+        const i = _ct_allDcts.findIndex(x=>x.id===dctsEditingId);
+        if(i>=0) _ct_allDcts[i]={..._ct_allDcts[i],...d}; else _ct_allDcts.push(d);
+      }
     } else {
       const res = await sbPost(DCTS_TABLE, d);
       _ct_allDcts.unshift(res[0]||d);
     }
     dctsFecharModal(); dctsPopularFiltroProj(); dctsRender();
     _ct_showToast('DCTS salvo','Registro atualizado com sucesso.','success');
-  }catch(e){ _ct_showToast('Erro ao salvar', e.message, 'error'); }
+  }catch(e){ console.error('[dctsSalvar] Falha ao salvar registro DCTS:', e); _ct_showToast('Erro ao salvar', e.message, 'error'); }
 }
 
 async function dctsExcluir(){
@@ -31846,21 +32261,31 @@ async function dctsExcluir(){
 
 function dctsExportCSV(){
   const cols = ['Projeto','Cliente','Responsável',
+    'ART.Emitida','ART.Assinada',
     'Sol.Sig.Data','Sol.Sig.Prev','Sol.Sig.Real','Sol.Sig.Obs',
     'Atestado.Data','Atestado.Prev','Atestado.Real','Atestado.Obs',
     'Aceite.Data','Aceite.Prev','Aceite.Real','Aceite.Obs',
     'Quest.Data','Quest.Prev','Quest.Real','Quest.Obs',
     'Envio.Data','Envio.Prev','Envio.Real','Envio.Obs',
-    'Retorno.Data','Retorno.Resp','Retorno.Obs','Obs.Gerais','Status'];
-  const rows = _ct_allDcts.map(d=>[
+    'Retorno.Data','Retorno.Resp','Retorno.Obs',
+    'Cobrancas.Qtd','Cobrancas.Ultima','Cobrancas.Historico',
+    'Obs.Gerais','Status','Ação'];
+  const rows = _ct_allDcts.map(d=>{
+    const cobs=_dctsCobrancasSorted(d.cobrancas);
+    const cobHist=cobs.map(c=>(c.data||'')+(c.obs?': '+c.obs:'')).join(' | ');
+    return [
     d.projeto_nome,d.cliente,d.responsavel,
+    d.art_emitida?'Sim':'Não',d.art_assinada?'Sim':'Não',
     d.sol_sig_data,d.sol_sig_prev,d.sol_sig_real,d.sol_sig_obs,
     d.atestado_data,d.atestado_prev,d.atestado_real,d.atestado_obs,
     d.aceite_data,d.aceite_prev,d.aceite_real,d.aceite_obs,
     d.quest_data,d.quest_prev,d.quest_real,d.quest_obs,
     d.envio_data,d.envio_prev,d.envio_real,d.envio_obs,
-    d.retorno_data,d.retorno_resp,d.retorno_obs,d.obs_geral,dctsCalcStatusItem(d)
-  ].map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(','));
+    d.retorno_data,d.retorno_resp,d.retorno_obs,
+    cobs.length||'', cobs.length?cobs[0].data:'', cobHist,
+    d.obs_geral,dctsCalcStatusItem(d),(DCTS_STATUS_MANUAL_LABELS[d.status_manual]||'')
+  ].map(v=>'"'+(v||'').toString().replace(/"/g,'""')+'"').join(',');
+  });
   const csv = [cols.join(','),...rows].join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
@@ -31873,14 +32298,28 @@ function dctsExportPDF(){
   const sc = {completo:'#166534',andamento:'#1e40af',pendente:'#92400e',atrasado:'#991b1b'};
   const sb = {completo:'#dcfce7',andamento:'#dbeafe',pendente:'#fef3c7',atrasado:'#fee2e2'};
   const cel = (real,data) => real?'<b style="color:#166534;">'+fmtD(real)+'</b>':data?'<span style="color:#b45309;">'+fmtD(data)+'</span>':'<span style="color:#ccc;">—</span>';
+  const artCelPdf = (d) => {
+    if(d.art_emitida && d.art_assinada) return '<span style="color:#b45309;">📋 Emitida</span> <b style="color:#166534;">✍️ Assinada</b>';
+    if(d.art_assinada) return '<b style="color:#166534;">✍️ Assinada</b>';
+    if(d.art_emitida) return '<span style="color:#b45309;">📋 Emitida</span>';
+    return '<span style="color:#ccc;">—</span>';
+  };
+  const cobCel = (list) => {
+    if(!list||!list.length) return '<span style="color:#ccc;">—</span>';
+    const ult=_dctsCobrancasSorted(list)[0];
+    return fmtD(ult.data)+' <span style="color:#8A847A;font-size:7px;">('+list.length+')</span>';
+  };
   const rows = _ct_allDcts.map(d=>{
     const st=dctsCalcStatusItem(d);
     return '<tr><td style="font-weight:600;">'+d.projeto_nome+'</td><td>'+(d.cliente||'')+'</td>'
-      +'<td>'+cel(d.sol_sig_real,d.sol_sig_data)+'</td><td>'+cel(d.atestado_real,d.atestado_data)+'</td>'
+      +'<td>'+artCelPdf(d)+'</td><td>'+cel(d.sol_sig_real,d.sol_sig_data)+'</td><td>'+cel(d.atestado_real,d.atestado_data)+'</td>'
       +'<td>'+cel(d.aceite_real,d.aceite_data)+'</td><td>'+cel(d.quest_real,d.quest_data)+'</td>'
       +'<td>'+cel(d.envio_real,d.envio_data)+'</td>'
       +'<td>'+(d.retorno_data?'<b style="color:#166534;">'+fmtD(d.retorno_data)+'</b>':'<span style="color:#ccc;">—</span>')+'</td>'
-      +'<td><span style="background:'+sb[st]+';color:'+sc[st]+';font-weight:700;padding:2px 6px;border-radius:3px;font-size:8px;">'+st.toUpperCase()+'</span></td></tr>';
+      +'<td>'+cobCel(d.cobrancas)+'</td>'
+      +'<td><span style="background:'+sb[st]+';color:'+sc[st]+';font-weight:700;padding:2px 6px;border-radius:3px;font-size:8px;">'+st.toUpperCase()+'</span></td>'
+      +'<td>'+(d.status_manual?'<span style="background:#f1f5f9;color:#334155;font-weight:700;padding:2px 6px;border-radius:3px;font-size:7px;white-space:nowrap;">'+(DCTS_STATUS_MANUAL_LABELS[d.status_manual]||'')+'</span>':'<span style="color:#ccc;">—</span>')+'</td>'
+      +'<td style="max-width:140px;">'+(d.obs_geral?d.obs_geral.replace(/</g,'&lt;'):'<span style="color:#ccc;">—</span>')+'</td></tr>';
   }).join('');
   const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
     +'<title>DCTS Encerramento '+hoje+'</title>'
@@ -31893,7 +32332,7 @@ function dctsExportPDF(){
     +'.pbtn{position:fixed;bottom:16px;right:16px;background:#92400e;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:12px;font-weight:700;cursor:pointer;}</style></head><body>'
     +'<h2 style="font-size:15px;margin-bottom:4px;">DCTS — Documentação de Encerramento Contratual</h2>'
     +'<p style="font-size:9px;color:#8A847A;margin-bottom:12px;">Sidertec Estruturas Metálicas &nbsp;·&nbsp; Emitido em '+hoje+' &nbsp;·&nbsp; '+_ct_allDcts.length+' registro(s)</p>'
-    +'<table><thead><tr><th>Projeto</th><th>Cliente</th><th>Solic. Signatário</th><th>Atestado</th><th>Aceite</th><th>Questionário</th><th>Envio Cliente</th><th>Retorno Assinado</th><th>Status</th></tr></thead>'
+    +'<table><thead><tr><th>Projeto</th><th>Cliente</th><th>ART</th><th>Solic. Signatário</th><th>Atestado</th><th>Aceite</th><th>Questionário</th><th>Envio Cliente</th><th>Retorno Assinado</th><th>Cobranças</th><th>Status</th><th>Ação</th><th>Obs.</th></tr></thead>'
     +'<tbody>'+rows+'</tbody></table>'
     +'<button class="pbtn" onclick="window.print()">🖨 Imprimir / PDF</button></body></html>';
   const w = window.open('','_blank','width=1100,height=750');
