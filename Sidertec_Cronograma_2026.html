@@ -23560,23 +23560,95 @@ function _cdocDownload(text, filename){
   document.body.appendChild(a); a.click();
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);
 }
+// Converte "dd/mm/aaaa" (ou "dd/mm/aa") em ISO "aaaa-mm-dd", validando de
+// verdade o dia/mês — evita gravar datas impossíveis como "26/30/5"
+// (que antes era só invertido às cegas, sem checar se o mês existe).
+function _cdocParseDataBR(str){
+  if(!str) return '';
+  str=String(str).trim();
+  if(!str) return '';
+  var m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(!m) return null; // formato não reconhecido
+  var dia=parseInt(m[1],10), mes=parseInt(m[2],10), ano=parseInt(m[3],10);
+  if(ano<100) ano+=2000;
+  if(mes<1||mes>12||dia<1||dia>31) return null; // data impossível
+  var diasNoMes=[31,(ano%4===0&&(ano%100!==0||ano%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];
+  if(dia>diasNoMes[mes-1]) return null;
+  return ano+'-'+String(mes).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+}
+// Serializa o histórico de revisões em COLUNAS NUMERADAS repetidas:
+// "Revisão 1;Data Recebimento 1;Observação 1;Revisão 2;Data Recebimento 2;Observação 2;..."
+function _cdocRevHistMaxCount(rows){
+  var max=0;
+  rows.forEach(function(b){ if(b.revisoes&&b.revisoes.length>max) max=b.revisoes.length; });
+  return max;
+}
+function _cdocRevHistHeaderCols(n){
+  var cols=[];
+  for(var i=1;i<=n;i++){ cols.push('Revisão '+i,'Data Recebimento '+i,'Observação '+i); }
+  return cols;
+}
+function _cdocRevHistRowCols(revisoes,n){
+  var cols=[];
+  for(var i=0;i<n;i++){
+    var r=(revisoes&&revisoes[i])?revisoes[i]:null;
+    cols.push(r?(r.rev||''):'', r&&r.data?_fD2(r.data):'', r?(r.obs||''):'');
+  }
+  return cols;
+}
+// Lê os headers do CSV e encontra os grupos "Revisão N" / "Data Recebimento N" /
+// "Observação N", devolvendo-os ordenados por N — funciona com qualquer
+// quantidade de revisões, não só as que vieram no template.
+function _cdocParseRevHistHeaders(headers){
+  var map={};
+  headers.forEach(function(h){
+    var m;
+    if((m=h.match(/^revis(?:ã|a)o\s*(\d+)$/i))){ var n1=+m[1]; map[n1]=map[n1]||{}; map[n1].revH=h; }
+    else if((m=h.match(/^data(?:\s*recebimento)?\s*(\d+)$/i))){ var n2=+m[1]; map[n2]=map[n2]||{}; map[n2].dataH=h; }
+    else if((m=h.match(/^observa(?:ç|c)(?:ã|a)o\s*(\d+)$/i))||(m=h.match(/^obs\.?\s*(\d+)$/i))){ var n3=+m[1]; map[n3]=map[n3]||{}; map[n3].obsH=h; }
+  });
+  return Object.keys(map).map(Number).sort(function(a,b){return a-b;}).map(function(n){return Object.assign({n:n},map[n]);});
+}
+// Formato antigo (uma única célula "REV@DATA@OBS | REV2@DATA2@OBS2") —
+// mantido só para importar CSVs exportados durante a versão anterior.
+function _cdocCellToRevHist(cell,erros,linhaNum){
+  if(!cell||!cell.trim()) return [];
+  return cell.split('|').map(function(s){return s.trim();}).filter(Boolean).map(function(entry){
+    var parts=entry.split('@');
+    var rev=(parts[0]||'').trim();
+    var dataRaw=(parts[1]||'').trim();
+    var obs=(parts[2]||'').trim();
+    var dataIso=_cdocParseDataBR(dataRaw);
+    if(dataRaw&&dataIso===null){
+      if(erros) erros.push('Linha '+linhaNum+': data de revisão inválida "'+dataRaw+'" (rev. '+ (rev||'?') +') — não foi salva');
+      dataIso='';
+    }
+    return {rev:rev,data:dataIso||'',obs:obs||'Importado via CSV',user:'CSV',timestamp:new Date().toISOString()};
+  }).filter(function(r){return r.rev||r.data;});
+}
 function cdocExportBas(){
   // Mesma correção do Detalhado: um filtro com zero resultados deve exportar
   // um CSV vazio, não a base inteira.
   var exportRows=(_cdocBasRows!==undefined&&_cdocBasRows!==null)?_cdocBasRows:_cdocDb().basicos;
-  var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
-  exportRows.forEach(function(b){
-    if(b._virtual) return; // pular linhas virtuais
-    rows.push([b.obraId,b.sub,b.cli||'',b.titulo||'',b.area||'',b.peso||'',b.status||'',b.m3d||'',b.diag||'',_cdocGetProj(b)||'',b.rev||'',b.data||''].join(';'));
+  var visRows=exportRows.filter(function(b){return !b._virtual;});
+  var maxRev=_cdocRevHistMaxCount(visRows);
+  var hdr=['Obra','TAG','Nº Cliente','Título','Descrição','Área','Peso (kg)','Status','3D','Diagramas','Tipo Detalhamento','Projetista','Revisão','Data'].concat(_cdocRevHistHeaderCols(maxRev)).join(';');
+  var rows=[hdr];
+  visRows.forEach(function(b){
+    var base=[b.obraId,b.sub,b.cli||'',b.titulo||'',b.descbas||'',b.area||'',b.peso||'',b.status||'',b.m3d||'',b.diag||'',b.det||'',_cdocGetProj(b)||'',b.rev||'',b.data||''];
+    rows.push(base.concat(_cdocRevHistRowCols(b.revisoes,maxRev)).join(';'));
   });
   _cdocDownload(rows.join('\n'),'proj_basico.csv');
 }
 function cdocExportBasSel(){
   var sel=_cdocBasRows.filter(function(b){return !b._virtual&&_cdocBasSel.has(b.id);});
   if(!sel.length){alert('Nenhuma linha selecionada. Use as caixas de seleção na tabela.');return;}
-  var rows=['Obra;TAG;Nº Cliente;Título;Área;Peso (kg);Status;3D;Diagramas;Projetista;Revisão;Data'];
+  var maxRev=_cdocRevHistMaxCount(sel);
+  var hdr=['Obra','TAG','Nº Cliente','Título','Descrição','Área','Peso (kg)','Status','3D','Diagramas','Tipo Detalhamento','Projetista','Revisão','Data'].concat(_cdocRevHistHeaderCols(maxRev)).join(';');
+  var rows=[hdr];
   sel.forEach(function(b){
-    rows.push([b.obraId,b.sub,b.cli||'',b.titulo||'',b.area||'',b.peso||'',b.status||'',b.m3d||'',b.diag||'',_cdocGetProj(b)||'',b.rev||'',b.data||''].join(';'));
+    var base=[b.obraId,b.sub,b.cli||'',b.titulo||'',b.descbas||'',b.area||'',b.peso||'',b.status||'',b.m3d||'',b.diag||'',b.det||'',_cdocGetProj(b)||'',b.rev||'',b.data||''];
+    rows.push(base.concat(_cdocRevHistRowCols(b.revisoes,maxRev)).join(';'));
   });
   _cdocDownload(rows.join('\n'),'proj_basico_sel.csv');
 }
@@ -23646,6 +23718,7 @@ function cdocImportBas(input){
     if(!lines.length){alert('Arquivo vazio.');return;}
     var sep=lines[0].includes(';')?';':',';
     var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^["\uFEFF]+|["\uFEFF]+$/g,'');});
+    var revGroups=_cdocParseRevHistHeaders(headers); // colunas "Revisão N"/"Data Recebimento N"/"Observação N", se existirem
     var db=_cdocDb(); var added=0; var updated=0; var erros=[];
     for(var i=1;i<lines.length;i++){
       var cols=_cdocParseCsvLine(lines[i],sep);
@@ -23661,6 +23734,7 @@ function cdocImportBas(input){
       var existing=(cli&&!_cdocEhPlaceholder(cli))?db.basicos.find(function(b){return b.cli===cli;}):null;
       var newData={
         obraId:obra,sub:sub,titulo:titulo,cli:cli,
+        descbas:row['Descrição']||row['Descricao']||'',
         proj:row['Projetista']||'',
         status:row['Status']||'LD',
         area:row['Área']||row['Area']||'',
@@ -23670,7 +23744,37 @@ function cdocImportBas(input){
         det:row['Tipo Detalhamento']||'',
         rev:row['Revisão']||row['Rev.']||row['Revisao']||'',
         data:row['Data']||''};
-      if(newData.data&&newData.data.includes('/')){var dp=newData.data.split('/');if(dp.length===3)newData.data=dp[2]+'-'+dp[1]+'-'+dp[0];}
+      if(newData.data){
+        var _dIso=_cdocParseDataBR(newData.data);
+        if(_dIso===null){ erros.push('Linha '+(i+1)+': Data "'+newData.data+'" inválida — não foi salva'); newData.data=''; }
+        else newData.data=_dIso;
+      }
+      // Histórico completo de revisões:
+      // 1) formato atual — colunas numeradas "Revisão N;Data Recebimento N;Observação N"
+      // 2) formato antigo — uma única célula "Histórico Revisões" (compatibilidade)
+      var histEntries=null;
+      if(revGroups.length){
+        var built=[];
+        revGroups.forEach(function(g){
+          var revN=(g.revH?row[g.revH]:'')||'';
+          var dataRawN=(g.dataH?row[g.dataH]:'')||'';
+          var obsN=(g.obsH?row[g.obsH]:'')||'';
+          if(!revN&&!dataRawN&&!obsN) return; // grupo vazio nessa linha
+          var dataIsoN='';
+          if(dataRawN){
+            dataIsoN=_cdocParseDataBR(dataRawN);
+            if(dataIsoN===null){
+              erros.push('Linha '+(i+1)+': data de revisão inválida "'+dataRawN+'" (rev. '+(revN||'?')+', coluna '+g.n+') — não foi salva');
+              dataIsoN='';
+            }
+          }
+          built.push({rev:revN,data:dataIsoN||'',obs:obsN||'Importado via CSV',user:'CSV',timestamp:new Date().toISOString()});
+        });
+        histEntries=built;
+      } else {
+        var histCell=row['Histórico Revisões']||row['Historico Revisoes']||row['Histórico de Revisões']||'';
+        histEntries=histCell?_cdocCellToRevHist(histCell,erros,i+1):null;
+      }
       // Montar entrada de revisão se Rev. ou Data estiverem preenchidos
       var revEntry=null;
       if(newData.rev||newData.data){
@@ -23680,16 +23784,25 @@ function cdocImportBas(input){
         // Atualizar preservando históricos e id
         var prevRevisoes=existing.revisoes||[];
         Object.assign(existing,newData);
-        existing.revisoes=prevRevisoes;
-        // Adicionar entrada de revisão se ainda não existe (por rev+data)
-        if(revEntry){
-          var jaExiste=prevRevisoes.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});
-          if(!jaExiste) existing.revisoes.push(revEntry);
+        if(histEntries){
+          // Mescla por rev+data para não duplicar o que já existia
+          histEntries.forEach(function(he){
+            var jaExiste=prevRevisoes.some(function(r){return r.rev===he.rev&&r.data===he.data;});
+            if(!jaExiste) prevRevisoes.push(he);
+          });
+          existing.revisoes=prevRevisoes;
+        } else {
+          existing.revisoes=prevRevisoes;
+          // Adicionar entrada de revisão se ainda não existe (por rev+data)
+          if(revEntry){
+            var jaExiste2=prevRevisoes.some(function(r){return r.rev===revEntry.rev&&r.data===revEntry.data;});
+            if(!jaExiste2) existing.revisoes.push(revEntry);
+          }
         }
         updated++;
       } else {
         newData.id=_cdocGenId(db,'bas');
-        newData.revisoes=revEntry?[revEntry]:[];
+        newData.revisoes=histEntries?histEntries:(revEntry?[revEntry]:[]);
         db.basicos.push(newData);
         added++;
       }
