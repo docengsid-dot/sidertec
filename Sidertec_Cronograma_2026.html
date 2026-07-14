@@ -4253,7 +4253,7 @@ function _renderSubEtapa(sub,isLast){
     html+='<div style="margin-bottom:.4rem;">';
     html+='<label class="field-label" style="font-size:9px;">Peso Executado (kg) — % Preparado vs Peso PCP</label>';
     html+='<div style="display:flex;align-items:center;gap:.5rem;">';
-    html+='<input type="number" class="field-input" style="font-size:16px;padding:3px 5px;width:110px;" value="'+(pesoExec||'')+'" placeholder="0" min="0" step="0.01" oninput="etapaSet(\''+sub.key+'\',\'peso_exec\',this.value)" onblur="renderEtapasDinamicas()">';
+    html+='<input type="number" class="field-input" style="font-size:16px;padding:3px 5px;width:110px;" value="'+(pesoExec||'')+'" placeholder="0" min="0" step="0.01" oninput="etapaSet(\''+sub.key+'\',\'peso_exec\',this.value)" onblur="_checkAutoConcluirPeso(\''+sub.key+'\')">';
     html+='<div style="flex:1;background:#e2e8f0;border-radius:4px;height:10px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+barColor+';border-radius:4px;transition:width .3s;"></div></div>';
     html+='<span style="font-size:10px;font-weight:700;color:'+barColor+';">'+pct+'%</span>';
     if(pesoPcp>0) html+='<span style="font-size:9px;color:#94a3b8;">(PCP: '+Number(pesoPcp).toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg)</span>';
@@ -4267,7 +4267,7 @@ function _renderSubEtapa(sub,isLast){
     var _bC2=_pct2>=100?'#166534':_pct2>=50?'#d97706':'#2563eb';
     html+='<label class="field-label" style="font-size:9px;">Peso Expedido (kg)</label>';
     html+='<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">';
-    html+='<input type="number" class="field-input" style="font-size:16px;padding:3px 5px;width:110px;" value="'+(_pExec||'')+'" placeholder="0" min="0" step="0.01" oninput="etapaSet(\'expedicao\',\'peso_exec\',this.value)" onblur="renderEtapasDinamicas()">';
+    html+='<input type="number" class="field-input" style="font-size:16px;padding:3px 5px;width:110px;" value="'+(_pExec||'')+'" placeholder="0" min="0" step="0.01" oninput="etapaSet(\'expedicao\',\'peso_exec\',this.value)" onblur="_checkAutoConcluirPeso(\'expedicao\')">';
     html+='<div style="flex:1;background:#e2e8f0;border-radius:4px;height:10px;overflow:hidden;"><div style="width:'+_pct2+'%;height:100%;background:'+_bC2+';border-radius:4px;"></div></div>';
     html+='<span style="font-size:10px;font-weight:700;color:'+_bC2+';">'+_pct2+'%</span>';
     if(_pPcp2>0)html+='<span style="font-size:9px;color:#94a3b8;">('+Number(_pExec).toLocaleString('pt-BR',{maximumFractionDigits:0})+' / '+Number(_pPcp2).toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg)</span>';
@@ -4521,7 +4521,7 @@ function renderEtapasDinamicas(){
           if(typeof allCronSubobras!=='undefined'&&editingCronId){var _csSub=allCronSubobras.find(function(x){return x.id===editingCronId;});if(_csSub)_pPcpSub=parseFloat(_csSub.peso_pcp||_csSub.peso_previsto||0)||0;}
           var _pctSub=_pPcpSub>0?Math.min(100,Math.round(_peSub/_pPcpSub*100)):0;
           var _bcSub=_pctSub>=100?'#166534':_pctSub>=50?'#d97706':'#2563eb';
-          _pesoInput='<input type="number" style="border:1px solid #bfdbfe;border-radius:3px;padding:2px 4px;font-size:10px;width:75px;background:#f0f9ff;" value="'+(_peSub||'')+'" placeholder="kg exec." min="0" step="0.01" oninput="etapaSet(\''+sub.key+'\',\'peso_exec\',this.value)" onblur="renderEtapasDinamicas()">&nbsp;<span style="font-size:9px;font-weight:700;color:'+_bcSub+';">'+_pctSub+'%</span>&nbsp;';
+          _pesoInput='<input type="number" style="border:1px solid #bfdbfe;border-radius:3px;padding:2px 4px;font-size:10px;width:75px;background:#f0f9ff;" value="'+(_peSub||'')+'" placeholder="kg exec." min="0" step="0.01" oninput="etapaSet(\''+sub.key+'\',\'peso_exec\',this.value)" onblur="_checkAutoConcluirPeso(\''+sub.key+'\')">&nbsp;<span style="font-size:9px;font-weight:700;color:'+_bcSub+';">'+_pctSub+'%</span>&nbsp;';
         }
         rows += '<td>'+_pesoInput+'<input type="text" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 5px;font-size:10px;width:100%;background:'+(sConc?'#f0fdf4':'#fff')+';font-family:var(--font-main);" value="'+((sst.obs||'').replace(/"/g,'&quot;'))+'" placeholder="Obs…" oninput="etapaSet(\''+sub.key+'\',\'obs\',this.value)"></td>';
         rows += '<td style="text-align:center;">'+sAction+'</td>';
@@ -4793,6 +4793,26 @@ function etapaToggleMontagemNA(){
 }
 function etapaSetReg(key,idx,campo,valor){ etapaSet(key,campo,valor); }
 function etapaAdicionarReg(){}
+
+// Auto-marca a sub-etapa como concluída quando o peso executado atinge (ou
+// ultrapassa) o peso PCP/previsto — mesma lógica usada pelo botão manual
+// "✓ Concluir", só que disparada automaticamente pelo valor de kg exec.
+function _checkAutoConcluirPeso(key){
+  var st = _etapasState[key] || {};
+  if(!st.concluido){
+    var pesoPcp = 0;
+    if(typeof allCronSubobras!=='undefined' && editingCronId){
+      var cs = allCronSubobras.find(function(x){ return x.id===editingCronId; });
+      if(cs) pesoPcp = parseFloat(cs.peso_pcp || cs.peso_previsto || 0) || 0;
+    }
+    var pesoExec = parseFloat(st.peso_exec || 0) || 0;
+    if(pesoPcp > 0 && pesoExec >= pesoPcp - 0.005){
+      etapaMarcarConcluido(key); // já salva, avança status e re-renderiza
+      return;
+    }
+  }
+  renderEtapasDinamicas();
+}
 function etapaRemoverReg(){}
 
 function etapaAnexar(key,input){
@@ -7728,14 +7748,21 @@ function importarAvançoFabricacao(input){
       }
       var data=new Uint8Array(e.target.result);
       var wb=XLSX.read(data,{type:'array'});
-      var ws=wb.Sheets[wb.SheetNames[0]];
+      // Prioriza a aba "RESUMO" (é onde fica o consolidado por TAG); se não
+      // existir, cai para a primeira aba (compatível com o template simples
+      // gerado pelo próprio botão "Baixar template").
+      var sheetName = wb.SheetNames.find(function(n){ return n.trim().toUpperCase()==='RESUMO'; }) || wb.SheetNames[0];
+      var ws=wb.Sheets[sheetName];
       var raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:false});
       var SECOES={
         'PREPARAÇÃO':'peso_executado','PREPARACAO':'peso_executado',
         'INSPEÇÃO':'peso_inspecao_fab','INSPECAO':'peso_inspecao_fab','INSPEÇÃO FAB':'peso_inspecao_fab',
-        'PINTURA':'peso_pintura',
+        'PINTURA':'peso_pintura','PINTURA-GALVANIZAÇÃO':'peso_pintura','PINTURA-GALVANIZACAO':'peso_pintura',
         'EXPEDIÇÃO':'peso_expedicao','EXPEDICAO':'peso_expedicao',
       };
+      // Rótulos que indicam "isto é o peso TOTAL/planejado", não o executado —
+      // usados para pular a linha certa dentro de cada bloco.
+      var ROTULOS_IGNORAR = ['TOTAL','SALDO'];
       var resultados={};
       var i=0;
       while(i<raw.length){
@@ -7745,19 +7772,36 @@ function importarAvançoFabricacao(input){
         var campo=SECOES[titulo];
         if(campo){
           var tags=[];
-          for(var cc=1;cc<linha.length;cc++){tags.push(linha[cc]?String(linha[cc]).trim():null);}
-          var linhaPeso=null;
-          var j=i+1;
-          while(j<raw.length&&(!raw[j]||raw[j].every(function(v){return v==null;}))){j++;}
-          if(j<raw.length) linhaPeso=raw[j];
-          tags.forEach(function(tag,idx){
-            if(!tag) return;
-            var peso=linhaPeso&&linhaPeso[idx+1]!=null?parseFloat(linhaPeso[idx+1]):null;
-            if(peso===null||isNaN(peso)) return;
-            if(!resultados[tag]) resultados[tag]={};
-            resultados[tag][campo]=peso;
-          });
-          i=j+1;
+          for(var cc=1;cc<linha.length;cc++){
+            var _cellVal=linha[cc];
+            if(_cellVal!=null && String(_cellVal).trim().toUpperCase()==='TOTAL') break; // fim do bloco — evita ler a 2ª tabela mais à direita na mesma linha
+            tags.push(_cellVal?String(_cellVal).trim():null);
+          }
+          // Procura, dentro das próximas linhas do bloco, a linha que de fato
+          // traz o peso executado — pula linhas "PESO TOTAL" / "PESO SALDO"
+          // (formato da aba RESUMO) e também aceita a linha simples "Peso (kg)"
+          // (formato do template baixado pelo próprio botão).
+          var linhaPeso=null, j=i+1, limite=Math.min(raw.length, i+6);
+          for(; j<limite; j++){
+            var linhaJ=raw[j];
+            if(!linhaJ || linhaJ[0]==null) continue;
+            var rotuloJ=String(linhaJ[0]).trim().toUpperCase();
+            if(!rotuloJ) continue;
+            if(ROTULOS_IGNORAR.some(function(r){return rotuloJ.indexOf(r)!==-1;})) continue;
+            // Achou uma linha de peso válida (ex: "PESO PREPARADO (KG)", "PESO INSPECIONADO (KG)", "PESO (KG)")
+            linhaPeso=linhaJ; break;
+          }
+          if(linhaPeso){
+            tags.forEach(function(tag,idx){
+              if(!tag) return;
+              var peso=linhaPeso[idx+1]!=null?parseFloat(linhaPeso[idx+1]):null;
+              if(peso===null||isNaN(peso)) return;
+              if(!resultados[tag]) resultados[tag]={};
+              resultados[tag][campo]=peso;
+            });
+          }
+          // Avança para depois do bloco processado
+          i=Math.max(j,i+1);
         } else { i++; }
       }
       var tags=Object.keys(resultados);
@@ -7783,14 +7827,29 @@ function importarAvançoFabricacao(input){
 async function _importarAvançoBatch(resultados){
   var ok=0, naoEncontrado=[], erros=[];
   var tags=Object.keys(resultados);
+  // campo de peso executado → campo de conclusão correspondente
+  var CONC_MAP = {
+    peso_executado:'conc_preparacao',
+    peso_inspecao_fab:'conc_inspecao_fab',
+    peso_pintura:'conc_pintura',
+    peso_expedicao:'conc_expedicao'
+  };
   for(var t=0;t<tags.length;t++){
     var tag=tags[t];
     var dados=resultados[tag];
     var idx=allCronSubobras.findIndex(function(s){return s.subobra&&s.subobra.trim().toUpperCase()===tag.toUpperCase();});
     if(idx<0){naoEncontrado.push(tag);continue;}
     var sub=allCronSubobras[idx];
+    var pesoPcp=parseFloat(sub.peso_pcp||sub.peso_previsto||0)||0;
     var payload={atualizado_em:new Date().toISOString()};
-    ['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'].forEach(function(f){if(dados[f]!=null) payload[f]=dados[f];});
+    ['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'].forEach(function(f){
+      if(dados[f]!=null){
+        payload[f]=dados[f];
+        // Marca a etapa correspondente como concluída quando o peso importado
+        // atinge o peso PCP/previsto — mesma régua usada na edição manual.
+        if(pesoPcp>0 && dados[f]>=pesoPcp-0.005){ payload[CONC_MAP[f]]='S'; }
+      }
+    });
     allCronSubobras[idx]=Object.assign({},sub,payload);
     try{
       var r=await sbClient.from('cronograma_subobras').update(payload).eq('id',sub.id).select();
