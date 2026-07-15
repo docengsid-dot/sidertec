@@ -18683,12 +18683,20 @@ async function _cdocSBPush(db){
   try{
     // Inclui campo 'version' no payload para lock otimista
     var payload = {key:'main', data:db, version:(db._version||0)};
+    var _bodyStr = JSON.stringify(payload);
     var r=await fetch(_sbUrl('cdoc_database'),{
       method:'POST',
       headers:Object.assign({},_SB_H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
-      body:JSON.stringify(payload)
+      body:_bodyStr
     });
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok){
+      var _detalhe='';
+      try{ _detalhe=(await r.text()).slice(0,300); }catch(eText){}
+      var _err=new Error('HTTP '+r.status+(_detalhe?(' — '+_detalhe):''));
+      _err._payloadBytes=_bodyStr.length;
+      _err._httpStatus=r.status;
+      throw _err;
+    }
   } catch(e){ console.error('_cdocSBPush error:',e); throw e; }
 }
 
@@ -18830,6 +18838,17 @@ var _cdocSaveVersion=0; // versão do último save bem-sucedido (lock otimista)
 var _cdocSavePending=0; // nº de saves em andamento (fetch+merge+push) — usado para o
                          // auto-refresh não sobrescrever um save nosso ainda em curso
 
+// Evita perder edições: se o usuário tentar fechar a aba/navegar enquanto ainda há
+// salvamento(s) em andamento (inclusive durante as tentativas de retry por conexão
+// instável), o navegador pergunta antes de sair, em vez de simplesmente descartar a edição.
+window.addEventListener('beforeunload', function(e){
+  if(_cdocSavePending>0){
+    e.preventDefault();
+    e.returnValue = 'Ainda há alterações sendo salvas na nuvem. Se sair agora, elas podem não ser salvas.';
+    return e.returnValue;
+  }
+});
+
 function _cdocSave(db){
   _cdocSBCache=db;
   // Auditoria: quem salvou e quando
@@ -18842,6 +18861,11 @@ function _cdocSave(db){
       // JSON.stringify em background — não bloqueia render
       var json=JSON.stringify(db);
       if(json.length<5*1024*1024) localStorage.setItem('sider_ctrldoc',json);
+      else if(!window._cdocAvisouTamanho){
+        window._cdocAvisouTamanho=true;
+        console.warn('[CDOC] Backup local pulado — dados maiores que 5MB ('+(json.length/1024/1024).toFixed(2)+'MB). Se o salvamento na nuvem também falhar, a edição pode ser perdida.');
+        if(typeof showToast==='function') showToast('Base de dados grande','Os dados do Controle de Documentos estão grandes ('+(json.length/1024/1024).toFixed(2)+'MB) — isso aumenta o risco de falha ao salvar em conexões lentas. Considere avisar o suporte.','warn');
+      }
     }catch(e){}
   },800);
   _cdocSBStatus('💾 Salvando...','#0369a1');
@@ -18919,8 +18943,13 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
       return _cdocSaveWithRetry(snapshot, tentativa+1);
     } else {
       _cdocSBStatus('⚠ Não foi possível salvar na nuvem — dados preservados localmente','#dc2626');
+      // Mensagem com o motivo real (não apenas "verifique sua conexão") para facilitar o diagnóstico —
+      // ex.: payload muito grande, erro de permissão (RLS), etc. costumam se disfarçar de "erro de conexão".
+      var _motivo = e && e.message ? e.message : 'motivo desconhecido';
+      var _tamanhoInfo = (e && e._payloadBytes) ? ' · tamanho do envio: '+(e._payloadBytes/1024/1024).toFixed(2)+' MB' : '';
+      console.error('[CDOC save] Desistindo após '+MAX_TENTATIVAS+' tentativas. Motivo: '+_motivo+_tamanhoInfo);
       showToast('Erro ao salvar na nuvem',
-        'Dados salvos apenas localmente. Verifique sua conexão e tente o botão 🔄 Atualizar.',
+        'Dados salvos apenas localmente. Motivo: '+_motivo+_tamanhoInfo+'. Verifique sua conexão e tente o botão 🔄 Atualizar. Se persistir, use 🔍 Diag para ver o tamanho dos dados.',
         'error');
     }
   }
@@ -19260,6 +19289,17 @@ function _cdocDiag(){
     msg+='  detalhados: '+((ls.detalhados||[]).length)+' registros\n';
   }
   msg+='\nallCronSubobras: '+(typeof allCronSubobras==='undefined'?'undefined':(allCronSubobras.length+' registros'));
+  // Tamanho do payload enviado à nuvem a cada salvamento — se estiver grande (vários MB),
+  // conexões mais lentas/instáveis têm muito mais chance de falhar no envio.
+  if(cache&&typeof cache==='object'){
+    try{
+      var _sizeBytes = JSON.stringify(cache).length;
+      var _sizeMB = (_sizeBytes/1024/1024).toFixed(2);
+      msg+='\n\nTamanho do payload (CDOC completo, reenviado a cada salvamento): '+_sizeMB+' MB';
+      if(_sizeBytes > 3*1024*1024) msg+=' ⚠ GRANDE — aumenta bastante o risco de falha em conexões lentas/instáveis.';
+    }catch(eSz){}
+  }
+  msg+='\nSalvamentos pendentes agora (_cdocSavePending): '+(typeof _cdocSavePending!=='undefined'?_cdocSavePending:'?');
   // Testa cdocRenderBas
   var tb=document.getElementById('cdb-tbody');
   msg+='\n\ncdb-tbody: '+(tb?'encontrado ('+tb.children.length+' linhas)':'NÃO ENCONTRADO');
