@@ -5564,9 +5564,9 @@ function renderCronograma(){
     if(equipeF && s.equipe!==equipeF) return false;
     // Filtro multi-busca: sub-obra deve conter PELO MENOS UM dos termos
     if(_todosTags.length > 0){
-      // Busca em todos os campos de texto e datas das etapas
-      const searchFields = [
-        s.subobra, s.descricao, s.area, s.obra, s.equipe, s.status,
+      // Campos "livres" onde busca parcial (contém) continua fazendo sentido
+      const searchFieldsLivres = [
+        s.descricao, s.area, s.obra, s.equipe, s.status,
         s.num_proj_basico, s.prioridade,
         // Campos de datas e observações de todas as etapas
         s.prev_basico, s.real_basico, s.obs_basico,
@@ -5583,7 +5583,14 @@ function renderCronograma(){
         s.prev_diagramas, s.real_diagramas, s.obs_diagramas,
         s.data_limite_fab,
       ].map(v => (v||'').toLowerCase()).join(' ');
-      const matched = _todosTags.some(t => searchFields.includes(t.toLowerCase()));
+      const tagAtual = (s.subobra||'').toLowerCase();
+      // Cada termo buscado: a TAG precisa ser IGUAL (não apenas "conter") para contar como match —
+      // isso evita que buscar "S176AA" traga também "S176AAA", "S176AAB" etc. Nos demais campos
+      // (descrição, obra, equipe...) a busca continua parcial, por flexibilidade.
+      const matched = _todosTags.some(t => {
+        const tl = t.toLowerCase();
+        return tagAtual === tl || searchFieldsLivres.includes(tl);
+      });
       if(!matched) return false;
     }
     // Filtro data limite fábrica — só aplica se a etapa não foi concluída (sem real_lib_fab)
@@ -9712,6 +9719,18 @@ function gerarRelatorioCron(){
 
 // ── Copiar/colar data entre campos de etapa ──
 var _dataCopied = null; // data copiada globalmente
+// Saída de emergência universal: tecla Esc fecha o modal visível "no topo" (maior z-index),
+// mesmo que os botões de Cancelar/Fechar dele parem de responder por algum motivo.
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape') return;
+  var abertos = Array.from(document.querySelectorAll('.cron-modal-overlay.show, .modal-overlay.show'));
+  if(!abertos.length) return;
+  abertos.sort(function(a,b){
+    return (parseInt(getComputedStyle(b).zIndex)||0) - (parseInt(getComputedStyle(a).zIndex)||0);
+  });
+  abertos[0].classList.remove('show');
+});
+
 document.addEventListener('keydown', function(e){
   var el = document.activeElement;
   if(!el || el.type !== 'date') return;
