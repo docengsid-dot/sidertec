@@ -5075,6 +5075,7 @@ function _telhaToggleNA(cronId){
   if(typeof renderEtapasDinamicas==='function') renderEtapasDinamicas();
   if(typeof renderCronograma==='function') setTimeout(renderCronograma,150);
 }
+
 function etapaMarcarConcluido(key){
   if(!_etapasState[key]) return;
   var hoje = new Date().toISOString().split('T')[0];
