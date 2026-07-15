@@ -1183,7 +1183,7 @@ canvas{overflow:visible!important;}
 <!-- ═══════════════ CRONOGRAMA ═══════════════ -->
 <div class="page" id="page-cronograma" style="padding-top:.75rem;padding-bottom:.75rem;">
   <!-- Hero -->
-  <div style="background:linear-gradient(135deg,#1A1714 0%,#3A2A1A 100%);border-radius:var(--r);padding:.55rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;">
+  <div id="cron-hero" style="background:linear-gradient(135deg,#1A1714 0%,#3A2A1A 100%);border-radius:var(--r);padding:.55rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;">
     <div style="width:28px;height:28px;background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📋</div>
     <div style="flex:1;">
       <h2 style="font-family:'Georgia',serif,serif;font-size:14px;color:#fff;margin-bottom:0;line-height:1.2;">Cronograma de Sub-obras</h2>
@@ -1223,7 +1223,7 @@ canvas{overflow:visible!important;}
   </div>
 
   <!-- Import/Export Bar -->
-  <div class="import-export-bar" style="padding:.3rem .65rem;margin-bottom:.4rem;gap:.35rem;">
+  <div id="cron-ie-bar" class="import-export-bar" style="padding:.3rem .65rem;margin-bottom:.4rem;gap:.35rem;">
     <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Import/Export:</span>
     <label class="ie-btn csv" style="cursor:pointer;padding:3px 9px;font-size:10px;" title="Importar CSV">
       ⬆ CSV
@@ -1425,6 +1425,7 @@ ALTER TABLE medicao_terceiros
     </div>
   </div>
   <!-- Filtros + botão novo -->
+  <div id="cron-fullscreen-anchor" style="display:none;"></div>
   <div class="filters" style="position:sticky;top:100px;z-index:100;border-bottom:2px solid var(--border2);padding:.3rem .6rem;gap:.35rem;font-size:11px;">
     <label style="font-size:10px;">Obra:</label>
     <select id="cf-obra" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 5px;"><option value="">Todas</option></select>
@@ -1528,6 +1529,7 @@ ALTER TABLE medicao_terceiros
       <span style="color:var(--orange);font-weight:700;">Lib.Fab. s/ PCP</span>
     </label>
     <button class="btn" onclick="limparFiltrosCron()" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;position:sticky;right:0;">✕ Limpar</button>
+    <button id="cron-pin-btn" onclick="cronAbrirTelaCheia()" title="Abrir a planilha em outra tela, ampliada" style="padding:3px 8px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);border-radius:var(--r2);cursor:pointer;font-family:var(--font-main);white-space:nowrap;">⛶ Tela Cheia</button>
   </div>
 
   <!-- Barra de totais de peso filtrado -->
@@ -1557,6 +1559,16 @@ ALTER TABLE medicao_terceiros
   <!-- Views -->
   <div id="cron-kanban-view"></div>
   <div id="cron-tabela-view" style="display:none;"></div>
+
+  <!-- Tela Cheia: overlay cobrindo toda a viewport com a planilha ampliada -->
+  <div id="cron-fullscreen-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:5000;flex-direction:column;">
+    <div style="background:#1A1714;padding:.5rem 1rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25);">
+      <span style="font-size:14px;color:#fff;font-weight:700;">📋 Cronograma de Sub-obras</span>
+      <span style="font-size:10px;color:rgba(255,255,255,.45);">Tela cheia — planilha ampliada</span>
+      <button onclick="cronFecharTelaCheia()" style="margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:4px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">✕ Fechar Tela Cheia</button>
+    </div>
+    <div id="cron-fullscreen-content" style="flex:1;overflow-y:auto;padding:.6rem .75rem;"></div>
+  </div>
 </div>
 
 
@@ -5700,6 +5712,10 @@ function renderCronograma(){
   if(typeof atualizarBannerFiltros === 'function') atualizarBannerFiltros();
   if(typeof atualizarAlerteLimiteFab === "function") atualizarAlerteLimiteFab();
 
+  // ── Tela Cheia: abre automaticamente uma tela separada e ampliada com a planilha
+  // na primeira vez em que um filtro é aplicado (ver função para detalhes).
+  _cronAutoAbrirTelaCheiaSeFiltro();
+
   document.getElementById('cron-kanban-view').style.display = view==='kanban'?'block':'none';
   document.getElementById('cron-tabela-view').style.display = view==='tabela'?'block':'none';
 
@@ -5746,7 +5762,67 @@ function limparFiltrosCron(){
   if(selCnt) selCnt.textContent = '0';
   const btnLote0 = document.getElementById('btn-lote-selecionados');
   if(btnLote0) btnLote0.style.display = 'none';
+  if(_cronFullscreenOpen) cronFecharTelaCheia(); // ao limpar filtros, volta para a visão normal
   renderCronograma();
+}
+
+// ── Tela Cheia: abre uma tela separada, ampliada, com a planilha (filtros + tabela/kanban) ──
+let _cronFullscreenOpen = false;       // overlay de tela cheia está aberto agora
+let _cronFullscreenDismissed = false;  // usuário fechou manualmente enquanto o filtro ainda estava ativo — não reabrir sozinho
+let _cronFullscreenHadFiltro = false;  // estado anterior do filtro, para detectar a transição "começou a filtrar"
+function _cronTemFiltroAtivo(){
+  const idsValor = ['cf-obra','cf-equipe','cf-data-ini','cf-data-fim','cf-atraso','cf-limite-fab','cf-doc11','cf-status-data-ini','cf-status-data-fim'];
+  for(const id of idsValor){ const el=document.getElementById(id); if(el && el.value) return true; }
+  const sppc = document.getElementById('cf-sem-peso-pcp'); if(sppc && sppc.checked) return true;
+  if(typeof _statusSelecionados!=='undefined' && _statusSelecionados && _statusSelecionados.length>0) return true;
+  if(typeof _buscaTags!=='undefined' && _buscaTags && _buscaTags.length>0) return true;
+  const buscaInput = document.getElementById('cf-busca-input'); if(buscaInput && buscaInput.value.trim()) return true;
+  return false;
+}
+function cronAbrirTelaCheia(){
+  if(_cronFullscreenOpen) return;
+  const overlay = document.getElementById('cron-fullscreen-overlay');
+  const content = document.getElementById('cron-fullscreen-content');
+  if(!overlay||!content) return;
+  const filtrosEl = document.querySelector('#page-cronograma .filters');
+  const pesoBar    = document.getElementById('cron-peso-totais-bar');
+  const kanbanView = document.getElementById('cron-kanban-view');
+  const tabelaView = document.getElementById('cron-tabela-view');
+  // Dentro da tela cheia os filtros ficam fixos no topo do próprio painel de rolagem (não do topo da página)
+  if(filtrosEl){ filtrosEl.dataset.origTop = filtrosEl.style.top||''; filtrosEl.style.top = '-1px'; }
+  [filtrosEl,pesoBar,kanbanView,tabelaView].forEach(function(el){ if(el) content.appendChild(el); });
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  _cronFullscreenOpen = true;
+  _cronFullscreenDismissed = false;
+}
+function cronFecharTelaCheia(){
+  const overlay = document.getElementById('cron-fullscreen-overlay');
+  const anchor  = document.getElementById('cron-fullscreen-anchor');
+  const content = document.getElementById('cron-fullscreen-content');
+  if(!overlay||!anchor||!content) return;
+  const filtrosEl = content.querySelector('.filters');
+  if(filtrosEl){ filtrosEl.style.top = filtrosEl.dataset.origTop||''; }
+  // Reinsere os elementos na posição original, na mesma ordem
+  let ref = anchor;
+  Array.from(content.children).forEach(function(el){
+    ref.parentNode.insertBefore(el, ref.nextSibling);
+    ref = el;
+  });
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+  _cronFullscreenOpen = false;
+  _cronFullscreenDismissed = _cronTemFiltroAtivo(); // se o filtro continua ativo, não reabre sozinho de novo
+}
+// Abre a Tela Cheia automaticamente na primeira vez em que um filtro é aplicado
+// (o usuário pode fechar manualmente e ela só volta a abrir sozinha depois de limpar e filtrar de novo)
+function _cronAutoAbrirTelaCheiaSeFiltro(){
+  const temFiltro = _cronTemFiltroAtivo();
+  if(temFiltro && !_cronFullscreenHadFiltro && !_cronFullscreenOpen && !_cronFullscreenDismissed){
+    cronAbrirTelaCheia();
+  }
+  if(!temFiltro) _cronFullscreenDismissed = false;
+  _cronFullscreenHadFiltro = temFiltro;
 }
 
 // ── KANBAN ────────────────────────────────────────────────────────────
@@ -18294,9 +18370,9 @@ function _cdocPainelToggleDet(){
           <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="_cdocRenderDetDebounced()" style="max-width:100px;">
           <select id="cdd-f-finalidade" onchange="_cdocRenderDetDebounced()">
             <option value="">Toda finalidade</option>
-            <option>PARA APROVAÇÃO</option>
-            <option>CERTIFICAÇÃO</option>
-            <option>INFORMAÇÃO</option>
+            <option>Para Aprovação</option>
+            <option>Para Certificação</option>
+            <option>Para Informação</option>
           </select>
           <input id="cdd-f-grd" placeholder="GRD nº..." oninput="_cdocRenderDetDebounced()" style="max-width:90px;">
           <select id="cdd-f-statusfinal" onchange="_cdocRenderDetDebounced()">
@@ -18363,7 +18439,7 @@ function _cdocPainelToggleDet(){
           <input id="cdd-df-sub" placeholder="Sub-obra..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:90px;">
           <select id="cdd-df-fin" onchange="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;">
             <option value="">Toda finalidade</option>
-            <option>PARA APROVAÇÃO</option><option>CERTIFICAÇÃO</option><option>INFORMAÇÃO</option>
+            <option>Para Aprovação</option><option>Para Certificação</option><option>Para Informação</option>
           </select>
           <input id="cdd-df-grd" placeholder="GRD nº..." oninput="cdocRenderDiario()" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;max-width:90px;">
           <input id="cdd-df-prev" type="date" oninput="cdocRenderDiario()" title="Prev. Retorno até" style="font-size:10px;padding:2px 5px;border:1px solid #cbd5e1;border-radius:4px;">
@@ -20037,7 +20113,7 @@ function cdocRenderDet(){
     if(fSt&&d.statusGeral!==fSt) return false;
     if(fNum&&!(d.num||'').toLowerCase().includes(fNum)&&!(d.cli||'').toLowerCase().includes(fNum)) return false;
     if(fCli&&!(d.cli||'').toLowerCase().includes(fCli)) return false;
-    if(fFin){var _eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eh||(_eh.finalidade||'').toLowerCase()!==fFin.toLowerCase()) return false;}
+    if(fFin){var _eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eh||!_cdocFinInfo(_eh.finalidade)||_cdocFinInfo(_eh.finalidade).label!==fFin) return false;}
     if(fGrd){var _eg=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eg||!(_eg.grd||'').toLowerCase().includes(fGrd)) return false;}
     if(fSf){var _esf=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_esf||(_esf.statusFinal||'')!==fSf) return false;}
     return true;
@@ -20329,7 +20405,7 @@ function cdocBumpRev(modulo, dir){
 /* ── Limpar filtros ── */
 function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli','cdb-f-grd','cdb-f-proj','cdb-f-data'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
 function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-desc','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
-function cdocLimparDiario(){ ['cdd-df-secao','cdd-df-status','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; _cdocDiarioSortDir=1; cdocRenderDiario(); }
+function cdocLimparDiario(){ ['cdd-df-secao','cdd-df-status','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; _cdocDiarioSortDir=1; _cdocColFltsDia={}; cdocRenderDiario(); }
 
 /* ── Formulário Básico ── */
 function cdocNovoBas(){ if(!_siderRequireEdit()) return; _cdocMode='bas'; _cdocEditId=null; _cdocAbrirFormBas(null); }
@@ -20605,7 +20681,7 @@ function _cdocAbrirFormDet(rec){
     +'<div class="cdoc-ef2" style="margin-top:.3rem;">'
     +'<input id="cef-en-rev" placeholder="Rev. enviada" style="width:70px;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<input id="cef-en-data" type="date" onchange="_cdocAutoStatusEnvio(this)" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<select id="cef-en-finalidade" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;"><option value="">Finalidade...</option><option>PARA APROVAÇÃO</option><option>CERTIFICAÇÃO</option><option>INFORMAÇÃO</option></select>'
+    +'<select id="cef-en-finalidade" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;"><option value="">Finalidade...</option><option>Para Aprovação</option><option>Para Certificação</option><option>Para Informação</option></select>'
     +'<input id="cef-en-grd" placeholder="GRD nº" style="width:90px;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<input id="cef-en-prev-ret" type="date" title="Prev. Retorno" oninput="_cdocAtualizarDiasEnvio()" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;" placeholder="Prev. Retorno">'
     +'<input id="cef-en-ret-real" type="date" title="Retorno Real" oninput="_cdocAtualizarDiasEnvio()" style="font-size:11px;padding:3px 6px;border:1px solid #bfdbfe;border-radius:4px;background:#f0fdf4;" placeholder="Retorno Real">'
@@ -24229,15 +24305,24 @@ function cdocRenderDiario(){
     if(p==='atrasados') return d<hoje;
     return true;
   }
+  // Aplica filtros por coluna (Excel-like), reaproveitando o mesmo mecanismo das abas Básico/Detalhado
+  function _cdocPassaColFltsDia(d){
+    return Object.keys(_cdocColFltsDia).every(function(col){
+      var set=_cdocColFltsDia[col];
+      if(!set||!set.size) return true;
+      return set.has((d[col]||'(vazio)').toString());
+    });
+  }
   // Aplica filtros comuns (obra, eng, sub, finalidade, grd, prevRetorno, statusFinal, status)
   function applyFiltros(docs){
     return docs.filter(function(d){
+      if(!_cdocPassaColFltsDia(d)) return false;
       if(fObra && d.obraId!==fObra) return false;
       if(fStatusGeral && (d.statusGeral||'')!==fStatusGeral) return false;
       if(fEng && !(d.engResp||'').toLowerCase().includes(fEng)) return false;
       if(fSub && !_cdocSubMatch(d.sub||'',fSub)) return false;
       var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
-      if(fFin && (!eh||( (eh.finalidade||'') !== fFin ))) return false;
+      if(fFin && (!eh || !_cdocFinInfo(eh.finalidade) || _cdocFinInfo(eh.finalidade).label !== fFin)) return false;
       if(fGrd && (!eh||!((eh.grd||'').toLowerCase().includes(fGrd)))) return false;
       if(fPrev && (!eh||(eh.prevRetorno||'')>fPrev)) return false;
       if(fSf && (!eh||((eh.statusFinal||'')!==fSf))) return false;
@@ -24328,6 +24413,13 @@ function cdocRenderDiario(){
 
   // ── Monta HTML da seção ──
   // showEnvioExtra=true para seções que têm envioHist relevante
+  function _cdocDiaTh(label,col){
+    var ativo=!!(_cdocColFltsDia[col]&&_cdocColFltsDia[col].size);
+    return '<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:3px;">'+label
+      +'<button onclick="_cdocShowColFlt(event,\'dia\',\''+col+'\')" style="background:none;border:none;cursor:pointer;color:'+(ativo?'#0369a1':'#94a3b8')+';font-weight:'+(ativo?'700':'400')+';font-size:9px;padding:0 2px;flex-shrink:0;line-height:1;" title="Filtrar">&#9660;</button>'
+      +'</div></th>';
+  }
   function secaoHtml(titulo,cor,icone,docs,dataFn,showEnvioExtra,situacaoFn){
     var headerHtml='<div style="background:#fff;border:1px solid #e2e8f0;border-left:4px solid '+cor+';border-radius:6px;padding:.5rem .9rem;">'
       +'<div style="font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.06em;">'+icone+' '+titulo+'</div>'
@@ -24336,7 +24428,7 @@ function cdocRenderDiario(){
     if(!docs.length) return headerHtml;
     var extraThs=showEnvioExtra
       ? '<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">FINALIDADE</th>'
-        +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">GRD</th>'
+        +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">GRD EMITIDA</th>'
         +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">PREV. RETORNO</th>'
         +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;white-space:nowrap;">STATUS FINAL</th>'
       : '';
@@ -24359,6 +24451,7 @@ function cdocRenderDiario(){
         +'<td style="padding:6px 8px;font-size:12px;color:#334155;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(d.desc||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;color:#334155;white-space:nowrap;">'+_esc(d.tipo||'—')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;">'+_cdocBadgeHtml(d.statusGeral)+'</td>'
+        +'<td style="padding:6px 8px;font-size:11px;font-family:Courier New,monospace;color:#475569;white-space:nowrap;text-align:center;">'+_esc(d.rev||'—')+'</td>'
         +situacaoTd
         +'<td style="padding:6px 8px;white-space:nowrap;">'+diaLabel(dataRef)+'</td>'
         +extraTds
@@ -24372,13 +24465,14 @@ function cdocRenderDiario(){
       +'<div style="overflow-x:auto;">'
       +'<table style="width:100%;border-collapse:collapse;">'
       +'<thead><tr style="background:#f8fafc;">'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;border-bottom:1px solid #e2e8f0;">OBRA</th>'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">TAG</th>'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Nº SIDERTEC</th>'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Nº CLIENTE</th>'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">DESCRIÇÃO</th>'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">TIPO</th>'
-      +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">STATUS</th>'
+      +_cdocDiaTh('OBRA','obraId')
+      +_cdocDiaTh('TAG','sub')
+      +_cdocDiaTh('Nº SIDERTEC','num')
+      +_cdocDiaTh('Nº CLIENTE','cli')
+      +_cdocDiaTh('DESCRIÇÃO','desc')
+      +_cdocDiaTh('TIPO','tipo')
+      +_cdocDiaTh('STATUS','statusGeral')
+      +_cdocDiaTh('REV.','rev')
       +situacaoTh
       +'<th style="padding:5px 8px;font-size:10px;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">PRAZO/DATA</th>'
       +extraThs
@@ -24394,7 +24488,7 @@ function cdocRenderDiario(){
     var eh=_cdocUltimoEnvio(d);
     return {
       secao:secaoLabel, obra:d.obraId||'', tag:d.sub||'', numSidertec:d.num||'', numCliente:d.cli||'',
-      descricao:d.desc||'', tipo:d.tipo||'', status:d.statusGeral||'', situacao:situacao||'',
+      descricao:d.desc||'', tipo:d.tipo||'', status:d.statusGeral||'', rev:d.rev||'', situacao:situacao||'',
       prazo:diaLabelTxt(dataRef), finalidade:(eh&&eh.finalidade)||'', grd:(eh&&eh.grd)||'',
       prevRetorno:(eh&&eh.prevRetorno)||'', statusFinal:(eh&&eh.statusFinal)||''
     };
@@ -24465,12 +24559,12 @@ function cdocDiarioExportXLSX(){
   if(!rows.length){ alert('Nenhum registro para exportar com os filtros/seção atuais.'); return; }
   if(typeof XLSX==='undefined'){ alert('Biblioteca de Excel ainda carregando. Aguarde alguns segundos e tente novamente.'); return; }
   var fmtBR=function(s){ return s?s.split('-').reverse().join('/'):''; };
-  var hdr=['Seção','Obra','TAG','Nº Sidertec','Nº Cliente','Descrição','Tipo','Status','Situação','Prazo','Finalidade','GRD','Prev. Retorno','Status Final'];
+  var hdr=['Seção','Obra','TAG','Nº Sidertec','Nº Cliente','Descrição','Tipo','Status','Rev.','Situação','Prazo','Finalidade','GRD Emitida','Prev. Retorno','Status Final'];
   var aoa=[hdr].concat(rows.map(function(r){
-    return [r.secao,r.obra,r.tag,r.numSidertec,r.numCliente,r.descricao,r.tipo,r.status,r.situacao,r.prazo,r.finalidade,r.grd,fmtBR(r.prevRetorno),r.statusFinal];
+    return [r.secao,r.obra,r.tag,r.numSidertec,r.numCliente,r.descricao,r.tipo,r.status,r.rev,r.situacao,r.prazo,r.finalidade,r.grd,fmtBR(r.prevRetorno),r.statusFinal];
   }));
   var ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols']=[{wch:24},{wch:16},{wch:9},{wch:16},{wch:16},{wch:32},{wch:18},{wch:24},{wch:14},{wch:13},{wch:16},{wch:13},{wch:13},{wch:16}];
+  ws['!cols']=[{wch:24},{wch:16},{wch:9},{wch:16},{wch:16},{wch:32},{wch:18},{wch:24},{wch:8},{wch:14},{wch:13},{wch:16},{wch:13},{wch:13},{wch:16}];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Diário');
   var hoje=new Date().toISOString().split('T')[0];
@@ -24527,6 +24621,7 @@ function cdocDiarioExportPDF(){
         +'<td style="font-weight:700;color:#0369a1;">'+_esc(r.obra)+'</td><td style="font-weight:700;">'+_esc(r.tag)+'</td>'
         +'<td>'+_esc(r.numSidertec)+'</td><td>'+_esc(r.numCliente)+'</td>'
         +'<td>'+_esc(r.descricao)+'</td><td>'+_esc(r.tipo)+'</td><td>'+statusBadge(r.status)+'</td>'
+        +'<td style="text-align:center;">'+_esc(r.rev||'—')+'</td>'
         +(r.situacao?'<td style="font-weight:700;color:'+cor+';">'+_esc(r.situacao)+'</td>':'')
         +'<td style="font-weight:700;color:'+prazoColor(r.prazo)+';">'+_esc(r.prazo)+'</td>'
         +'<td>'+_cdocFinBadge(r.finalidade)+'</td><td>'+_esc(r.grd||'—')+'</td><td>'+fmtBR(r.prevRetorno)+'</td>'
@@ -24540,9 +24635,9 @@ function cdocDiarioExportPDF(){
       +'</div>'
       +'<table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:.5rem;border:1px solid '+cor+'55;">'
       +'<thead><tr style="background:'+cor+'12;">'
-      +'<th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Descrição</th><th>Tipo</th><th>Status</th>'
+      +'<th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Descrição</th><th>Tipo</th><th>Status</th><th>Rev.</th>'
       +(temSituacao?'<th>Situação</th>':'')
-      +'<th>Prazo</th><th>Finalidade</th><th>GRD</th><th>Prev. Retorno</th><th>Status Final</th>'
+      +'<th>Prazo</th><th>Finalidade</th><th>GRD Emitida</th><th>Prev. Retorno</th><th>Status Final</th>'
       +'</tr></thead><tbody>'+trs+'</tbody></table>';
   }).join('');
   var w=window.open('','_blank');
@@ -24612,7 +24707,7 @@ function _cdocUpdateSortBtns(tbl){
 }
 var _cdocBasSel=new Set(), _cdocDetSel=new Set();
 var _cdocBasRows=[];
-var _cdocColFltsBas={}, _cdocColFltsDet={};
+var _cdocColFltsBas={}, _cdocColFltsDet={}, _cdocColFltsDia={};
 function _cdocToggleSelBas(id,e){
   if(e&&e.target&&e.target.tagName==='BUTTON') return;
   if(_cdocBasSel.has(id)) _cdocBasSel.delete(id); else _cdocBasSel.add(id);
@@ -24719,7 +24814,7 @@ function _cdocShowColFlt(e,tbl,col){
   _cdocColFltCtx={tbl:tbl,col:col};
   var db=_cdocDb();
   var allRows=tbl==='bas'?db.basicos:db.detalhados;
-  var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
+  var flts=tbl==='bas'?_cdocColFltsBas:(tbl==='dia'?_cdocColFltsDia:_cdocColFltsDet);
   var vals={};
   allRows.forEach(function(r){var v=(r[col]||'(vazio)').toString();vals[v]=(vals[v]||0)+1;});
   var sorted=Object.keys(vals).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
@@ -24746,9 +24841,9 @@ function _cdocShowColFlt(e,tbl,col){
   });
   list+='</div>';
   var footer='<div style="border-top:1px solid #e2e8f0;margin-top:5px;padding-top:5px;display:flex;justify-content:space-between;gap:4px;">'
-    +'<button onclick="'+(tbl==='bas'?'cdocRenderBas()':'cdocRenderDet()')+';document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
+    +'<button onclick="'+(tbl==='bas'?'cdocRenderBas()':tbl==='dia'?'cdocRenderDiario()':'cdocRenderDet()')+';document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
     +'style="flex:1;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:3px 0;font-size:10px;cursor:pointer;font-weight:700;">Aplicar</button>'
-    +'<button onclick="var f=\''+tbl+'\';var c=\''+col+'\';var flts=f===\'bas\'?_cdocColFltsBas:_cdocColFltsDet;delete flts[c];if(f===\'bas\')cdocRenderBas();else cdocRenderDet();document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
+    +'<button onclick="var f=\''+tbl+'\';var c=\''+col+'\';var flts=f===\'bas\'?_cdocColFltsBas:(f===\'dia\'?_cdocColFltsDia:_cdocColFltsDet);delete flts[c];if(f===\'bas\')cdocRenderBas();else if(f===\'dia\')cdocRenderDiario();else cdocRenderDet();document.getElementById(\'cdoc-col-flt-popup\').remove();_cdocColFltCtx={tbl:null,col:null};" '
     +'style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:3px 8px;font-size:10px;cursor:pointer;">Limpar</button>'
     +'</div>';
   popup.innerHTML=header+list+footer;
@@ -24785,22 +24880,22 @@ function _cdocFltSearch(q){
   });
 }
 function _cdocFltSelAll(tbl,col,sel){
-  var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
+  var flts=tbl==='bas'?_cdocColFltsBas:(tbl==='dia'?_cdocColFltsDia:_cdocColFltsDet);
   var db=_cdocDb(); var allRows=tbl==='bas'?db.basicos:db.detalhados;
   if(sel){ delete flts[col]; }
   else { var allVals=new Set(); allRows.forEach(function(r){allVals.add((r[col]||'(vazio)').toString());}); flts[col]=allVals; }
   var popup=document.getElementById('cdoc-col-flt-popup');
   if(popup) popup.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=sel;});
-  if(tbl==='bas') cdocRenderBas(); else cdocRenderDet();
+  if(tbl==='bas') cdocRenderBas(); else if(tbl==='dia') cdocRenderDiario(); else cdocRenderDet();
 }
 function _cdocFltToggle(tbl,col,val,checked){
-  var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
+  var flts=tbl==='bas'?_cdocColFltsBas:(tbl==='dia'?_cdocColFltsDia:_cdocColFltsDet);
   var db=_cdocDb(); var allRows=tbl==='bas'?db.basicos:db.detalhados;
   if(!flts[col]||flts[col].size===0){
     var allVals=new Set(); allRows.forEach(function(r){allVals.add((r[col]||'(vazio)').toString());}); flts[col]=allVals;
   }
   if(checked) flts[col].add(val); else flts[col].delete(val);
-  if(tbl==='bas') cdocRenderBas(); else cdocRenderDet();
+  if(tbl==='bas') cdocRenderBas(); else if(tbl==='dia') cdocRenderDiario(); else cdocRenderDet();
 }
 
 /* ── Sistema de Bloqueio de Edição ── */
