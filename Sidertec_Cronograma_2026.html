@@ -1330,6 +1330,7 @@ canvas{overflow:visible!important;}
   ADD COLUMN IF NOT EXISTS real_proj_telha       date,
   ADD COLUMN IF NOT EXISTS obs_proj_telha        text,
   ADD COLUMN IF NOT EXISTS conc_proj_telha       text,
+  ADD COLUMN IF NOT EXISTS telha_na              boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS prev_fabricacao       date,
   ADD COLUMN IF NOT EXISTS real_fabricacao       date,
   ADD COLUMN IF NOT EXISTS obs_fabricacao        text,
@@ -1524,6 +1525,15 @@ ALTER TABLE medicao_terceiros
       <option value="atrasado">🔴 Atr.</option>
     </select>
     <div class="fsep"></div>
+    <label style="font-size:10px;" title="Filtrar pelo Projeto de Telha">🏠 Telha:</label>
+    <select id="cf-telha" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;" title="Filtrar sub-obras que têm Projeto de Telha, e se está concluído">
+      <option value="">Todos</option>
+      <option value="tem">🏠 Tem Projeto de Telha</option>
+      <option value="tem-concluido">✅ Tem — Concluído</option>
+      <option value="tem-pendente">⏳ Tem — Pendente/Atrasado</option>
+      <option value="nao-tem">— Não tem</option>
+    </select>
+    <div class="fsep"></div>
     <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;white-space:nowrap;" title="Lib. Fabricacao sem Peso PCP">
       <input type="checkbox" id="cf-sem-peso-pcp" onchange="_renderCronogramaDebounced()" style="accent-color:var(--orange);">
       <span style="color:var(--orange);font-weight:700;">Lib.Fab. s/ PCP</span>
@@ -1561,7 +1571,7 @@ ALTER TABLE medicao_terceiros
   <div id="cron-tabela-view" style="display:none;"></div>
 
   <!-- Tela Cheia: overlay cobrindo toda a viewport com a planilha ampliada -->
-  <div id="cron-fullscreen-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:5000;flex-direction:column;">
+  <div id="cron-fullscreen-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:450;flex-direction:column;">
     <div style="background:#1A1714;padding:.5rem 1rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25);">
       <span style="font-size:14px;color:#fff;font-weight:700;">📋 Cronograma de Sub-obras</span>
       <span style="font-size:10px;color:rgba(255,255,255,.45);">Tela cheia — planilha ampliada</span>
@@ -2439,6 +2449,21 @@ ALTER TABLE medicao_terceiros
       </div>
       <div style="font-size:9px;color:var(--ink3);margin-bottom:.5rem;">
         Campos de data/observação deixados em branco não alteram o valor já existente em cada TAG — apenas o que for preenchido é aplicado a todas.
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Projeto de Telha -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="lote-chk-telha" onchange="document.getElementById('lote-telha').disabled=!this.checked;" style="accent-color:var(--blue);width:13px;height:13px;">
+          🏠 Definir Projeto de Telha para todas as TAGs selecionadas
+        </label>
+        <select class="field-input" id="lote-telha" disabled style="font-size:16px;">
+          <option value="">— Selecione —</option>
+          <option value="tem">🏠 Tem Projeto de Telha</option>
+          <option value="nao">— Não tem Projeto de Telha (N/A)</option>
+        </select>
       </div>
 
       <div id="lote-progresso" style="display:none;margin-top:.5rem;background:var(--blue2);color:var(--blue);border-radius:var(--r2);padding:.5rem .75rem;font-size:16px;font-weight:600;"></div>
@@ -4208,7 +4233,8 @@ function etapasStateFromSubobra(s){
       obs:(e.extra==='resultado')?'':(s[e.col_obs]||''),
       grd:(e.extra==='grd')?(s.grd_modelo||''):'',
       peso_exec:(e.extra==='peso_exec'||e.extra==='expedicao')?(e.col_peso_exec?s[e.col_peso_exec]||'':''):'',
-      montagem_na:(e.extra==='montagem')?(s.montagem_na===true||s.montagem_na==='S'||s.montagem_na==='true'):false
+      montagem_na:(e.extra==='montagem')?(s.montagem_na===true||s.montagem_na==='S'||s.montagem_na==='true'):false,
+      telha_na:(e.extra==='telha')?(s.telha_na===true||s.telha_na==='S'||s.telha_na==='true'):false
     };
   });
 
@@ -4477,21 +4503,20 @@ function renderEtapasDinamicas(){
         else sPillHtml = '<span class="cron-etapa-status-pill na" style="font-size:9px;padding:1px 6px;">—</span>';
         // Override for Projeto de Telha N/A
         if(sub.extra==='telha'){
-          var _tvSim=(JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}')[editingCronId]||{}).sim;
-          if(_tvSim==='NA'){
-            sPillHtml='<span style="background:#e2e8f0;color:#475569;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">N/A</span>';
+          if(sst.telha_na){
+            sPillHtml='<span style="background:#e2e8f0;color:#475569;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">N/A — Não tem</span>';
           }
         }
 
-        var _isTelhaNA = sub.extra==='telha' && (JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}')[editingCronId]||{}).sim==='NA';
+        var _isTelhaNA = sub.extra==='telha' && sst.telha_na;
         var sAction = _isTelhaNA
-          ? '<button onclick="_telhaToggleNA(\''+editingCronId+'\')" style="background:#e2e8f0;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">N/A ↩</button>'
+          ? '<button onclick="_telhaToggleNA(\''+editingCronId+'\')" style="background:#e2e8f0;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">N/A — Não tem ↩</button>'
           : sConc
           ? '<button onclick="etapaDesmarcarConcluido(\''+sub.key+'\')" style="background:none;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;font-size:8px;color:#6b7280;padding:1px 4px;">↩</button>'
           : (sub.extra==='telha'
             ? '<span style="display:flex;gap:2px;">'
-              + '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;">✓</button>'
-              + '<button onclick="_telhaToggleNA(\''+editingCronId+'\')" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;" title="Marcar como Não Aplicável">N/A</button>'
+              + '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;" title="Marcar como concluído (tem Projeto de Telha)">✓ Tem</button>'
+              + '<button onclick="_telhaToggleNA(\''+editingCronId+'\')" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;" title="Marcar que este projeto NÃO tem Projeto de Telha">Não tem</button>'
               + '</span>'
             : '<button onclick="etapaMarcarConcluido(\''+sub.key+'\')" style="background:#1e40af;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:700;cursor:pointer;">✓</button>');
 
@@ -5030,11 +5055,25 @@ function _onDiasInput(el){
 }
 
 function _telhaToggleNA(cronId){
-  var store=JSON.parse(localStorage.getItem('sidertec_proj_telha')||'{}');
-  if(!store[cronId]) store[cronId]={sim:'NAO',prev:'',conc:''};
-  store[cronId].sim = store[cronId].sim==='NA' ? 'NAO' : 'NA';
-  localStorage.setItem('sidertec_proj_telha',JSON.stringify(store));
+  if(!_etapasState['proj_telha']) _etapasState['proj_telha']={};
+  var novoVal = !_etapasState['proj_telha'].telha_na;
+  _etapasState['proj_telha'].telha_na = novoVal;
+  if(novoVal){
+    // Limpa datas ao marcar que o projeto NÃO tem Projeto de Telha
+    _etapasState['proj_telha'].prev=''; _etapasState['proj_telha'].real='';
+  }
+  // Salva no registro real da sub-obra (Supabase) — mesmo padrão usado para montagem_na
+  if(cronId){
+    var upd={telha_na:novoVal, atualizado_em:new Date().toISOString()};
+    if(novoVal){upd.prev_proj_telha=null;upd.real_proj_telha=null;}
+    var i=allCronSubobras.findIndex(function(x){return x.id===cronId;});
+    if(i>=0) allCronSubobras[i]=Object.assign({},allCronSubobras[i],upd);
+    sbClient.from('cronograma_subobras').update(upd).eq('id',cronId).select()
+      .then(function(r){if(r.error)console.warn('[telhaNA]',r.error.message);})
+      .catch(function(e){console.warn('[telhaNA]',e.message);});
+  }
   if(typeof renderEtapasDinamicas==='function') renderEtapasDinamicas();
+  if(typeof renderCronograma==='function') setTimeout(renderCronograma,150);
 }
 function etapaMarcarConcluido(key){
   if(!_etapasState[key]) return;
@@ -5516,6 +5555,7 @@ function renderCronograma(){
 
   const limiteFabF = document.getElementById('cf-limite-fab')?.value||'';
   const doc11F = document.getElementById('cf-doc11')?.value||''; // Filtro Etapa 11 Documentos
+  const telhaF = document.getElementById('cf-telha')?.value||''; // Filtro Projeto de Telha
 
   let subs = allCronSubobras.filter(s=>{
     if(obraF   && s.obra!==obraF) return false;
@@ -5576,6 +5616,21 @@ function renderCronograma(){
         if(!prevDiag) return false; // sem previsão — não dá pra calcular atraso
         const p11 = new Date(prevDiag+'T12:00:00');
         if(p11 >= hoje11) return false; // ainda no prazo
+      }
+    }
+    // Filtro Projeto de Telha: tem/não tem, e se está concluído
+    if(telhaF){
+      const temTelha = !(s.telha_na===true||s.telha_na==='S'||s.telha_na==='true');
+      if(telhaF === 'nao-tem'){
+        if(temTelha) return false;
+      } else {
+        if(!temTelha) return false; // não tem — não entra em nenhuma das opções "tem..."
+        if(telhaF === 'tem-concluido'){
+          if(!s.real_proj_telha) return false;
+        } else if(telhaF === 'tem-pendente'){
+          if(s.real_proj_telha) return false;
+        }
+        // telhaF === 'tem' → já filtrado por temTelha acima, sem exigência adicional
       }
     }
     // Filtro de data: filtra por previsão de entrega da etapa atual
@@ -5712,9 +5767,9 @@ function renderCronograma(){
   if(typeof atualizarBannerFiltros === 'function') atualizarBannerFiltros();
   if(typeof atualizarAlerteLimiteFab === "function") atualizarAlerteLimiteFab();
 
-  // ── Tela Cheia: abre automaticamente uma tela separada e ampliada com a planilha
-  // na primeira vez em que um filtro é aplicado (ver função para detalhes).
-  _cronAutoAbrirTelaCheiaSeFiltro();
+  // Obs.: a Tela Cheia deixou de abrir automaticamente ao filtrar — agora é 100% manual,
+  // via o botão "⛶ Tela Cheia" na barra de filtros. Isso evita qualquer risco de o usuário
+  // ficar "preso" numa tela sem conseguir interagir só porque aplicou um filtro.
 
   document.getElementById('cron-kanban-view').style.display = view==='kanban'?'block':'none';
   document.getElementById('cron-tabela-view').style.display = view==='tabela'?'block':'none';
@@ -5737,7 +5792,7 @@ function cronPopularFiltros(){
 }
 
 function limparFiltrosCron(){
-  ['cf-obra','cf-equipe','cf-atraso','cf-limite-fab','cf-doc11'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['cf-obra','cf-equipe','cf-atraso','cf-limite-fab','cf-doc11','cf-telha'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const _sppc=document.getElementById('cf-sem-peso-pcp'); if(_sppc) _sppc.checked=false;
   ['cf-data-ini','cf-data-fim','cf-status-data-ini','cf-status-data-fim'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   // Limpar multi-status
@@ -5771,7 +5826,7 @@ let _cronFullscreenOpen = false;       // overlay de tela cheia está aberto ago
 let _cronFullscreenDismissed = false;  // usuário fechou manualmente enquanto o filtro ainda estava ativo — não reabrir sozinho
 let _cronFullscreenHadFiltro = false;  // estado anterior do filtro, para detectar a transição "começou a filtrar"
 function _cronTemFiltroAtivo(){
-  const idsValor = ['cf-obra','cf-equipe','cf-data-ini','cf-data-fim','cf-atraso','cf-limite-fab','cf-doc11','cf-status-data-ini','cf-status-data-fim'];
+  const idsValor = ['cf-obra','cf-equipe','cf-data-ini','cf-data-fim','cf-atraso','cf-limite-fab','cf-doc11','cf-telha','cf-status-data-ini','cf-status-data-fim'];
   for(const id of idsValor){ const el=document.getElementById(id); if(el && el.value) return true; }
   const sppc = document.getElementById('cf-sem-peso-pcp'); if(sppc && sppc.checked) return true;
   if(typeof _statusSelecionados!=='undefined' && _statusSelecionados && _statusSelecionados.length>0) return true;
@@ -5813,16 +5868,6 @@ function cronFecharTelaCheia(){
   document.body.style.overflow = '';
   _cronFullscreenOpen = false;
   _cronFullscreenDismissed = _cronTemFiltroAtivo(); // se o filtro continua ativo, não reabre sozinho de novo
-}
-// Abre a Tela Cheia automaticamente na primeira vez em que um filtro é aplicado
-// (o usuário pode fechar manualmente e ela só volta a abrir sozinha depois de limpar e filtrar de novo)
-function _cronAutoAbrirTelaCheiaSeFiltro(){
-  const temFiltro = _cronTemFiltroAtivo();
-  if(temFiltro && !_cronFullscreenHadFiltro && !_cronFullscreenOpen && !_cronFullscreenDismissed){
-    cronAbrirTelaCheia();
-  }
-  if(!temFiltro) _cronFullscreenDismissed = false;
-  _cronFullscreenHadFiltro = temFiltro;
 }
 
 // ── KANBAN ────────────────────────────────────────────────────────────
@@ -6647,7 +6692,7 @@ async function abrirCronModal(id){
     var _lsRows = _lsGet('cronograma_subobras');
     var _lsRecord = _lsRows.find(function(r){ return String(r.id)===String(id); });
     if(_lsRecord){
-      var _memIdx = allCronSubobras.findIndex(function(x){ return x.id===id; });
+      var _memIdx = allCronSubobras.findIndex(function(x){ return String(x.id)===String(id); });
       if(_memIdx>=0){ allCronSubobras[_memIdx] = Object.assign({}, allCronSubobras[_memIdx], _lsRecord); }
       else { allCronSubobras.push(_lsRecord); }
     }
@@ -6696,8 +6741,12 @@ async function abrirCronModal(id){
   ['basico','revisao','obs'].forEach(k=>{const el=document.getElementById('anexo-'+k+'-list');if(el)el.innerHTML='';});
 
   if(id){
-    const s = allCronSubobras.find(x=>x.id===id);
-    if(!s) return;
+    const s = allCronSubobras.find(x=>String(x.id)===String(id));
+    if(!s){
+      console.warn('[abrirCronModal] Sub-obra com id='+id+' não encontrada em allCronSubobras.');
+      if(typeof showToast==='function') showToast('Não foi possível abrir','Este item não foi encontrado na lista carregada. Clique em 🔄 Atualizar e tente de novo.','error');
+      return;
+    }
     // Expõe a TAG da sub-obra aberta para integração com GRD
     window._cronModalTag = s.subobra;
     window._cronModalObra = s.obra;
@@ -10207,6 +10256,9 @@ function abrirModalLote(){
 
   document.getElementById('lote-progresso').style.display='none';
   document.getElementById('lote-progresso').textContent='';
+  document.getElementById('lote-chk-telha').checked = false;
+  var selTelha = document.getElementById('lote-telha');
+  selTelha.value=''; selTelha.disabled=true;
   var btn=document.getElementById('btn-aplicar-lote'); btn.disabled=false; btn.textContent='✓ Aplicar em Lote';
 
   document.getElementById('modal-lote').classList.add('show');
@@ -10282,8 +10334,12 @@ async function aplicarLote(){
 
   var etapas = _loteEtapasSelecionadas();
 
-  if(!alterarStatus && !etapas.length && !alterarObsGeral && !alterarPesoDet){
-    showToast('Nada para aplicar','Marque "Alterar Status", "Observação", "Peso Detalhado" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
+  var alterarTelha = document.getElementById('lote-chk-telha').checked;
+  var valorTelha = alterarTelha ? (document.getElementById('lote-telha').value||'') : '';
+  if(alterarTelha && !valorTelha){ showToast('Selecione uma opção','Escolha "Tem" ou "Não tem" Projeto de Telha, ou desmarque a opção.','error'); return; }
+
+  if(!alterarStatus && !etapas.length && !alterarObsGeral && !alterarPesoDet && !alterarTelha){
+    showToast('Nada para aplicar','Marque "Alterar Status", "Observação", "Peso Detalhado", "Projeto de Telha" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
   }
 
   // Validação: GRD obrigatória se marcar Data Realizada do envio do modelo
@@ -10306,6 +10362,9 @@ async function aplicarLote(){
   if(alterarPesoDet){
     resumoLinhas.push('\nPeso Detalhado a atualizar em '+Object.keys(pesoDetMap).length+' TAG(s):');
     subs.forEach(function(s){ if(pesoDetMap[s.id]!==undefined) resumoLinhas.push('  • '+(s.subobra||s.id)+': '+pesoDetMap[s.id].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg'); });
+  }
+  if(alterarTelha){
+    resumoLinhas.push('\nProjeto de Telha → ' + (valorTelha==='tem' ? '🏠 Tem Projeto de Telha' : '— Não tem (N/A)'));
   }
   if(etapas.length){
     resumoLinhas.push('\nEtapas a atualizar:');
@@ -10336,6 +10395,10 @@ async function aplicarLote(){
       var updates = { atualizado_em: new Date().toISOString() };
       if(alterarStatus) updates.status = novoStatus;
       if(alterarPesoDet && pesoDetMap[s.id]!==undefined) updates.peso_detalhado = pesoDetMap[s.id];
+      if(alterarTelha){
+        updates.telha_na = (valorTelha==='nao');
+        if(valorTelha==='nao'){ updates.prev_proj_telha=null; updates.real_proj_telha=null; }
+      }
       etapas.forEach(function(et){
         var eDef = et.def;
         if(et.prev!=null) updates[eDef.prev] = et.prev;
@@ -10368,6 +10431,7 @@ async function aplicarLote(){
         if(alterarStatus) obsHist.push('Status alterado em lote para ' + novoStatus);
         if(alterarObsGeral) obsHist.push(obsGeral);
         if(alterarPesoDet && pesoDetMap[s.id]!==undefined) obsHist.push('Peso Detalhado atualizado em lote para '+pesoDetMap[s.id].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg');
+        if(alterarTelha) obsHist.push('Projeto de Telha atualizado em lote: ' + (valorTelha==='tem' ? 'Tem Projeto de Telha' : 'Não tem (N/A)'));
         etapas.forEach(function(et){
           var eDef = et.def;
           var partes=[];
@@ -10392,7 +10456,7 @@ async function aplicarLote(){
       }catch(he){ console.warn('Histórico (lote):', he.message); }
 
       // Atualiza estado local
-      var idx = allCronSubobras.findIndex(function(x){return x.id===s.id;});
+      var idx = allCronSubobras.findIndex(function(x){return String(x.id)===String(s.id);});
       var _novoRegistro = null;
       if(idx>=0){
         if(data && data[0]) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], data[0]);
@@ -23490,7 +23554,14 @@ function cdocSalvar(){
     }
     var rec={id:_cdocEditId||_cdocGenId(db,'bas'),obraId:obra,sub:sub,titulo:titulo,descbas:g('cef-descbas')||'',cli:g('cef-cli'),proj:g('cef-proj'),status:g('cef-status')||'LD',area:g('cef-area'),peso:g('cef-peso')||null,m3d:g('cef-m3d')||'2D',diag:g('cef-diag')||'2D',det:g('cef-det'),rev:g('cef-rev'),data:g('cef-data'),revisoes:(_oldRec&&_oldRec.revisoes?_oldRec.revisoes:[]).concat(_cdocPendingRevs||[])};
     _cdocPendingRevs=[];
-    if(_cdocEditId){ db.basicos=db.basicos.map(function(b){return b.id===_cdocEditId?rec:b;}); }
+    if(_cdocEditId){
+      var _idxBas=db.basicos.findIndex(function(b){return b.id===_cdocEditId||String(b.id)===String(_cdocEditId);});
+      if(_idxBas>=0){ db.basicos[_idxBas]=rec; }
+      else {
+        console.warn('[cdocSalvar] Registro id='+_cdocEditId+' não encontrado em db.basicos — inserindo como novo para não perder a edição.');
+        db.basicos.push(rec); _cdocCriarNoCronograma(rec);
+      }
+    }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
     // ── SYNC: CDOC Projeto Básico → Cronograma ──────────────────────
@@ -23640,7 +23711,16 @@ function cdocSalvar(){
     // Guarda quais entradas de envio/libfab são NOVAS nesta gravação (para sincronizar o cronograma)
     var _novosEnvios = (_cdocPendingEnvio||[]).slice();
     _cdocPendingLibfab=[];_cdocPendingEnvio=[];
-    if(_cdocEditId){ db.detalhados=db.detalhados.map(function(d){return d.id===_cdocEditId?rec2:d;}); }
+    if(_cdocEditId){
+      // Localiza pelo id com comparação tolerante (evita perder a edição por mismatch number/string)
+      var _idxDet=db.detalhados.findIndex(function(d){return d.id===_cdocEditId||String(d.id)===String(_cdocEditId);});
+      if(_idxDet>=0){ db.detalhados[_idxDet]=rec2; }
+      else {
+        // Não deveria acontecer — registra e insere como novo em vez de descartar a edição em silêncio
+        console.warn('[cdocSalvar] Registro id='+_cdocEditId+' não encontrado em db.detalhados — inserindo como novo para não perder a edição.');
+        db.detalhados.push(rec2);
+      }
+    }
     else{ db.detalhados.push(rec2); }
     _cdocSave(db);
     // ── SYNC: novo registro de envio/GRD → atualiza Etapa 2 do Cronograma ──
