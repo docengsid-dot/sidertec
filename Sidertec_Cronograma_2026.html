@@ -969,13 +969,11 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
 }
 .dt-hist-btn:hover { color:#7c3aed; }
 .dt-hist-btn.has-hist { color:#7c3aed; }
-/* Copiar/colar: só ocupam espaço quando o mouse está sobre o campo — por
-   padrão ficam ocultos para o campo de data ter largura suficiente para
-   mostrar o texto digitado (dd/mm/aaaa). O botão 🕓 de histórico continua
-   sempre visível, como antes. */
-.dt-hist-btn.dt-cp { display:none; }
-.dt-hist-wrap:hover .dt-hist-btn.dt-cp,
-.dt-hist-wrap:focus-within .dt-hist-btn.dt-cp { display:inline-block; }
+/* Copiar/colar ficam numa linha compacta ABAIXO do campo de data — nunca
+   sobre ele nem escondidos — assim a data fica sempre visível e clicável. */
+.dt-hist-wrap-outer { display:flex; flex-direction:column; width:100%; gap:1px; }
+.dt-cp-row { display:flex; gap:4px; justify-content:center; line-height:1; }
+.dt-cp-row .dt-hist-btn { font-size:9px; padding:0 1px; }
 .dt-hist-popover {
   display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:9999;
   background:#fff; border:1px solid #e2e8f0; border-radius:8px;
@@ -2162,23 +2160,27 @@ ALTER TABLE medicao_terceiros
         </div>
         <div style="background:linear-gradient(135deg,#C4501A 0%,#E8763A 100%);border-radius:var(--r);padding:.6rem 1rem;min-width:240px;">
           <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.7);margin-bottom:.3rem;">🏭 Data Limite — Liberação p/ Fábrica</div>
-          <div class="dt-hist-wrap" id="cm-data-limite-fab-wrap">
-            <input type="date" id="cm-data-limite-fab" style="display:none;"
-              oninput="_dhRegisterLimFab(this.value);atualizarDiasLimiteFab()">
-            <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="field-input dt-input-br" id="cm-data-limite-fab-br"
-              style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:13px;font-weight:700;width:100%;"
-              oninput="_maskDataBR(this)" onchange="_aplicarDataLimiteFabBR(this)">
-            <button type="button" class="dt-hist-btn dt-cp" title="Copiar esta data" onclick="_dtCopiarData('cm-data-limite-fab-br')" style="color:rgba(255,255,255,.7);font-size:10px;">📋</button>
-            <button type="button" class="dt-hist-btn dt-cp" title="Colar data copiada" onclick="_dtColarData('cm-data-limite-fab-br')" style="color:rgba(255,255,255,.7);font-size:10px;">📥</button>
-            <button type="button" class="dt-hist-btn" id="btn-hist-lim-fab"
-              title="Histórico de reprogramações" style="color:rgba(255,255,255,.7);"
-              onclick="dtHistToggle(this,'__lim_fab__','prev','Limite Fab.')">🕓</button>
-            <div class="dt-hist-popover">
-              <div class="dt-hist-pop-hd"><span>🕓 Histórico</span>
-                <button type="button" onclick="this.closest('.dt-hist-popover').classList.remove('open')"
-                  style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;padding:0;">✕</button>
+          <div class="dt-hist-wrap-outer" id="cm-data-limite-fab-wrap">
+            <div class="dt-hist-wrap">
+              <input type="date" id="cm-data-limite-fab" style="display:none;"
+                oninput="_dhRegisterLimFab(this.value);atualizarDiasLimiteFab()">
+              <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="field-input dt-input-br" id="cm-data-limite-fab-br"
+                style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:13px;font-weight:700;width:100%;"
+                oninput="_maskDataBR(this)" onchange="_aplicarDataLimiteFabBR(this)">
+              <button type="button" class="dt-hist-btn" id="btn-hist-lim-fab"
+                title="Histórico de reprogramações" style="color:rgba(255,255,255,.7);"
+                onclick="dtHistToggle(this,'__lim_fab__','prev','Limite Fab.')">🕓</button>
+              <div class="dt-hist-popover">
+                <div class="dt-hist-pop-hd"><span>🕓 Histórico</span>
+                  <button type="button" onclick="this.closest('.dt-hist-popover').classList.remove('open')"
+                    style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;padding:0;">✕</button>
+                </div>
+                <div class="dt-hist-pop-body"></div>
               </div>
-              <div class="dt-hist-pop-body"></div>
+            </div>
+            <div class="dt-cp-row">
+              <button type="button" class="dt-hist-btn" title="Copiar esta data" onclick="_dtCopiarData('cm-data-limite-fab-br')" style="color:rgba(255,255,255,.7);">📋</button>
+              <button type="button" class="dt-hist-btn" title="Colar data copiada" onclick="_dtColarData('cm-data-limite-fab-br')" style="color:rgba(255,255,255,.7);">📥</button>
             </div>
           </div>
           <div id="cm-dias-limite-fab" style="font-size:16px;color:rgba(255,255,255,.8);margin-top:.25rem;font-weight:600;"></div>
@@ -4270,10 +4272,9 @@ function _dtHistWrap(inputHtml, key, campo, labelEtapa, inputId){
   var btnClass = 'dt-hist-btn'+(hist.length ? ' has-hist' : '');
   var btnTitle = hist.length ? hist.length+' reprogramação(ões)' : 'Sem reprogramações';
   var idAttr = inputId || ('dtin-'+key+'-'+campo);
-  return '<div class="dt-hist-wrap">'
+  return '<div class="dt-hist-wrap-outer">'
+    + '<div class="dt-hist-wrap">'
     + inputHtml
-    + '<button type="button" class="dt-hist-btn dt-cp" title="Copiar esta data" onclick="_dtCopiarData(\''+idAttr+'\')" style="font-size:10px;">📋</button>'
-    + '<button type="button" class="dt-hist-btn dt-cp" title="Colar data copiada" onclick="_dtColarData(\''+idAttr+'\')" style="font-size:10px;">📥</button>'
     + '<button type="button" class="'+btnClass+'" title="'+btnTitle+'" '
     +   'onclick="dtHistToggle(this,\''+key+'\',\''+campo+'\',\''+labelEtapa.replace(/'/g,"\\'")+'\')">'
     +   '🕓</button>'
@@ -4283,6 +4284,11 @@ function _dtHistWrap(inputHtml, key, campo, labelEtapa, inputId){
     +       'style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;padding:0;">✕</button>'
     +   '</div>'
     +   '<div class="dt-hist-pop-body"></div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="dt-cp-row">'
+    +   '<button type="button" class="dt-hist-btn" title="Copiar esta data" onclick="_dtCopiarData(\''+idAttr+'\')">📋</button>'
+    +   '<button type="button" class="dt-hist-btn" title="Colar data copiada" onclick="_dtColarData(\''+idAttr+'\')">📥</button>'
     + '</div>'
     + '</div>';
 }
