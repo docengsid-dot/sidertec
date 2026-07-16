@@ -1039,6 +1039,11 @@ canvas{overflow:visible!important;}
   window.jspdf = window.jspdf || null;
 })();
 </script>
+<!-- Biblioteca oficial do Supabase — necessária para Realtime (WebSocket).
+     O restante do app usa um wrapper próprio (sbClient) só para REST; este
+     client oficial é usado exclusivamente para a sincronização em tempo real
+     do Controle de Documentos entre usuários simultâneos. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 <div class="loading-overlay" id="loading-overlay">
@@ -1973,6 +1978,7 @@ ALTER TABLE medicao_terceiros
           <button class="rel-tipo-btn" data-tipo="etapas"     onclick="relSetTipo('etapas',this)">🔷 Por Etapas</button>
           <button class="rel-tipo-btn" data-tipo="avanco"     onclick="relSetTipo('avanco',this)">📈 Avanço</button>
           <button class="rel-tipo-btn" data-tipo="pesos"      onclick="relSetTipo('pesos',this)">⚖ Pesos</button>
+          <button class="rel-tipo-btn" data-tipo="geral"      onclick="relSetTipo('geral',this)" title="Relatório completo de cada TAG: todos os dados de cadastro + todas as 14 etapas com previsto/realizado, agrupado por projeto">🗂 Geral (Todas Etapas)</button>
         </div>
       </div>
 
@@ -2178,6 +2184,11 @@ ALTER TABLE medicao_terceiros
           <button type="button" onclick="abrirRegistroAndamento()"
             style="background:var(--accent);color:#fff;border:none;border-radius:var(--r2);font-size:16px;font-weight:600;padding:5px 14px;cursor:pointer;">
             📝 Registrar Andamento
+          </button>
+          <button type="button" onclick="abrirRelatorioGeralTag()"
+            style="background:#1e3a5f;color:#fff;border:none;border-radius:var(--r2);font-size:16px;font-weight:600;padding:5px 14px;cursor:pointer;"
+            title="Relatório completo desta TAG: todos os dados do cadastro + todas as etapas com datas previstas e realizadas">
+            📊 Relatório Geral
           </button>
         </div>
       </div>
@@ -8817,7 +8828,7 @@ function gerarRelatorioCompleto(){
       </td>
       <td style="border-right:1.5px solid #000;padding:.4rem .75rem;text-align:center;">
         <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">
-          ${tipo==='cronograma'?'RELATÓRIO DE CRONOGRAMA':tipo==='etapas'?'RELATÓRIO POR ETAPAS':tipo==='avanco'?'RELATÓRIO DE AVANÇO':'RELATÓRIO DE PESOS'}
+          ${tipo==='cronograma'?'RELATÓRIO DE CRONOGRAMA':tipo==='etapas'?'RELATÓRIO POR ETAPAS':tipo==='avanco'?'RELATÓRIO DE AVANÇO':tipo==='geral'?'RELATÓRIO GERAL — TODAS AS TAGS':'RELATÓRIO DE PESOS'}
         </div>
         <div style="font-size:8px;color:#444;margin-top:.15rem;">SIDERTEC ESTRUTURAS METÁLICAS</div>
         <div style="font-size:8px;color:#666;margin-top:.1rem;">${filtrosTexto}</div>
@@ -8977,6 +8988,28 @@ function gerarRelatorioCompleto(){
       </div>`;
     }).join('');
 
+  } else if(tipo==='geral'){
+    // Agrupa por Obra Principal (projeto) e, dentro de cada projeto, lista
+    // o relatório completo (cadastro + todas as 14 etapas) de cada TAG.
+    const porObra = {};
+    subs.forEach(function(s){ const k=s.obra||'(Sem obra)'; (porObra[k]=porObra[k]||[]).push(s); });
+    const obrasOrdenadas = Object.keys(porObra).sort();
+    corpo = obrasOrdenadas.map(function(obraNome){
+      const lista = porObra[obraNome].sort(function(a,b){ return (a.subobra||'').localeCompare(b.subobra||''); });
+      const concluidasProjeto = lista.reduce(function(acc,s){
+        const b=_montarBlocoCadastroEtapas(s); return acc + (b.totalConcluidas/(b.totalAplicaveis||1));
+      },0);
+      const avancoProjeto = lista.length ? Math.round(concluidasProjeto/lista.length*100) : 0;
+      const secoesTags = lista.map(function(s){ return _montarSecaoTagHtml(s, true); }).join('<div style="page-break-after:always;"></div>');
+      return `<div style="margin-bottom:1.5rem;">
+        <div style="background:#C4501A;color:#fff;padding:6px 10px;border-radius:5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+          <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">🏗 ${obraNome}</span>
+          <span style="font-size:10px;">${lista.length} TAG(s) · Etapas concluídas em média: ${avancoProjeto}%</span>
+        </div>
+        ${secoesTags}
+      </div>`;
+    }).join('<div style="page-break-after:always;"></div>');
+
   } else if(tipo==='pesos'){
     const rows = subs.map(s=>{
       const cfg = (typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[s.status])||{color:'#475569',bg:'#f1f5f9',icon:'•'};
@@ -9024,7 +9057,7 @@ function gerarRelatorioCompleto(){
   </div>`;
 
   fecharModalImprimir();
-  const win = window.open('','_blank','width=1000,height=750');
+  const win = window.open('','_blank', tipo==='geral' ? 'width=1150,height=850,scrollbars=yes' : 'width=1000,height=750');
   if(!win){ showToast('Popup bloqueado','Permita popups e tente novamente.','warn'); return; }
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
     <title>Relatório Sidertec</title>
@@ -10042,6 +10075,193 @@ function renderEtapasResumo(s){
 }
 
 // ── MODAL ANDAMENTO ───────────────────────────────────────────────────
+// ── RELATÓRIO GERAL DA TAG (dados de cadastro + todas as etapas) ─────────
+// Helper reaproveitável: monta os dados de cadastro + etapas (previsto x
+// realizado) de UMA sub-obra/TAG. Usado tanto no relatório individual quanto
+// no relatório em lote (todas as TAGs de um ou mais projetos).
+function _montarBlocoCadastroEtapas(s){
+  const fmtDt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+  const fmtKg = v => (v!==null && v!==undefined && v!=='' && Number(v)>0) ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
+  const esc = v => (v===null||v===undefined||v==='') ? '—' : String(v);
+  const cfg = (typeof STATUS_CFG_CRON!=='undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569',bg:'#f1f5f9',icon:'•'};
+
+  const escopoLabel = {'Fornecimento':'Fornecimento','Montagem':'Montagem','Fornecimento e Montagem':'Fornecimento e Montagem'}[s.escopo_fornecimento] || (s.escopo_fornecimento||'—');
+  const camposCadastro = [
+    ['Obra Principal', esc(s.obra)],
+    ['TAG da Sub-obra', esc(s.subobra)],
+    ['Nº Projeto Básico', esc(s.num_proj_basico)],
+    ['Descrição', esc(s.descricao)],
+    ['Área', esc(s.area)],
+    ['Escopo de Fornecimento', escopoLabel],
+    ['Equipe Projetista', esc(s.equipe)],
+    ['Prioridade', esc(s.prioridade)],
+    ['Prioridade Detalhamento (0–100)', (s.prior_det!==null && s.prior_det!==undefined) ? s.prior_det : '—'],
+    ['Peso Básico (kg)', fmtKg(s.peso_previsto)],
+    ['Peso Detalhado (kg)', fmtKg(s.peso_detalhado)],
+    ['Peso PCP (kg)', fmtKg(s.peso_pcp)],
+    ['Status Atual', `<span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 7px;font-weight:700;">${cfg.icon} ${esc(s.status)}</span>`],
+    ['Data Limite — Liberação p/ Fábrica', (()=>{
+      if(!s.data_limite_fab) return '—';
+      const lim = new Date(s.data_limite_fab+'T12:00:00');
+      const dl = Math.round((lim-new Date())/86400000);
+      const base = fmtDt(s.data_limite_fab);
+      if(s.real_lib_fab) return base+' <span style="color:#166534;font-weight:700;">(✓ liberado)</span>';
+      if(dl<0) return base+' <span style="color:#991b1b;font-weight:700;">(⚠ vencido há '+Math.abs(dl)+' dia(s))</span>';
+      if(dl<=7) return base+' <span style="color:#b91c1c;font-weight:700;">(🔴 urgente: '+dl+' dia(s) restantes)</span>';
+      if(dl<=15) return base+' <span style="color:#92400e;font-weight:700;">(🟠 '+dl+' dia(s) restantes)</span>';
+      return base+' <span style="color:#166534;">('+dl+' dia(s) restantes)</span>';
+    })()],
+    ['Última Atualização', s.atualizado_em ? new Date(s.atualizado_em).toLocaleString('pt-BR') : '—'],
+  ];
+  const cadastroRows = camposCadastro.map(function(c){
+    return `<tr><td style="padding:3px 8px;font-weight:700;color:#374151;background:#f8fafc;width:230px;border:1px solid #e2e8f0;font-size:9px;text-transform:uppercase;letter-spacing:.03em;">${c[0]}</td>
+      <td style="padding:3px 8px;border:1px solid #e2e8f0;font-size:10px;">${c[1]}</td></tr>`;
+  }).join('');
+
+  const hojeD = new Date(); hojeD.setHours(0,0,0,0);
+  const etapasRows = ETAPAS_DEF.map(function(e,i){
+    if(e.isFabPct){
+      const pcp = Number(s.peso_pcp||s.peso_previsto)||0;
+      let fp = null;
+      if(pcp){
+        const ks=['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'];
+        const tot=ks.reduce((a,k)=>a+(Number(s[k])||0),0);
+        fp = Math.min(100,Math.round((tot/ks.length)/pcp*100));
+      }
+      return `<tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:3px 6px;text-align:center;font-size:9px;color:#94a3b8;">${i+1}</td>
+        <td style="padding:3px 6px;font-size:10px;font-weight:700;">${e.label}</td>
+        <td style="padding:3px 6px;text-align:center;font-size:9px;color:#94a3b8;">—</td>
+        <td style="padding:3px 6px;text-align:center;font-size:9px;color:#94a3b8;">—</td>
+        <td style="padding:3px 6px;text-align:center;font-size:10px;font-weight:700;color:${fp===null?'#94a3b8':fp>=100?'#166534':'#d97706'};">${fp===null?'sem PCP':fp+'%'}</td>
+        <td style="padding:3px 6px;font-size:9px;color:#666;">Percentual médio de fabricação (peso executado/insp./pintura/expedição sobre peso PCP)</td>
+      </tr>`;
+    }
+    if(e.isMontagem && s.montagem_na){
+      return `<tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:3px 6px;text-align:center;font-size:9px;color:#94a3b8;">${i+1}</td>
+        <td style="padding:3px 6px;font-size:10px;font-weight:700;">${e.label}</td>
+        <td style="padding:3px 6px;text-align:center;font-size:9px;">—</td>
+        <td style="padding:3px 6px;text-align:center;font-size:9px;">—</td>
+        <td style="padding:3px 6px;text-align:center;"><span style="background:#f1f5f9;color:#64748b;border-radius:3px;padding:1px 6px;font-size:8.5px;font-weight:700;font-style:italic;">N/A</span></td>
+        <td style="padding:3px 6px;font-size:9px;color:#666;">${esc(s[e.obs])}</td>
+      </tr>`;
+    }
+    const prevRaw = e.prev ? s[e.prev] : null;
+    const realRaw = e.real ? s[e.real] : null;
+    const prevD = prevRaw ? new Date(prevRaw+'T12:00:00') : null;
+    let situacao;
+    if(realRaw) situacao = '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:1px 7px;font-size:8.5px;font-weight:700;">✓ Concluída</span>';
+    else if(prevD && prevD < hojeD) situacao = '<span style="background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 7px;font-size:8.5px;font-weight:700;">⚠ Atrasada</span>';
+    else if(prevD && (prevD-hojeD)/86400000 <= 7) situacao = '<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 7px;font-size:8.5px;font-weight:700;">⚡ Próxima</span>';
+    else if(prevD) situacao = '<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 7px;font-size:8.5px;font-weight:700;">◷ Programada</span>';
+    else situacao = '<span style="background:#f1f5f9;color:#64748b;border-radius:3px;padding:1px 7px;font-size:8.5px;">Não iniciada</span>';
+    let obsExtra = e.obs ? esc(s[e.obs]) : '—';
+    if(e.grd && s[e.grd]) obsExtra += (obsExtra!=='—'?' · ':'') + 'GRD: '+esc(s[e.grd]);
+    if(e.statusField && s[e.statusField]) obsExtra += (obsExtra!=='—'?' · ':'') + 'Status: '+esc(s[e.statusField]);
+    return `<tr style="border-bottom:1px solid #e2e8f0;">
+      <td style="padding:3px 6px;text-align:center;font-size:9px;color:#94a3b8;">${i+1}</td>
+      <td style="padding:3px 6px;font-size:10px;font-weight:700;">${e.label}${e.informativo?' <span style="font-size:8px;color:#94a3b8;font-style:italic;">(informativo)</span>':''}</td>
+      <td style="padding:3px 6px;text-align:center;font-size:9.5px;font-family:'Courier New',monospace;">${fmtDt(prevRaw)}</td>
+      <td style="padding:3px 6px;text-align:center;font-size:9.5px;font-family:'Courier New',monospace;font-weight:${realRaw?'700':'400'};color:${realRaw?'#166534':'#111'};">${fmtDt(realRaw)}</td>
+      <td style="padding:3px 6px;text-align:center;">${situacao}</td>
+      <td style="padding:3px 6px;font-size:9px;color:#666;">${obsExtra}</td>
+    </tr>`;
+  }).join('');
+
+  const totalConcluidas = ETAPAS_DEF.filter(e=>!e.isFabPct && (e.isMontagem && s.montagem_na ? false : (e.real && s[e.real]))).length;
+  const totalAplicaveis  = ETAPAS_DEF.filter(e=>!e.isFabPct && !(e.isMontagem && s.montagem_na)).length;
+
+  return {cadastroRows, etapasRows, totalConcluidas, totalAplicaveis, cfg, esc};
+}
+
+// Monta o HTML completo (cabeçalho + cadastro + etapas) de UMA TAG. Se
+// `paraLote` for true, usa um cabeçalho mais compacto (sem o box do logo
+// repetido) e adiciona quebra de página para impressão, próprio de um
+// relatório com várias TAGs em sequência.
+function _montarSecaoTagHtml(s, paraLote){
+  const b = _montarBlocoCadastroEtapas(s);
+  const esc = b.esc;
+  const tituloTag = paraLote
+    ? `<div style="background:#374151;color:#fff;padding:5px 10px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-top:${paraLote?'0':'.6rem'};">
+         <span style="font-size:12px;font-weight:700;">🏷 ${esc(s.subobra)} <span style="opacity:.7;font-weight:400;">— ${esc(s.descricao)}</span></span>
+         <span style="font-size:9px;"><span style="background:${b.cfg.bg};color:${b.cfg.color};border-radius:3px;padding:1px 7px;font-weight:700;">${b.cfg.icon} ${esc(s.status)}</span> · ${b.totalConcluidas}/${b.totalAplicaveis} etapas concluídas</span>
+       </div>`
+    : '';
+  return `<div style="${paraLote?'page-break-inside:avoid;margin-bottom:1.1rem;':''}">
+    ${tituloTag}
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:#1A1714;color:#fff;padding:3px 8px;margin-top:${paraLote?'.3rem':'.6rem'};">📋 Dados de Cadastro</div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;">${b.cadastroRows}</table>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:#1A1714;color:#fff;padding:3px 8px;margin-top:.4rem;">🔄 Fluxo de Etapas — Previsto × Realizado (${ETAPAS_DEF.length} etapas)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:9px;">
+      <thead><tr style="background:#f1f5f9;">
+        <th style="padding:4px 6px;text-align:center;color:#374151;width:24px;">#</th>
+        <th style="padding:4px 6px;text-align:left;color:#374151;">Etapa</th>
+        <th style="padding:4px 6px;text-align:center;color:#374151;width:80px;">Previsto</th>
+        <th style="padding:4px 6px;text-align:center;color:#374151;width:80px;">Realizado</th>
+        <th style="padding:4px 6px;text-align:center;color:#374151;width:100px;">Situação</th>
+        <th style="padding:4px 6px;text-align:left;color:#374151;">Observação / GRD / Status</th>
+      </tr></thead>
+      <tbody>${b.etapasRows}</tbody>
+    </table>
+  </div>`;
+}
+
+function abrirRelatorioGeralTag(){
+  if(!editingCronId){ showToast('Salve primeiro','Salve a sub-obra antes de gerar o relatório.','warn'); return; }
+  const s = allCronSubobras.find(x=>x.id===editingCronId);
+  if(!s){ showToast('Não encontrada','Não foi possível localizar os dados desta TAG.','error'); return; }
+
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const esc = v => (v===null||v===undefined||v==='') ? '—' : String(v);
+  const cfg = (typeof STATUS_CFG_CRON!=='undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569',bg:'#f1f5f9',icon:'•'};
+  const b = _montarBlocoCadastroEtapas(s);
+
+  const html = `<div style="font-family:'Times New Roman',serif;color:#000;padding:1rem;">
+    <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;margin-bottom:.5rem;">
+      <tr>
+        <td style="width:80px;border-right:1.5px solid #000;padding:.4rem;text-align:center;">
+          <div style="background:#C4501A;border-radius:3px;padding:.3rem .5rem;display:inline-block;">
+            <div style="font-size:14px;font-weight:700;color:#fff;">SE</div>
+            <div style="font-size:6px;color:rgba(255,255,255,.8);letter-spacing:.08em;">SIDERTEC</div>
+          </div>
+        </td>
+        <td style="border-right:1.5px solid #000;padding:.4rem .75rem;text-align:center;">
+          <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">RELATÓRIO GERAL DA SUB-OBRA / TAG</div>
+          <div style="font-size:10px;font-weight:700;color:#C4501A;margin-top:.15rem;">${esc(s.subobra)} — ${esc(s.obra)}</div>
+          <div style="font-size:8px;color:#666;margin-top:.1rem;">Todos os dados de cadastro e o fluxo completo de etapas (previsto × realizado)</div>
+        </td>
+        <td style="padding:.4rem;min-width:140px;font-size:7.5px;">
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><b>DATA:</b><span>${hoje}</span></div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><b>ETAPAS:</b><span>${b.totalConcluidas}/${b.totalAplicaveis} concluídas</span></div>
+          <div style="display:flex;justify-content:space-between;"><b>STATUS:</b><span style="font-weight:700;color:${cfg.color};">${esc(s.status)}</span></div>
+        </td>
+      </tr>
+    </table>
+    ${_montarSecaoTagHtml(s, false)}
+    <div style="font-size:7px;color:#555;text-align:center;border-top:1px solid #ccc;padding-top:.35rem;margin-top:1rem;">
+      Sidertec Estruturas Metálicas · Relatório Geral da TAG ${esc(s.subobra)} · Gerado em ${hoje}
+    </div>
+  </div>`;
+
+  const win = window.open('','_blank','width=1050,height=800,scrollbars=yes');
+  if(!win){ showToast('Popup bloqueado','Permita popups e tente novamente.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Relatório Geral — ${esc(s.subobra)}</title>
+    <style>
+      body{margin:0;font-family:'Times New Roman',serif;}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+      .btn-print{position:fixed;top:10px;right:14px;background:#1A1714;color:#fff;border:none;padding:7px 18px;border-radius:5px;font-size:13px;cursor:pointer;}
+      .btn-print:hover{background:#C4501A;}
+      @media print{.btn-print{display:none;}}
+    </style></head><body>
+    <button class="btn-print" onclick="window.print()">🖨 Imprimir / PDF</button>
+    ${html}
+    </body></html>`);
+  win.document.close();
+  win.onload = ()=>{ win.focus(); };
+}
+
 function abrirRegistroAndamento(){
   if(!editingCronId){ showToast('Salve primeiro','Salve a sub-obra antes de registrar andamento.','warn'); return; }
   const s = allCronSubobras.find(x=>x.id===editingCronId);
@@ -18577,6 +18797,20 @@ function _cdocSBStatus(msg, color){
 async function _cdocSBLoad(){
   try {
     _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
+    // ── CRITÉRIO DE SEGURANÇA (anti-perda de dados) ─────────────────────
+    // Antes de buscar a nuvem, guarda o que já tínhamos (cache em memória
+    // e/ou backup local). Isso é indispensável porque _cdocSBCache pode ter
+    // sido zerado por quem chamou esta função (ex.: abrirCtrlDoc), e porque
+    // um push anterior pode ter falhado silenciosamente (sem internet, RLS,
+    // payload grande, etc.) deixando a nuvem "atrasada" em relação ao que o
+    // usuário editou. Sem isso, todo recarregamento (abrir o modal de novo,
+    // dar F5, trocar de aba) SUBSTITUÍA silenciosamente as edições locais
+    // pela versão antiga da nuvem — inclusive apagando o próprio backup do
+    // localStorage, que era a última rede de segurança.
+    var _localAntesDoLoad = _cdocSBCache;
+    if(!_localAntesDoLoad){
+      try{ _localAntesDoLoad = JSON.parse(localStorage.getItem('sider_ctrldoc')||'null'); }catch(eLocal){}
+    }
     var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
     if(!r.ok){
       var errBody=''; try{errBody=await r.text();}catch(ex){}
@@ -18589,16 +18823,36 @@ async function _cdocSBLoad(){
     }
     var rows=await r.json();
     if(rows.length&&rows[0].data){
-      _cdocSBCache=rows[0].data;
+      var _remoto=rows[0].data;
       _cdocSaveVersion=rows[0].version||0; // captura versão atual para lock otimista
       // Sanitiza pesos armazenados como string ou NaN
-      (_cdocSBCache.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
-      (_cdocSBCache.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
+      (_remoto.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
+      (_remoto.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
+      // NUNCA aceita o dado remoto "cru": sempre mescla com o que existia
+      // localmente (mesma lógica de merge com tombstones usada no auto-refresh
+      // e no save). Se não havia nada local relevante, o resultado da mescla
+      // é idêntico ao remoto — nenhum efeito colateral no caso normal.
+      var _recuperouAlgo=false;
+      if(_localAntesDoLoad && ((_localAntesDoLoad.basicos||[]).length+(_localAntesDoLoad.detalhados||[]).length)>0){
+        var _mesclado=_cdocMergeSnapshots(_remoto,_localAntesDoLoad);
+        try{ _recuperouAlgo = JSON.stringify(_mesclado)!==JSON.stringify(_remoto); }catch(eCmp){}
+        _cdocSBCache=_mesclado;
+      } else {
+        _cdocSBCache=_remoto;
+      }
       // sincroniza backup local
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
       var _nBas=(_cdocSBCache.basicos||[]).length; var _nDet=(_cdocSBCache.detalhados||[]).length;
-      _cdocSBStatus('☁ Sincronizado — '+_nBas+' básicos / '+_nDet+' det.','#16a34a');
-      setTimeout(function(){_cdocSBStatus('☁ Nuvem · '+_nBas+' bás / '+_nDet+' det','#94a3b8');},4000);
+      if(_recuperouAlgo){
+        // Havia edições locais que a nuvem não tinha (provavelmente um envio
+        // anterior falhou). Recupera e reenvia imediatamente para não perder.
+        _cdocSBStatus('⚠ Edições locais recuperadas — reenviando...','#f59e0b');
+        showToast('Edições recuperadas','Encontramos alterações que ainda não tinham sido confirmadas na nuvem (provavelmente por falha de conexão anterior). Elas foram recuperadas e estão sendo salvas agora.','warn');
+        _cdocSave(_cdocSBCache);
+      } else {
+        _cdocSBStatus('☁ Sincronizado — '+_nBas+' básicos / '+_nDet+' det.','#16a34a');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem · '+_nBas+' bás / '+_nDet+' det','#94a3b8');},4000);
+      }
     } else {
       // nuvem vazia — sobe dados locais se existirem
       var local=null;
@@ -18862,9 +19116,10 @@ var _cdocSavePending=0; // nº de saves em andamento (fetch+merge+push) — usad
 // salvamento(s) em andamento (inclusive durante as tentativas de retry por conexão
 // instável), o navegador pergunta antes de sair, em vez de simplesmente descartar a edição.
 window.addEventListener('beforeunload', function(e){
-  if(_cdocSavePending>0){
+  var _temPendenteBU = (typeof _cdocFilaPendente!=='undefined' && _cdocFilaPendente.length>0);
+  if(_cdocSavePending>0 || _temPendenteBU){
     e.preventDefault();
-    e.returnValue = 'Ainda há alterações sendo salvas na nuvem. Se sair agora, elas podem não ser salvas.';
+    e.returnValue = 'Ainda há alterações sendo salvas na nuvem (ou aguardando reenvio). Se sair agora, elas podem demorar mais para sincronizar quando você voltar.';
     return e.returnValue;
   }
 });
@@ -18962,17 +19217,55 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
       await new Promise(function(res){setTimeout(res, delay);});
       return _cdocSaveWithRetry(snapshot, tentativa+1);
     } else {
-      _cdocSBStatus('⚠ Não foi possível salvar na nuvem — dados preservados localmente','#dc2626');
-      // Mensagem com o motivo real (não apenas "verifique sua conexão") para facilitar o diagnóstico —
-      // ex.: payload muito grande, erro de permissão (RLS), etc. costumam se disfarçar de "erro de conexão".
+      _cdocSBStatus('⚠ Não sincronizado — tentando de novo em segundo plano','#dc2626');
       var _motivo = e && e.message ? e.message : 'motivo desconhecido';
       var _tamanhoInfo = (e && e._payloadBytes) ? ' · tamanho do envio: '+(e._payloadBytes/1024/1024).toFixed(2)+' MB' : '';
-      console.error('[CDOC save] Desistindo após '+MAX_TENTATIVAS+' tentativas. Motivo: '+_motivo+_tamanhoInfo);
+      console.error('[CDOC save] Desistindo por agora após '+MAX_TENTATIVAS+' tentativas. Motivo: '+_motivo+_tamanhoInfo);
       showToast('Erro ao salvar na nuvem',
-        'Dados salvos apenas localmente. Motivo: '+_motivo+_tamanhoInfo+'. Verifique sua conexão e tente o botão 🔄 Atualizar. Se persistir, use 🔍 Diag para ver o tamanho dos dados.',
+        'Os dados NÃO foram perdidos — ficaram salvos localmente e o sistema vai continuar tentando enviar em segundo plano automaticamente. Motivo: '+_motivo+_tamanhoInfo,
         'error');
+      // CRITÉRIO DE SEGURANÇA: em vez de simplesmente desistir, guarda esta
+      // alteração numa fila persistente (sobrevive a F5/fechar aba) e agenda
+      // novas tentativas — ao reconectar à internet e a cada 30s enquanto
+      // houver algo pendente. Assim nenhuma edição é definitivamente perdida
+      // só porque a rede estava instável no momento do salvamento.
+      _cdocEnfileirarPendente(snapshot);
     }
   }
+}
+
+// Fila de saves que falharam mesmo após as tentativas — mantida em memória
+// (não persiste em localStorage, por pedido explícito do usuário de não ter
+// uma "interface local"). Reenviada automaticamente quando a conexão voltar
+// ou periodicamente enquanto a aba estiver aberta. Só existe enquanto a
+// aba/página estiver aberta — como o salvamento agora é feito de forma
+// online-first (a cada alteração, imediatamente), o cenário mais comum de
+// "editei e esqueci de sincronizar" praticamente não existe mais: a tentativa
+// de envio já começa no instante da edição, não só ao fechar o modal.
+var _cdocFilaPendente = [];
+function _cdocEnfileirarPendente(snapshot){
+  _cdocFilaPendente = [{snapshot:snapshot, ts:new Date().toISOString()}]; // mantém só a mais recente
+  _cdocAgendarRetryPendente();
+}
+var _cdocRetryPendenteTimer=null;
+function _cdocAgendarRetryPendente(){
+  if(_cdocRetryPendenteTimer) return; // já agendado
+  _cdocRetryPendenteTimer=setTimeout(_cdocTentarPendentes, 15000);
+}
+async function _cdocTentarPendentes(){
+  _cdocRetryPendenteTimer=null;
+  if(!_cdocFilaPendente.length) return;
+  var item=_cdocFilaPendente[_cdocFilaPendente.length-1];
+  try{
+    await _cdocSaveWithRetry(item.snapshot, 0);
+    _cdocFilaPendente=[]; // só limpa se realmente concluiu (senão o catch já reenfileira)
+  }catch(e){ /* já tratado dentro de _cdocSaveWithRetry */ }
+}
+// Tenta reenviar assim que a conexão voltar
+window.addEventListener('online', function(){ _cdocAgendarRetryPendenteAgora(); });
+function _cdocAgendarRetryPendenteAgora(){
+  if(_cdocRetryPendenteTimer){ clearTimeout(_cdocRetryPendenteTimer); _cdocRetryPendenteTimer=null; }
+  _cdocTentarPendentes();
 }
 
 function _cdocDb(){ return _cdocLoad(); }
@@ -19099,17 +19392,77 @@ function cdocExcluirObra(obraEnc,evt){
   showToast('Obra removida', obra+' foi removida da lista.', 'success');
 }
 
+// ── REALTIME (Supabase) — sincronização instantânea entre usuários ──────────
+// Usa o cliente oficial @supabase/supabase-js (carregado no <head>) só para
+// abrir um canal Realtime (WebSocket) e ouvir mudanças na tabela
+// cdoc_database em tempo real. O restante do app continua usando o wrapper
+// REST próprio (sbClient) — isso não substitui nada, só adiciona a escuta.
+var _cdocRealtimeClient = null;
+var _cdocRealtimeChannel = null;
+function _cdocRealtimeGetClient(){
+  if(_cdocRealtimeClient) return _cdocRealtimeClient;
+  try{
+    if(typeof window.supabase!=='undefined' && window.supabase.createClient){
+      _cdocRealtimeClient = window.supabase.createClient(_SB_URL, _SB_KEY);
+    }
+  }catch(e){ console.warn('[CDOC Realtime] Não foi possível iniciar o client:', e); }
+  return _cdocRealtimeClient;
+}
+function _cdocRealtimeSubscribe(){
+  var client = _cdocRealtimeGetClient();
+  if(!client){ console.warn('[CDOC Realtime] Biblioteca supabase-js indisponível — usando apenas o polling de 20s como reforço.'); return; }
+  if(_cdocRealtimeChannel) return; // já inscrito
+  try{
+    _cdocRealtimeChannel = client
+      .channel('cdoc_database_changes')
+      .on('postgres_changes', {event:'*', schema:'public', table:'cdoc_database'}, function(payload){
+        // Ignora eventos disparados pelo nosso próprio salvamento em andamento
+        if(_cdocSavePending>0) return;
+        var novo = payload && payload.new;
+        if(!novo || novo.key!=='main' || !novo.data) return;
+        var remoteVer = novo.version||0;
+        if(remoteVer>0 && remoteVer<=_cdocSaveVersion) return; // já temos essa versão
+        // Mescla com o que temos localmente — nunca sobrescreve de forma bruta
+        var mesclado = _cdocMergeSnapshots(novo.data, _cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
+        _cdocSBCache = mesclado;
+        _cdocSaveVersion = remoteVer;
+        if(typeof cdocRefreshAll==='function') cdocRefreshAll();
+        _cdocSBStatus('🔄 Outro usuário salvou (tempo real) · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#7c3aed');
+        setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
+      })
+      .subscribe(function(status){
+        if(status==='SUBSCRIBED') console.log('[CDOC Realtime] Conectado — sincronização instantânea ativa.');
+        else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT') console.warn('[CDOC Realtime] Falha na conexão em tempo real ('+status+') — o polling de 20s continua funcionando como reforço.');
+      });
+  }catch(e){ console.warn('[CDOC Realtime] Erro ao inscrever no canal:', e); }
+}
+function _cdocRealtimeUnsubscribe(){
+  if(_cdocRealtimeChannel && _cdocRealtimeClient){
+    try{ _cdocRealtimeClient.removeChannel(_cdocRealtimeChannel); }catch(e){}
+  }
+  _cdocRealtimeChannel = null;
+}
+
 var _cdocAutoRefreshTimer=null;
 async function abrirCtrlDoc(){
   var modal=document.getElementById('modal-ctrl-doc');
   modal.classList.add('show');
   _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
   var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
-  _cdocSBCache=null; // força recarregar do Supabase sempre
+  // CRITÉRIO DE SEGURANÇA: NÃO zeramos mais _cdocSBCache aqui antes de recarregar.
+  // Antes, isso descartava de imediato qualquer edição local ainda não confirmada
+  // na nuvem (ex.: um salvamento anterior que falhou silenciosamente), e a busca
+  // seguinte trazia a versão antiga da nuvem, sobrescrevendo inclusive o backup
+  // do localStorage. Agora _cdocSBLoad() sempre mescla o que está na nuvem com o
+  // que já temos localmente, então é seguro chamá-la sem apagar o cache antes.
   try{ await _cdocSBLoad(); } catch(e){ console.error('abrirCtrlDoc error:',e); }
   if(btnAt) btnAt.disabled=false;
   cdocRefreshAll();
-  // Auto-refresh a cada 20s enquanto o modal estiver aberto (multi-usuário)
+  // Sincronização em tempo real (WebSocket) — os dois usuários veem as
+  // alterações um do outro quase instantaneamente, sem esperar o polling.
+  _cdocRealtimeSubscribe();
+  // Auto-refresh a cada 20s enquanto o modal estiver aberto — mantido como
+  // reforço/fallback, caso a conexão em tempo real caia por algum motivo.
   if(_cdocAutoRefreshTimer) clearInterval(_cdocAutoRefreshTimer);
   _cdocAutoRefreshTimer=setInterval(async function(){
     if(!document.getElementById('modal-ctrl-doc').classList.contains('show')){
@@ -19180,7 +19533,19 @@ async function backupCompleto(){
     if(btn){btn.disabled=false;btn.textContent='📥 Backup';}
   }
 }
-function fecharCtrlDoc(){ if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;} document.getElementById('modal-ctrl-doc').classList.remove('show'); }
+function fecharCtrlDoc(){
+  // CRITÉRIO DE SEGURANÇA: se ainda há um salvamento em andamento (ou uma
+  // fila de pendências de uma falha anterior), avisa antes de fechar — o
+  // salvamento continua em segundo plano mesmo com o modal fechado, mas o
+  // usuário precisa saber que ainda não está 100% confirmado na nuvem.
+  var _temPendente = (typeof _cdocFilaPendente!=='undefined' && _cdocFilaPendente.length>0);
+  if(_cdocSavePending>0 || _temPendente){
+    if(!confirm('Ainda há alterações sendo salvas na nuvem (ou aguardando reenvio por falha de conexão).\n\nOs dados NÃO serão perdidos — o salvamento continua em segundo plano — mas evite fechar a aba/navegador até a confirmação (nuvem ☁ verde) aparecer.\n\nFechar este modal mesmo assim?')) return;
+  }
+  _cdocRealtimeUnsubscribe();
+  if(_cdocAutoRefreshTimer){clearInterval(_cdocAutoRefreshTimer);_cdocAutoRefreshTimer=null;}
+  document.getElementById('modal-ctrl-doc').classList.remove('show');
+}
 // Corrige retroativamente os acentos quebrados (♦, Ã§, etc.) em todos os
 // documentos básicos e detalhados já salvos, e republica no Supabase.
 // Remove duplicatas retroativas no envioHist de todos os documentos detalhados
