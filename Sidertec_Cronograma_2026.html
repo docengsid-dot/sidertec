@@ -960,14 +960,22 @@ canvas{overflow:visible!important;}
 }
 
 /* ══ DATE HISTORY POPOVER ══════════════════════════════════════════ */
-.dt-hist-wrap { position:relative; display:inline-flex; align-items:center; width:100%; gap:3px; }
-.dt-hist-wrap input[type=date] { flex:1; min-width:0; }
+.dt-hist-wrap { position:relative; display:inline-flex; align-items:center; width:100%; gap:2px; }
+.dt-hist-wrap input[type=date], .dt-hist-wrap input.dt-input-br { flex:1; min-width:0; }
+input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#fef2f2 !important; }
 .dt-hist-btn {
   background:none; border:none; cursor:pointer; font-size:13px; padding:0 2px;
   color:#94a3b8; transition:color .15s; flex-shrink:0; line-height:1;
 }
 .dt-hist-btn:hover { color:#7c3aed; }
 .dt-hist-btn.has-hist { color:#7c3aed; }
+/* Copiar/colar: só ocupam espaço quando o mouse está sobre o campo — por
+   padrão ficam ocultos para o campo de data ter largura suficiente para
+   mostrar o texto digitado (dd/mm/aaaa). O botão 🕓 de histórico continua
+   sempre visível, como antes. */
+.dt-hist-btn.dt-cp { display:none; }
+.dt-hist-wrap:hover .dt-hist-btn.dt-cp,
+.dt-hist-wrap:focus-within .dt-hist-btn.dt-cp { display:inline-block; }
 .dt-hist-popover {
   display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:9999;
   background:#fff; border:1px solid #e2e8f0; border-radius:8px;
@@ -2155,11 +2163,15 @@ ALTER TABLE medicao_terceiros
         <div style="background:linear-gradient(135deg,#C4501A 0%,#E8763A 100%);border-radius:var(--r);padding:.6rem 1rem;min-width:240px;">
           <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.7);margin-bottom:.3rem;">🏭 Data Limite — Liberação p/ Fábrica</div>
           <div class="dt-hist-wrap" id="cm-data-limite-fab-wrap">
-            <input type="date" class="field-input" id="cm-data-limite-fab"
-              style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:13px;font-weight:700;width:100%;"
+            <input type="date" id="cm-data-limite-fab" style="display:none;"
               oninput="_dhRegisterLimFab(this.value);atualizarDiasLimiteFab()">
+            <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="field-input dt-input-br" id="cm-data-limite-fab-br"
+              style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;font-size:13px;font-weight:700;width:100%;"
+              oninput="_maskDataBR(this)" onchange="_aplicarDataLimiteFabBR(this)">
+            <button type="button" class="dt-hist-btn dt-cp" title="Copiar esta data" onclick="_dtCopiarData('cm-data-limite-fab-br')" style="color:rgba(255,255,255,.7);font-size:10px;">📋</button>
+            <button type="button" class="dt-hist-btn dt-cp" title="Colar data copiada" onclick="_dtColarData('cm-data-limite-fab-br')" style="color:rgba(255,255,255,.7);font-size:10px;">📥</button>
             <button type="button" class="dt-hist-btn" id="btn-hist-lim-fab"
-              title="Histórico de reprogramações"
+              title="Histórico de reprogramações" style="color:rgba(255,255,255,.7);"
               onclick="dtHistToggle(this,'__lim_fab__','prev','Limite Fab.')">🕓</button>
             <div class="dt-hist-popover">
               <div class="dt-hist-pop-hd"><span>🕓 Histórico</span>
@@ -4200,13 +4212,68 @@ function _updateAllHistBtns(){
   if(bf) _updateHistBtn(bf,'__lim_fab__','prev');
 }
 
-// Gera o HTML do wrapper com botão 🕓 e popover para um input date
-function _dtHistWrap(inputHtml, key, campo, labelEtapa){
+// ── MÁSCARA DE DATA dd/mm/aaaa + COPIAR/COLAR ENTRE CAMPOS ──────────────
+// Os inputs de data do cronograma usam texto com máscara (em vez do
+// <input type="date"> nativo do navegador) porque a digitação manual do
+// ano no campo nativo é pouco confiável entre navegadores. O valor
+// continua sendo convertido para ISO (aaaa-mm-dd) internamente, então
+// nada mais no app precisa mudar.
+function _formatarDataBR(iso){
+  if(!iso) return '';
+  var p = String(iso).split('-');
+  if(p.length!==3) return '';
+  return p[2].slice(0,2)+'/'+p[1]+'/'+p[0];
+}
+function _parseDataBR(txt){
+  if(!txt) return null;
+  var m = String(txt).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  var d=parseInt(m[1],10), mo=parseInt(m[2],10), y=parseInt(m[3],10);
+  if(mo<1||mo>12||d<1||d>31||y<1900||y>2100) return null;
+  var dt = new Date(y, mo-1, d);
+  if(dt.getFullYear()!==y || dt.getMonth()!==mo-1 || dt.getDate()!==d) return null; // ex: 31/02 inválido
+  var pad=function(n){ return n<10?'0'+n:''+n; };
+  return y+'-'+pad(mo)+'-'+pad(d);
+}
+// oninput: aplica a máscara progressivamente (dd/mm/aaaa) enquanto digita
+function _maskDataBR(el){
+  var digitos = (el.value||'').replace(/\D/g,'').slice(0,8);
+  var out = '';
+  if(digitos.length>0) out = digitos.slice(0,2);
+  if(digitos.length>=3) out += '/'+digitos.slice(2,4);
+  if(digitos.length>=5) out += '/'+digitos.slice(4,8);
+  el.value = out;
+  el.classList.remove('data-invalida');
+}
+// Copiar/colar — clipboard simples em memória, compartilhado por todos os campos de data
+var _dtClipboard = '';
+function _dtCopiarData(inputId){
+  var el = document.getElementById(inputId); if(!el) return;
+  _dtClipboard = el.value || '';
+  if(_dtClipboard) showToast('📋 Data copiada','"'+_dtClipboard+'" copiada. Clique em 📥 no campo de destino para colar.','success');
+  else showToast('Campo vazio','Não há data neste campo para copiar.','warn');
+}
+function _dtColarData(inputId){
+  var el = document.getElementById(inputId); if(!el) return;
+  if(!_dtClipboard){ showToast('Nada para colar','Copie uma data primeiro clicando em 📋.','warn'); return; }
+  el.value = _dtClipboard;
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+  showToast('📥 Data colada','"'+_dtClipboard+'" aplicada neste campo.','success');
+}
+
+
+// Gera o HTML do wrapper com botão 🕓 (histórico), 📋 (copiar) e 📥 (colar)
+// para um campo de data. inputId precisa ser único — usado pelos botões de
+// copiar/colar para saber de/para qual campo mover o valor.
+function _dtHistWrap(inputHtml, key, campo, labelEtapa, inputId){
   var hist = _dhGet(key, campo);
   var btnClass = 'dt-hist-btn'+(hist.length ? ' has-hist' : '');
   var btnTitle = hist.length ? hist.length+' reprogramação(ões)' : 'Sem reprogramações';
+  var idAttr = inputId || ('dtin-'+key+'-'+campo);
   return '<div class="dt-hist-wrap">'
     + inputHtml
+    + '<button type="button" class="dt-hist-btn dt-cp" title="Copiar esta data" onclick="_dtCopiarData(\''+idAttr+'\')" style="font-size:10px;">📋</button>'
+    + '<button type="button" class="dt-hist-btn dt-cp" title="Colar data copiada" onclick="_dtColarData(\''+idAttr+'\')" style="font-size:10px;">📥</button>'
     + '<button type="button" class="'+btnClass+'" title="'+btnTitle+'" '
     +   'onclick="dtHistToggle(this,\''+key+'\',\''+campo+'\',\''+labelEtapa.replace(/'/g,"\\'")+'\')">'
     +   '🕓</button>'
@@ -4458,12 +4525,14 @@ function renderEtapasDinamicas(){
       : '<td style="width:60px;text-align:center;color:#cbd5e1;font-size:10px;">—</td>';
     if(etapa.col_prev && !(etapa.extra==='montagem' && st.montagem_na)){
     rows += '<td class="num" style="width:110px;">';
-    var _prevInput = '<input type="date" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.prev||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'prev\',this.value)">';
-    rows += _dtHistWrap(_prevInput, etapa.key, 'prev', etapa.label);
+    var _prevInputId = 'dtin-'+etapa.key+'-prev';
+    var _prevInput = '<input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="dt-input-br" id="'+_prevInputId+'" style="border:1px solid #d1d5db;border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+_formatarDataBR(st.prev)+'" oninput="_maskDataBR(this)" onchange="_etapaSetDataBR(this,\''+etapa.key+'\',\'prev\')">';
+    rows += _dtHistWrap(_prevInput, etapa.key, 'prev', etapa.label, _prevInputId);
     rows += '</td>';
     rows += '<td class="num" style="width:110px;">';
-    var _realInput = '<input type="date" style="border:1px solid '+(conc?'#86efac':'#d1d5db')+';border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(st.real||'')+'" onchange="etapaSet(\''+etapa.key+'\',\'real\',this.value)">';
-    rows += _dtHistWrap(_realInput, etapa.key, 'real', etapa.label);
+    var _realInputId = 'dtin-'+etapa.key+'-real';
+    var _realInput = '<input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="dt-input-br" id="'+_realInputId+'" style="border:1px solid '+(conc?'#86efac':'#d1d5db')+';border-radius:3px;padding:2px 4px;font-size:11px;background:'+(conc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+_formatarDataBR(st.real)+'" oninput="_maskDataBR(this)" onchange="_etapaSetDataBR(this,\''+etapa.key+'\',\'real\')">';
+    rows += _dtHistWrap(_realInput, etapa.key, 'real', etapa.label, _realInputId);
     rows += '</td>';
     rows += '<td style="width:90px;text-align:center;">'+_diasBadgeInline(st.prev,st.real)+'</td>';
     } else if(etapa.extra==='montagem' && st.montagem_na){
@@ -4553,10 +4622,12 @@ function renderEtapasDinamicas(){
           ? '<td style="width:60px;text-align:center;"><input type="number" min="0" max="999" style="width:44px;text-align:center;border:1px solid #e2e8f0;border-radius:3px;padding:1px 3px;font-size:9px;background:#f8fafc;" value="'+_diasSub+'" placeholder="—" title="Prazo em dias" data-key="'+(sub.key)+'" oninput="_onDiasInput(this)"></td>'
           : '<td style="width:60px;"></td>';
         if(sub.col_prev){
-        var _sPrevInput = '<input type="date" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.prev||'')+'" onchange="etapaSet(\''+sub.key+'\',\'prev\',this.value)">';
-        rows += '<td class="num">' + _dtHistWrap(_sPrevInput, sub.key, 'prev', sub.label) + '</td>';
-        var _sRealInput = '<input type="date" style="border:1px solid '+(sConc?'#86efac':'#e5e7eb')+';border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+(sst.real||'')+'" onchange="etapaSet(\''+sub.key+'\',\'real\',this.value)">';
-        rows += '<td class="num">' + _dtHistWrap(_sRealInput, sub.key, 'real', sub.label) + '</td>';
+        var _sPrevInputId = 'dtin-'+sub.key+'-prev';
+        var _sPrevInput = '<input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="dt-input-br" id="'+_sPrevInputId+'" style="border:1px solid #e5e7eb;border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#f0fdf4':'#fff')+';width:100%;font-family:var(--font-main);" value="'+_formatarDataBR(sst.prev)+'" oninput="_maskDataBR(this)" onchange="_etapaSetDataBR(this,\''+sub.key+'\',\'prev\')">';
+        rows += '<td class="num">' + _dtHistWrap(_sPrevInput, sub.key, 'prev', sub.label, _sPrevInputId) + '</td>';
+        var _sRealInputId = 'dtin-'+sub.key+'-real';
+        var _sRealInput = '<input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" class="dt-input-br" id="'+_sRealInputId+'" style="border:1px solid '+(sConc?'#86efac':'#e5e7eb')+';border-radius:3px;padding:2px 4px;font-size:10px;background:'+(sConc?'#dcfce7':'#fff')+';width:100%;font-family:var(--font-main);" value="'+_formatarDataBR(sst.real)+'" oninput="_maskDataBR(this)" onchange="_etapaSetDataBR(this,\''+sub.key+'\',\'real\')">';
+        rows += '<td class="num">' + _dtHistWrap(_sRealInput, sub.key, 'real', sub.label, _sRealInputId) + '</td>';
         rows += '<td style="text-align:center;">'+_diasBadgeInline(sst.prev,sst.real)+'</td>';
         } else {
         rows += '<td class="num"><span style="color:#94a3b8;font-size:9px;">—</span></td>';
@@ -4721,6 +4792,23 @@ function renderEtapasDinamicas(){
 
   // Atualiza botões 🕓 com estado do histórico
   setTimeout(_updateAllHistBtns, 0);
+}
+
+// Handler de onchange dos campos de data com máscara dd/mm/aaaa das etapas.
+// Converte para ISO e delega para etapaSet (mesma lógica de sempre). Se a
+// data digitada for inválida/incompleta, NÃO sobrescreve o estado — evita
+// perder a data anterior por causa de um typo, e sinaliza visualmente.
+function _etapaSetDataBR(el,key,campo){
+  var txt = (el.value||'').trim();
+  if(!txt){ el.classList.remove('data-invalida'); etapaSet(key,campo,''); return; }
+  var iso = _parseDataBR(txt);
+  if(!iso){
+    el.classList.add('data-invalida');
+    showToast('Data inválida','Digite no formato dd/mm/aaaa (ex: 15/03/2026).','warn');
+    return;
+  }
+  el.classList.remove('data-invalida');
+  etapaSet(key,campo,iso);
 }
 
 function etapaSet(key,campo,valor){
@@ -6745,6 +6833,7 @@ async function abrirCronModal(id){
     'cm-obs-texto',
     'cm-num-revisao','cm-obs-revisao'];
   ids.forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
+  atualizarDiasLimiteFab(); // sincroniza o campo visível (dd/mm/aaaa) com o oculto recém-limpo
   document.getElementById('cm-status').value='AG. PROJ. BÁSICO';
   document.getElementById('cm-prior').value='NORMAL';
   document.getElementById('cm-revisao-sim-nao').value='NAO';
@@ -7513,7 +7602,38 @@ function calcTodosOsDias(){
 }
 
 // ── DATA LIMITE FÁBRICA ────────────────────────────────────────────────
+function _aplicarDataLimiteFabBR(el){
+  var txt = (el.value||'').trim();
+  var hid = document.getElementById('cm-data-limite-fab');
+  if(!hid) return;
+  if(!txt){
+    el.classList.remove('data-invalida');
+    hid.value = '';
+    _dhRegisterLimFab('');
+    atualizarDiasLimiteFab();
+    return;
+  }
+  var iso = _parseDataBR(txt);
+  if(!iso){
+    el.classList.add('data-invalida');
+    showToast('Data inválida','Digite no formato dd/mm/aaaa (ex: 15/03/2026).','warn');
+    return;
+  }
+  el.classList.remove('data-invalida');
+  hid.value = iso;
+  _dhRegisterLimFab(iso);
+  atualizarDiasLimiteFab();
+}
+
 function atualizarDiasLimiteFab(){
+  // Mantém o campo visível (com máscara dd/mm/aaaa) sincronizado com o valor
+  // ISO real, que pode ter sido alterado programaticamente (ex: revert de
+  // histórico, "copiar de outra sub-obra", carregamento da TAG).
+  (function(){
+    var hid = document.getElementById('cm-data-limite-fab');
+    var vis = document.getElementById('cm-data-limite-fab-br');
+    if(hid && vis) vis.value = _formatarDataBR(hid.value);
+  })();
   const val = document.getElementById('cm-data-limite-fab')?.value;
   const el  = document.getElementById('cm-dias-limite-fab'); if(!el) return;
   if(!val){ el.innerHTML=''; return; }
@@ -7923,6 +8043,7 @@ function importarAvançoFabricacao(input){
       // usados para pular a linha certa dentro de cada bloco.
       var ROTULOS_IGNORAR = ['TOTAL','SALDO'];
       var resultados={};
+      var pesoTotalPorTag={}; // "PESO TOTAL" de cada bloco — é o peso usado pelo PCP
       var i=0;
       while(i<raw.length){
         var linha=raw[i];
@@ -7939,13 +8060,24 @@ function importarAvançoFabricacao(input){
           // Procura, dentro das próximas linhas do bloco, a linha que de fato
           // traz o peso executado — pula linhas "PESO TOTAL" / "PESO SALDO"
           // (formato da aba RESUMO) e também aceita a linha simples "Peso (kg)"
-          // (formato do template baixado pelo próprio botão).
+          // (formato do template baixado pelo próprio botão). A linha "PESO
+          // TOTAL", quando existe, é capturada separadamente: é o peso usado
+          // pelo PCP para aquela TAG, usado depois para preencher o campo
+          // "Peso PCP" automaticamente quando ele estiver vazio.
           var linhaPeso=null, j=i+1, limite=Math.min(raw.length, i+6);
           for(; j<limite; j++){
             var linhaJ=raw[j];
             if(!linhaJ || linhaJ[0]==null) continue;
             var rotuloJ=String(linhaJ[0]).trim().toUpperCase();
             if(!rotuloJ) continue;
+            if(rotuloJ.indexOf('TOTAL')!==-1 && rotuloJ.indexOf('SALDO')===-1){
+              tags.forEach(function(tag,idx){
+                if(!tag) return;
+                var pesoTot=linhaJ[idx+1]!=null?parseFloat(linhaJ[idx+1]):null;
+                if(pesoTot===null||isNaN(pesoTot)||pesoTot<=0) return;
+                if(pesoTotalPorTag[tag]==null) pesoTotalPorTag[tag]=pesoTot; // só a primeira ocorrência
+              });
+            }
             if(ROTULOS_IGNORAR.some(function(r){return rotuloJ.indexOf(r)!==-1;})) continue;
             // Achou uma linha de peso válida (ex: "PESO PREPARADO (KG)", "PESO INSPECIONADO (KG)", "PESO (KG)")
             linhaPeso=linhaJ; break;
@@ -7957,6 +8089,12 @@ function importarAvançoFabricacao(input){
               if(peso===null||isNaN(peso)) return;
               if(!resultados[tag]) resultados[tag]={};
               resultados[tag][campo]=peso;
+              // Peso total do bloco (linha "PESO TOTAL") = peso usado pelo PCP.
+              // Anexa aqui para poder preencher automaticamente o campo Peso
+              // PCP do cadastro da TAG, quando ele ainda estiver vazio.
+              if(pesoTotalPorTag[tag]!=null && resultados[tag].peso_total_pcp==null){
+                resultados[tag].peso_total_pcp = pesoTotalPorTag[tag];
+              }
             });
           }
           // Avança para depois do bloco processado
@@ -7984,7 +8122,7 @@ function importarAvançoFabricacao(input){
 }
 
 async function _importarAvançoBatch(resultados){
-  var ok=0, naoEncontrado=[], erros=[];
+  var ok=0, naoEncontrado=[], erros=[], pcpAutoPreenchidoCount=0;
   var tags=Object.keys(resultados);
   // campo de peso executado → campo de conclusão correspondente
   var CONC_MAP = {
@@ -7999,8 +8137,18 @@ async function _importarAvançoBatch(resultados){
     var idx=allCronSubobras.findIndex(function(s){return s.subobra&&s.subobra.trim().toUpperCase()===tag.toUpperCase();});
     if(idx<0){naoEncontrado.push(tag);continue;}
     var sub=allCronSubobras[idx];
-    var pesoPcp=parseFloat(sub.peso_pcp||sub.peso_previsto||0)||0;
     var payload={atualizado_em:new Date().toISOString()};
+    var pcpJaPreenchido = sub.peso_pcp!=null && Number(sub.peso_pcp)>0;
+    // AUTO-FILL: se o Peso PCP ainda não estiver preenchido no cadastro da
+    // TAG e a planilha trouxe o "PESO TOTAL" do bloco (que é exatamente o
+    // peso usado pelo PCP), preenche automaticamente — evita ter que digitar
+    // esse valor manualmente depois de importar o avanço de fabricação.
+    var pcpAutoPreenchido = false;
+    if(!pcpJaPreenchido && dados.peso_total_pcp!=null && dados.peso_total_pcp>0){
+      payload.peso_pcp = dados.peso_total_pcp;
+      pcpAutoPreenchido = true;
+    }
+    var pesoPcp = pcpAutoPreenchido ? dados.peso_total_pcp : (parseFloat(sub.peso_pcp||sub.peso_previsto||0)||0);
     ['peso_executado','peso_inspecao_fab','peso_pintura','peso_expedicao'].forEach(function(f){
       if(dados[f]!=null){
         payload[f]=dados[f];
@@ -8009,6 +8157,7 @@ async function _importarAvançoBatch(resultados){
         if(pesoPcp>0 && dados[f]>=pesoPcp-0.005){ payload[CONC_MAP[f]]='S'; }
       }
     });
+    if(pcpAutoPreenchido) pcpAutoPreenchidoCount++;
     allCronSubobras[idx]=Object.assign({},sub,payload);
     try{
       var r=await sbClient.from('cronograma_subobras').update(payload).eq('id',sub.id).select();
@@ -8017,9 +8166,10 @@ async function _importarAvançoBatch(resultados){
     } catch(e){ erros.push(tag+': '+e.message); }
   }
   var msg=ok+' TAG(s) atualizada(s).';
+  if(pcpAutoPreenchidoCount) msg+='\n\n⚖ Peso PCP preenchido automaticamente em '+pcpAutoPreenchidoCount+' TAG(s) que estavam sem esse campo (usando o "Peso Total" da planilha).';
   if(naoEncontrado.length) msg+='\n\nNão encontradas ('+naoEncontrado.length+'): '+naoEncontrado.slice(0,10).join(', ')+(naoEncontrado.length>10?'...':'');
   if(erros.length) msg+='\n\nErros: '+erros.slice(0,5).join('\n');
-  showToast(ok+' atualizado(s)',naoEncontrado.length?ok+' ok / '+naoEncontrado.length+' não encontradas':ok+' TAGs atualizadas com sucesso.','success');
+  showToast(ok+' atualizado(s)',naoEncontrado.length?ok+' ok / '+naoEncontrado.length+' não encontradas':ok+' TAGs atualizadas com sucesso.'+(pcpAutoPreenchidoCount?' Peso PCP preenchido automaticamente em '+pcpAutoPreenchidoCount+'.':''),'success');
   alert(msg);
   renderCronograma();
 }
@@ -19492,7 +19642,7 @@ async function abrirCtrlDoc(){
         setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
       }
     }catch(e){}
-  },20000);
+  },60000);
 }
 async function backupCompleto(){
   var btn = event && event.target;
@@ -25862,12 +26012,37 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function _scan(){
     document.querySelectorAll(SEL).forEach(_attach);
-    _pairs.forEach(_resize);
+    // Só recalcula (getBoundingClientRect etc.) os pares cujo wrap está
+    // realmente visível na tela — evita trabalho desnecessário com tabelas
+    // dentro de modais fechados ou abas ocultas, que antes eram recalculadas
+    // do mesmo jeito a cada 800ms.
+    _pairs.forEach(function(p){
+      if(p.wrap.offsetParent===null) return; // invisível (display:none em algum ancestral)
+      _resize(p);
+    });
   }
+
+  // Otimização de performance: escaneia com menos frequência (antes era a
+  // cada 800ms, para sempre, mesmo sem nada mudando) e pausa completamente
+  // quando a aba não está em foco — reduz consumo de CPU/bateria em segundo
+  // plano e o app "pesado" percebido em sessões longas.
+  var SCAN_INTERVAL_MS = 2500;
+  var _scanTimer = null;
+  function _iniciarScanLoop(){
+    if(_scanTimer) return;
+    _scanTimer = setInterval(_scan, SCAN_INTERVAL_MS);
+  }
+  function _pararScanLoop(){
+    if(_scanTimer){ clearInterval(_scanTimer); _scanTimer=null; }
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) _pararScanLoop();
+    else { _scan(); _iniciarScanLoop(); }
+  });
 
   window.addEventListener('scroll',   function(){ _pairs.forEach(function(p){_posY(p);}); }, {passive:true});
   window.addEventListener('resize',   function(){ _pairs.forEach(_resize); });
-  document.addEventListener('DOMContentLoaded', function(){ _scan(); setInterval(_scan, 800); });
+  document.addEventListener('DOMContentLoaded', function(){ _scan(); _iniciarScanLoop(); });
   setTimeout(function(){ _scan(); }, 200);
   setTimeout(function(){ _scan(); }, 1200);
   window.syncScrollMirrors = _scan;
