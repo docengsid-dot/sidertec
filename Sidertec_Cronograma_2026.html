@@ -10775,10 +10775,23 @@ async function aplicarLote(){
     showToast('Nada para aplicar','Marque "Alterar Status", "Observação", "Peso Detalhado", "Projeto de Telha" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
   }
 
-  // Validação: GRD obrigatória se marcar Data Realizada do envio do modelo
+  // Validação: GRD obrigatória se marcar Data Realizada do envio do modelo —
+  // mas só quando existir alguma TAG selecionada que AINDA não tenha uma GRD
+  // própria (ex.: puxada automaticamente no modal detalhado). Se todas as
+  // TAGs selecionadas já têm GRD, o campo do lote pode ficar em branco: a
+  // GRD já existente de cada TAG é preservada (não é apagada nem pede outra).
   for(var v=0; v<etapas.length; v++){
     if(etapas[v].def.key==='envio_modelo' && etapas[v].real && !etapas[v].grd){
-      showToast('GRD obrigatória','Informe a GRD para a etapa "'+etapas[v].def.label+'".','error'); return;
+      var _semGrd = subs.filter(function(s){ return !s.grd_modelo; });
+      if(_semGrd.length){
+        showToast('GRD obrigatória',
+          'Informe a GRD para a etapa "'+etapas[v].def.label+'" — '+_semGrd.length+' de '+subs.length+' TAG(s) selecionada(s) ainda não têm GRD registrada ('+
+          _semGrd.map(function(s){return s.subobra||s.id;}).slice(0,6).join(', ')+(_semGrd.length>6?'...':'')+
+          '). As demais já têm GRD própria e serão mantidas automaticamente.',
+          'error');
+        return;
+      }
+      // Todas já têm GRD própria — segue sem exigir preenchimento do campo do lote.
     }
   }
 
@@ -19004,20 +19017,54 @@ async function _cdocSBLoad(){
     if(!_localAntesDoLoad){
       try{ _localAntesDoLoad = JSON.parse(localStorage.getItem('sider_ctrldoc')||'null'); }catch(eLocal){}
     }
-    var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
-    if(!r.ok){
-      var errBody=''; try{errBody=await r.text();}catch(ex){}
-      console.error('[CDOC] Supabase HTTP '+r.status+':', errBody);
-      if(r.status===404||r.status===406){
-        _cdocSBStatus('⚠ Tabela cdoc_database não encontrada ('+r.status+')','#dc2626');
-        showToast('CDOC — Tabela não encontrada','Execute o SQL de criação da tabela cdoc_database no Supabase (Dashboard → SQL Editor).','error');
-      }
-      throw new Error('HTTP '+r.status);
+
+    // ── Carrega as duas fatias (básicos/detalhados) ──────────────────────
+    var fatias;
+    try{ fatias = await _cdocSBLoadFatias(); }
+    catch(eF){
+      console.error('[CDOC] Falha ao carregar fatias:', eF);
+      throw eF;
     }
-    var rows=await r.json();
-    if(rows.length&&rows[0].data){
-      var _remoto=rows[0].data;
-      _cdocSaveVersion=rows[0].version||0; // captura versão atual para lock otimista
+
+    var _remoto;
+    if(fatias.existeAlguma){
+      // Formato novo (particionado) já existe — usa direto
+      _remoto = Object.assign({}, fatias.detData||fatias.basData||{}, {
+        basicos: (fatias.basData||{}).basicos||[],
+        detalhados: (fatias.detData||{}).detalhados||[]
+      });
+      _cdocSaveVersionBas = fatias.basVersion;
+      _cdocSaveVersionDet = fatias.detVersion;
+    } else {
+      // Ainda não migrado — tenta o formato antigo (registro único key='main')
+      // e, se existir, divide em fatias automaticamente (sem apagar o
+      // registro antigo — ele fica como cópia de segurança).
+      var rOld = await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
+      if(!rOld.ok){
+        var errBody=''; try{errBody=await rOld.text();}catch(ex){}
+        console.error('[CDOC] Supabase HTTP '+rOld.status+':', errBody);
+        if(rOld.status===404||rOld.status===406){
+          _cdocSBStatus('⚠ Tabela cdoc_database não encontrada ('+rOld.status+')','#dc2626');
+          showToast('CDOC — Tabela não encontrada','Execute o SQL de criação da tabela cdoc_database no Supabase (Dashboard → SQL Editor).','error');
+        }
+        throw new Error('HTTP '+rOld.status);
+      }
+      var oldRows = await rOld.json();
+      if(oldRows.length && oldRows[0].data){
+        _remoto = oldRows[0].data;
+        _cdocSaveVersionBas = 0; _cdocSaveVersionDet = 0;
+        console.log('[CDOC] Migrando formato antigo (registro único) para fatias separadas...');
+        try{
+          var _verMig = await _cdocSBPushFatias(_remoto, 0, 0);
+          _cdocSaveVersionBas = _verMig.verBas; _cdocSaveVersionDet = _verMig.verDet;
+          console.log('[CDOC] Migração concluída — dados agora salvos em duas fatias (básicos/detalhados).');
+        }catch(eMig){ console.warn('[CDOC] Migração para fatias falhou (vai tentar de novo no próximo salvamento):', eMig); }
+      } else {
+        _remoto = null;
+      }
+    }
+
+    if(_remoto){
       // Sanitiza pesos armazenados como string ou NaN
       (_remoto.detalhados||[]).forEach(function(d){if(d.peso!==null&&d.peso!==undefined){var n=parseFloat(String(d.peso).replace(/\./g,'').replace(',','.'));d.peso=isNaN(n)?null:n;}});
       (_remoto.basicos||[]).forEach(function(b){if(b.peso!==null&&b.peso!==undefined){var n=parseFloat(String(b.peso).replace(/\./g,'').replace(',','.'));b.peso=isNaN(n)?null:n;}});
@@ -19052,8 +19099,9 @@ async function _cdocSBLoad(){
       try{local=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
       if(local&&((local.basicos||[]).length+(local.detalhados||[]).length)>0){
         _cdocSBCache=local;
-        // publica dados locais para a nuvem
-        await _cdocSBPush(_cdocSBCache);
+        // publica dados locais para a nuvem (já particionado em fatias)
+        var _verIni = await _cdocSBPushFatias(_cdocSBCache, 0, 0);
+        _cdocSaveVersionBas = _verIni.verBas; _cdocSaveVersionDet = _verIni.verDet;
         var _nBasL=(_cdocSBCache.basicos||[]).length; var _nDetL=(_cdocSBCache.detalhados||[]).length;
         _cdocSBStatus('☁ Dados locais publicados — '+_nBasL+' bás / '+_nDetL+' det','#16a34a');
         setTimeout(function(){_cdocSBStatus('☁ Nuvem · '+_nBasL+' bás / '+_nDetL+' det','#94a3b8');},3000);
@@ -19146,10 +19194,11 @@ function _cdocResyncEtapa2Modelo(){
   }
 }
 
-async function _cdocSBPush(db){
+async function _cdocSBPush(db, key){
+  key = key || 'main';
   try{
     // Inclui campo 'version' no payload para lock otimista
-    var payload = {key:'main', data:db, version:(db._version||0)};
+    var payload = {key:key, data:db, version:(db._version||0)};
     var _bodyStr = JSON.stringify(payload);
     var r=await fetch(_sbUrl('cdoc_database'),{
       method:'POST',
@@ -19164,7 +19213,50 @@ async function _cdocSBPush(db){
       _err._httpStatus=r.status;
       throw _err;
     }
-  } catch(e){ console.error('_cdocSBPush error:',e); throw e; }
+  } catch(e){ console.error('_cdocSBPush error ('+key+'):',e); throw e; }
+}
+
+// ── PARTICIONAMENTO EM FATIAS (básicos / detalhados) ─────────────────────
+// Em vez de enviar TODOS os documentos (básicos + detalhados) num único
+// pacote/requisição — o que cresce demais em bases grandes e pode ultrapassar
+// o limite de tamanho de requisição da nuvem — cada fatia é salva em sua
+// própria linha na mesma tabela cdoc_database (key='cdoc_basicos' /
+// key='cdoc_detalhados'), cada uma com seu próprio controle de versão.
+// Assim, importar 4.000 documentos detalhados não obriga a enviar os
+// básicos de novo, e vice-versa — cada requisição fica bem menor.
+var _cdocShardKeys = {bas:'cdoc_basicos', det:'cdoc_detalhados'};
+function _cdocMontarFatia(dbUnificado, tipo){
+  // tipo: 'bas' ou 'det'. Cada fatia leva os metadados inteiros (contadores,
+  // GRDs, obras, tombstones) — são pequenos — e SÓ o array grande do seu tipo.
+  var fatia = Object.assign({}, dbUnificado);
+  if(tipo==='bas'){ delete fatia.detalhados; fatia.basicos = dbUnificado.basicos||[]; }
+  else { delete fatia.basicos; fatia.detalhados = dbUnificado.detalhados||[]; }
+  return fatia;
+}
+// Busca as duas fatias da nuvem numa única requisição (key=in.(...)) e
+// devolve tanto o objeto unificado (mesmo formato usado no resto do app)
+// quanto as versões individuais de cada fatia (para lock otimista por fatia).
+async function _cdocSBLoadFatias(){
+  var r = await fetch(_sbUrl('cdoc_database?key=in.(cdoc_basicos,cdoc_detalhados)&select=key,data,version'), {headers:_SB_H});
+  if(!r.ok){ var e=new Error('HTTP '+r.status); e._httpStatus=r.status; throw e; }
+  var rows = await r.json();
+  var basRow = rows.find(function(x){return x.key===_cdocShardKeys.bas;});
+  var detRow = rows.find(function(x){return x.key===_cdocShardKeys.det;});
+  return {
+    basData: basRow ? basRow.data : null, basVersion: basRow ? (basRow.version||0) : 0,
+    detData: detRow ? detRow.data : null, detVersion: detRow ? (detRow.version||0) : 0,
+    existeAlguma: !!(basRow || detRow)
+  };
+}
+// Envia as duas fatias em paralelo — cada uma com seu próprio _version.
+async function _cdocSBPushFatias(dbUnificado, verBas, verDet){
+  var fatiaBas = _cdocMontarFatia(dbUnificado, 'bas'); fatiaBas._version = (verBas||0)+1;
+  var fatiaDet = _cdocMontarFatia(dbUnificado, 'det'); fatiaDet._version = (verDet||0)+1;
+  await Promise.all([
+    _cdocSBPush(fatiaBas, _cdocShardKeys.bas),
+    _cdocSBPush(fatiaDet, _cdocShardKeys.det)
+  ]);
+  return {verBas:fatiaBas._version, verDet:fatiaDet._version};
 }
 
 function salvarSistema(){
@@ -19205,7 +19297,8 @@ function cdocRestaurarJSON(input){
       _cdocSBCache=cdocData;
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(cdocData));}catch(ex){}
       _cdocSBStatus('Publicando restauração na nuvem...','#7c3aed');
-      _cdocSBPush(cdocData).then(function(){
+      _cdocSBPushFatias(cdocData, _cdocSaveVersionBas, _cdocSaveVersionDet).then(function(vers){
+        _cdocSaveVersionBas = vers.verBas; _cdocSaveVersionDet = vers.verDet;
         _cdocSBStatus('☁ '+nBas+' básicos / '+nDet+' det. restaurados','#16a34a');
         setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
         cdocRefreshAll();
@@ -19301,7 +19394,8 @@ function _cdocMergeSnapshots(remote,local){
 var _cdocSaveTimer=null;
 var _cdocSaveQueue=Promise.resolve(); // serializa saves do mesmo usuário
 var _cdocSaveTimer=null;
-var _cdocSaveVersion=0; // versão do último save bem-sucedido (lock otimista)
+var _cdocSaveVersionBas=0; // versão do último save bem-sucedido da fatia de básicos (lock otimista)
+var _cdocSaveVersionDet=0; // versão do último save bem-sucedido da fatia de detalhados (lock otimista)
 var _cdocSavePending=0; // nº de saves em andamento (fetch+merge+push) — usado para o
                          // auto-refresh não sobrescrever um save nosso ainda em curso
 
@@ -19332,7 +19426,11 @@ function _cdocSave(db){
       else if(!window._cdocAvisouTamanho){
         window._cdocAvisouTamanho=true;
         console.warn('[CDOC] Backup local pulado — dados maiores que 5MB ('+(json.length/1024/1024).toFixed(2)+'MB). Se o salvamento na nuvem também falhar, a edição pode ser perdida.');
-        if(typeof showToast==='function') showToast('Base de dados grande','Os dados do Controle de Documentos estão grandes ('+(json.length/1024/1024).toFixed(2)+'MB) — isso aumenta o risco de falha ao salvar em conexões lentas. Considere avisar o suporte.','warn');
+      }
+      if(json.length>3*1024*1024 && !window._cdocAvisouTamanhoNuvem){
+        window._cdocAvisouTamanhoNuvem=true;
+        console.warn('[CDOC] Pacote de dados grande para envio à nuvem: '+(json.length/1024/1024).toFixed(2)+'MB — importações muito grandes de uma vez aumentam o risco de falha por tamanho/timeout.');
+        if(typeof showToast==='function') showToast('Base de dados grande','Os dados do Controle de Documentos estão em '+(json.length/1024/1024).toFixed(2)+'MB. Isso aumenta o risco de falha ao salvar (limite de tamanho/tempo de envio). Se o salvamento falhar repetidamente após uma importação grande, tente importar o CSV em partes menores (ex: 1000 linhas por vez).','warn');
       }
     }catch(e){}
   },800);
@@ -19343,11 +19441,13 @@ function _cdocSave(db){
 
   // Serializa saves do mesmo usuário — cada save espera o anterior completar
   _cdocSavePending++;
-  _cdocSaveQueue = _cdocSaveQueue.then(function(){
+  var _p = _cdocSaveQueue.then(function(){
     return _cdocSaveWithRetry(_dbSnapshot, 0);
-  }).finally(function(){
+  });
+  _cdocSaveQueue = _p.finally(function(){
     _cdocSavePending=Math.max(0,_cdocSavePending-1);
   });
+  return _cdocSaveQueue; // permite ao chamador (ex: importação de CSV) aguardar e saber se realmente salvou
 }
 
 
@@ -19356,16 +19456,17 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
   var DELAY_BASE=800; // ms
 
   try{
-    // ── Passo 1: busca estado ATUAL do servidor ──────────────────
-    var remoteDb=null, remoteVersion=0;
+    // ── Passo 1: busca estado ATUAL do servidor (as duas fatias) ─────
+    var remoteDb=null, remoteVerBas=0, remoteVerDet=0;
     try{
-      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
-      if(r.ok){
-        var rows=await r.json();
-        if(rows.length&&rows[0].data){
-          remoteDb=rows[0].data;
-          remoteVersion=rows[0].version||0;
-        }
+      var fatiasAtuais = await _cdocSBLoadFatias();
+      if(fatiasAtuais.existeAlguma){
+        remoteDb = Object.assign({}, fatiasAtuais.detData||fatiasAtuais.basData||{}, {
+          basicos: (fatiasAtuais.basData||{}).basicos||[],
+          detalhados: (fatiasAtuais.detData||{}).detalhados||[]
+        });
+        remoteVerBas = fatiasAtuais.basVersion;
+        remoteVerDet = fatiasAtuais.detVersion;
       }
     }catch(eFetch){
       console.warn('[CDOC save] fetch remoto falhou — salvando sem merge:',eFetch.message);
@@ -19373,20 +19474,21 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
 
     // ── Passo 2: detecta conflito real ────────────────────────────
     // Se o remoto foi modificado por outro usuário desde nosso último save
-    var temConflito = remoteDb && remoteVersion > _cdocSaveVersion;
+    var temConflito = remoteDb && (remoteVerBas > _cdocSaveVersionBas || remoteVerDet > _cdocSaveVersionDet);
     if(temConflito){
-      console.log('[CDOC save] Conflito detectado (versão remota='+remoteVersion+', local='+_cdocSaveVersion+') — mesclando...');
+      console.log('[CDOC save] Conflito detectado (versão remota bas='+remoteVerBas+'/det='+remoteVerDet+', local bas='+_cdocSaveVersionBas+'/det='+_cdocSaveVersionDet+') — mesclando...');
     }
 
     // ── Passo 3: mescla preservando tudo de ambos os lados ────────
     var finalDb = remoteDb ? _cdocMergeSnapshots(remoteDb, snapshot) : snapshot;
-    finalDb._version = (remoteVersion||0) + 1; // incrementa versão
     finalDb._lastSavedBy = snapshot._lastSavedBy;
     finalDb._lastSavedAt = snapshot._lastSavedAt;
 
-    // ── Passo 4: push atômico ─────────────────────────────────────
-    await _cdocSBPush(finalDb);
-    _cdocSaveVersion = finalDb._version||0;
+    // ── Passo 4: push em duas fatias — cada requisição fica bem menor
+    // do que enviar básicos+detalhados juntos num único pacote ──────
+    var _verNovas = await _cdocSBPushFatias(finalDb, remoteVerBas, remoteVerDet);
+    _cdocSaveVersionBas = _verNovas.verBas;
+    _cdocSaveVersionDet = _verNovas.verDet;
 
     // ── Passo 5: atualiza cache e localStorage ────────────────────
     _cdocSBCache = finalDb;
@@ -19401,6 +19503,7 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
       if(typeof cdocRenderDet==='function') setTimeout(cdocRenderDet,100);
       if(typeof cdocRenderBas==='function') setTimeout(cdocRenderBas,100);
     }
+    return {ok:true};
 
   } catch(e){
     console.error('[CDOC save] erro (tentativa '+(tentativa+1)+'):',e);
@@ -19417,12 +19520,24 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
       showToast('Erro ao salvar na nuvem',
         'Os dados NÃO foram perdidos — ficaram salvos localmente e o sistema vai continuar tentando enviar em segundo plano automaticamente. Motivo: '+_motivo+_tamanhoInfo,
         'error');
+      // Alerta bloqueante — garante que o motivo técnico real não passe
+      // despercebido (o toast some rápido e pode não ser notado quando há
+      // muitas outras coisas na tela, como durante uma importação grande).
+      if(!window._cdocAlertouErroRecente){
+        window._cdocAlertouErroRecente = true;
+        setTimeout(function(){ window._cdocAlertouErroRecente = false; }, 15000); // evita alert em cascata se vários saves falharem juntos
+        alert('⚠ ERRO AO SALVAR NA NUVEM (Controle de Documentos)\n\n'
+          +'Motivo técnico: '+_motivo+_tamanhoInfo+'\n\n'
+          +'Os dados continuam salvos no seu navegador e o sistema vai tentar reenviar automaticamente. '
+          +'Copie esta mensagem e envie ao suporte/desenvolvedor para diagnóstico.');
+      }
       // CRITÉRIO DE SEGURANÇA: em vez de simplesmente desistir, guarda esta
       // alteração numa fila persistente (sobrevive a F5/fechar aba) e agenda
       // novas tentativas — ao reconectar à internet e a cada 30s enquanto
       // houver algo pendente. Assim nenhuma edição é definitivamente perdida
       // só porque a rede estava instável no momento do salvamento.
       _cdocEnfileirarPendente(snapshot);
+      return {ok:false, motivo:_motivo+_tamanhoInfo};
     }
   }
 }
@@ -19612,13 +19727,20 @@ function _cdocRealtimeSubscribe(){
         // Ignora eventos disparados pelo nosso próprio salvamento em andamento
         if(_cdocSavePending>0) return;
         var novo = payload && payload.new;
-        if(!novo || novo.key!=='main' || !novo.data) return;
+        if(!novo || !novo.data) return;
+        var ehBas = novo.key===_cdocShardKeys.bas;
+        var ehDet = novo.key===_cdocShardKeys.det;
+        if(!ehBas && !ehDet) return; // ignora o registro antigo 'main' (mantido só como backup histórico)
         var remoteVer = novo.version||0;
-        if(remoteVer>0 && remoteVer<=_cdocSaveVersion) return; // já temos essa versão
-        // Mescla com o que temos localmente — nunca sobrescreve de forma bruta
-        var mesclado = _cdocMergeSnapshots(novo.data, _cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
+        if(ehBas && remoteVer>0 && remoteVer<=_cdocSaveVersionBas) return; // já temos essa versão
+        if(ehDet && remoteVer>0 && remoteVer<=_cdocSaveVersionDet) return;
+        // Mescla só a fatia que mudou — nunca sobrescreve o resto de forma bruta
+        var remotoParcial = ehBas
+          ? {basicos:novo.data.basicos||[], detalhados:[], _deletedBasIds:novo.data._deletedBasIds, _deletedDetIds:[], _deletedGrdIds:novo.data._deletedGrdIds, _grds:novo.data._grds, _obras:novo.data._obras, _obrasOcultas:novo.data._obrasOcultas, _ids:novo.data._ids, _grdCounters:novo.data._grdCounters}
+          : {basicos:[], detalhados:novo.data.detalhados||[], _deletedBasIds:[], _deletedDetIds:novo.data._deletedDetIds, _deletedGrdIds:novo.data._deletedGrdIds, _grds:novo.data._grds, _obras:novo.data._obras, _obrasOcultas:novo.data._obrasOcultas, _ids:novo.data._ids, _grdCounters:novo.data._grdCounters};
+        var mesclado = _cdocMergeSnapshots(remotoParcial, _cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
         _cdocSBCache = mesclado;
-        _cdocSaveVersion = remoteVer;
+        if(ehBas) _cdocSaveVersionBas = remoteVer; else _cdocSaveVersionDet = remoteVer;
         if(typeof cdocRefreshAll==='function') cdocRefreshAll();
         _cdocSBStatus('🔄 Outro usuário salvou (tempo real) · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#7c3aed');
         setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
@@ -19665,20 +19787,23 @@ async function abrirCtrlDoc(){
     if(editOv&&editOv.classList.contains('show')) return; // não interrompe edição em curso
     if(_cdocSavePending>0) return; // não interrompe um save nosso ainda em andamento
     try{
-      var r=await fetch(_sbUrl('cdoc_database?key=eq.main&select=data,version'),{headers:_SB_H});
-      if(!r.ok) return;
-      var rows=await r.json();
-      if(rows.length&&rows[0].data){
-        var remoteData=rows[0].data;
-        var remoteVer=rows[0].version||0;
-        if(remoteVer>0 && remoteVer<=_cdocSaveVersion) return;
+      var fatiasPoll = await _cdocSBLoadFatias();
+      if(fatiasPoll.existeAlguma){
+        var mudouBas = fatiasPoll.basVersion>0 && fatiasPoll.basVersion>_cdocSaveVersionBas;
+        var mudouDet = fatiasPoll.detVersion>0 && fatiasPoll.detVersion>_cdocSaveVersionDet;
+        if(!mudouBas && !mudouDet) return;
         if(_cdocSavePending>0) return; // re-checa: pode ter iniciado durante o fetch acima
+        var remoteData = Object.assign({}, fatiasPoll.detData||fatiasPoll.basData||{}, {
+          basicos: (fatiasPoll.basData||{}).basicos||[],
+          detalhados: (fatiasPoll.detData||{}).detalhados||[]
+        });
         // SEMPRE mescla com o que temos localmente — nunca sobrescreve de forma bruta.
         // Um simples "veio menos básico/detalhado" não cobre GRDs, obras ou edições de
         // campo, então confiar nessa heurística apagava dados recém-criados localmente.
         remoteData=_cdocMergeSnapshots(remoteData,_cdocSBCache||{basicos:[],detalhados:[],_grds:[]});
         _cdocSBCache=remoteData;
-        _cdocSaveVersion=remoteVer;
+        if(mudouBas) _cdocSaveVersionBas=fatiasPoll.basVersion;
+        if(mudouDet) _cdocSaveVersionDet=fatiasPoll.detVersion;
         try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
         cdocRefreshAll();
         _cdocSBStatus('🔄 Outro usuário salvou · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#7c3aed');
@@ -22075,7 +22200,6 @@ function _cdocAplicarStatusLote(){
       }
     }
   });
-  _cdocSave(db);
   var ov=document.getElementById('cdoc-status-lote-ov'); if(ov) ov.remove();
   cdocRenderDet();
   var msg=[];
@@ -22088,7 +22212,22 @@ function _cdocAplicarStatusLote(){
   if(alterarRr) msg.push(qtdRr+' com Retorno Real registrado');
   if(alterarObs) msg.push(qtdObs+' com Observação adicionada');
   if(qtdNovoEnvio) msg.push(qtdNovoEnvio+' sem envio anterior — primeiro envio criado agora');
-  showToast('Atualizado em lote', msg.join(' · ')+'.', 'success');
+  var msgFinal = msg.join(' · ')+'.';
+  showToast('Aplicando em lote...', msgFinal+' Enviando para a nuvem...', 'info');
+  // Espera a confirmação REAL do salvamento antes de dizer que terminou —
+  // sem isso, o toast de sucesso aparecia mesmo quando o envio à nuvem
+  // falhava depois, e ao reabrir o documento o status aparecia como antes.
+  Promise.resolve(_cdocSave(db)).then(function(resultado){
+    if(resultado && resultado.ok===false){
+      alert('⚠ A ALTERAÇÃO EM LOTE FOI PROCESSADA, MAS NÃO FOI SALVA NA NUVEM AINDA\n\n'
+        +msgFinal+'\n\nMotivo do erro ao salvar: '+resultado.motivo+'\n\n'
+        +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+        +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos — '
+        +'se sair antes disso, a alteração pode não ser salva.');
+    } else {
+      showToast('Atualizado em lote e salvo na nuvem', msgFinal, 'success');
+    }
+  });
 }
 function cdocEmitirGrd(){
   if(!_siderRequireEdit()) return;
@@ -23395,7 +23534,7 @@ function cdocEditarGrdBas(grdId){
       // Responsável
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">'
         +'<div><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pelo Envio</label>'
-          +'<input id="grdb-edit-resp" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #c4b5fd;border-radius:5px;"></div>'
+          +'<input id="grdb-edit-resp" list="grdb-resp-datalist" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #c4b5fd;border-radius:5px;" autocomplete="off">'+_cdocRespGrdDatalistHtml('grdb-resp-datalist')+'</div>'
         +'<div><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações</label>'
           +'<input id="grdb-edit-obs" value="'+_esc(g.obs||'')+'" placeholder="Observações..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:5px;"></div>'
       +'</div>'
@@ -23475,6 +23614,7 @@ function _cdocSalvarEditGrdBas(grdId){
   var tipo=document.querySelector('input[name=grdb-edit-tipo]:checked');
   db._grds[idx].tipo=tipo?tipo.value:db._grds[idx].tipo;
   db._grds[idx].responsavel=(document.getElementById('grdb-edit-resp')||{}).value||db._grds[idx].responsavel||'';
+  _cdocRespGrdSalvarNome(db._grds[idx].responsavel);
   db._grds[idx].obs=(document.getElementById('grdb-edit-obs')||{}).value||'';
   // Salva a lista de documentos editada
   if(window._grdBasEditDocs) db._grds[idx].docs=window._grdBasEditDocs;
@@ -23507,7 +23647,8 @@ function cdocEnviarGrdBas(grdId){
     +'<div style="font-size:14px;font-weight:700;color:#5b21b6;margin-bottom:4px;">📤 Finalizar Envio — '+_esc(g.numero)+'</div>'
     +'<div style="font-size:11px;color:#64748b;margin-bottom:14px;">Tipo: <strong>'+_esc(g.tipo||'')+'</strong> &nbsp;|&nbsp; Projetos: <strong>'+(g.docs||[]).length+'</strong></div>'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pelo Envio</label>'
-    +'<input id="grdb-env-resp" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:10px;">'
+    +'<input id="grdb-env-resp" list="grdb-env-resp-datalist" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:10px;" autocomplete="off">'
+    +_cdocRespGrdDatalistHtml('grdb-env-resp-datalist')
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de Envio</label>'
     +'<input id="grdb-env-data" type="date" value="'+_cdocHojeISO()+'" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:14px;">'
     +'<div style="background:#f3e8ff;border:1px solid #c4b5fd;border-radius:5px;padding:7px 10px;margin-bottom:14px;font-size:10px;color:#5b21b6;">'
@@ -23524,6 +23665,7 @@ function _cdocFinalizarEnvioGrdBas(grdId){
   var idx=(db._grds||[]).findIndex(function(x){return x.id===grdId;}); if(idx<0) return;
   var resp=(document.getElementById('grdb-env-resp')||{}).value||'';
   var dataEnvio=(document.getElementById('grdb-env-data')||{}).value||_cdocHojeISO();
+  _cdocRespGrdSalvarNome(resp);
   db._grds[idx].status='enviado';
   db._grds[idx].responsavel=resp;
   db._grds[idx].dataEnvio=dataEnvio;
@@ -23708,6 +23850,31 @@ function cdocAbrirGrds(){
   document.body.appendChild(box);
   render();
 }
+// ── LISTA DE RESPONSÁVEIS PELA EMISSÃO/ENVIO DE GRD ──────────────────────
+// Guarda os nomes já usados (compartilhado entre os usuários, salvo na
+// nuvem junto com o resto do CDOC) para não precisar digitar de novo — o
+// campo continua sendo um texto livre (para permitir digitar um nome novo
+// a qualquer momento), mas junto vem uma lista (datalist) com os nomes já
+// usados antes, para clicar e escolher.
+function _cdocRespGrdList(){
+  var db=_cdocDb();
+  return (db._responsaveisGrd||[]).slice().sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+}
+function _cdocRespGrdSalvarNome(nome){
+  nome=(nome||'').trim();
+  if(!nome) return;
+  var db=_cdocDb();
+  db._responsaveisGrd=db._responsaveisGrd||[];
+  var jaExiste=db._responsaveisGrd.some(function(n){return n.toLowerCase()===nome.toLowerCase();});
+  if(!jaExiste){
+    db._responsaveisGrd.push(nome);
+    _cdocSave(db);
+  }
+}
+function _cdocRespGrdDatalistHtml(id){
+  return '<datalist id="'+id+'">'+_cdocRespGrdList().map(function(n){return '<option value="'+_esc(n)+'">';}).join('')+'</datalist>';
+}
+
 function cdocEnviarGrd(grdId){
   if(!_siderRequireEdit()) return;
   var db=_cdocLoad();
@@ -23720,7 +23887,8 @@ function cdocEnviarGrd(grdId){
     +'<div style="font-size:14px;font-weight:700;color:#0c4a6e;margin-bottom:14px;">📤 Finalizar Envio — '+_esc(g.numero)+'</div>'
     +'<div style="font-size:12px;color:#475569;margin-bottom:12px;">Tipo: <strong>'+_esc(g.tipo||'')+'</strong> &nbsp;|&nbsp; Docs: <strong>'+(g.docs||[]).length+'</strong></div>'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pela emissão</label>'
-    +'<input id="grd-resp-input" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:10px;">'
+    +'<input id="grd-resp-input" list="grd-resp-datalist" placeholder="Nome do responsável... (clique na seta ou digite)" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:10px;" autocomplete="off">'
+    +_cdocRespGrdDatalistHtml('grd-resp-datalist')
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de envio</label>'
     +'<input id="grd-envio-data-input" type="date" value="'+_cdocHojeISO()+'" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:14px;">'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;">'
@@ -23732,6 +23900,7 @@ function cdocEnviarGrd(grdId){
   document.getElementById('grd-env-ok').onclick=function(){
     var resp=(document.getElementById('grd-resp-input')||{}).value||'';
     var dataEnvio=(document.getElementById('grd-envio-data-input')||{}).value||_cdocHojeISO();
+    _cdocRespGrdSalvarNome(resp); // guarda o nome na lista para a próxima vez
     document.body.removeChild(ov2);
     var db2=_cdocLoad();
     var g2=(db2._grds||[]).find(function(x){return x.id===grdId;});
@@ -24628,10 +24797,18 @@ function cdocImportBas(input){
         await _cdocCriarNoCronograma(newData);
       }
     }
-    _cdocSave(db);
     var msg=added+' novo(s) + '+updated+' atualizado(s).';
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
-    alert(msg);
+    var resultadoSave = await Promise.resolve(_cdocSave(db));
+    if(resultadoSave && resultadoSave.ok===false){
+      alert('⚠ A IMPORTAÇÃO FOI PROCESSADA, MAS NÃO FOI SALVA NA NUVEM AINDA\n\n'
+        +msg+'\n\nMotivo do erro ao salvar: '+resultadoSave.motivo+'\n\n'
+        +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+        +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos — '
+        +'se sair antes disso, pode ser necessário importar o CSV de novo.');
+    } else {
+      alert(msg+'\n\n✓ Salvo na nuvem com sucesso.');
+    }
     cdocRenderBas(); cdocRenderVisao();
     // Recarrega o Cronograma direto do Supabase (não só re-renderiza a memória)
     // para confirmar que as TAGs sincronizadas nesta importação realmente foram
@@ -24889,14 +25066,25 @@ function cdocImportDet(input){
       }
     }
 
-    // Salva e renderiza — sem alert bloqueante
-    _cdocSave(db);
+    // Salva e renderiza — aguarda o resultado REAL do salvamento na nuvem
+    // antes de dizer que concluiu (antes, o toast de sucesso aparecia
+    // imediatamente, mesmo que o envio à nuvem falhasse depois).
     var msg=added+' novo(s) adicionado(s), '+updated+' atualizado(s).';
     if(erros.length) msg+=' ('+erros.length+' linha(s) com erro)';
-    showToast('Importação concluída', msg, added+updated>0?'success':'warn');
-    if(erros.length) console.warn('[cdocImportDet] Erros:\n'+erros.join('\n'));
-    // Renderiza após microtask para garantir que _cdocSBCache já está atualizado
+    showToast('Processando importação', msg+' Enviando para a nuvem...', 'info');
     setTimeout(function(){ cdocRenderDet(); cdocRenderVisao(); }, 0);
+    Promise.resolve(_cdocSave(db)).then(function(resultado){
+      if(resultado && resultado.ok===false){
+        alert('⚠ A IMPORTAÇÃO FOI PROCESSADA, MAS NÃO FOI SALVA NA NUVEM AINDA\n\n'
+          +msg+'\n\nMotivo do erro ao salvar: '+resultado.motivo+'\n\n'
+          +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+          +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos — '
+          +'se sair antes disso, pode ser necessário importar o CSV de novo.');
+      } else {
+        showToast('Importação concluída e salva na nuvem', msg, added+updated>0?'success':'warn');
+      }
+    });
+    if(erros.length) console.warn('[cdocImportDet] Erros:\n'+erros.join('\n'));
   };
   reader.readAsText(file,'UTF-8');
 }
