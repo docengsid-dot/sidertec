@@ -22702,7 +22702,15 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
   // for salvo depois da GRD (o registro já foi adicionado diretamente ao envioHist acima)
   _cdocPendingEnvio=[];
   _cdocPendingLibfab=[];
-  _cdocSave(db);
+  Promise.resolve(_cdocSave(db)).then(function(resultado){
+    if(resultado && resultado.ok===false){
+      alert('⚠ A GRD '+grdNum+' FOI CRIADA, MAS NÃO FOI SALVA NA NUVEM AINDA\n\n'
+        +'Motivo do erro ao salvar: '+resultado.motivo+'\n\n'
+        +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+        +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos — '
+        +'se sair antes disso, esta GRD pode não ser salva e você precisaria gerá-la de novo.');
+    }
+  });
   _cdocGrdDetAtualizarCronograma(sels, dataISO, grdNum, tiposStr);
 
   // Gera a janela de impressão agrupada por finalidade
@@ -22984,7 +22992,15 @@ function _cdocGerarGrdJanelaBas(selIds,numGrd,tipoEm,obsGrd,dataGrd){
       db.basicos[idx].remessaHist.push({grd:numGrd,data:dataISO,tipo:tipoEm});
     }
   });
-  _cdocSave(db);
+  Promise.resolve(_cdocSave(db)).then(function(resultado){
+    if(resultado && resultado.ok===false){
+      alert('⚠ A GRD '+numGrd+' FOI CRIADA, MAS NÃO FOI SALVA NA NUVEM AINDA\n\n'
+        +'Motivo do erro ao salvar: '+resultado.motivo+'\n\n'
+        +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+        +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos — '
+        +'se sair antes disso, esta GRD pode não ser salva e você precisaria gerá-la de novo.');
+    }
+  });
   // Cronograma será atualizado apenas ao finalizar o envio (cdocEnviarGrdBas)
   // Gerar janela de impressão
   var totalTags=[];
@@ -23669,7 +23685,17 @@ function _cdocFinalizarEnvioGrdBas(grdId){
   db._grds[idx].status='enviado';
   db._grds[idx].responsavel=resp;
   db._grds[idx].dataEnvio=dataEnvio;
-  _cdocSave(db);
+  var _numGrdFin = db._grds[idx].numero;
+  Promise.resolve(_cdocSave(db)).then(function(resultado){
+    if(resultado && resultado.ok===false){
+      alert('⚠ O ENVIO DA GRD '+_numGrdFin+' FOI PROCESSADO, MAS NÃO FOI SALVO NA NUVEM AINDA\n\n'
+        +'Motivo do erro ao salvar: '+resultado.motivo+'\n\n'
+        +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+        +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos.');
+    } else {
+      showToast('GRD Enviada e salva na nuvem','GRD '+_numGrdFin+' finalizada com sucesso.','success');
+    }
+  });
   // Atualizar cronograma ao finalizar envio
   var _grdFin=db._grds[idx];
   var _selsFin=((_grdFin.docs||[]).map(function(d){
@@ -23680,7 +23706,6 @@ function _cdocFinalizarEnvioGrdBas(grdId){
   var _eo2=document.getElementById('cdoc-grdsb-env-ov'); if(_eo2) _eo2.remove();
   var _lo2=document.getElementById('cdoc-grdsb-overlay'); if(_lo2) _lo2.remove();
   cdocAbrirGrdsBas();
-  showToast('GRD Enviada','GRD '+db._grds[idx].numero+' finalizada com sucesso.','success');
 }
 function _cdocExcluirGrdBas(grdId,numGrd){
   if(!_siderRequireEdit()) return;
@@ -23928,7 +23953,17 @@ function cdocEnviarGrd(grdId){
       var lastEnvio=doc.envioHist[doc.envioHist.length-1];
       if(lastEnvio&&lastEnvio.rev) doc.rev=lastEnvio.rev;
     });
-    _cdocSave(db2);
+    var msgEnvio = ''+g2.numero+' — '+(g2.docs||[]).length+' documento(s) atualizados.';
+    Promise.resolve(_cdocSave(db2)).then(function(resultado){
+      if(resultado && resultado.ok===false){
+        alert('⚠ O ENVIO DA GRD '+g2.numero+' FOI PROCESSADO, MAS NÃO FOI SALVO NA NUVEM AINDA\n\n'
+          +msgEnvio+'\n\nMotivo do erro ao salvar: '+resultado.motivo+'\n\n'
+          +'Os dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente em segundo plano. '
+          +'NÃO recarregue a página nem feche a aba até ver "☁ Nuvem" verde no topo do Controle de Documentos.');
+      } else {
+        showToast && showToast('GRD Enviada e salva na nuvem', msgEnvio, 'success');
+      }
+    });
     // ── Vincula GRD ao Cronograma (Etapa 2 / Lista Resumo MP) ──────────────
     var _selsFin2=(g2.docs||[]).map(function(gDoc){
       return db2.detalhados.find(function(d){return d.id===gDoc.docId;})||{sub:gDoc.sub,obraId:g2.obra||''};
@@ -23939,7 +23974,6 @@ function cdocEnviarGrd(grdId){
     var ov=document.getElementById('cdoc-grds-overlay');
     if(ov) document.body.removeChild(ov);
     cdocAbrirGrds();
-    showToast && showToast('GRD Enviada',''+g2.numero+' — '+(g2.docs||[]).length+' documento(s) atualizados.','success');
   };
 }
 function cdocEditarGrd(grdId){
