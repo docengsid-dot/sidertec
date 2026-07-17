@@ -23550,7 +23550,7 @@ function cdocEditarGrdBas(grdId){
       // Responsável
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">'
         +'<div><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pelo Envio</label>'
-          +'<input id="grdb-edit-resp" list="grdb-resp-datalist" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #c4b5fd;border-radius:5px;" autocomplete="off">'+_cdocRespGrdDatalistHtml('grdb-resp-datalist')+'</div>'
+          +_cdocRespGrdInputHtml('grdb-edit-resp','grdb-resp-datalist',g.responsavel,{borderColor:'#c4b5fd',fontSize:'12px',padding:'6px 9px',marginBottom:'0'})+'</div>'
         +'<div><label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações</label>'
           +'<input id="grdb-edit-obs" value="'+_esc(g.obs||'')+'" placeholder="Observações..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:5px;"></div>'
       +'</div>'
@@ -23663,8 +23663,7 @@ function cdocEnviarGrdBas(grdId){
     +'<div style="font-size:14px;font-weight:700;color:#5b21b6;margin-bottom:4px;">📤 Finalizar Envio — '+_esc(g.numero)+'</div>'
     +'<div style="font-size:11px;color:#64748b;margin-bottom:14px;">Tipo: <strong>'+_esc(g.tipo||'')+'</strong> &nbsp;|&nbsp; Projetos: <strong>'+(g.docs||[]).length+'</strong></div>'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pelo Envio</label>'
-    +'<input id="grdb-env-resp" list="grdb-env-resp-datalist" value="'+_esc(g.responsavel||'')+'" placeholder="Nome do responsável..." style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:10px;" autocomplete="off">'
-    +_cdocRespGrdDatalistHtml('grdb-env-resp-datalist')
+    +_cdocRespGrdInputHtml('grdb-env-resp','grdb-env-resp-datalist',g.responsavel,{borderColor:'#c4b5fd'})
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de Envio</label>'
     +'<input id="grdb-env-data" type="date" value="'+_cdocHojeISO()+'" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #c4b5fd;border-radius:5px;margin-bottom:14px;">'
     +'<div style="background:#f3e8ff;border:1px solid #c4b5fd;border-radius:5px;padding:7px 10px;margin-bottom:14px;font-size:10px;color:#5b21b6;">'
@@ -23883,7 +23882,18 @@ function cdocAbrirGrds(){
 // usados antes, para clicar e escolher.
 function _cdocRespGrdList(){
   var db=_cdocDb();
-  return (db._responsaveisGrd||[]).slice().sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+  var nomes = (db._responsaveisGrd||[]).slice();
+  // Retrocompatibilidade: inclui também os responsáveis já usados em GRDs
+  // emitidas antes dessa lista existir (ex: "JENIFER LAURINDO" em GRDs
+  // antigas) — sem isso, a lista ficava vazia e nenhuma sugestão aparecia.
+  (db._grds||[]).forEach(function(g){ if(g.responsavel) nomes.push(g.responsavel); });
+  var vistos={}, unicos=[];
+  nomes.forEach(function(n){
+    n=(n||'').trim(); if(!n) return;
+    var k=n.toLowerCase();
+    if(!vistos[k]){ vistos[k]=true; unicos.push(n); }
+  });
+  return unicos.sort(function(a,b){return a.localeCompare(b,'pt-BR');});
 }
 function _cdocRespGrdSalvarNome(nome){
   nome=(nome||'').trim();
@@ -23899,6 +23909,26 @@ function _cdocRespGrdSalvarNome(nome){
 function _cdocRespGrdDatalistHtml(id){
   return '<datalist id="'+id+'">'+_cdocRespGrdList().map(function(n){return '<option value="'+_esc(n)+'">';}).join('')+'</datalist>';
 }
+// Monta o campo de responsável com uma seta ▾ visível e clicável ao lado —
+// o indicador nativo do navegador para <input list> nem sempre aparece
+// (varia por navegador e fica invisível se a lista estiver vazia), então
+// desenhamos a nossa própria seta, que sempre aparece e foca o campo ao
+// clicar (o que já abre as sugestões na maioria dos navegadores).
+function _cdocRespGrdInputHtml(inputId, datalistId, valorAtual, opts){
+  opts = opts||{};
+  var borderColor = opts.borderColor || '#cbd5e1';
+  var fontSize = opts.fontSize || '13px';
+  var padding = opts.padding || '7px 10px';
+  var marginBottom = opts.marginBottom!==undefined ? opts.marginBottom : '10px';
+  return '<div style="position:relative;">'
+    +'<input id="'+inputId+'" list="'+datalistId+'" value="'+_esc(valorAtual||'')+'" '
+    +  'placeholder="Nome do responsável... (clique na seta ▾ ou digite)" autocomplete="off" '
+    +  'style="width:100%;box-sizing:border-box;font-size:'+fontSize+';padding:'+padding+';padding-right:30px;border:1px solid '+borderColor+';border-radius:5px;margin-bottom:'+marginBottom+';">'
+    +'<span onclick="var el=document.getElementById(\''+inputId+'\');el.focus();try{el.showPicker&&el.showPicker();}catch(e){}" '
+    +  'style="position:absolute;right:8px;top:0;height:34px;display:flex;align-items:center;cursor:pointer;color:#64748b;font-size:13px;user-select:none;">▾</span>'
+    +_cdocRespGrdDatalistHtml(datalistId)
+    +'</div>';
+}
 
 function cdocEnviarGrd(grdId){
   if(!_siderRequireEdit()) return;
@@ -23912,8 +23942,7 @@ function cdocEnviarGrd(grdId){
     +'<div style="font-size:14px;font-weight:700;color:#0c4a6e;margin-bottom:14px;">📤 Finalizar Envio — '+_esc(g.numero)+'</div>'
     +'<div style="font-size:12px;color:#475569;margin-bottom:12px;">Tipo: <strong>'+_esc(g.tipo||'')+'</strong> &nbsp;|&nbsp; Docs: <strong>'+(g.docs||[]).length+'</strong></div>'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Responsável pela emissão</label>'
-    +'<input id="grd-resp-input" list="grd-resp-datalist" placeholder="Nome do responsável... (clique na seta ou digite)" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:10px;" autocomplete="off">'
-    +_cdocRespGrdDatalistHtml('grd-resp-datalist')
+    +_cdocRespGrdInputHtml('grd-resp-input','grd-resp-datalist','',{borderColor:'#cbd5e1'})
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de envio</label>'
     +'<input id="grd-envio-data-input" type="date" value="'+_cdocHojeISO()+'" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:14px;">'
     +'<div style="display:flex;gap:10px;justify-content:flex-end;">'
