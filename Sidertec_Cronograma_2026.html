@@ -19815,6 +19815,19 @@ async function abrirCtrlDoc(){
   modal.classList.add('show');
   _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
   var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
+  // CRITÉRIO DE SEGURANÇA (anti-race-condition): se já há um salvamento em
+  // andamento (ex.: uma GRD acabou de ser emitida e o upsert para o Supabase
+  // ainda está em voo), espera ele terminar ANTES de buscar/mesclar o remoto.
+  // Sem isso, o load concorrente e o save original disputavam a mesma
+  // variável global (_cdocSBCache/_cdocLastSnapshot) e quem terminava depois
+  // "vencia" — mesmo que tivesse dados mais antigos —, apagando na prática
+  // o vínculo recém-criado entre a GRD e os documentos. O auto-refresh de
+  // 60s já tinha essa proteção (_cdocSavePending>0 → return); faltava só
+  // aqui, no botão manual "🔄 Atualizar".
+  if(_cdocSavePending>0){
+    _cdocSBStatus('⏳ Aguardando salvamento em curso terminar antes de atualizar...','#0369a1');
+    try{ await _cdocSaveQueue; }catch(e){}
+  }
   // CRITÉRIO DE SEGURANÇA: NÃO zeramos mais _cdocSBCache aqui antes de recarregar.
   // Antes, isso descartava de imediato qualquer edição local ainda não confirmada
   // na nuvem (ex.: um salvamento anterior que falhou silenciosamente), e a busca
@@ -20890,6 +20903,16 @@ function cdocRenderBas(){
           var cor=Math.abs(diff)<0.01?'#16a34a':diff>0?'#dc2626':'#2563eb';
           var sinal=diff>0?'+':'';
           diffHtml='<span style="color:'+cor+';font-weight:700;">'+sinal+fmt(diff)+'</span>';
+          // Botões de correção — só aparecem quando há divergência real.
+          // "→ Cronograma": assume o Ctrl. Doc. como correto e ajusta o Cronograma.
+          // "→ Ctrl.Doc.": assume o Cronograma como correto e ajusta o(s) Projeto(s) Básico(s).
+          if(Math.abs(diff)>=0.01){
+            var _tagEnc=encodeURIComponent(tag), _obraEnc=encodeURIComponent(g.obra||'');
+            diffHtml+='<div style="margin-top:3px;display:flex;gap:3px;justify-content:flex-end;">'
+              +'<button onclick="_cdocCorrigirPesoTag(\''+_tagEnc+'\',\''+_obraEnc+'\',\'cronograma\')" title="Peso do Ctrl. Doc. está correto — ajustar o Cronograma" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;white-space:nowrap;">→ Cronograma</button>'
+              +'<button onclick="_cdocCorrigirPesoTag(\''+_tagEnc+'\',\''+_obraEnc+'\',\'ctrldoc\')" title="Peso do Cronograma está correto — ajustar o Ctrl. Doc." style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;cursor:pointer;white-space:nowrap;">→ Ctrl.Doc.</button>'
+              +'</div>';
+          }
         }
         var areaStr=g.areas&&g.areas.length?g.areas.join(', '):'—';
         return '<tr>'
@@ -20921,6 +20944,77 @@ function cdocRenderBas(){
         +'</tr></thead><tbody>'+rows2Html+'</tbody></table>'
         +'</div></div>';
     }
+  }
+}
+
+// Corrige a divergência de peso entre o Ctrl. Doc. (soma dos Projetos Básicos
+// da TAG) e o Cronograma (peso_previsto da sub-obra), mostrada no RESUMO POR TAG.
+// alvo='cronograma' → Ctrl. Doc. é a fonte correta, corrige o Cronograma.
+// alvo='ctrldoc'    → Cronograma é a fonte correta, corrige o(s) Projeto(s) Básico(s).
+function _cdocCorrigirPesoTag(tagEnc, obraEnc, alvo){
+  if(!_siderRequireEdit()) return;
+  var tag=decodeURIComponent(tagEnc);
+  var obra=decodeURIComponent(obraEnc||'');
+  var db=_cdocDb();
+  var docsTag=(db.basicos||[]).filter(function(b){return b.sub===tag && (!obra||b.obraId===obra);});
+  if(!docsTag.length){ alert('Nenhum Projeto Básico encontrado para a TAG "'+tag+'".'); return; }
+  var pesoCtrlDoc=docsTag.reduce(function(a,b){return a+(parseFloat(b.peso)||0);},0);
+
+  var cronRec=null;
+  if(typeof allCronSubobras!=='undefined'){
+    cronRec=allCronSubobras.find(function(s){return s.subobra===tag&&(!obra||s.obra===obra);});
+    if(!cronRec){
+      // Fallback: mesma TAG, obra pode estar grafada de forma levemente diferente.
+      cronRec=allCronSubobras.find(function(s){return (s.subobra||'').toUpperCase().trim()===tag.toUpperCase().trim();});
+    }
+  }
+  if(!cronRec){ alert('Sub-obra "'+tag+'" não encontrada no Cronograma.'); return; }
+  var pesoCron=parseFloat(cronRec.peso_previsto)||0;
+  var fmt2=function(v){return (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+
+  if(alvo==='cronograma'){
+    if(!confirm('Corrigir o CRONOGRAMA usando o Ctrl. Doc. como referência?\n\n'
+      +'TAG: '+tag+'\n'
+      +'Peso atual no Cronograma: '+fmt2(pesoCron)+' kg\n'
+      +'Novo peso (do Ctrl. Doc.): '+fmt2(pesoCtrlDoc)+' kg')) return;
+    var upd={peso_previsto:pesoCtrlDoc, atualizado_em:new Date().toISOString()};
+    var idx=allCronSubobras.findIndex(function(x){return x.id===cronRec.id;});
+    if(idx>=0) allCronSubobras[idx]=Object.assign({},allCronSubobras[idx],upd);
+    sbClient.from('cronograma_subobras').update(upd).eq('id',cronRec.id).select()
+      .then(function(r){
+        if(r.error){ alert('Erro ao corrigir o Cronograma: '+r.error.message); return; }
+        if(typeof showToast==='function') showToast('Cronograma corrigido', tag+': peso básico atualizado para '+fmt2(pesoCtrlDoc)+' kg.', 'success');
+        if(typeof renderCronograma==='function') renderCronograma();
+        if(typeof cdocRenderBas==='function') cdocRenderBas();
+      })
+      .catch(function(e){ alert('Erro ao corrigir o Cronograma: '+e.message); });
+  } else {
+    var msg='Corrigir o CTRL. DOC. usando o Cronograma como referência?\n\n'
+      +'TAG: '+tag+'\n'
+      +'Peso atual no Ctrl. Doc.: '+fmt2(pesoCtrlDoc)+' kg ('+docsTag.length+' documento(s))\n'
+      +'Novo peso total (do Cronograma): '+fmt2(pesoCron)+' kg\n\n'
+      +(docsTag.length>1
+        ? 'Como há mais de um Projeto Básico nesta TAG, o peso de cada um será ajustado PROPORCIONALMENTE para que a soma bata com o Cronograma.'
+        : 'O peso deste Projeto Básico será ajustado diretamente para o valor do Cronograma.');
+    if(!confirm(msg)) return;
+    if(docsTag.length===1){
+      docsTag[0].peso=pesoCron;
+    } else if(pesoCtrlDoc>0){
+      var fator=pesoCron/pesoCtrlDoc;
+      docsTag.forEach(function(d){ d.peso=Math.round((parseFloat(d.peso)||0)*fator*100)/100; });
+    } else {
+      // Todos os documentos estão com peso zerado — distribui igualmente.
+      var cada=Math.round((pesoCron/docsTag.length)*100)/100;
+      docsTag.forEach(function(d){ d.peso=cada; });
+    }
+    Promise.resolve(_cdocSave(db)).then(function(resultado){
+      if(resultado && resultado.ok===false){
+        alert('⚠ Peso corrigido localmente, mas houve erro ao salvar na nuvem agora.\nMotivo: '+resultado.motivo+'\n\nO sistema vai tentar salvar de novo automaticamente em segundo plano.');
+      } else if(typeof showToast==='function'){
+        showToast('Ctrl. Doc. corrigido', tag+': peso total ajustado para '+fmt2(pesoCron)+' kg.', 'success');
+      }
+    });
+    if(typeof cdocRenderBas==='function') cdocRenderBas();
   }
 }
 
