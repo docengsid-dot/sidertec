@@ -11437,9 +11437,14 @@ function limparFiltrosMedicao(){
 
 function _calcTotalTags(){
   const vkg = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
-  if(!vkg || !_medTagsMap.size) return 0;
+  if(!_medTagsMap.size) return 0;
   let total = 0;
   _medTagsMap.forEach((entry,id)=>{
+    if(entry && entry.telha){
+      total += Number(entry.valor_manual)||0;
+      return;
+    }
+    if(!vkg) return;
     const pct = _medPct(entry);
     if(!pct) return;
     const s = (allCronSubobras||[]).find(x=>String(x.id)===id);
@@ -11605,12 +11610,21 @@ const MED_ETAPAS = [
 // Retorna o pct total de uma entrada do mapa
 function _medPct(entry){
   if(!entry) return 0;
+  // Modo "Projeto de Telha": sempre 100%, não usa a soma das etapas padrão
+  if(entry.telha) return 100;
   var etPct=(!entry.etapas||!entry.etapas.size)?0:MED_ETAPAS.filter(e=>entry.etapas.has(e.key)).reduce((a,e)=>a+e.pct,0);
   if(entry.pct_manual!=null){
     // pct_manual = % das etapas selecionadas medido neste BM
     return Math.round(etPct*(Number(entry.pct_manual)||0))/100;
   }
   return etPct;
+}
+
+// Valor de uma TAG na medição — no modo "Projeto de Telha" usa o valor manual
+// informado diretamente; caso contrário, usa a fórmula padrão (R$/kg × peso × %).
+function _medValorTag(entry, vkg, pesoRef, pct){
+  if(entry && entry.telha) return Number(entry.valor_manual)||0;
+  return (vkg>0 && pesoRef>0 && pct>0) ? vkg*pesoRef*(pct/100) : 0;
 }
 
 function _buildMedHistoricoPctMap(){
@@ -16281,7 +16295,7 @@ function renderMedTags(){
     var pm=entry.peso_med>0?Number(entry.peso_med):0;
     var pesoRef=pm>0?pm:(pesoD>0?pesoD:pesoB);
     var pct=_medPct(entry);
-    var val=vkg>0&&pesoRef>0&&pct>0?vkg*pesoRef*(pct/100):0;
+    var val=_medValorTag(entry, vkg, pesoRef, pct);
     if(entry.status_peso==='aceito')   { totAceito++;   valAceito+=val;   }
     else if(entry.status_peso==='correcao'){ totCorrecao++; valCorrecao+=val; }
     else                               { totPendente++; valPendente+=val; }
@@ -16326,16 +16340,16 @@ function renderMedTags(){
     var _diverg = _calcDivergenciaPeso(pesoB, pesoD, pm);
     var pesoRef= pm>0?pm:(pesoD>0?pesoD:pesoB);
     var pct   = sel?_medPct(entry):0;
-    var val   = vkg>0&&pesoRef>0&&pct>0?vkg*pesoRef*(pct/100):0;
+    var val   = sel?_medValorTag(entry, vkg, pesoRef, pct):0;
     var _st   = sel?entry.status_peso||'':'';
     var _ob   = sel?entry.obs_correcao||'':'';
     var _histEt = _medHistMap.get(String(s.id))||new Set();
     var _histPct= MED_ETAPAS.filter(function(e){return _histEt.has(e.key);}).reduce(function(a,e){return a+e.pct;},0);
     var _dp   = !s.real_diagramas&&!s.real_diagrama_mont;
-    var etapasLabel = sel ? [...(entry.etapas||new Set())].map(function(k){
+    var etapasLabel = sel ? (entry.telha ? '🧱 100% Telha' : ([...(entry.etapas||new Set())].map(function(k){
       var e=MED_ETAPAS.find(function(x){return x.key===k;});
       return e?e.icon+' '+e.pct+'%':'';
-    }).filter(Boolean).join(' + ')||'—' : '—';
+    }).filter(Boolean).join(' + ')||'—')) : '—';
 
     // ── Cores da linha ──
     var rowBg = _diverg.divergente ? '#fff1f2'
@@ -16424,8 +16438,39 @@ function renderMedTags(){
           +'</div>'
         : '';
 
-      panel = '<tr style="background:'+(rowBg)+';"><td colspan="9" style="padding:4px 10px 6px 32px;border-bottom:2px solid '+rowBorder+';">'
-        +pctBar
+      var isTelha = !!entry.telha;
+      var valorManualAtual = entry.valor_manual!=null ? entry.valor_manual : '';
+      var telhaToggle = '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.3rem;'
+        +'border:2px solid '+(isTelha?'#b45309':'#e2e8f0')+';background:'+(isTelha?'#fef3c7':'#fff')
+        +';border-radius:5px;padding:2px 8px;cursor:pointer;font-size:9px;font-weight:'+(isTelha?'800':'500')
+        +';color:'+(isTelha?'#92400e':'#64748b')+';white-space:nowrap;user-select:none;margin-bottom:4px;">'
+        +'<input type="checkbox" '+(isTelha?'checked':'')
+        +' onchange="event.stopPropagation();medTagToggleTelha(\''+s.id+'\',this.checked)"'
+        +' style="accent-color:#b45309;cursor:pointer;width:11px;height:11px;">'
+        +' 🧱 100% Projeto de Telha (informar peso e valor manualmente)'
+        +'</label>';
+
+      var telhaBlock = '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:4px 6px;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;margin-bottom:4px;">'
+        +'<span style="font-size:8px;color:#92400e;font-weight:700;">🧱 Este item não usa as etapas padrão — informe abaixo:</span>'
+        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:8px;color:#475569;white-space:nowrap;">'
+        +'<span style="font-weight:700;">⚖ Peso a medir (kg):</span>'
+        +'<input type="number" min="0" step="0.01" placeholder="0,00"'
+        +' value="'+(pesoMedAtual||'')+'"'
+        +' oninput="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',this.value)"'
+        +' onclick="event.stopPropagation()"'
+        +' style="width:100px;font-size:9px;padding:2px 5px;border:1px solid #d97706;border-radius:3px;background:#fff;font-family:monospace;">'
+        +'</label>'
+        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:8px;color:#475569;white-space:nowrap;margin-left:6px;">'
+        +'<span style="font-weight:700;">💵 Valor a medir (R$):</span>'
+        +'<input type="number" min="0" step="0.01" placeholder="0,00"'
+        +' value="'+(valorManualAtual||'')+'"'
+        +' oninput="event.stopPropagation();medTagSetTelhaValor(\''+s.id+'\',this.value)"'
+        +' onclick="event.stopPropagation()"'
+        +' style="width:110px;font-size:9px;padding:2px 5px;border:1px solid #d97706;border-radius:3px;background:#fff;font-family:monospace;">'
+        +'</label>'
+        +'</div>';
+
+      var etapasBlock = isTelha ? '' : (pctBar
         +'<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:2px;">'
         +'<span style="font-size:8px;color:#94a3b8;font-weight:700;text-transform:uppercase;white-space:nowrap;">Etapas:</span>'
         +chks
@@ -16439,7 +16484,11 @@ function renderMedTags(){
         +'background:'+(pesoMedAtual>0?'#fffbeb':'#fff')+';font-family:monospace;">'
         +(pesoMedAtual>0?'<button onclick="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',\'\')" style="background:#fee2e2;border:none;border-radius:2px;padding:1px 4px;font-size:8px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>':'')
         +'</label>'
-        +'</div>'
+        +'</div>');
+
+      panel = '<tr style="background:'+(rowBg)+';"><td colspan="9" style="padding:4px 10px 6px 32px;border-bottom:2px solid '+rowBorder+';">'
+        +telhaToggle
+        +(isTelha ? telhaBlock : etapasBlock)
         +correcaoInput
         +'</td></tr>';
     }
@@ -16603,6 +16652,37 @@ function medTagSetPesoMed(id, val){
   window._pesoMedTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
 }
 
+// Liga/desliga o modo "100% Projeto de Telha" para uma TAG — quando ligado, a
+// TAG deixa de usar a soma das etapas padrão (Modelo/Pacote/Diagrama): o peso
+// e o valor a medir são informados diretamente pelo usuário.
+function medTagToggleTelha(id, checked){
+  const sid = String(id);
+  const prev = _medTagsMap.get(sid);
+  if(!prev) return;
+  prev.telha = !!checked;
+  if(checked){
+    // Modo exclusivo: etapas padrão e % manual não se aplicam mais aqui
+    prev.etapas = new Set();
+    prev.pct_manual = null;
+    if(prev.valor_manual==null) prev.valor_manual = 0;
+  }
+  prev.pct = _medPct(prev);
+  _medTagsMap.set(sid, prev);
+  renderMedTags();
+}
+
+// Define o valor (R$) a medir de uma TAG em modo Telha
+function medTagSetTelhaValor(id, val){
+  const sid = String(id);
+  const prev = _medTagsMap.get(sid);
+  if(!prev) return;
+  const n = parseFloat(String(val).replace(',','.'));
+  prev.valor_manual = (!val || isNaN(n) || n<0) ? 0 : n;
+  _medTagsMap.set(sid, prev);
+  clearTimeout(window._telhaValorTimer);
+  window._telhaValorTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
+}
+
 function medTagsSelectAll(sel){
   const obra = document.getElementById('med-obra')?.value;
   if(!obra) return;
@@ -16701,13 +16781,14 @@ function atualizarResumoMedTags(){
 }
 
 function getMedTagsIds(){
-  // Salva como JSON: [{id, etapas:[], pct, peso_med?}, ...]
+  // Salva como JSON: [{id, etapas:[], pct, peso_med?, telha?, valor_manual?}, ...]
   const arr = [..._medTagsMap.entries()].map(([id,entry])=>({
     id,
     etapas: [...(entry.etapas||new Set())],
     pct: _medPct(entry),
     ...(entry.pct_manual!=null ? {pct_manual: entry.pct_manual} : {}),
     ...(entry.peso_med ? {peso_med: entry.peso_med} : {}),
+    ...(entry.telha ? {telha: true, valor_manual: Number(entry.valor_manual)||0} : {}),
     ...(entry.status_peso ? {status_peso: entry.status_peso} : {}),
     ...(entry.obs_correcao ? {obs_correcao: entry.obs_correcao} : {})
   }));
@@ -16721,10 +16802,13 @@ function carregarMedTagsSalvas(raw){
     const arr = JSON.parse(raw);
     if(Array.isArray(arr)) arr.forEach(item=>{
       const id = String(item.id||item);
+      const telha = !!item.telha;
+      const valor_manual = item.valor_manual!=null ? Number(item.valor_manual) : null;
       // Novo formato: etapas é array
       if(item.etapas && Array.isArray(item.etapas)){
         const etapas = new Set(item.etapas);
-        _medTagsMap.set(id, {etapas, pct_manual:item.pct_manual!=null?Number(item.pct_manual):null, pct:_medPct({etapas,pct_manual:item.pct_manual!=null?Number(item.pct_manual):null}), peso_med:item.peso_med||null, status_peso:item.status_peso||null, obs_correcao:item.obs_correcao||null});
+        const base = {etapas, pct_manual:item.pct_manual!=null?Number(item.pct_manual):null, telha, valor_manual};
+        _medTagsMap.set(id, Object.assign({}, base, {pct:_medPct(base), peso_med:item.peso_med||null, status_peso:item.status_peso||null, obs_correcao:item.obs_correcao||null}));
       } else {
         // Formato legado: etapa era string única
         const etapaStr = item.etapa||'modelo';
@@ -16732,7 +16816,8 @@ function carregarMedTagsSalvas(raw){
         const etapas = etapaStr==='todos'
           ? new Set(['modelo','pacote','diagrama'])
           : new Set([etapaStr]);
-        _medTagsMap.set(id, {etapas, pct:_medPct({etapas}), peso_med:item.peso_med||null});
+        const base = {etapas, telha, valor_manual};
+        _medTagsMap.set(id, {etapas, pct:_medPct(base), peso_med:item.peso_med||null, telha, valor_manual});
       }
     });
   } catch(e){
