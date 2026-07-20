@@ -19011,6 +19011,18 @@ async function _cdocSBLoad(){
     if(!_localAntesDoLoad){
       try{ _localAntesDoLoad = JSON.parse(localStorage.getItem('sider_ctrldoc')||'null'); }catch(eLocal){}
     }
+    // Camada extra: mescla também o que estiver salvo no IndexedDB. Isso cobre
+    // o caso em que a base ficou grande demais para o localStorage (o backup
+    // ali é pulado acima de 5MB) e a única cópia local sobrevivente de uma
+    // edição não confirmada (ex.: uma GRD recém-emitida) está só no IndexedDB.
+    try{
+      var _idbBackup = await _cdocIdbGet();
+      if(_idbBackup && typeof _idbBackup==='object' && !Array.isArray(_idbBackup)){
+        _localAntesDoLoad = _localAntesDoLoad
+          ? _cdocMergeSnapshots(_localAntesDoLoad, _idbBackup)
+          : _idbBackup;
+      }
+    }catch(eIdb){}
 
     // ── Verifica se as tabelas por-linha (uma linha por documento) já
     // existem e já têm dados. Se ainda não têm, tenta migrar automaticamente
@@ -19087,6 +19099,7 @@ async function _cdocSBLoad(){
     // salvo de verdade).
     _cdocLastSnapshot=_cdocCloneDb(_remoto);
     try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
+    _cdocIdbSet(_cdocSBCache).catch(function(){});
     var _nBas=(_cdocSBCache.basicos||[]).length; var _nDet=(_cdocSBCache.detalhados||[]).length;
     if(_recuperouAlgo){
       _cdocSBStatus('⚠ Edições locais recuperadas — reenviando...','#f59e0b');
@@ -19111,6 +19124,16 @@ async function _cdocSBLoad(){
     // fallback para localStorage
     var fallback=null;
     try{fallback=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(ex){}
+    // Se o localStorage não tem nada útil (ex.: base grande, backup ali pulado),
+    // tenta o IndexedDB antes de desistir e cair numa base vazia.
+    if(!fallback||((fallback.basicos||[]).length+(fallback.detalhados||[]).length)===0){
+      try{
+        var _idbFallback = await _cdocIdbGet();
+        if(_idbFallback && ((_idbFallback.basicos||[]).length+(_idbFallback.detalhados||[]).length)>0){
+          fallback = _idbFallback;
+        }
+      }catch(eIdb){}
+    }
     if(fallback&&((fallback.basicos||[]).length+(fallback.detalhados||[]).length)>0){
       _cdocSBCache=fallback;
       _cdocLastSnapshot=_cdocCloneDb(fallback);
@@ -19356,6 +19379,57 @@ function cdocRestaurarJSON(input){
   reader.readAsText(file,'utf-8');
 }
 
+// ── Backup local via IndexedDB (2ª camada, sem o limite prático de ~5-10MB
+// do localStorage) ────────────────────────────────────────────────────────
+// Antes, quando a base do Controle de Documentos passava de 5MB, o backup
+// local no localStorage era pulado por completo (para não estourar a cota do
+// navegador) — e se o salvamento na nuvem falhasse ou não terminasse antes do
+// usuário fechar a aba, NENHUMA cópia local sobrava para recuperar, causando
+// perda definitiva de edições (ex.: uma GRD emitida que não chegou a subir).
+// O IndexedDB aceita bases muito maiores sem esse risco, então agora ele roda
+// sempre, em paralelo/complementar ao localStorage, como rede de segurança
+// real independente do tamanho da base.
+var _CDOC_IDB_NAME='sidertec_cdoc_backup';
+var _CDOC_IDB_STORE='backup';
+var _CDOC_IDB_KEY='sider_ctrldoc';
+function _cdocIdbOpen(){
+  return new Promise(function(resolve){
+    try{
+      if(typeof indexedDB==='undefined'){ resolve(null); return; }
+      var req=indexedDB.open(_CDOC_IDB_NAME,1);
+      req.onupgradeneeded=function(){ try{ req.result.createObjectStore(_CDOC_IDB_STORE); }catch(e){} };
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ resolve(null); };
+    }catch(e){ resolve(null); }
+  });
+}
+async function _cdocIdbSet(db){
+  try{
+    var idb=await _cdocIdbOpen(); if(!idb) return false;
+    return await new Promise(function(resolve){
+      try{
+        var tx=idb.transaction(_CDOC_IDB_STORE,'readwrite');
+        tx.objectStore(_CDOC_IDB_STORE).put(db, _CDOC_IDB_KEY);
+        tx.oncomplete=function(){resolve(true);};
+        tx.onerror=function(){resolve(false);};
+      }catch(e){ resolve(false); }
+    });
+  }catch(e){ return false; }
+}
+async function _cdocIdbGet(){
+  try{
+    var idb=await _cdocIdbOpen(); if(!idb) return null;
+    return await new Promise(function(resolve){
+      try{
+        var tx=idb.transaction(_CDOC_IDB_STORE,'readonly');
+        var req=tx.objectStore(_CDOC_IDB_STORE).get(_CDOC_IDB_KEY);
+        req.onsuccess=function(){resolve(req.result||null);};
+        req.onerror=function(){resolve(null);};
+      }catch(e){ resolve(null); }
+    });
+  }catch(e){ return null; }
+}
+
 function _cdocLoad(){
   // Usa sempre o cache em memória se disponível — evita JSON.parse do localStorage a cada render
   var d=null;
@@ -19467,14 +19541,17 @@ function _cdocSave(db){
       if(json.length<5*1024*1024) localStorage.setItem('sider_ctrldoc',json);
       else if(!window._cdocAvisouTamanho){
         window._cdocAvisouTamanho=true;
-        console.warn('[CDOC] Backup local pulado — dados maiores que 5MB ('+(json.length/1024/1024).toFixed(2)+'MB). Se o salvamento na nuvem também falhar, a edição pode ser perdida.');
+        console.warn('[CDOC] Backup local (localStorage) pulado — dados maiores que 5MB ('+(json.length/1024/1024).toFixed(2)+'MB). O backup em IndexedDB (sem esse limite) continua sendo feito normalmente.');
       }
       if(json.length>3*1024*1024 && !window._cdocAvisouTamanhoNuvem){
         window._cdocAvisouTamanhoNuvem=true;
         console.warn('[CDOC] Pacote de dados grande para envio à nuvem: '+(json.length/1024/1024).toFixed(2)+'MB — importações muito grandes de uma vez aumentam o risco de falha por tamanho/timeout.');
-        if(typeof showToast==='function') showToast('Base de dados grande','Os dados do Controle de Documentos estão em '+(json.length/1024/1024).toFixed(2)+'MB. Isso aumenta o risco de falha ao salvar (limite de tamanho/tempo de envio). Se o salvamento falhar repetidamente após uma importação grande, tente importar o CSV em partes menores (ex: 1000 linhas por vez).','warn');
+        if(typeof showToast==='function') showToast('Base de dados grande','Os dados do Controle de Documentos estão em '+(json.length/1024/1024).toFixed(2)+'MB. Isso aumenta o risco de falha ao salvar (limite de tamanho/tempo de envio). O backup local de segurança agora é feito em IndexedDB (sem limite prático), então uma falha de sincronização com a nuvem continua recuperável. Se o salvamento falhar repetidamente após uma importação grande, tente importar o CSV em partes menores (ex: 1000 linhas por vez).','warn');
       }
     }catch(e){}
+    // Backup em IndexedDB SEMPRE roda, independente do tamanho — é a rede de
+    // segurança real agora que a base pode passar dos 5MB do localStorage.
+    _cdocIdbSet(db).catch(function(){});
   },800);
   _cdocSBStatus('💾 Salvando...','#0369a1');
 
@@ -19535,6 +19612,7 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
     _cdocSBCache = snapshot;
     _cdocLastSnapshot = _cdocCloneDb(snapshot);
     try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(snapshot)); }catch(e){}
+    _cdocIdbSet(snapshot).catch(function(){});
 
     _cdocSBStatus('☁ '+(_siderCurrentUser?_siderCurrentUser.nome:'?')+' · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#16a34a');
     setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
@@ -19880,6 +19958,7 @@ async function abrirCtrlDoc(){
       if(!mudouAlgo) return;
       _cdocLastSnapshot=_cdocCloneDb(_cdocSBCache);
       try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
+      _cdocIdbSet(_cdocSBCache).catch(function(){});
       cdocRefreshAll();
       _cdocSBStatus('🔄 Outro usuário salvou · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#7c3aed');
       setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
@@ -20043,9 +20122,10 @@ function _cdocCorrigirAcentos(){
   }
 }
 
-function _cdocDiag(){
+async function _cdocDiag(){
   var cache=_cdocSBCache;
   var ls=null; try{ls=JSON.parse(localStorage.getItem('sider_ctrldoc')||'null');}catch(e){}
+  var idb=null; try{idb=await _cdocIdbGet();}catch(eIdb){}
   var msg='=== DIAGNÓSTICO CDOC ===\n\n';
   msg+='_cdocSBCache: '+(cache===null?'null (não carregado)':typeof cache)+'\n';
   if(cache&&typeof cache==='object'){
@@ -20064,6 +20144,11 @@ function _cdocDiag(){
   if(ls&&typeof ls==='object'){
     msg+='  basicos: '+((ls.basicos||[]).length)+' registros\n';
     msg+='  detalhados: '+((ls.detalhados||[]).length)+' registros\n';
+  }
+  msg+='\nIndexedDB (backup sem limite de ~5MB): '+(idb===null?'vazio':typeof idb)+'\n';
+  if(idb&&typeof idb==='object'){
+    msg+='  basicos: '+((idb.basicos||[]).length)+' registros\n';
+    msg+='  detalhados: '+((idb.detalhados||[]).length)+' registros\n';
   }
   msg+='\nallCronSubobras: '+(typeof allCronSubobras==='undefined'?'undefined':(allCronSubobras.length+' registros'));
   // Tamanho do payload enviado à nuvem a cada salvamento — se estiver grande (vários MB),
@@ -20183,6 +20268,7 @@ function _cdocSeedGrdCounters(seeds){
   });
   if(changed){
     try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(db)); }catch(e){}
+    _cdocIdbSet(db).catch(function(){});
     _cdocSBCache=db;
   }
 }
@@ -26505,6 +26591,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if(rows&&rows.length&&rows[0].data){
           _cdocSBCache=rows[0].data;
           try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
+          _cdocIdbSet(_cdocSBCache).catch(function(){});
         }
       }).catch(function(){});
     }catch(e){}
