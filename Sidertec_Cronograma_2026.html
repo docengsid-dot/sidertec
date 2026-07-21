@@ -3026,7 +3026,24 @@ function hubDocTab(t){
     if(tab) tab.classList.toggle('active',k===t);
     if(pane) pane.classList.toggle('active',k===t);
   });
-  if(t==='ctrldoc'&&typeof cdocRefreshAll==='function') cdocRefreshAll();
+  if(t==='ctrldoc'){
+    // CORRIGIDO: antes, abrir esta aba só redesenhava a tela com o que já
+    // estava na memória/cache do navegador (cdocRefreshAll), SEM nunca buscar
+    // a nuvem — por isso parecia que "tudo tinha se perdido" ao reabrir o
+    // app, e só o botão manual "🔄 Atualizar" (que chama abrirCtrlDoc, esse
+    // sim busca a nuvem) trazia os dados certos. Agora, na primeira vez que
+    // esta aba é aberta depois de um carregamento novo da página
+    // (_cdocSBReady ainda false), buscamos a nuvem automaticamente antes de
+    // desenhar a tela — igual já acontecia ao clicar em Atualizar.
+    if(!_cdocSBReady){
+      _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
+      Promise.resolve(_cdocSBLoad()).catch(function(e){console.error('[Hub CDOC] load error:',e);}).then(function(){
+        if(typeof cdocRefreshAll==='function') cdocRefreshAll();
+      });
+    } else if(typeof cdocRefreshAll==='function'){
+      cdocRefreshAll();
+    }
+  }
   if(t==='dcts'&&typeof renderDCTS==='function') renderDCTS();
 }
 /* ═══ FIM HUB CONTROLLERS v2 ═══ */
@@ -19092,22 +19109,38 @@ async function _cdocSBLoad(){
     // Antes de buscar a nuvem, guarda o que já tínhamos (cache em memória
     // e/ou backup local) — protege contra qualquer edição local ainda não
     // confirmada como salva (ex.: um envio anterior que falhou).
-    var _localAntesDoLoad = _cdocSBCache;
-    if(!_localAntesDoLoad){
-      try{ _localAntesDoLoad = JSON.parse(localStorage.getItem('sider_ctrldoc')||'null'); }catch(eLocal){}
-    }
-    // Camada extra: mescla também o que estiver salvo no IndexedDB. Isso cobre
-    // o caso em que a base ficou grande demais para o localStorage (o backup
-    // ali é pulado acima de 5MB) e a única cópia local sobrevivente de uma
-    // edição não confirmada (ex.: uma GRD recém-emitida) está só no IndexedDB.
-    try{
-      var _idbBackup = await _cdocIdbGet();
-      if(_idbBackup && typeof _idbBackup==='object' && !Array.isArray(_idbBackup)){
-        _localAntesDoLoad = _localAntesDoLoad
-          ? _cdocMergeSnapshots(_localAntesDoLoad, _idbBackup)
-          : _idbBackup;
+    // CORRIGIDO: antes, esta recuperação rodava SEMPRE, mesmo quando o último
+    // salvamento já tinha sido confirmado com sucesso na nuvem (indicador
+    // "☁" verde, sem nenhum erro). Nesse caso o cache local do navegador pode
+    // estar simplesmente desatualizado (ex.: uma cópia mais antiga que
+    // sobrou de uma sessão anterior) — e ao "recuperá-lo" por cima do dado
+    // remoto, ele SOBRESCREVIA edições que já tinham sido salvas com sucesso
+    // (status voltando ao anterior, GRD "desvinculando", etc.), mesmo sem
+    // nenhum erro ter acontecido. Agora só fazemos essa recuperação quando
+    // existe de fato uma marca de edição pendente/não confirmada.
+    var _pendingFlag=null;
+    try{ _pendingFlag = localStorage.getItem('sider_ctrldoc_pending'); }catch(ePend){}
+    var _haPendenciaLocal = (_pendingFlag==='1');
+
+    var _localAntesDoLoad = null;
+    if(_haPendenciaLocal){
+      _localAntesDoLoad = _cdocSBCache;
+      if(!_localAntesDoLoad){
+        try{ _localAntesDoLoad = JSON.parse(localStorage.getItem('sider_ctrldoc')||'null'); }catch(eLocal){}
       }
-    }catch(eIdb){}
+      // Camada extra: mescla também o que estiver salvo no IndexedDB. Isso cobre
+      // o caso em que a base ficou grande demais para o localStorage (o backup
+      // ali é pulado acima de 5MB) e a única cópia local sobrevivente de uma
+      // edição não confirmada (ex.: uma GRD recém-emitida) está só no IndexedDB.
+      try{
+        var _idbBackup = await _cdocIdbGet();
+        if(_idbBackup && typeof _idbBackup==='object' && !Array.isArray(_idbBackup)){
+          _localAntesDoLoad = _localAntesDoLoad
+            ? _cdocMergeSnapshots(_localAntesDoLoad, _idbBackup)
+            : _idbBackup;
+        }
+      }catch(eIdb){}
+    }
 
     // ── Verifica se as tabelas por-linha (uma linha por documento) já
     // existem e já têm dados. Se ainda não têm, tenta migrar automaticamente
@@ -19614,6 +19647,11 @@ window.addEventListener('beforeunload', function(e){
 
 function _cdocSave(db){
   _cdocSBCache=db;
+  // Marca que há uma edição ainda não confirmada como salva na nuvem.
+  // Isso é o que permite, no próximo carregamento, diferenciar uma edição
+  // REAL pendente (que deve ser recuperada) de um cache local simplesmente
+  // desatualizado (que NÃO deve sobrescrever dados mais novos da nuvem).
+  try{ localStorage.setItem('sider_ctrldoc_pending','1'); }catch(e){}
   // Auditoria: quem salvou e quando
   db._lastSavedBy = _siderCurrentUser ? _siderCurrentUser.nome : 'desconhecido';
   db._lastSavedAt = new Date().toISOString();
@@ -19681,6 +19719,7 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
        !diffGrd.upserts.length && !diffGrd.deletes.length && !metaMudou){
       // Nada realmente mudou em relação ao último save confirmado — nada a fazer.
       _cdocSBCache = snapshot;
+      try{ localStorage.setItem('sider_ctrldoc_pending','0'); }catch(e){}
       return {ok:true};
     }
 
@@ -19698,6 +19737,10 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
     _cdocLastSnapshot = _cdocCloneDb(snapshot);
     try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(snapshot)); }catch(e){}
     _cdocIdbSet(snapshot).catch(function(){});
+    // Salvamento CONFIRMADO na nuvem — não há mais edição pendente. É seguro,
+    // no próximo carregamento, confiar direto no dado remoto sem precisar
+    // "recuperar" nada do cache local (que pode estar desatualizado).
+    try{ localStorage.setItem('sider_ctrldoc_pending','0'); }catch(e){}
 
     _cdocSBStatus('☁ '+(_siderCurrentUser?_siderCurrentUser.nome:'?')+' · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),'#16a34a');
     setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},3000);
@@ -23134,17 +23177,41 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
   var db=_cdocLoad();
   db._grds=db._grds||[];
   db._ids=db._ids||{bas:1,det:1,grd:0};
-  db._ids.grd=(db._ids.grd||0)+1; var _grdIdSeguro=_cdocGenGrdId();
-  var grdId=_grdIdSeguro;
   // Usa sempre o obraId do documento (fonte confiável) — NÃO tenta "adivinhar" o nome
   // pela lista do cronograma por prefixo, pois isso pode achar um texto com grafia
   // ligeiramente diferente (espaço, maiúscula, etc.) e quebrar a busca depois.
   var _obraFinal=obraRef;
   var tiposStr=tiposEm.join(' + ');
-  var grdRec={id:grdId,numero:grdNum,data:dataISO,tipo:tiposStr,obs:obsGrd||'',obra:_obraFinal,modulo:'det',prevRetorno:prevRetGrd||'',
-    docs:inclSels.map(function(ds){var d=ds.doc; return {docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||'',finalidade:ds.finalidade};})};
-  grdRec.status='rascunho';
-  db._grds.push(grdRec);
+  // CORRIGIDO: "gerar novamente" uma GRD com o mesmo número criava um
+  // registro NOVO (id diferente) em vez de atualizar o já existente — daí
+  // as duplicatas na lista "GRDs Emitidas" (ex.: S178-GRD-0018 aparecendo
+  // duas vezes). Agora, se já existe uma GRD com este número, ela é
+  // atualizada/mesclada em vez de duplicada.
+  var grdExistente=(db._grds||[]).find(function(g){return (g.numero||'').toUpperCase()===(grdNum||'').toUpperCase();});
+  var grdId;
+  if(grdExistente){
+    grdId=grdExistente.id;
+    grdExistente.data=dataISO;
+    grdExistente.tipo=tiposStr;
+    if(obsGrd) grdExistente.obs=obsGrd;
+    grdExistente.obra=_obraFinal||grdExistente.obra;
+    grdExistente.prevRetorno=prevRetGrd||grdExistente.prevRetorno||'';
+    grdExistente.docs=grdExistente.docs||[];
+    var _idsJaNaGrd=new Set(grdExistente.docs.map(function(d){return d.docId;}));
+    inclSels.forEach(function(ds){
+      var d=ds.doc;
+      if(!_idsJaNaGrd.has(d.id)){
+        grdExistente.docs.push({docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||'',finalidade:ds.finalidade});
+      }
+    });
+  } else {
+    db._ids.grd=(db._ids.grd||0)+1;
+    grdId=_cdocGenGrdId();
+    var grdRec={id:grdId,numero:grdNum,data:dataISO,tipo:tiposStr,obs:obsGrd||'',obra:_obraFinal,modulo:'det',prevRetorno:prevRetGrd||'',
+      docs:inclSels.map(function(ds){var d=ds.doc; return {docId:d.id,num:d.num||'',sub:d.sub||'',cli:d.cli||'',titulo:d.titulo||'',desc:d.desc||'',rev:d.rev||'',peca:d.peca||'',tipo:d.tipo||'',finalidade:ds.finalidade};})};
+    grdRec.status='rascunho';
+    db._grds.push(grdRec);
+  }
   inclSels.forEach(function(ds){
     var doc=db.detalhados.find(function(d){return d.id===ds.doc.id;});
     if(!doc) return;
@@ -23157,8 +23224,15 @@ function _cdocGerarGrdJanela(inclSels, tiposEm, obsGrd, numCustom, prevRetGrd){
       doc.envioHist.push({rev:doc.rev||'',data:dataISO,finalidade:ds.finalidade,grd:grdNum,
         prevRetorno:prevRetGrd||'',retornoReal:'',statusFinal:'',obs:obsGrd||'',status:'Concluído'});
     }
-    if(!doc.statusGeral||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO'||
-       ds.finalidade==='Para Aprovação'||ds.finalidade==='Para Certificação'||ds.finalidade==='Para Informação'){
+    // CORRIGIDO: antes, esta condição era SEMPRE verdadeira (ds.finalidade é
+    // sempre uma das 3 opções fixas), então TODA emissão de GRD — inclusive
+    // reemissões — forçava o status de volta para 'ENVIADO AO CLIENTE',
+    // apagando qualquer status que o usuário tivesse alterado manualmente
+    // depois (ex.: 'FLUXO COM CLIENTE'). Agora só avança automaticamente o
+    // status quando o documento ainda está num estado inicial/em branco —
+    // se o usuário já moveu o status para a frente manualmente, a emissão
+    // de GRD não sobrescreve mais essa escolha.
+    if(!doc.statusGeral||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO'){
       doc.statusGeral='ENVIADO AO CLIENTE';
     }
   });
