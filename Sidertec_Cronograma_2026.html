@@ -1052,6 +1052,7 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
+
 <div class="loading-overlay" id="loading-overlay">
   <div class="spinner"></div>
   <div class="loading-txt" id="loading-txt">Conectando ao banco de dados…</div>
@@ -1071,6 +1072,7 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
     <div class="sync-status"><div class="sync-dot syncing" id="sync-dot"></div><span id="sync-label">Conectando…</span></div>
     <button class="hbtn" onclick="recarregarTudo()">↺ Atualizar</button>
     <button class="hbtn" onclick="abrirModalImprimir()" style="background:var(--blue);color:#fff;">🖨 Relatório</button>
+    <button class="sider-lock-btn locked" id="sider-lock-btn" onclick="_siderToggleLock()" title="Clique para entrar / trocar de usuário">🔒 Entrar</button>
   </div>
 </header>
 
@@ -2348,15 +2350,19 @@ ALTER TABLE medicao_terceiros
         <label class="field-label">Etapa *</label>
         <select class="field-input" id="and-etapa" onchange="atualizarCamposAndamento()" style="font-size:13px;">
           <option value="">— Selecione a etapa —</option>
-              <option>AG. PROJ. BÁSICO</option>
-              <option>AG. MODELO PARA APROV.</option>
-              <option>MODELO EM APROV.</option>
-              <option>EMISSÃO PCTE FAB.</option>
-              <option>INSP. INTERNA</option>
-              <option>LIB. FABRICAÇÃO</option>
-              <option>EM COTAÇÃO ENG.</option>
-              <option>AG. DOCUMENTOS</option>
-              <option>HOLD</option>
+              <option value="basico">Rec. Básico</option>
+              <option value="envio_detail">Em Detalhamento</option>
+              <option value="materia_prima">Mat. Prima</option>
+              <option value="rec_modelo">Rec. Modelo</option>
+              <option value="envio_modelo">Mod. em Aprov.</option>
+              <option value="lista_resumo_mp">Lista Resumo MP</option>
+              <option value="retorno_modelo">Mod. Aprovado</option>
+              <option value="pcte_fab">Pcte. Fab.</option>
+              <option value="inspecao_interna">Insp. Interna</option>
+              <option value="lib_fab">Lib. Fab.</option>
+              <option value="diagramas">Documentos</option>
+              <option value="expedicao">Expedição</option>
+              <option value="montagem">Montagem</option>
 </select>
       </div>
 
@@ -3029,20 +3035,13 @@ function hubDocTab(t){
   if(t==='ctrldoc'){
     // CORRIGIDO: antes, abrir esta aba só redesenhava a tela com o que já
     // estava na memória/cache do navegador (cdocRefreshAll), SEM nunca buscar
-    // a nuvem — por isso parecia que "tudo tinha se perdido" ao reabrir o
-    // app, e só o botão manual "🔄 Atualizar" (que chama abrirCtrlDoc, esse
-    // sim busca a nuvem) trazia os dados certos. Agora, na primeira vez que
-    // esta aba é aberta depois de um carregamento novo da página
-    // (_cdocSBReady ainda false), buscamos a nuvem automaticamente antes de
-    // desenhar a tela — igual já acontecia ao clicar em Atualizar.
-    if(!_cdocSBReady){
-      _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
-      Promise.resolve(_cdocSBLoad()).catch(function(e){console.error('[Hub CDOC] load error:',e);}).then(function(){
-        if(typeof cdocRefreshAll==='function') cdocRefreshAll();
-      });
-    } else if(typeof cdocRefreshAll==='function'){
-      cdocRefreshAll();
-    }
+    // a nuvem nem ligar a atualização automática — só o botão "🔄 Atualizar"
+    // dentro do modal separado fazia isso. Agora a aba do Hub usa a MESMA
+    // rotina do modal separado: busca a nuvem na primeira vez da sessão e
+    // liga o tempo real + auto-refresh de 60s, para pegar sozinha qualquer
+    // alteração salva por outra pessoa enquanto o app fica aberto.
+    _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
+    Promise.resolve(_cdocIniciarSincroniaViva(false)).catch(function(e){console.error('[Hub CDOC] load error:',e);});
   }
   if(t==='dcts'&&typeof renderDCTS==='function') renderDCTS();
 }
@@ -14316,7 +14315,13 @@ function carregarCustomStatuses(){
     STATUS_CFG_CRON[cs.nome] = {color: parts[0]||'#475569', bg: parts[1]||'#f1f5f9', icon: cs.icone||'•'};
     if(!STATUS_ORDER.includes(cs.nome)) STATUS_ORDER.push(cs.nome);
     // Adiciona no select do modal se ainda não estiver
-    ['cm-status','and-etapa','lote-status'].forEach(function(id){
+    // CORRIGIDO: "and-etapa" foi removido desta lista — ele é o seletor de
+    // ETAPA (estágio do cronograma, com data prevista/realizada), não de
+    // STATUS. Adicionar status personalizados nele fazia esse campo virar
+    // uma cópia confusa da lista de status, e como as opções não tinham
+    // "value" correspondente a nenhuma etapa real, o botão "Salvar
+    // Andamento" nunca funcionava para essas opções.
+    ['cm-status','lote-status'].forEach(function(id){
       var sel = document.getElementById(id);
       if(!sel) return;
       if(!Array.from(sel.options).find(function(o){ return o.value === cs.nome; })){
@@ -14353,7 +14358,7 @@ function excluirCustomStatus(nome){
   delete STATUS_CFG_CRON[nome];
   var i = STATUS_ORDER.indexOf(nome);
   if(i >= 0) STATUS_ORDER.splice(i, 1);
-  ['cm-status','and-etapa','lote-status'].forEach(function(id){
+  ['cm-status','lote-status'].forEach(function(id){
     var sel = document.getElementById(id);
     if(!sel) return;
     var op = Array.from(sel.options).find(function(o){ return o.value === nome; });
@@ -14404,8 +14409,8 @@ function salvarNovoStatus(){
   localStorage.setItem('sidertec_custom_statuses', JSON.stringify(_customStatuses));
   STATUS_CFG_CRON[nome] = {color: parts[0], bg: parts[1], icon: icone};
   STATUS_ORDER.push(nome);
-  // Add to cm-status select
-  ['cm-status','and-etapa','lote-status'].forEach(function(id){
+  // Add to cm-status select (and-etapa é o seletor de ETAPA, não de status — não recebe isto)
+  ['cm-status','lote-status'].forEach(function(id){
     var sel = document.getElementById(id);
     if(sel && ![...sel.options].some(o=>o.value===nome)){
       var op = document.createElement('option');
@@ -18844,6 +18849,20 @@ function cotExportarCSV(){
       <button class="sider-lock-btn locked" onclick="_siderToggleLock()" title="Clique para desbloquear edição" style="font-size:11px;cursor:pointer;">🔒 Editar</button>
       <button onclick="fecharCtrlDoc()" style="background:none;border:none;color:rgba(255,255,255,.45);cursor:pointer;font-size:16px;padding:0 4px;">✕</button>
     </div>
+    <div class="cron-mfooter" style="border-top:none;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="cdoc-sb-status" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
+        <button id="cdoc-btn-atualizar" onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
+        <label title="Restaurar CDOC de um arquivo JSON de backup" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;">📥 Restaurar JSON<input type="file" accept=".json" style="display:none;" onchange="cdocRestaurarJSON(this)"></label>
+        <button onclick="backupCompleto()" title="Baixar backup completo JSON (CDOC + Cronograma)" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📥 Backup</button>
+        <button onclick="salvarSistema()" title="Salvar cópia do sistema (arquivo HTML com data)" style="background:#0f172a;color:#e2e8f0;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">💾 Salvar App</button>
+        <button onclick="_cdocDiag()" title="Diagnóstico: ver o que está carregado em memória" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔍 Diag</button>
+        <button onclick="_cdocCorrigirAcentos()" title="Corrige acentos quebrados (♦, Ã§, etc.) em todos os documentos" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Acentos</button>
+        <button onclick="_cdocDedupEnvios()" title="Remove entradas duplicadas no histórico de envio (mesma revisão + GRD)" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Limpar Duplicatas</button>
+        <button onclick="_cdocRepararGrds()" title="Reconstrói a lista de GRDs Emitidas a partir do histórico de envio dos documentos (corrige GRDs que não aparecem na lista)" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Reparar GRDs</button>
+        <button onclick="_cdocAbrirMesclarStatus()" title="Une dois status que na verdade são o mesmo (ex.: 'FLUXO COM CLIENTE' e 'FLUXO COM O CLIENTE' criados por pessoas diferentes) em um só, em todos os documentos" style="background:#9333ea;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔀 Mesclar Status Duplicado</button>
+      </div>
+    </div>
     <div class="cron-mbody">
       <div id="cdoc-alerta-prazo" style="display:none;margin:.3rem 0 0;">
         <div id="cdoc-alerta-pill" onclick="cdocAlertaPrazoToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#fda4af,#fecdd3);border:1.5px solid #f43f5e;border-radius:20px;padding:.2rem .75rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os documentos em alerta">
@@ -18952,6 +18971,7 @@ function _cdocPainelToggleDet(){
   }
 }</script>
         <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button onclick="_cdocBasClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
         <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
           <table class="cdoc-tbl">
             <thead><tr>
@@ -18960,7 +18980,6 @@ function _cdocPainelToggleDet(){
             <tbody id="cdb-tbody"></tbody>
           </table>
         </div>
-        <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button onclick="_cdocBasClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
       </div>
 
       <!-- PROJETO DETALHADO -->
@@ -19007,6 +19026,7 @@ function _cdocPainelToggleDet(){
             <input type="file" id="cdoc-import-det" accept=".csv" style="display:none" onchange="cdocImportDet(this)">
           </div>
         </div>
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdd-info"></span><span id="cdd-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdd-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdd-btn-grd-emit" onclick="cdocEmitirGrd()" style="display:none;background:#5b21b6;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">📋 Emitir GRD selecionados</button><button id="cdd-btn-status-lote" onclick="cdocAbrirStatusLote()" style="display:none;background:#b45309;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">📝 Status em lote (<span id="cdd-status-lote-count">0</span>)</button><button id="cdd-btn-lista-resp" onclick="cdocImprimirListaResponsavel()" title="Gera uma lista simples (para imprimir/PDF/print) com os documentos selecionados, agrupados por Eng. Responsável — útil para enviar a alguém olhar e identificar" style="display:none;background:#0e7490;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">🖨 Lista p/ Responsável (<span id="cdd-lista-resp-count">0</span>)</button><button id="cdd-btn-relatorio-pdf" onclick="cdocRelatorioPdfSel()" title="Abre um relatório completo dos documentos selecionados, pronto para gerar PDF (Ctrl+P → Salvar como PDF)" style="display:none;background:#991b1b;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">📄 Relatório PDF (<span id="cdd-relatorio-pdf-count">0</span>)</button><button id="cdd-btn-relatorio-xlsx" onclick="cdocRelatorioExcelSel()" title="Baixa uma planilha Excel (.xlsx) com todas as colunas dos documentos selecionados" style="display:none;background:#15803d;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">📊 Relatório Excel (<span id="cdd-relatorio-xlsx-count">0</span>)</button><button id="cdd-btn-del-sel" onclick="cdocDelSelDet()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">🗑 Excluir selecionados (<span id="cdd-del-count">0</span>)</button><button onclick="_cdocDetClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
         <div id="cdd-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
         <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
           <table class="cdoc-tbl">
@@ -19016,7 +19036,6 @@ function _cdocPainelToggleDet(){
             <tbody id="cdd-tbody"></tbody>
           </table>
         </div>
-        <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:10px;color:#64748b;flex-wrap:wrap;"><span id="cdd-info"></span><span id="cdd-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdd-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdd-btn-grd-emit" onclick="cdocEmitirGrd()" style="display:none;background:#5b21b6;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;">📋 Emitir GRD selecionados</button><button id="cdd-btn-status-lote" onclick="cdocAbrirStatusLote()" style="display:none;background:#b45309;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">📝 Status em lote (<span id="cdd-status-lote-count">0</span>)</button><button id="cdd-btn-lista-resp" onclick="cdocImprimirListaResponsavel()" title="Gera uma lista simples (para imprimir/PDF/print) com os documentos selecionados, agrupados por Eng. Responsável — útil para enviar a alguém olhar e identificar" style="display:none;background:#0e7490;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">🖨 Lista p/ Responsável (<span id="cdd-lista-resp-count">0</span>)</button><button id="cdd-btn-del-sel" onclick="cdocDelSelDet()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:700;margin-left:4px;">🗑 Excluir selecionados (<span id="cdd-del-count">0</span>)</button><button onclick="_cdocDetClearSel()" style="margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:3px;padding:2px 8px;font-size:9px;cursor:pointer;">Limpar seleção</button></div>
       </div>
 
       <!-- DIÁRIO DE DOCUMENTOS -->
@@ -19066,17 +19085,7 @@ function _cdocPainelToggleDet(){
       </div>
     </div>
     <div class="cron-mfooter">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span id="cdoc-sb-status" style="font-size:10px;color:#94a3b8;">☁ Nuvem</span>
-        <button id="cdoc-btn-atualizar" onclick="abrirCtrlDoc()" title="Recarregar dados da nuvem" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔄 Atualizar</button>
-        <label title="Restaurar CDOC de um arquivo JSON de backup" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;">📥 Restaurar JSON<input type="file" accept=".json" style="display:none;" onchange="cdocRestaurarJSON(this)"></label>
-        <button onclick="backupCompleto()" title="Baixar backup completo JSON (CDOC + Cronograma)" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📥 Backup</button>
-        <button onclick="salvarSistema()" title="Salvar cópia do sistema (arquivo HTML com data)" style="background:#0f172a;color:#e2e8f0;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">💾 Salvar App</button>
-        <button onclick="_cdocDiag()" title="Diagnóstico: ver o que está carregado em memória" style="background:none;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:10px;color:#64748b;cursor:pointer;">🔍 Diag</button>
-        <button onclick="_cdocCorrigirAcentos()" title="Corrige acentos quebrados (♦, Ã§, etc.) em todos os documentos" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Acentos</button>
-        <button onclick="_cdocDedupEnvios()" title="Remove entradas duplicadas no histórico de envio (mesma revisão + GRD)" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Limpar Duplicatas</button>
-        <button onclick="_cdocRepararGrds()" title="Reconstrói a lista de GRDs Emitidas a partir do histórico de envio dos documentos (corrige GRDs que não aparecem na lista)" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Reparar GRDs</button>
-      </div>
+      <div></div>
       <button class="btn btn-secondary" onclick="fecharCtrlDoc()" style="font-size:11px;padding:4px 14px;">Fechar</button>
     </div>
   </div>
@@ -19360,12 +19369,66 @@ function _cdocDiffLista(antiga, nova){
   return {upserts:upserts, deletes:deletes};
 }
 
+// Une duas listas por uma chave — mantém tudo que existe em qualquer uma das
+// duas, preferindo a versão LOCAL quando a chave é igual nas duas (é a edição
+// mais recente de quem está salvando agora), mas NUNCA descarta um item que
+// só exista do lado remoto (ex.: um vínculo de GRD criado por outra pessoa
+// entre o momento em que esta sessão carregou os dados e agora).
+function _cdocUnirListasPorChave(remotoArr, localArr, keyFn){
+  remotoArr=Array.isArray(remotoArr)?remotoArr:[];
+  localArr=Array.isArray(localArr)?localArr:[];
+  var porChave={}, ordem=[];
+  remotoArr.forEach(function(item){ var k=keyFn(item); if(!(k in porChave)) ordem.push(k); porChave[k]=item; });
+  localArr.forEach(function(item){ var k=keyFn(item); if(!(k in porChave)) ordem.push(k); porChave[k]=item; });
+  return ordem.map(function(k){return porChave[k];});
+}
+// CRITÉRIO DE SEGURANÇA (edição concorrente por 2+ pessoas ao mesmo tempo):
+// cada documento/GRD é salvo como um bloco único na nuvem (uma linha = um
+// JSON completo) — então, sem esta função, se a Pessoa A vincula uma GRD a
+// um documento e, quase ao mesmo tempo, a Pessoa B salva QUALQUER outra
+// alteração nesse MESMO documento (mesmo sem tocar em nada relacionado a
+// GRD), quem salva por último sobrescreve o bloco inteiro e apaga o vínculo
+// que a outra pessoa tinha acabado de criar — mesmo sem ter editado aquele
+// campo. Esta função busca, na hora de salvar, o estado ATUAL dessas linhas
+// específicas na nuvem, e funde (une, sem descartar nada) as listas que
+// representam vínculos/histórico (envioHist, remessaHist, libfabHist,
+// docs de uma GRD) antes de gravar — assim um vínculo criado por outra
+// pessoa nunca é perdido, mesmo que as duas sessões salvem quase juntas.
+async function _cdocMergeComRemotoAntesDeSalvar(tabela, rows, kind){
+  var ids=rows.map(function(r){return r.id;}).filter(function(id){return id!=null;});
+  if(!ids.length) return rows;
+  var r=await fetch(_sbUrl(tabela+'?id=in.('+ids.join(',')+')&select=id,data'),{headers:_SB_H});
+  if(!r.ok) return rows; // se não conseguir buscar o estado atual, segue com o valor local (comportamento anterior)
+  var remotos=await r.json();
+  var mapRemoto={}; remotos.forEach(function(x){ mapRemoto[x.id]=x.data; });
+  return rows.map(function(local){
+    var remoto=mapRemoto[local.id];
+    if(!remoto) return local; // linha nova — nada na nuvem ainda pra mesclar
+    var mesclado=Object.assign({}, local);
+    if(kind==='det'){
+      mesclado.envioHist=_cdocUnirListasPorChave(remoto.envioHist, local.envioHist, function(h){return (h.grd||'')+'|'+(h.data||'')+'|'+(h.finalidade||'');});
+      mesclado.libfabHist=_cdocUnirListasPorChave(remoto.libfabHist, local.libfabHist, function(h){return (h.data||'')+'|'+(h.status||'')+'|'+(h.tipo||'');});
+    } else if(kind==='bas'){
+      mesclado.remessaHist=_cdocUnirListasPorChave(remoto.remessaHist, local.remessaHist, function(h){return (h.grd||'')+'|'+(h.data||'');});
+    } else if(kind==='grd'){
+      mesclado.docs=_cdocUnirListasPorChave(remoto.docs, local.docs, function(d){return d.docId;});
+    }
+    return mesclado;
+  });
+}
 // Envia upserts (em lotes, para nunca ficar grande demais mesmo numa
 // importação enorme) e exclusões de UMA tabela de documentos.
 async function _cdocPushTabela(tabela, upserts, deletes){
   var LOTE=300; // no máximo ~300 documentos por requisição
+  var kind = tabela===_cdocDocsTables.det?'det':(tabela===_cdocDocsTables.bas?'bas':(tabela===_cdocDocsTables.grd?'grd':null));
   for(var i=0;i<upserts.length;i+=LOTE){
-    var lote=upserts.slice(i,i+LOTE).map(function(r){return {id:r.id, data:r, updated_at:new Date().toISOString()};});
+    var loteOriginal=upserts.slice(i,i+LOTE);
+    var loteMerged=loteOriginal;
+    if(kind){
+      try{ loteMerged=await _cdocMergeComRemotoAntesDeSalvar(tabela, loteOriginal, kind); }
+      catch(eMerge){ console.warn('[CDOC merge concorrente] seguindo sem mesclar:',eMerge.message); }
+    }
+    var lote=loteMerged.map(function(r){return {id:r.id, data:r, updated_at:new Date().toISOString()};});
     var _bodyStr=JSON.stringify(lote);
     var r=await fetch(_sbUrl(tabela),{
       method:'POST',
@@ -20016,41 +20079,38 @@ function _cdocRealtimeUnsubscribe(){
 }
 
 var _cdocAutoRefreshTimer=null;
-async function abrirCtrlDoc(){
+// Detecta se o painel do Controle de Documentos está visível, seja pelo modal
+// separado (abrirCtrlDoc) ou pela aba dentro do Hub de Documentação — usado
+// para decidir se o auto-refresh/tempo real deve continuar rodando.
+function _cdocPainelAberto(){
   var modal=document.getElementById('modal-ctrl-doc');
-  modal.classList.add('show');
-  _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
-  var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
-  // CRITÉRIO DE SEGURANÇA (anti-race-condition): se já há um salvamento em
-  // andamento (ex.: uma GRD acabou de ser emitida e o upsert para o Supabase
-  // ainda está em voo), espera ele terminar ANTES de buscar/mesclar o remoto.
-  // Sem isso, o load concorrente e o save original disputavam a mesma
-  // variável global (_cdocSBCache/_cdocLastSnapshot) e quem terminava depois
-  // "vencia" — mesmo que tivesse dados mais antigos —, apagando na prática
-  // o vínculo recém-criado entre a GRD e os documentos. O auto-refresh de
-  // 60s já tinha essa proteção (_cdocSavePending>0 → return); faltava só
-  // aqui, no botão manual "🔄 Atualizar".
+  if(modal&&modal.classList.contains('show')) return true;
+  var pane=document.getElementById('hdpane-ctrldoc');
+  if(pane&&pane.classList.contains('active')) return true;
+  return false;
+}
+// Garante que os dados estão carregados da nuvem e que a sincronização "viva"
+// (tempo real + auto-refresh de 60s) está ligada. Chamado tanto ao abrir o
+// modal separado quanto ao abrir a aba pelo Hub de Documentação — antes, só
+// o modal separado ligava isso, então abrir pelo Hub mostrava os dados uma
+// vez mas nunca recebia atualizações de outra pessoa enquanto ficava aberto.
+async function _cdocIniciarSincroniaViva(forcarRecarregar){
   if(_cdocSavePending>0){
     _cdocSBStatus('⏳ Aguardando salvamento em curso terminar antes de atualizar...','#0369a1');
     try{ await _cdocSaveQueue; }catch(e){}
   }
-  // CRITÉRIO DE SEGURANÇA: NÃO zeramos mais _cdocSBCache aqui antes de recarregar.
-  // Antes, isso descartava de imediato qualquer edição local ainda não confirmada
-  // na nuvem (ex.: um salvamento anterior que falhou silenciosamente), e a busca
-  // seguinte trazia a versão antiga da nuvem, sobrescrevendo inclusive o backup
-  // do localStorage. Agora _cdocSBLoad() sempre mescla o que está na nuvem com o
-  // que já temos localmente, então é seguro chamá-la sem apagar o cache antes.
-  try{ await _cdocSBLoad(); } catch(e){ console.error('abrirCtrlDoc error:',e); }
-  if(btnAt) btnAt.disabled=false;
+  if(forcarRecarregar||!_cdocSBReady){
+    try{ await _cdocSBLoad(); } catch(e){ console.error('_cdocIniciarSincroniaViva load error:',e); }
+  }
   cdocRefreshAll();
   // Sincronização em tempo real (WebSocket) — os dois usuários veem as
   // alterações um do outro quase instantaneamente, sem esperar o polling.
   _cdocRealtimeSubscribe();
-  // Auto-refresh a cada 60s enquanto o modal estiver aberto — mantido como
-  // reforço/fallback, caso a conexão em tempo real caia por algum motivo.
+  // Auto-refresh a cada 60s enquanto o painel estiver aberto (modal OU aba do
+  // Hub) — mantido como reforço/fallback, caso a conexão em tempo real caia.
   if(_cdocAutoRefreshTimer) clearInterval(_cdocAutoRefreshTimer);
   _cdocAutoRefreshTimer=setInterval(async function(){
-    if(!document.getElementById('modal-ctrl-doc').classList.contains('show')){
+    if(!_cdocPainelAberto()){
       clearInterval(_cdocAutoRefreshTimer); _cdocAutoRefreshTimer=null; return;
     }
     var editOv=document.getElementById('cdoc-edit-overlay');
@@ -20092,6 +20152,31 @@ async function abrirCtrlDoc(){
       setTimeout(function(){_cdocSBStatus('☁ Nuvem','#94a3b8');},4000);
     }catch(e){}
   },60000);
+}
+async function abrirCtrlDoc(){
+  var modal=document.getElementById('modal-ctrl-doc');
+  modal.classList.add('show');
+  _cdocSBStatus('⏳ Carregando da nuvem...','#0369a1');
+  var btnAt=document.getElementById('cdoc-btn-atualizar'); if(btnAt) btnAt.disabled=true;
+  // CRITÉRIO DE SEGURANÇA (anti-race-condition): se já há um salvamento em
+  // andamento (ex.: uma GRD acabou de ser emitida e o upsert para o Supabase
+  // ainda está em voo), espera ele terminar ANTES de buscar/mesclar o remoto.
+  // Sem isso, o load concorrente e o save original disputavam a mesma
+  // variável global (_cdocSBCache/_cdocLastSnapshot) e quem terminava depois
+  // "vencia" — mesmo que tivesse dados mais antigos —, apagando na prática
+  // o vínculo recém-criado entre a GRD e os documentos. O auto-refresh de
+  // 60s já tinha essa proteção (_cdocSavePending>0 → return); faltava só
+  // aqui, no botão manual "🔄 Atualizar".
+  // CRITÉRIO DE SEGURANÇA: NÃO zeramos mais _cdocSBCache aqui antes de recarregar.
+  // Antes, isso descartava de imediato qualquer edição local ainda não confirmada
+  // na nuvem (ex.: um salvamento anterior que falhou silenciosamente), e a busca
+  // seguinte trazia a versão antiga da nuvem, sobrescrevendo inclusive o backup
+  // do localStorage. Agora _cdocSBLoad() sempre mescla o que está na nuvem com o
+  // que já temos localmente, então é seguro chamá-la sem apagar o cache antes.
+  // O botão "Atualizar" deve SEMPRE forçar uma busca nova (forcarRecarregar=true);
+  // a abertura pelo Hub, em vez disso, só força na primeira vez da sessão.
+  await _cdocIniciarSincroniaViva(true);
+  if(btnAt) btnAt.disabled=false;
 }
 async function backupCompleto(){
   var btn = event && event.target;
@@ -20649,10 +20734,34 @@ function _cdocPopStatusForm(){
 }
 
 function _carregarCdocCustomStatuses(){
-  _cdocCustomStatuses = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
+  // CORRIGIDO: antes, esta lista vivia SÓ no localStorage de cada
+  // computador — cada pessoa podia criar, sem saber, o mesmo status com
+  // grafia levemente diferente (ex.: "FLUXO COM CLIENTE" vs "FLUXO COM O
+  // CLIENTE"), porque não via o que já existia nos outros PCs. Agora a
+  // lista também é guardada na nuvem (db._statusPersonalizados,
+  // compartilhada entre todos) — qualquer status criado localmente que
+  // ainda não esteja lá é enviado para lá automaticamente, e todo mundo
+  // passa a ver a mesma lista.
+  var local = JSON.parse(localStorage.getItem('sidertec_cdoc_custom_statuses')||'[]');
+  var db = (typeof _cdocLoad==='function') ? _cdocLoad() : null;
+  var nuvem = (db && Array.isArray(db._statusPersonalizados)) ? db._statusPersonalizados : [];
+  var porNome={};
+  nuvem.forEach(function(cs){ if(cs&&cs.nome) porNome[cs.nome.trim().toUpperCase()]=cs; });
+  var precisaSincronizar=false;
+  local.forEach(function(cs){
+    if(!cs||!cs.nome) return;
+    var k=cs.nome.trim().toUpperCase();
+    if(!porNome[k]){ porNome[k]=cs; precisaSincronizar=true; }
+  });
+  _cdocCustomStatuses = Object.keys(porNome).map(function(k){return porNome[k];});
   _cdocCustomStatuses.forEach(function(cs){
     if(!_cdocBadge[cs.nome]) _cdocBadge[cs.nome]={bg:cs.bg,c:cs.cor};
   });
+  if(precisaSincronizar && db){
+    db._statusPersonalizados=_cdocCustomStatuses;
+    Promise.resolve(_cdocSave(db)).catch(function(){});
+  }
+  try{ localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses)); }catch(e){}
 }
 _carregarCdocCustomStatuses();
 function _cdocBadgeHtml(s){
@@ -20781,6 +20890,13 @@ function _salvarNovoCdocStatus(){
   var cs={nome:nome, bg:parts[0]||'#f3e8ff', cor:parts[1]||'#6b21a8'};
   _cdocCustomStatuses.push(cs);
   localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
+  // Publica na nuvem também, para todo mundo ver o mesmo status daqui pra frente
+  // (em vez de cada computador acabar criando sua própria versão).
+  try{
+    var _db=_cdocDb();
+    _db._statusPersonalizados=_cdocCustomStatuses;
+    Promise.resolve(_cdocSave(_db)).catch(function(){});
+  }catch(e){}
   _cdocBadge[nome]={bg:cs.bg,c:cs.cor};
   var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove();
   // Atualiza filtro da tabela e select do formulário
@@ -20794,6 +20910,11 @@ function _excluirCdocCustomStatus(nome){
   if(!confirm('Excluir o status "'+nome+'"?')) return;
   _cdocCustomStatuses=_cdocCustomStatuses.filter(function(cs){return cs.nome!==nome;});
   localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
+  try{
+    var _db=_cdocDb();
+    _db._statusPersonalizados=_cdocCustomStatuses;
+    Promise.resolve(_cdocSave(_db)).catch(function(){});
+  }catch(e){}
   delete _cdocBadge[nome];
   var ov=document.getElementById('cdoc-custom-status-ov'); if(ov) ov.remove();
   // Atualiza filtro da tabela e select do formulário
@@ -20802,6 +20923,76 @@ function _excluirCdocCustomStatus(nome){
   // Reopen gerenciar modal com lista atualizada
   _abrirGerenciarCdocStatus();
   showToast('Excluído','"'+nome+'" removido.','warn');
+}
+// ────────────────────────────────────────────────────────────────────
+
+// ─── MESCLAR STATUS DUPLICADO (ex.: "FLUXO COM CLIENTE" vs "FLUXO COM O
+// CLIENTE") ───────────────────────────────────────────────────────────────
+// Como os status personalizados são cadastrados por navegador (cada
+// computador tem sua própria lista, salva no localStorage — não é
+// compartilhada na nuvem), é comum duas pessoas em PCs diferentes criarem,
+// sem saber, o mesmo status com uma grafia levemente diferente. Isso faz
+// os documentos ficarem "espalhados" entre os dois nomes, escondendo uns
+// dos outros nos filtros. Esta ferramenta une os dois em um só nome, em
+// TODOS os documentos (status geral + status final do histórico de envio),
+// e salva na nuvem.
+function _cdocAbrirMesclarStatus(){
+  if(!_siderRequireEdit()) return;
+  var opts=_cdocTodosStatuses();
+  if(opts.length<2){ alert('É preciso ter pelo menos 2 status cadastrados para mesclar.'); return; }
+  var mkOpts=function(sel){ return '<option value="">-- Selecione --</option>'+opts.map(function(s){return '<option value="'+_esc(s)+'">'+_esc(s)+'</option>';}).join(''); };
+  var ov=document.createElement('div');
+  ov.id='cdoc-mesclar-status-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;width:460px;max-width:100%;box-shadow:0 16px 60px rgba(0,0,0,.3);">'
+    +'<div style="background:#9333ea;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:10px;">'
+      +'<span style="font-size:15px;font-weight:800;">🔀 Mesclar Status Duplicado</span>'
+      +'<button onclick="document.getElementById(\'cdoc-mesclar-status-ov\').remove()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;cursor:pointer;margin-left:auto;">✕</button>'
+    +'</div>'
+    +'<div style="padding:18px 20px;">'
+      +'<div style="font-size:12px;color:#475569;margin-bottom:14px;">Escolha dois status que na verdade representam a mesma coisa (ex.: criados por pessoas diferentes com grafia levemente diferente). Todos os documentos com o status "de" passarão a ter o status "para", e o status "de" será removido da lista.</div>'
+      +'<label style="display:block;font-size:11px;font-weight:700;color:#334155;margin-bottom:4px;">Status a remover (DE):</label>'
+      +'<select id="cms-de" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'+mkOpts()+'</select>'
+      +'<label style="display:block;font-size:11px;font-weight:700;color:#334155;margin-bottom:4px;">Status correto a manter (PARA):</label>'
+      +'<select id="cms-para" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:6px;">'+mkOpts()+'</select>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;">'
+      +'<button onclick="document.getElementById(\'cdoc-mesclar-status-ov\').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;padding:8px 18px;font-size:12px;cursor:pointer;">Cancelar</button>'
+      +'<button onclick="_cdocConfirmarMesclarStatus()" style="background:#9333ea;color:#fff;border:none;border-radius:6px;padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;">✓ Mesclar</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function _cdocConfirmarMesclarStatus(){
+  var de=(document.getElementById('cms-de')||{}).value;
+  var para=(document.getElementById('cms-para')||{}).value;
+  if(!de||!para){ alert('Selecione os dois status.'); return; }
+  if(de===para){ alert('Selecione dois status diferentes.'); return; }
+  var db=_cdocDb();
+  var qtdGeral=0, qtdFinal=0;
+  (db.detalhados||[]).forEach(function(doc){
+    if(doc.statusGeral===de){ doc.statusGeral=para; qtdGeral++; }
+    (doc.envioHist||[]).forEach(function(h){
+      if(h.statusFinal===de){ h.statusFinal=para; qtdFinal++; }
+    });
+  });
+  // Remove "de" da lista de status personalizados (se ele for um personalizado)
+  var eraCustom=_cdocCustomStatuses.some(function(cs){return cs.nome===de;});
+  if(eraCustom){
+    _cdocCustomStatuses=_cdocCustomStatuses.filter(function(cs){return cs.nome!==de;});
+    localStorage.setItem('sidertec_cdoc_custom_statuses', JSON.stringify(_cdocCustomStatuses));
+  }
+  db._statusPersonalizados=_cdocCustomStatuses;
+  var ov=document.getElementById('cdoc-mesclar-status-ov'); if(ov) ov.remove();
+  cdocRenderDet(); _cdocPopStatusFiltro(); _cdocPopStatusForm();
+  showToast('Mesclando e salvando na nuvem...', qtdGeral+' documento(s) e '+qtdFinal+' registro(s) de histórico atualizados de "'+de+'" para "'+para+'".', 'info');
+  Promise.resolve(_cdocSave(db)).then(function(resultado){
+    if(resultado && resultado.ok===false){
+      alert('⚠ A MESCLAGEM FOI FEITA, MAS AINDA NÃO FOI SALVA NA NUVEM\n\nMotivo: '+resultado.motivo+'\n\nOs dados ficaram no seu navegador e o sistema vai tentar salvar de novo automaticamente.');
+    } else {
+      showToast('Status mesclado e salvo na nuvem', qtdGeral+' documento(s) agora com "'+para+'".', 'success');
+    }
+  });
 }
 // ────────────────────────────────────────────────────────────────────
 function _fD2(v){ if(!v) return '—'; var p=v.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v; }
@@ -21452,6 +21643,10 @@ function cdocRenderDet(){
   if(slBtn){ slBtn.style.display=_cdocDetSel.size?'':'none'; if(slCnt) slCnt.textContent=_cdocDetSel.size; }
   var lrBtn=document.getElementById('cdd-btn-lista-resp'); var lrCnt=document.getElementById('cdd-lista-resp-count');
   if(lrBtn){ lrBtn.style.display=_cdocDetSel.size?'':'none'; if(lrCnt) lrCnt.textContent=_cdocDetSel.size; }
+  var pdfBtn=document.getElementById('cdd-btn-relatorio-pdf'); var pdfCnt=document.getElementById('cdd-relatorio-pdf-count');
+  if(pdfBtn){ pdfBtn.style.display=_cdocDetSel.size?'':'none'; if(pdfCnt) pdfCnt.textContent=_cdocDetSel.size; }
+  var xlsxBtn=document.getElementById('cdd-btn-relatorio-xlsx'); var xlsxCnt=document.getElementById('cdd-relatorio-xlsx-count');
+  if(xlsxBtn){ xlsxBtn.style.display=_cdocDetSel.size?'':'none'; if(xlsxCnt) xlsxCnt.textContent=_cdocDetSel.size; }
   // ── Botões ▲▼ Rev — ativam só com 1 selecionado ──
   var _dru=document.getElementById('cdd-btn-rev-up'); var _drd=document.getElementById('cdd-btn-rev-dn');
   if(_dru){_dru.disabled=_cdocDetSel.size!==1;_dru.style.opacity=_cdocDetSel.size===1?'1':'.45';}
@@ -21908,6 +22103,86 @@ function cdocBasSubChange(){
 function cdocNovoDet(){ if(!_siderRequireEdit()) return; _cdocMode='det'; _cdocEditId=null; _cdocAbrirFormDet(null); }
 function cdocEditDet(id){ var db=_cdocDb(); _cdocMode='det'; _cdocEditId=id; _cdocAbrirFormDet(db.detalhados.find(function(d){return d.id===id;})||null); }
 function cdocDelDet(id){ if(!_siderRequireEdit()) return; if(!confirm('Excluir este documento?')) return; var db=_cdocDb(); db.detalhados=db.detalhados.filter(function(d){return d.id!==id;}); db._deletedDetIds=(db._deletedDetIds||[]).concat([id]); _cdocSave(db); cdocRenderDet(); cdocRenderVisao(); }
+// ── Relatório Excel (.xlsx real) dos documentos selecionados ──
+function cdocRelatorioExcelSel(){
+  if(!_cdocDetSel||!_cdocDetSel.size){ showToast('Nenhum documento selecionado','Marque os documentos na tabela antes de gerar o relatório.','warn'); return; }
+  if(typeof XLSX==='undefined'){ alert('A biblioteca de Excel ainda está carregando. Aguarde alguns segundos e tente novamente.'); return; }
+  var db=_cdocDb();
+  var docs=db.detalhados.filter(function(d){return _cdocDetSel.has(d.id);});
+  var hdr=['Obra','TAG','Nº Sidertec','Nº Cliente','Título','Tipo','Descrição','Peça','Peso (kg)','Rev','Status Geral','Eng.Resp','Lib.Fab','Data Lib.Fab','Envio Cliente','Data Envio','Rev Enviada','Finalidade','GRD Envio','Prev. Retorno','Retorno Real','Status Final','Obs Envio'];
+  var aoa=[hdr];
+  docs.forEach(function(d){
+    var lf=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
+    var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
+    aoa.push([
+      d.obraId||'', d.sub||'', d.num||'', d.cli||'', d.titulo||'', d.tipo||'', d.desc||'', d.peca||'',
+      parseFloat(d.peso)||0, d.rev||'', d.statusGeral||'', d.engResp||'',
+      lf?lf.status:'', lf?lf.data:'',
+      eh?'Sim':'', eh?eh.data:'', eh?eh.rev:'', eh?eh.finalidade:'', eh?eh.grd:'',
+      eh?eh.prevRetorno:'', eh?eh.retornoReal:'', eh?eh.statusFinal:'', eh?eh.obs:''
+    ]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:20},{wch:10},{wch:14},{wch:16},{wch:26},{wch:16},{wch:22},{wch:10},{wch:11},{wch:6},{wch:20},{wch:16},{wch:10},{wch:11},{wch:10},{wch:11},{wch:9},{wch:16},{wch:12},{wch:12},{wch:12},{wch:16},{wch:24}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Proj. Detalhado');
+  var hoje=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'proj_detalhado_selecionados_'+hoje+'.xlsx');
+  showToast('Excel gerado', docs.length+' documento(s) exportado(s).', 'success');
+}
+// ── Relatório em PDF (via impressão do navegador) dos documentos selecionados ──
+function cdocRelatorioPdfSel(){
+  if(!_cdocDetSel||!_cdocDetSel.size){ showToast('Nenhum documento selecionado','Marque os documentos na tabela antes de gerar o relatório.','warn'); return; }
+  var db=_cdocDb();
+  var docs=db.detalhados.filter(function(d){return _cdocDetSel.has(d.id);});
+  var obraNome=(document.getElementById('cdd-f-obra')||{}).value||'';
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  var pesoTotal=docs.reduce(function(a,d){return a+(parseFloat(d.peso)||0);},0);
+  var fmtKg=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var fmtData=function(s){return s?s.split('-').reverse().join('/'):'—';};
+  var rowsHtml=docs.map(function(d,i){
+    var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
+    return '<tr>'
+      +'<td>'+(i+1)+'</td>'
+      +'<td>'+_esc(d.obraId||'')+'</td>'
+      +'<td>'+_esc(d.sub||'')+'</td>'
+      +'<td>'+_esc(d.num||'')+'</td>'
+      +'<td>'+_esc(d.cli||'')+'</td>'
+      +'<td>'+_esc(d.tipo||'')+'</td>'
+      +'<td style="font-size:9px;">'+_esc(d.titulo||d.desc||'')+'</td>'
+      +'<td>'+_cdocBadgeHtml(d.statusGeral)+'</td>'
+      +'<td>'+_esc(d.peca||'')+'</td>'
+      +'<td style="text-align:right;">'+(d.peso?fmtKg(parseFloat(d.peso)):'—')+'</td>'
+      +'<td>'+_esc(d.rev||'')+'</td>'
+      +'<td>'+_esc(eh&&eh.finalidade||'')+'</td>'
+      +'<td>'+_esc(eh&&eh.grd||'')+'</td>'
+      +'<td>'+(eh&&eh.data?fmtData(eh.data):'—')+'</td>'
+      +'<td>'+(eh&&eh.prevRetorno?fmtData(eh.prevRetorno):'—')+'</td>'
+      +'<td>'+_esc(eh&&eh.statusFinal||'')+'</td>'
+      +'</tr>';
+  }).join('');
+  var w=window.open('','_blank','width=1200,height=850');
+  if(!w){ alert('Permita popups para gerar o relatório em PDF.'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Documentos</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;font-size:11px;}'
+    +'h2{color:#0c4a6e;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 4px;}'
+    +'.resumo{display:flex;gap:18px;margin:10px 0 16px;}'
+    +'.resumo div{background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 14px;}'
+    +'.resumo b{display:block;font-size:15px;color:#0c4a6e;}'
+    +'table{width:100%;border-collapse:collapse;}thead th{background:#0c4a6e;color:#fff;padding:5px 6px;text-align:left;font-size:10px;position:sticky;top:0;}'
+    +'tbody td{padding:4px 6px;border-bottom:1px solid #e2e8f0;font-size:10px;}'
+    +'tbody tr:nth-child(even){background:#f8fafc;}'
+    +'.btn-print{margin-bottom:14px;background:#991b1b;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;}'
+    +'@media print{.btn-print{display:none;}}</style></head><body>'
+    +'<button class="btn-print" onclick="window.print()">🖨 Imprimir / Salvar como PDF</button>'
+    +'<h2>Relatório de Documentos — Proj. Detalhado</h2>'
+    +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS'+(obraNome?' &middot; Obra: '+_esc(obraNome):'')+' &middot; Gerado em '+hoje+'</p>'
+    +'<div class="resumo"><div><b>'+docs.length+'</b>Documento(s)</div><div><b>'+fmtKg(pesoTotal)+' kg</b>Peso total</div></div>'
+    +'<table><thead><tr><th style="width:22px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Tipo</th><th>Título/Descrição</th><th>Status</th><th>Peça</th><th style="text-align:right;">Peso (kg)</th><th>Rev</th><th>Finalidade</th><th>GRD</th><th>Data Envio</th><th>Prev. Retorno</th><th>Status Final</th></tr></thead>'
+    +'<tbody>'+rowsHtml+'</tbody></table>'
+    +'</body></html>');
+  w.document.close();
+}
 function cdocDelSelDet(){
   if(!_siderRequireEdit()) return;
   if(!_cdocDetSel.size){alert('Nenhum registro selecionado.');return;}
@@ -25864,11 +26139,17 @@ function cdocRenderDiario(){
   }).filter(function(d){ return inclui(d.data); }));
 
   // ── Seção 4: Prev. Retorno Vencida (sem retornoReal) ──
+  // CORRIGIDO: antes, esta seção tinha uma regra de data FIXA no código
+  // (só incluía se a prev. retorno já tivesse passado — "pr<hoje"), ignorando
+  // completamente o filtro de Período. Por isso, escolher "Todos" não trazia
+  // os documentos aguardando resposta que ainda não estão vencidos — só os
+  // 76 já atrasados continuavam aparecendo. Agora usa a mesma lógica de
+  // período (inclui()) que as outras seções, então "Todos" realmente traz
+  // TODOS os documentos aguardando resposta desse fluxo, vencidos ou não.
   var prevVencida=applyFiltros(db.detalhados.filter(function(d){
     var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
     if(!eh||!eh.prevRetorno||eh.retornoReal) return false;
-    var pr=parseData(eh.prevRetorno);
-    return pr && pr<hoje;
+    return inclui(eh.prevRetorno);
   }));
 
   // ── Seção 5: Aguardando Retorno / Aprovação / Certificação ──
@@ -26015,11 +26296,14 @@ function cdocRenderDiario(){
     _tituloExport='Fluxo com o Cliente';
     _exportRows=fluxoCliente.map(function(d){return _cdocLinhaExport(d,'Fluxo com o Cliente',_dataRefMap[d.id],_situacaoMap[d.id]);});
   } else {
+    var _tituloPrevVencida = _cdocDiarioPeriodo==='todos'
+      ? 'Aguardando Resposta do Cliente (todos — vencidos e a vencer)'
+      : 'Prev. Retorno Vencida — Aguardando Resposta';
     content.innerHTML=
       secaoHtml('Aguardando Emissão','#dc2626','&#128394;',emissao,dfEmissao,false)
       +secaoHtml('Aguardando Lib. para Fabricação','#d97706','&#128295;',libfab,dfLibfab,false)
       +secaoHtml('Aguardando Envio ao Cliente','#0369a1','&#128228;',envio,dfEnvio,false)
-      +secaoHtml('Prev. Retorno Vencida — Aguardando Resposta','#b45309','&#9888;',prevVencida,dfPrevVencida,true)
+      +secaoHtml(_tituloPrevVencida,'#b45309','&#9888;',prevVencida,dfPrevVencida,true)
       +secaoHtml('Aguardando Retorno / Aprovação / Certificação','#7c3aed','&#128336;',retorno,dfRetorno,true);
     _tituloExport='Diário de Documentos — Todas as Seções';
     _exportRows=[].concat(
@@ -26237,6 +26521,10 @@ function _cdocAtualizarBarraSelDet(){
   var slc=document.getElementById('cdd-status-lote-count'); if(slc) slc.textContent=_cdocDetSel.size;
   var lr=document.getElementById('cdd-btn-lista-resp'); if(lr) lr.style.display=_cdocDetSel.size?'':'none';
   var lrc=document.getElementById('cdd-lista-resp-count'); if(lrc) lrc.textContent=_cdocDetSel.size;
+  var pdf=document.getElementById('cdd-btn-relatorio-pdf'); if(pdf) pdf.style.display=_cdocDetSel.size?'':'none';
+  var pdfc=document.getElementById('cdd-relatorio-pdf-count'); if(pdfc) pdfc.textContent=_cdocDetSel.size;
+  var xlsx=document.getElementById('cdd-btn-relatorio-xlsx'); if(xlsx) xlsx.style.display=_cdocDetSel.size?'':'none';
+  var xlsxc=document.getElementById('cdd-relatorio-xlsx-count'); if(xlsxc) xlsxc.textContent=_cdocDetSel.size;
   var dru=document.getElementById('cdd-btn-rev-up'); if(dru){dru.disabled=_cdocDetSel.size!==1;dru.style.opacity=_cdocDetSel.size===1?'1':'.45';}
   var drd=document.getElementById('cdd-btn-rev-dn'); if(drd){drd.disabled=_cdocDetSel.size!==1;drd.style.opacity=_cdocDetSel.size===1?'1':'.45';}
 }
@@ -26293,6 +26581,59 @@ function _cdocDetClearSel(){
 
 /* ── Filtros de coluna (Excel-like) ── */
 var _cdocColFltCtx={tbl:null,col:null};
+// Retorna as linhas já filtradas pelos filtros "de topo" (Obra, Tipo, Status,
+// Descrição, etc.) de cada aba — usado para popular o popup de filtro de
+// coluna. CORRIGIDO: antes, o popup listava valores de TODOS os documentos
+// (de todas as obras), mesmo com a Obra já filtrada acima da tabela — por
+// isso apareciam TAGs de outras obras (ex.: S160B) ao filtrar só S178.
+function _cdocRowsParaFiltroColuna(tbl){
+  var db=_cdocDb();
+  if(tbl==='bas'){
+    var fObra=(document.getElementById('cdb-f-obra')||{}).value||'';
+    var fSub=(document.getElementById('cdb-f-sub')||{}).value||'';
+    var fSt=(document.getElementById('cdb-f-status')||{}).value||'';
+    var fTxt=((document.getElementById('cdb-f-txt')||{}).value||'').toLowerCase();
+    var fCli=((document.getElementById('cdb-f-cli')||{}).value||'').toLowerCase();
+    var fGrd=((document.getElementById('cdb-f-grd')||{}).value||'').toLowerCase();
+    var fProj=(document.getElementById('cdb-f-proj')||{}).value||'';
+    return (db.basicos||[]).filter(function(b){
+      if(fObra&&b.obraId!==fObra) return false;
+      if(fSub&&!_cdocSubMatch(b.sub||'',fSub)) return false;
+      if(fSt&&b.status!==fSt) return false;
+      if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
+      if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
+      if(fGrd&&!(b.remessaGRD||'').toLowerCase().includes(fGrd)) return false;
+      if(fProj){ var _ep=_cdocGetProj(b); if(_ep!==fProj) return false; }
+      return true;
+    });
+  }
+  if(tbl==='det'){
+    var fObra2=(document.getElementById('cdd-f-obra')||{}).value||'';
+    var fSub2=(document.getElementById('cdd-f-sub')||{}).value||'';
+    var fTipo=(document.getElementById('cdd-f-tipo')||{}).value||'';
+    var fDesc=(document.getElementById('cdd-f-desc')||{}).value||'';
+    var fSt2=(document.getElementById('cdd-f-status')||{}).value||'';
+    var fNum=((document.getElementById('cdd-f-num')||{}).value||'').toLowerCase();
+    var fCli2=((document.getElementById('cdd-f-cli')||{}).value||'').toLowerCase();
+    var fFin=(document.getElementById('cdd-f-finalidade')||{}).value||'';
+    var fGrd2=((document.getElementById('cdd-f-grd')||{}).value||'').toLowerCase();
+    var fSf=(document.getElementById('cdd-f-statusfinal')||{}).value||'';
+    return (db.detalhados||[]).filter(function(d){
+      if(fObra2&&d.obraId!==fObra2) return false;
+      if(fSub2&&!_cdocSubMatch(d.sub||'',fSub2)) return false;
+      if(fTipo&&(d.tipo||'').toLowerCase()!==fTipo.toLowerCase()) return false;
+      if(fDesc&&(d.desc||'').trim()!==fDesc) return false;
+      if(fSt2&&d.statusGeral!==fSt2) return false;
+      if(fNum&&!(d.num||'').toLowerCase().includes(fNum)&&!(d.cli||'').toLowerCase().includes(fNum)) return false;
+      if(fCli2&&!(d.cli||'').toLowerCase().includes(fCli2)) return false;
+      if(fFin){var _eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eh||!_cdocFinInfo(_eh.finalidade)||_cdocFinInfo(_eh.finalidade).label!==fFin) return false;}
+      if(fGrd2){var _eg=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eg||!(_eg.grd||'').toLowerCase().includes(fGrd2)) return false;}
+      if(fSf){var _esf=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_esf||(_esf.statusFinal||'')!==fSf) return false;}
+      return true;
+    });
+  }
+  return db.detalhados||[];
+}
 function _cdocShowColFlt(e,tbl,col){
   e.stopPropagation();
   var existing=document.getElementById('cdoc-col-flt-popup');
@@ -26302,7 +26643,18 @@ function _cdocShowColFlt(e,tbl,col){
   }
   _cdocColFltCtx={tbl:tbl,col:col};
   var db=_cdocDb();
-  var allRows=tbl==='bas'?db.basicos:db.detalhados;
+  // Começa das linhas já filtradas pelos filtros de topo (Obra, Tipo, etc.)
+  var allRows=_cdocRowsParaFiltroColuna(tbl);
+  // Aplica também os OUTROS filtros de coluna já ativos (exceto o desta
+  // própria coluna, senão você nunca conseguiria trocar a seleção dela).
+  var fltsAtuais=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
+  allRows=allRows.filter(function(r){
+    return Object.keys(fltsAtuais).every(function(c){
+      if(c===col) return true;
+      if(!fltsAtuais[c]||!fltsAtuais[c].size) return true;
+      return fltsAtuais[c].has((r[c]||'(vazio)').toString());
+    });
+  });
   var flts=tbl==='bas'?_cdocColFltsBas:(tbl==='dia'?_cdocColFltsDia:_cdocColFltsDet);
   var vals={};
   allRows.forEach(function(r){var v=(r[col]||'(vazio)').toString();vals[v]=(vals[v]||0)+1;});
