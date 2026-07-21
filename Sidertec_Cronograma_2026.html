@@ -1236,27 +1236,27 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
   </div>
 
   <!-- Import/Export Bar -->
-  <div id="cron-ie-bar" class="import-export-bar" style="padding:.3rem .65rem;margin-bottom:.4rem;gap:.35rem;">
-    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);">Import/Export:</span>
-    <label class="ie-btn csv" style="cursor:pointer;padding:3px 9px;font-size:10px;" title="Importar CSV">
-      ⬆ CSV
+  <div id="cron-ie-bar" class="cdoc-cmd-bar" style="padding:.4rem .65rem;margin-bottom:.4rem;background:#fff;border:1px solid var(--border);border-radius:6px;">
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-right:2px;">Import/Export:</span>
+    <label class="cdoc-cmdbtn" style="background:#d97706;" title="Importar CSV">
+      ⬆
       <input type="file" accept=".csv" style="display:none;" onchange="importarCSV(this)">
     </label>
-    <button class="ie-btn" onclick="toggleCsvGuide()" title="Ver colunas aceitas no CSV" style="background:var(--blue2);color:var(--blue);border-color:var(--blue);padding:3px 8px;font-size:10px;">📋 Guia</button>
-    <label class="ie-btn xls" style="cursor:pointer;padding:3px 9px;font-size:10px;" title="Importar Excel">
-      ⬆ Excel
+    <button class="cdoc-cmdbtn" onclick="toggleCsvGuide()" title="Ver colunas aceitas no CSV" style="background:#1e40af;">📋</button>
+    <label class="cdoc-cmdbtn" style="background:#0e7490;" title="Importar Excel">
+      ⬆
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarExcel(this)">
     </label>
-    <button class="ie-btn csv" onclick="exportarCSV()" style="padding:3px 9px;font-size:10px;">⬇ CSV</button>
-    <button class="ie-btn xls" onclick="exportarExcel()" style="padding:3px 9px;font-size:10px;">⬇ Excel</button>
-    <div class="fsep"></div>
-    <label class="ie-btn" style="cursor:pointer;padding:3px 9px;font-size:10px;background:#fff7ed;color:#c2410c;border-color:#ea580c;" title="Importar planilha de avanço de fabricação (Prep/Insp/Pint/Exped)">
-      ⬆ Avanço Fab.
+    <button class="cdoc-cmdbtn" onclick="exportarCSV()" title="Exportar CSV" style="background:#16a34a;">⬇</button>
+    <button class="cdoc-cmdbtn" onclick="exportarExcel()" title="Exportar Excel" style="background:#15803d;">⬇</button>
+    <div class="cdoc-cmd-sep-v"></div>
+    <label class="cdoc-cmdbtn" style="background:#c2410c;" title="Importar planilha de avanço de fabricação (Prep/Insp/Pint/Exped)">
+      ⬆
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarAvançoFabricacao(this)">
     </label>
-    <button class="ie-btn" onclick="downloadTemplateAvancoFab()" style="padding:3px 9px;font-size:10px;background:#fff7ed;color:#c2410c;border-color:#ea580c;" title="Baixar planilha modelo para preenchimento do Avanço Fab.">⬇ Template Fab.</button>
-    <div class="fsep"></div>
-    <button class="ie-btn" onclick="abrirRelatorioCron()" style="background:var(--purple2);color:var(--purple);border-color:var(--purple);padding:3px 9px;font-size:10px;">📊 Relatório</button>
+    <button class="cdoc-cmdbtn" onclick="downloadTemplateAvancoFab()" title="Baixar planilha modelo para preenchimento do Avanço Fab." style="background:#ea580c;">⬇</button>
+    <div class="cdoc-cmd-sep-v"></div>
+    <button class="cdoc-cmdbtn" onclick="abrirRelatorioCron()" title="Relatório" style="background:#7c3aed;">📊</button>
   </div>
 
   <!-- Guia de colunas CSV -->
@@ -1510,14 +1510,14 @@ ALTER TABLE medicao_terceiros
       <option value="kanban">Kanban</option>
     </select>
     <div class="fsep"></div>
-    <button class="btn btn-primary" onclick="abrirCronModal(null)" style="padding:3px 10px;font-size:11px;">+ Nova Sub-obra</button>
-    <button class="btn" onclick="gerarGridSelecionados()" id="btn-grid-selecionados" style="padding:3px 10px;font-size:11px;background:var(--purple2);color:var(--purple);border:1px solid var(--purple);display:none;">📊 Grid (<span id="sel-count">0</span>)</button>
-    <button class="btn" onclick="exportarCSVSelecionados()" id="btn-csv-selecionados" style="padding:3px 10px;font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-weight:700;display:none;">⬇ CSV (<span id="csv-sel-count">0</span>)</button>
-    <button class="btn" onclick="exportarPDFSelecionados()" id="btn-pdf-selecionados" style="padding:3px 10px;font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700;display:none;">🖨 PDF (<span id="pdf-sel-count">0</span>)</button>
-    <button class="btn" onclick="excluirSubobrasSelecionadas()" id="btn-excluir-selecionados" style="padding:3px 10px;font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;display:none;">🗑 Excluir (<span id="excluir-sel-count">0</span>)</button>
-    <button class="btn" onclick="abrirModalLote()" id="btn-lote-selecionados" style="padding:3px 10px;font-size:11px;background:var(--blue2);color:var(--blue);border:1px solid var(--blue);font-weight:700;display:none;">🔀 Alterar em Lote (<span id="lote-sel-count">0</span>)</button>
-    <button class="btn" onclick="abrirNovaObraGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">🏗 Nova Obra</button>
-    <button class="btn" onclick="abrirNovaEquipeGlobal('cronograma')" style="padding:3px 10px;font-size:11px;background:var(--bg2);color:var(--ink2);border:1px solid var(--border2);">👥 Equipe</button>
+    <button class="cdoc-cmdbtn" onclick="abrirCronModal(null)" title="+ Nova Sub-obra" style="background:#0369a1;">➕</button>
+    <button class="cdoc-cmdbtn" onclick="gerarGridSelecionados()" id="btn-grid-selecionados" title="Gerar Grid dos selecionados" style="display:none;background:#7c3aed;">📊<span class="badge" id="sel-count">0</span></button>
+    <button class="cdoc-cmdbtn" onclick="exportarCSVSelecionados()" id="btn-csv-selecionados" title="Exportar CSV dos selecionados" style="display:none;background:#16a34a;">⬇<span class="badge" id="csv-sel-count">0</span></button>
+    <button class="cdoc-cmdbtn" onclick="exportarPDFSelecionados()" id="btn-pdf-selecionados" title="Exportar PDF dos selecionados" style="display:none;background:#b45309;">🖨<span class="badge" id="pdf-sel-count">0</span></button>
+    <button class="cdoc-cmdbtn" onclick="excluirSubobrasSelecionadas()" id="btn-excluir-selecionados" title="Excluir selecionados" style="display:none;background:#dc2626;">🗑<span class="badge" id="excluir-sel-count">0</span></button>
+    <button class="cdoc-cmdbtn" onclick="abrirModalLote()" id="btn-lote-selecionados" title="Alterar em Lote" style="display:none;background:#1e40af;">🔀<span class="badge" id="lote-sel-count">0</span></button>
+    <button class="cdoc-cmdbtn" onclick="abrirNovaObraGlobal('cronograma')" title="Nova Obra" style="background:#475569;">🏗</button>
+    <button class="cdoc-cmdbtn" onclick="abrirNovaEquipeGlobal('cronograma')" title="Equipe" style="background:#64748b;">👥</button>
     <div class="fsep"></div>
     <label style="font-size:10px;">Lim. Fáb.:</label>
     <select id="cf-limite-fab" onchange="_renderCronogramaDebounced()" style="font-size:11px;padding:2px 4px;">
@@ -18788,12 +18788,24 @@ function cotExportarCSV(){
 #cdoc-pane-diario{display:none;flex-direction:column;}
 #cdoc-pane-diario.active{display:flex;}
 .cdoc-tabs{display:flex;border-bottom:2px solid #e2e8f0;background:#f8fafc;flex-shrink:0;}
-.cdoc-tab{padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:#64748b;transition:all .12s;}
+.cdoc-tab{padding:8px 22px;font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:#64748b;transition:all .12s;}
 .cdoc-tab.active{color:#0369a1;border-bottom-color:#0369a1;background:#fff;}
-.cdoc-pane{display:none;flex:1;overflow-y:auto;padding:.75rem 1rem;}
-.cdoc-pane.active{display:block;}
-.cdoc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:.45rem .75rem;margin-bottom:.65rem;}
-.cdoc-bar select,.cdoc-bar input{font-size:11px;padding:2px 7px;border:1px solid #cbd5e1;border-radius:4px;max-width:180px;}
+.cdoc-pane{display:none;flex:1;padding:.75rem 1rem;}
+.cdoc-pane.active{display:flex;flex-direction:column;}
+.cdoc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:.4rem .7rem;margin-bottom:.5rem;}
+.cdoc-bar select,.cdoc-bar input{font-size:12px;padding:4px 9px;border:1px solid #cbd5e1;border-radius:5px;max-width:180px;}
+/* ── Rail de comandos (ícones compactos) ── */
+.cdoc-cmd-rail{display:flex;flex-direction:column;gap:6px;position:sticky;top:0;align-self:flex-start;flex-shrink:0;padding-top:1px;}
+.cdoc-cmdbtn{width:38px;height:38px;border:none;border-radius:10px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 1px 3px rgba(15,23,42,.15);transition:transform .1s ease,box-shadow .1s ease,opacity .1s ease;color:#fff;padding:0;}
+.cdoc-cmdbtn:hover{transform:translateY(-1px) scale(1.05);box-shadow:0 4px 10px rgba(15,23,42,.22);}
+.cdoc-cmdbtn:active{transform:scale(.94);}
+.cdoc-cmdbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;transform:none;}
+.cdoc-cmdbtn .badge{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px #fff;line-height:1;}
+.cdoc-cmd-sep{height:1px;background:#e2e8f0;margin:1px 4px;}
+.cdoc-cmd-bar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;}
+.cdoc-cmd-sep-v{width:1px;height:26px;background:#e2e8f0;margin:0 2px;flex-shrink:0;}
+.cdoc-sticky-top{position:sticky;top:0;z-index:5;background:#fff;padding-top:2px;padding-bottom:.5rem;}
+.cdoc-sticky-head{position:sticky;top:0;z-index:6;background:#fff;}
 .cdoc-tbl{width:100%;border-collapse:collapse;font-size:13px;font-family:'Calibri',Arial,sans-serif;}
 .cdoc-tbl thead th{background:#d6e4f0;color:#1e293b;padding:6px 8px;text-align:left;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid #a8c4d8;position:sticky;top:0;z-index:2;user-select:none;}
 .cdoc-tbl thead th.r{text-align:right;}
@@ -18864,19 +18876,20 @@ function cotExportarCSV(){
       </div>
     </div>
     <div class="cron-mbody">
-      <div id="cdoc-alerta-prazo" style="display:none;margin:.3rem 0 0;">
-        <div id="cdoc-alerta-pill" onclick="cdocAlertaPrazoToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#fda4af,#fecdd3);border:1.5px solid #f43f5e;border-radius:20px;padding:.2rem .75rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os documentos em alerta">
-          <span style="font-size:13px;">🚨</span>
-          <span id="cdoc-alerta-pill-txt" style="font-size:11px;font-weight:700;color:#9f1239;white-space:nowrap;"></span>
-          <span id="cdoc-alerta-pill-chevron" style="font-size:10px;color:#9f1239;transition:transform .2s;">▼</span>
+      <div class="cdoc-sticky-head">
+      <div id="cdoc-alerta-prazo" style="display:none;margin:.15rem 0 0;">
+        <div id="cdoc-alerta-pill" onclick="cdocAlertaPrazoToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#fda4af,#fecdd3);border:1.5px solid #f43f5e;border-radius:20px;padding:.15rem .7rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os documentos em alerta">
+          <span style="font-size:12px;">🚨</span>
+          <span id="cdoc-alerta-pill-txt" style="font-size:10px;font-weight:700;color:#9f1239;white-space:nowrap;"></span>
+          <span id="cdoc-alerta-pill-chevron" style="font-size:9px;color:#9f1239;transition:transform .2s;">▼</span>
         </div>
-        <div id="cdoc-alerta-painel" style="display:none;margin-top:.3rem;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:8px;padding:.35rem .75rem;max-height:180px;overflow-y:auto;">
+        <div id="cdoc-alerta-painel" style="display:none;margin-top:.25rem;background:linear-gradient(90deg,#fff1f2,#ffe4e6);border:2px solid #f43f5e;border-radius:8px;padding:.3rem .7rem;max-height:160px;overflow-y:auto;">
           <div style="display:flex;align-items:flex-start;gap:.5rem;">
             <div style="flex:1;">
-              <div style="font-size:11px;font-weight:700;color:#9f1239;margin-bottom:.25rem;">ALERTA DE PRAZO — Retorno do cliente vencido, sem ação registrada</div>
-              <div id="cdoc-alerta-prazo-lista" style="font-size:10px;color:#be123c;"></div>
+              <div style="font-size:10px;font-weight:700;color:#9f1239;margin-bottom:.2rem;">ALERTA DE PRAZO — Retorno do cliente vencido, sem ação registrada</div>
+              <div id="cdoc-alerta-prazo-lista" style="font-size:9px;color:#be123c;"></div>
             </div>
-            <button onclick="cdocAlertaPrazoToggle()" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:10px;padding:1px 6px;cursor:pointer;flex-shrink:0;">▲ Recolher</button>
+            <button onclick="cdocAlertaPrazoToggle()" style="background:none;border:1px solid #f43f5e;border-radius:3px;color:#f43f5e;font-size:9px;padding:1px 6px;cursor:pointer;flex-shrink:0;">▲ Recolher</button>
           </div>
         </div>
       </div>
@@ -18887,12 +18900,13 @@ function cotExportarCSV(){
         <div class="cdoc-tab" onclick="cdocTab('diario')" style="color:#0e7490;">&#128197; Di&aacute;rio</div>
       </div>
       <!-- FILTRO GLOBAL DE OBRA -->
-      <div style="display:flex;align-items:center;gap:.6rem;padding:.45rem 1rem;background:#f0f9ff;border-bottom:2px solid #bae6fd;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.3rem 1rem;background:#f0f9ff;border-bottom:2px solid #bae6fd;flex-shrink:0;">
         <span style="font-size:10px;font-weight:700;color:#0369a1;white-space:nowrap;">&#127970; OBRA:</span>
-        <select id="cdoc-g-obra" onchange="cdocGlobalObraChange()" style="font-size:12px;font-weight:600;padding:4px 10px;border:1.5px solid #7dd3fc;border-radius:5px;min-width:260px;color:#0c4a6e;background:#fff;">
+        <select id="cdoc-g-obra" onchange="cdocGlobalObraChange()" style="font-size:12px;font-weight:600;padding:3px 9px;border:1.5px solid #7dd3fc;border-radius:5px;min-width:260px;color:#0c4a6e;background:#fff;">
           <option value="">&#8212; Todas as obras &#8212;</option>
         </select>
         <span id="cdoc-g-obra-info" style="font-size:10px;color:#0369a1;"></span>
+      </div>
       </div>
 
       <!-- VISÃO GERAL -->
@@ -18910,32 +18924,6 @@ function cotExportarCSV(){
 
       <!-- PROJETO BÁSICO -->
       <div class="cdoc-pane" id="cdoc-pane-basico">
-        <div class="cdoc-bar">
-          <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
-          <select id="cdb-f-obra" onchange="_cdocSyncGlobalFromTab('cdb-f-obra');cdocRenderBas()"><option value="">Todas obras</option></select>
-          <input id="cdb-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderBasDebounced()" style="max-width:150px;">
-          <select id="cdb-f-status" onchange="_cdocRenderBasDebounced()">
-            <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
-          </select>
-          <input id="cdb-f-txt" placeholder="Buscar..." oninput="_cdocRenderBasDebounced()" style="max-width:130px;">
-          <input id="cdb-f-grd" placeholder="GRD..." oninput="_cdocRenderBasDebounced()" style="max-width:90px;">
-          <select id="cdb-f-proj" onchange="_cdocRenderBasDebounced()" style="max-width:130px;"><option value="">Todos projetistas</option></select>
-          <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="_cdocRenderBasDebounced()" style="max-width:130px;" maxlength="10">
-          <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
-          <div style="margin-left:auto;display:flex;gap:.4rem;">
-            <button onclick="cdocNovoBas()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
-            <button onclick="cdocExportBas()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CSV</button>
-            <button onclick="cdocExportBasSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
-            <button onclick="document.getElementById('cdoc-import-bas').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV">&#8593; CSV</button>
-            <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
-            <button id="cdb-btn-rev-up" onclick="cdocBumpRev('bas',1)" title="Subir revisão do item selecionado (selecione 1 linha)" style="background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;opacity:.45;" disabled>▲ Rev</button>
-            <button id="cdb-btn-rev-dn" onclick="cdocBumpRev('bas',-1)" title="Descer revisão do item selecionado (selecione 1 linha)" style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;opacity:.45;" disabled>▼ Rev</button>
-            <button onclick="cdocEmitirGrdBas()" id="cdb-btn-grd" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Emitir GRD de Remessa para selecionados">📋 GRD</button>
-            <button onclick="cdocAbrirGrdsBas()" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Ver GRDs emitidas">📄 GRDs</button>
-            <button onclick="cdocRelBas()" style="background:#0f172a;color:#e2e8f0;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Relatório de Projetos Básicos">📊 Relatório</button>
-          </div>
-        </div>
-        <div id="cdb-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
         <script>function _cdocPainelToggle(){
   var p=document.getElementById('cdb-peso-painel'); if(!p) return;
   var t=p.querySelector('#cdb-peso-tags');
@@ -18970,9 +18958,41 @@ function _cdocPainelToggleDet(){
     localStorage.setItem('_cdocPesoPainelCollapsedDet','1');
   }
 }</script>
-        <div id="cdb-resumo" style="margin-bottom:.6rem;"></div>
-        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;">🗑 Excluir selecionados (<span id="cdb-del-count">0</span>)</button><button onclick="_cdocBasClearSel()" style="margin-left:6px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;">Limpar seleção</button></div>
-        <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
+        <div class="cdoc-sticky-top">
+          <div class="cdoc-bar">
+            <span style="font-size:12px;font-weight:700;color:#64748b;">FILTROS:</span>
+            <select id="cdb-f-obra" onchange="_cdocSyncGlobalFromTab('cdb-f-obra');cdocRenderBas()"><option value="">Todas obras</option></select>
+            <input id="cdb-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderBasDebounced()" style="max-width:150px;">
+            <select id="cdb-f-status" onchange="_cdocRenderBasDebounced()">
+              <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
+            </select>
+            <input id="cdb-f-txt" placeholder="Buscar..." oninput="_cdocRenderBasDebounced()" style="max-width:130px;">
+            <input id="cdb-f-grd" placeholder="GRD..." oninput="_cdocRenderBasDebounced()" style="max-width:90px;">
+            <select id="cdb-f-proj" onchange="_cdocRenderBasDebounced()" style="max-width:130px;"><option value="">Todos projetistas</option></select>
+            <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="_cdocRenderBasDebounced()" style="max-width:130px;" maxlength="10">
+            <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;">✕ Limpar filtros</button>
+          </div>
+          <div class="cdoc-cmd-bar" style="margin-top:.5rem;">
+            <button onclick="cdocNovoBas()" title="+ Novo projeto básico" class="cdoc-cmdbtn" style="background:#0369a1;">➕</button>
+            <button onclick="cdocExportBas()" title="Exportar CSV (tudo)" class="cdoc-cmdbtn" style="background:#16a34a;">⬇</button>
+            <button onclick="cdocExportBasSel()" title="Exportar CSV (apenas selecionados)" class="cdoc-cmdbtn" style="background:#059669;">✓</button>
+            <button onclick="document.getElementById('cdoc-import-bas').click()" title="Importar CSV" class="cdoc-cmdbtn" style="background:#d97706;">⬆</button>
+            <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
+            <div class="cdoc-cmd-sep-v"></div>
+            <button id="cdb-btn-rev-up" onclick="cdocBumpRev('bas',1)" title="Subir revisão do item selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
+            <button id="cdb-btn-rev-dn" onclick="cdocBumpRev('bas',-1)" title="Descer revisão do item selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
+            <button onclick="cdocEmitirGrdBas()" id="cdb-btn-grd" title="Emitir GRD de Remessa para selecionados" class="cdoc-cmdbtn" style="background:#7c3aed;">📋</button>
+            <button onclick="cdocAbrirGrdsBas()" title="Ver GRDs emitidas" class="cdoc-cmdbtn" style="background:#5b21b6;">📁</button>
+            <button onclick="cdocRelBas()" title="Relatório de Projetos Básicos" class="cdoc-cmdbtn" style="background:#0f172a;">📊</button>
+            <div class="cdoc-cmd-sep-v"></div>
+            <button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" title="Excluir selecionados" class="cdoc-cmdbtn" style="display:none;background:#dc2626;">🗑<span class="badge" id="cdb-del-count">0</span></button>
+            <button onclick="_cdocBasClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
+          </div>
+          <div id="cdb-peso-painel" style="display:none;margin-top:.5rem;"></div>
+          <div id="cdb-resumo" style="margin-top:.5rem;"></div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span></div>
+        </div>
+        <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 260px);margin-top:.5rem;">
           <table class="cdoc-tbl">
             <thead><tr>
               <th style="width:28px;text-align:center;"><input type="checkbox" id="cdb-chk-all" onchange="_cdocBasSelAll(this)" style="cursor:pointer;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','obraId')">&#9660;</button><button class="th-srt" id="cdb-srt-obraId" onclick="_cdocSort(event,'bas','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','sub')">&#9660;</button><button class="th-srt" id="cdb-srt-sub" onclick="_cdocSort(event,'bas','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','cli')">&#9660;</button><button class="th-srt" id="cdb-srt-cli" onclick="_cdocSort(event,'bas','cli')">&#8693;</button></div></th><th style="min-width:200px;"><div class="th-inner">Título<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','titulo')">&#9660;</button><button class="th-srt" id="cdb-srt-titulo" onclick="_cdocSort(event,'bas','titulo')">&#8693;</button></div></th><th style="min-width:140px;"><div class="th-inner">Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','descbas')">&#9660;</button><button class="th-srt" id="cdb-srt-descbas" onclick="_cdocSort(event,'bas','descbas')">&#8693;</button></div></th><th class="r">Peso (kg)</th><th><div class="th-inner">Área<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','area')">&#9660;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','status')">&#9660;</button></div></th><th><div class="th-inner">3D<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','m3d')">&#9660;</button></div></th><th><div class="th-inner">Diag.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','diag')">&#9660;</button></div></th><th><div class="th-inner">Projetista<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','proj')">&#9660;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','rev')">&#9660;</button></div></th><th><div class="th-inner">Data<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','data')">&#9660;</button></div></th><th style="min-width:90px;"><div class="th-inner">GRD Remessa<button class="th-flt" onclick="_cdocShowColFlt(event,'bas','remessaGRD')">&#9660;</button></div></th><th style="width:54px;"></th>
@@ -18984,51 +19004,65 @@ function _cdocPainelToggleDet(){
 
       <!-- PROJETO DETALHADO -->
       <div class="cdoc-pane" id="cdoc-pane-detalhado">
-        <div class="cdoc-bar">
-          <span style="font-size:10px;font-weight:700;color:#64748b;">FILTROS:</span>
-          <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
-          <input id="cdd-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderDetDebounced()" style="max-width:150px;">
-          <select id="cdd-f-tipo" onchange="_cdocRenderDetDebounced()">
-            <option value="">Todos tipos</option>
-          </select>
-          <select id="cdd-f-desc" onchange="_cdocRenderDetDebounced()">
-            <option value="">Todas descrições</option>
-          </select>
-          <select id="cdd-f-status" onchange="_cdocRenderDetDebounced()">
-            <option value="">Todos status</option>
-          </select>
-          <input id="cdd-f-num" placeholder="Nº Sidertec..." oninput="_cdocRenderDetDebounced()" style="max-width:110px;">
-          <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="_cdocRenderDetDebounced()" style="max-width:100px;">
-          <select id="cdd-f-finalidade" onchange="_cdocRenderDetDebounced()">
-            <option value="">Toda finalidade</option>
-            <option>Para Aprovação</option>
-            <option>Para Certificação</option>
-            <option>Para Informação</option>
-          </select>
-          <input id="cdd-f-grd" placeholder="GRD nº..." oninput="_cdocRenderDetDebounced()" style="max-width:90px;">
-          <select id="cdd-f-statusfinal" onchange="_cdocRenderDetDebounced()">
-            <option value="">Status Final</option>
-            <option>APROVADO</option>
-            <option>COM COMENTÁRIOS</option>
-            <option>CERTIFICADO</option>
-            <option>REPROVADO</option>
-          </select>
-          <button onclick="cdocLimparDet()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">✕</button>
-          <div style="margin-left:auto;display:flex;gap:.4rem;">
-            <button id="cdd-btn-rev-up" onclick="cdocBumpRev('det',1)" title="Subir revisão do documento selecionado (selecione 1 linha)" style="background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;opacity:.45;" disabled>▲ Rev</button>
-            <button id="cdd-btn-rev-dn" onclick="cdocBumpRev('det',-1)" title="Descer revisão do documento selecionado (selecione 1 linha)" style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;opacity:.45;" disabled>▼ Rev</button>
-            <button onclick="if(_cdocDetSel.size)cdocEmitirGrd();else alert('Selecione os documentos na tabela e clique em Emitir GRD na barra inferior.');" id="cdd-btn-grd" title="Selecione linhas e clique em Emitir GRD na barra inferior" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#128203; Emitir GRD</button><button onclick="cdocAbrirGrds()" style="background:#1e40af;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;">&#128196; GRDs Emitidas</button>
-            <button onclick="if(_cdocDetSel.size)cdocAbrirStatusLote();else alert('Marque os documentos na coluna de seleção da tabela (1ª coluna) e clique aqui para alterar Status/Status Final de todos de uma vez.');" id="cdd-btn-status-lote-top" title="Selecione linhas na tabela (marque os checkboxes) e altere Status/Status Final de todas de uma vez" style="background:#b45309;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;">&#128209; Status em Lote</button>
-            <button onclick="cdocNovoDet()" style="background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Novo</button>
-            <button onclick="cdocExportDet()" style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CSV</button>
-            <button onclick="cdocExportDetSel()" title="Exportar apenas linhas selecionadas" style="background:#bbf7d0;color:#14532d;border:1px solid #6ee7b7;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#10003; CSV</button>
-            <button onclick="document.getElementById('cdoc-import-det').click()" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Importar CSV">&#8593; CSV</button>
-            <input type="file" id="cdoc-import-det" accept=".csv" style="display:none" onchange="cdocImportDet(this)">
+        <div class="cdoc-sticky-top">
+          <div class="cdoc-bar">
+            <span style="font-size:12px;font-weight:700;color:#64748b;">FILTROS:</span>
+            <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
+            <input id="cdd-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderDetDebounced()" style="max-width:150px;">
+            <select id="cdd-f-tipo" onchange="_cdocRenderDetDebounced()">
+              <option value="">Todos tipos</option>
+            </select>
+            <select id="cdd-f-desc" onchange="_cdocRenderDetDebounced()">
+              <option value="">Todas descrições</option>
+            </select>
+            <select id="cdd-f-status" onchange="_cdocRenderDetDebounced()">
+              <option value="">Todos status</option>
+            </select>
+            <input id="cdd-f-num" placeholder="Nº Sidertec..." oninput="_cdocRenderDetDebounced()" style="max-width:110px;">
+            <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="_cdocRenderDetDebounced()" style="max-width:100px;">
+            <select id="cdd-f-finalidade" onchange="_cdocRenderDetDebounced()">
+              <option value="">Toda finalidade</option>
+              <option>Para Aprovação</option>
+              <option>Para Certificação</option>
+              <option>Para Informação</option>
+            </select>
+            <input id="cdd-f-grd" placeholder="GRD nº..." oninput="_cdocRenderDetDebounced()" style="max-width:90px;">
+            <select id="cdd-f-statusfinal" onchange="_cdocRenderDetDebounced()">
+              <option value="">Status Final</option>
+              <option>APROVADO</option>
+              <option>COM COMENTÁRIOS</option>
+              <option>CERTIFICADO</option>
+              <option>REPROVADO</option>
+            </select>
+            <button onclick="cdocLimparDet()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;">✕ Limpar filtros</button>
           </div>
+          <div class="cdoc-cmd-bar" style="margin-top:.5rem;">
+            <button id="cdd-btn-rev-up" onclick="cdocBumpRev('det',1)" title="Subir revisão do documento selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
+            <button id="cdd-btn-rev-dn" onclick="cdocBumpRev('det',-1)" title="Descer revisão do documento selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
+            <button onclick="if(_cdocDetSel.size)cdocEmitirGrd();else alert('Selecione os documentos na tabela e clique em Emitir GRD na barra inferior.');" id="cdd-btn-grd" title="Emitir GRD — selecione linhas na tabela" class="cdoc-cmdbtn" style="background:#7c3aed;">📋</button>
+            <button onclick="cdocAbrirGrds()" title="GRDs Emitidas" class="cdoc-cmdbtn" style="background:#1e40af;">📁</button>
+            <button onclick="if(_cdocDetSel.size)cdocAbrirStatusLote();else alert('Marque os documentos na coluna de seleção da tabela (1ª coluna) e clique aqui para alterar Status/Status Final de todos de uma vez.');" id="cdd-btn-status-lote-top" title="Status em Lote — marque documentos na tabela" class="cdoc-cmdbtn" style="background:#b45309;">📝</button>
+            <div class="cdoc-cmd-sep-v"></div>
+            <button onclick="cdocNovoDet()" title="+ Novo documento" class="cdoc-cmdbtn" style="background:#0369a1;">➕</button>
+            <button onclick="cdocExportDet()" title="Exportar CSV (tudo)" class="cdoc-cmdbtn" style="background:#16a34a;">⬇</button>
+            <button onclick="cdocExportDetSel()" title="Exportar CSV (apenas selecionados)" class="cdoc-cmdbtn" style="background:#059669;">✓</button>
+            <button onclick="document.getElementById('cdoc-import-det').click()" title="Importar CSV" class="cdoc-cmdbtn" style="background:#d97706;">⬆</button>
+            <input type="file" id="cdoc-import-det" accept=".csv" style="display:none" onchange="cdocImportDet(this)">
+            <div id="cdd-cmds-sel" style="display:contents;">
+              <div class="cdoc-cmd-sep-v"></div>
+              <button id="cdd-btn-grd-emit" onclick="cdocEmitirGrd()" title="Emitir GRD dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#6d28d9;">📑</button>
+              <button id="cdd-btn-status-lote" onclick="cdocAbrirStatusLote()" title="Status em lote dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#b45309;">📝<span class="badge" id="cdd-status-lote-count">0</span></button>
+              <button id="cdd-btn-lista-resp" onclick="cdocImprimirListaResponsavel()" title="Lista p/ Responsável — lista simples agrupada por Eng. Responsável, para imprimir/PDF" class="cdoc-cmdbtn" style="display:none;background:#0e7490;">🖨<span class="badge" id="cdd-lista-resp-count">0</span></button>
+              <button id="cdd-btn-relatorio-pdf" onclick="cdocRelatorioPdfSel()" title="Relatório PDF dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#991b1b;">📄<span class="badge" id="cdd-relatorio-pdf-count">0</span></button>
+              <button id="cdd-btn-relatorio-xlsx" onclick="cdocRelatorioExcelSel()" title="Relatório Excel dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#15803d;">📊<span class="badge" id="cdd-relatorio-xlsx-count">0</span></button>
+              <button id="cdd-btn-del-sel" onclick="cdocDelSelDet()" title="Excluir selecionados" class="cdoc-cmdbtn" style="display:none;background:#dc2626;">🗑<span class="badge" id="cdd-del-count">0</span></button>
+            </div>
+            <button onclick="_cdocDetClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
+          </div>
+          <div id="cdd-peso-painel" style="display:none;margin-top:.5rem;"></div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdd-info"></span><span id="cdd-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdd-peso-sel" style="font-weight:700;color:#7c3aed;"></span></div>
         </div>
-        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdd-info"></span><span id="cdd-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdd-peso-sel" style="font-weight:700;color:#7c3aed;"></span><button id="cdd-btn-grd-emit" onclick="cdocEmitirGrd()" style="display:none;background:#5b21b6;color:#fff;border:none;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;">📋 Emitir GRD selecionados</button><button id="cdd-btn-status-lote" onclick="cdocAbrirStatusLote()" style="display:none;background:#b45309;color:#fff;border:none;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;margin-left:6px;">📝 Status em lote (<span id="cdd-status-lote-count">0</span>)</button><button id="cdd-btn-lista-resp" onclick="cdocImprimirListaResponsavel()" title="Gera uma lista simples (para imprimir/PDF/print) com os documentos selecionados, agrupados por Eng. Responsável — útil para enviar a alguém olhar e identificar" style="display:none;background:#0e7490;color:#fff;border:none;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;margin-left:6px;">🖨 Lista p/ Responsável (<span id="cdd-lista-resp-count">0</span>)</button><button id="cdd-btn-relatorio-pdf" onclick="cdocRelatorioPdfSel()" title="Abre um relatório completo dos documentos selecionados, pronto para gerar PDF (Ctrl+P → Salvar como PDF)" style="display:none;background:#991b1b;color:#fff;border:none;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;margin-left:6px;">📄 Relatório PDF (<span id="cdd-relatorio-pdf-count">0</span>)</button><button id="cdd-btn-relatorio-xlsx" onclick="cdocRelatorioExcelSel()" title="Baixa uma planilha Excel (.xlsx) com todas as colunas dos documentos selecionados" style="display:none;background:#15803d;color:#fff;border:none;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;margin-left:6px;">📊 Relatório Excel (<span id="cdd-relatorio-xlsx-count">0</span>)</button><button id="cdd-btn-del-sel" onclick="cdocDelSelDet()" style="display:none;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:700;margin-left:6px;">🗑 Excluir selecionados (<span id="cdd-del-count">0</span>)</button><button onclick="_cdocDetClearSel()" style="margin-left:6px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;">Limpar seleção</button></div>
-        <div id="cdd-peso-painel" style="display:none;margin-bottom:.5rem;"></div>
-        <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 280px);">
+        <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 260px);margin-top:.5rem;">
           <table class="cdoc-tbl">
             <thead><tr>
               <th style="width:28px;text-align:center;"><input type="checkbox" id="cdd-chk-all" onchange="_cdocDetSelAll(this)" style="cursor:pointer;"></th><th id="cdd-th-chk" style="width:24px;display:none;"></th><th><div class="th-inner">Obra<button class="th-flt" onclick="_cdocShowColFlt(event,'det','obraId')">&#9660;</button><button class="th-srt" id="cdd-srt-obraId" onclick="_cdocSort(event,'det','obraId')">&#8693;</button></div></th><th><div class="th-inner">TAG<button class="th-flt" onclick="_cdocShowColFlt(event,'det','sub')">&#9660;</button><button class="th-srt" id="cdd-srt-sub" onclick="_cdocSort(event,'det','sub')">&#8693;</button></div></th><th><div class="th-inner">Nº Cliente<button class="th-flt" onclick="_cdocShowColFlt(event,'det','cli')">&#9660;</button><button class="th-srt" id="cdd-srt-cli" onclick="_cdocSort(event,'det','cli')">&#8693;</button></div></th><th><div class="th-inner">Nº Sidertec<button class="th-flt" onclick="_cdocShowColFlt(event,'det','num')">&#9660;</button><button class="th-srt" id="cdd-srt-num" onclick="_cdocSort(event,'det','num')">&#8693;</button></div></th><th><div class="th-inner">Tipo<button class="th-flt" onclick="_cdocShowColFlt(event,'det','tipo')">&#9660;</button><button class="th-srt" id="cdd-srt-tipo" onclick="_cdocSort(event,'det','tipo')">&#8693;</button></div></th><th style="min-width:180px;"><div class="th-inner">Título<button class="th-flt" onclick="_cdocShowColFlt(event,'det','titulo')">&#9660;</button><button class="th-srt" id="cdd-srt-titulo" onclick="_cdocSort(event,'det','titulo')">&#8693;</button></div></th><th style="min-width:150px;"><div class="th-inner">Descrição<button class="th-flt" onclick="_cdocShowColFlt(event,'det','desc')">&#9660;</button><button class="th-srt" id="cdd-srt-desc" onclick="_cdocSort(event,'det','desc')">&#8693;</button></div></th><th><div class="th-inner">Status<button class="th-flt" onclick="_cdocShowColFlt(event,'det','statusGeral')">&#9660;</button><button class="th-srt" id="cdd-srt-statusGeral" onclick="_cdocSort(event,'det','statusGeral')">&#8693;</button></div></th><th><div class="th-inner">Peça<button class="th-flt" onclick="_cdocShowColFlt(event,'det','peca')">&#9660;</button><button class="th-srt" id="cdd-srt-peca" onclick="_cdocSort(event,'det','peca')">&#8693;</button></div></th><th class="r"><div class="th-inner">Peso<button class="th-srt" id="cdd-srt-peso" onclick="_cdocSort(event,'det','peso')">&#8693;</button></div></th><th><div class="th-inner">Rev.<button class="th-flt" onclick="_cdocShowColFlt(event,'det','rev')">&#9660;</button><button class="th-srt" id="cdd-srt-rev" onclick="_cdocSort(event,'det','rev')">&#8693;</button></div></th><th><div class="th-inner">Lib. Fab.<button class="th-srt" id="cdd-srt-libData" onclick="_cdocSort(event,'det','libData')">&#8693;</button></div></th><th>Envio Cli.</th><th style="font-size:9px;white-space:nowrap;">Finalidade</th><th style="font-size:9px;white-space:nowrap;"><div class="th-inner">Prev. Ret.<button class="th-srt" id="cdd-srt-prevRetorno" onclick="_cdocSort(event,'det','prevRetorno')">&#8693;</button></div></th><th style="font-size:9px;white-space:nowrap;"><div class="th-inner">Ret. Real<button class="th-srt" id="cdd-srt-retornoReal" onclick="_cdocSort(event,'det','retornoReal')">&#8693;</button></div></th><th style="font-size:9px;white-space:nowrap;">Status Final</th><th><div class="th-inner">Eng.<button class="th-flt" onclick="_cdocShowColFlt(event,'det','engResp')">&#9660;</button><button class="th-srt" id="cdd-srt-engResp" onclick="_cdocSort(event,'det','engResp')">&#8693;</button></div></th><th style="width:54px;"></th>
@@ -20402,6 +20436,11 @@ function cdocTab(t){
   document.querySelectorAll('.cdoc-tab').forEach(function(el,i){el.classList.toggle('active',['visao','basico','detalhado','diario'][i]===t);});
   document.querySelectorAll('.cdoc-pane').forEach(function(el){el.classList.remove('active');});
   var p=document.getElementById('cdoc-pane-'+t); if(p) p.classList.add('active');
+  // Reseta a rolagem ao trocar de aba — sem isso, a posição de scroll da aba
+  // anterior "vaza" para a nova aba e os elementos fixos (sticky) parecem
+  // fora de lugar/quebrados até o usuário rolar manualmente.
+  var mbody=p?p.closest('.cron-mbody'):null;
+  if(mbody) mbody.scrollTop=0;
   if(t==='visao') cdocRenderVisao();
   else if(t==='basico') cdocRenderBas();
   else if(t==='detalhado') cdocRenderDet();
@@ -21247,33 +21286,33 @@ function cdocRenderBas(){
     var _tagsDisplayStyle = _painelWasCollapsed ? 'display:none;' : 'display:flex;';
     var _toggleLabel = _painelWasCollapsed ? '▼ Expandir pesos por TAG' : '▲ Recolher';
     var _chevron = _painelWasCollapsed ? '▼' : '▲';
-    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;overflow:hidden;">'
-      +'<div onclick="_cdocPainelToggle()" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;cursor:pointer;user-select:none;" title="Clique para expandir / recolher os pesos por TAG">'
+    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:1.5px solid #0369a1;border-radius:7px;overflow:hidden;">'
+      +'<div onclick="_cdocPainelToggle()" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 12px;cursor:pointer;user-select:none;" title="Clique para expandir / recolher os pesos por TAG">'
       +(function(){
         var totalTags=tagKeys.length;
         var selTagsSet=new Set();
         rows.filter(function(b){return _cdocBasSel.has(b.id);}).forEach(function(b){if(b.sub) selTagsSet.add(b.sub);});
         var selTagCnt=selTagsSet.size;
-        var wB='<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:7px;padding:8px 20px;min-width:120px;">'
-          +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
-          +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalFmtB+'</span>'
-          +'<span style="font-size:11px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.filter(function(b){return !b._virtual;}).length+' doc(s)</span>'
+        var wB='<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:6px;padding:5px 14px;min-width:100px;">'
+          +'<span style="font-size:9px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
+          +'<span style="font-size:16px;font-weight:900;line-height:1.2;">'+totalFmtB+'</span>'
+          +'<span style="font-size:10px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.filter(function(b){return !b._virtual;}).length+' doc(s)</span>'
           +'</div>';
-        var tB='<div style="display:flex;flex-direction:column;align-items:center;background:#0c4a6e;color:#fff;border-radius:7px;padding:8px 20px;min-width:100px;">'
-          +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">🏷 TAGs FILTRADAS</span>'
-          +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalTags+'</span>'
-          +'<span style="font-size:11px;font-weight:600;opacity:.8;">total</span>'
+        var tB='<div style="display:flex;flex-direction:column;align-items:center;background:#0c4a6e;color:#fff;border-radius:6px;padding:5px 14px;min-width:85px;">'
+          +'<span style="font-size:9px;font-weight:700;letter-spacing:.04em;opacity:.85;">🏷 TAGs FILTRADAS</span>'
+          +'<span style="font-size:16px;font-weight:900;line-height:1.2;">'+totalTags+'</span>'
+          +'<span style="font-size:10px;font-weight:600;opacity:.8;">total</span>'
           +'</div>';
-        var sB=selTagCnt?'<div style="display:flex;flex-direction:column;align-items:center;background:#166534;color:#fff;border-radius:7px;padding:8px 20px;min-width:100px;">'
-          +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">✔ TAGs SELECION.</span>'
-          +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+selTagCnt+'</span>'
-          +'<span style="font-size:11px;font-weight:600;opacity:.8;">de '+totalTags+'</span>'
+        var sB=selTagCnt?'<div style="display:flex;flex-direction:column;align-items:center;background:#166534;color:#fff;border-radius:6px;padding:5px 14px;min-width:85px;">'
+          +'<span style="font-size:9px;font-weight:700;letter-spacing:.04em;opacity:.85;">✔ TAGs SELECION.</span>'
+          +'<span style="font-size:16px;font-weight:900;line-height:1.2;">'+selTagCnt+'</span>'
+          +'<span style="font-size:10px;font-weight:600;opacity:.8;">de '+totalTags+'</span>'
           +'</div>':'';
         return wB+tB+sB;
       })()
       +'<span id="cdb-peso-toggle" style="margin-left:auto;background:#0369a1;border:none;border-radius:5px;color:#fff;font-size:10px;font-weight:700;padding:4px 10px;cursor:pointer;white-space:nowrap;pointer-events:none;">'+_toggleLabel+'</span>'
       +'</div>'
-      +(tagCards?'<div id="cdb-peso-tags" style="'+_tagsDisplayStyle+'gap:8px;flex-wrap:wrap;align-items:center;padding:0 16px 12px;">'+tagCards+'</div>':'')
+      +(tagCards?'<div id="cdb-peso-tags" style="'+_tagsDisplayStyle+'gap:8px;flex-wrap:wrap;align-items:center;padding:0 12px 8px;">'+tagCards+'</div>':'')
       +'</div>';
   })();
   // ── Resumo por TAG ──
@@ -21622,16 +21661,16 @@ function cdocRenderDet(){
     painel.dataset.collapsed = _painelWasCollapsedD ? '1' : '0';
     var _tagsDisplayStyleD = _painelWasCollapsedD ? 'display:none;' : 'display:flex;';
     var _toggleLabelD = _painelWasCollapsedD ? '▼ Expandir pesos por TAG' : '▲ Recolher';
-    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:2px solid #0369a1;border-radius:8px;overflow:hidden;">'
-      +'<div onclick="_cdocPainelToggleDet()" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;cursor:pointer;user-select:none;" title="Clique para expandir / recolher os pesos por TAG">'
-      +'<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:7px;padding:8px 20px;min-width:120px;">'
-      +'<span style="font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
-      +'<span style="font-size:22px;font-weight:900;line-height:1.2;">'+totalFmt+'</span>'
-      +'<span style="font-size:11px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.length+' doc(s)</span>'
+    painel.innerHTML='<div style="background:linear-gradient(135deg,#e0f2fe,#f0f9ff);border:1.5px solid #0369a1;border-radius:7px;overflow:hidden;">'
+      +'<div onclick="_cdocPainelToggleDet()" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 12px;cursor:pointer;user-select:none;" title="Clique para expandir / recolher os pesos por TAG">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;background:#0369a1;color:#fff;border-radius:6px;padding:5px 14px;min-width:100px;">'
+      +'<span style="font-size:9px;font-weight:700;letter-spacing:.04em;opacity:.85;">⚖ PESO TOTAL FILTRADO</span>'
+      +'<span style="font-size:16px;font-weight:900;line-height:1.2;">'+totalFmt+'</span>'
+      +'<span style="font-size:10px;font-weight:600;opacity:.8;">kg &nbsp;·&nbsp; '+rows.length+' doc(s)</span>'
       +'</div>'
       +'<span id="cdd-peso-toggle" style="margin-left:auto;background:#0369a1;border:none;border-radius:5px;color:#fff;font-size:10px;font-weight:700;padding:4px 10px;cursor:pointer;white-space:nowrap;pointer-events:none;">'+_toggleLabelD+'</span>'
       +'</div>'
-      +(subCards?'<div id="cdd-peso-tags" style="'+_tagsDisplayStyleD+'gap:8px;flex-wrap:wrap;align-items:center;padding:0 16px 12px;">'+subCards+'</div>':'')
+      +(subCards?'<div id="cdd-peso-tags" style="'+_tagsDisplayStyleD+'gap:8px;flex-wrap:wrap;align-items:center;padding:0 12px 8px;">'+subCards+'</div>':'')
       +'</div>';
   })();
   var ddelBtn=document.getElementById('cdd-btn-del-sel'); var ddelCnt=document.getElementById('cdd-del-count');
