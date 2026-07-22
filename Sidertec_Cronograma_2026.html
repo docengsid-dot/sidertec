@@ -18876,6 +18876,7 @@ function cotExportarCSV(){
         <button onclick="_cdocDedupEnvios()" title="Remove entradas duplicadas no histórico de envio (mesma revisão + GRD)" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Limpar Duplicatas</button>
         <button onclick="_cdocRepararGrds()" title="Reconstrói a lista de GRDs Emitidas a partir do histórico de envio dos documentos (corrige GRDs que não aparecem na lista)" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Reparar GRDs</button>
         <button onclick="_cdocAbrirMesclarStatus()" title="Une dois status que na verdade são o mesmo (ex.: 'FLUXO COM CLIENTE' e 'FLUXO COM O CLIENTE' criados por pessoas diferentes) em um só, em todos os documentos" style="background:#9333ea;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔀 Mesclar Status Duplicado</button>
+        <button onclick="_cdocCorrigirLiberadoSemData()" title="Corrige documentos que ficaram com 'Liberado' na Liberação para Fabricação (ou 'Concluído' no Envio ao Cliente) sem nenhuma data preenchida — reverte para 'Pendente'" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Liberado sem Data</button>
       </div>
     </div>
     <div class="cron-mbody">
@@ -22431,13 +22432,16 @@ function _cdocAbrirFormDet(rec){
     +'<select id="cef-en-status-final" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;"><option value="">Status Final...</option><option>APROVADO</option><option>COM COMENTÁRIOS</option><option>CERTIFICADO</option><option>REPROVADO</option></select>'
     +'<input id="cef-en-obs" placeholder="Obs." style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<button id="cef-en-add-btn" type="button" onclick="cdocAddEnvioHist()" style="padding:6px 14px;font-size:13px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:5px;cursor:pointer;white-space:nowrap;">+ Reg.</button>'
-    +'</div>';
+    +'</div>'
+    +'<div class="cdoc-sec" style="margin-top:.75rem;">Obs. Geral <span style="font-weight:400;color:#94a3b8;font-size:10px;text-transform:none;">— registre aqui algo importante sobre esta obra/documento</span></div>'
+    +'<textarea id="cef-obs-geral" rows="2" placeholder="Observação geral..." style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:5px;resize:vertical;font-family:inherit;"></textarea>';
   if(rec){
     var ss=function(id,val){var e=document.getElementById(id);if(e&&val!=null)e.value=val;};
     ss('cef-obra',rec.obraId); ss('cef-sub',rec.sub); ss('cef-tipo',rec.tipo);
     // Popula o select de status (built-in + custom) antes de setar o valor
     _cdocPopStatusForm();
     ss('cef-sg',rec.statusGeral||'');
+    ss('cef-obs-geral',rec.obsGeral||'');
   } else {
     _cdocPopStatusForm();
   }
@@ -23562,6 +23566,31 @@ function _cdocSyncGrdFromEnvio(doc, envio){
 // Reconstrói db._grds a partir do histórico de envio de TODOS os documentos —
 // corrige GRDs que ficaram registradas apenas no histórico do documento (texto
 // livre) e nunca geraram (ou perderam) o registro formal usado por "GRDs Emitidas".
+function _cdocCorrigirLiberadoSemData(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  var corrLf=0, corrEn=0, docsAfetados=0;
+  (db.detalhados||[]).forEach(function(doc){
+    var afetouEsteDoc=false;
+    (doc.libfabHist||[]).forEach(function(h){
+      if(h.status==='Liberado' && !h.data){ h.status='Pendente'; corrLf++; afetouEsteDoc=true; }
+    });
+    (doc.envioHist||[]).forEach(function(h){
+      if(h.status==='Concluído' && !h.data){ h.status='Pendente'; corrEn++; afetouEsteDoc=true; }
+    });
+    if(afetouEsteDoc) docsAfetados++;
+  });
+  if(!corrLf && !corrEn){
+    showToast('Nada a corrigir', 'Não há registros de Liberação para Fabricação ou Envio ao Cliente marcados como concluídos sem uma data preenchida.', 'info');
+    return;
+  }
+  if(!confirm('Foram encontrados '+corrLf+' registro(s) de Liberação para Fabricação e '+corrEn+' registro(s) de Envio ao Cliente marcados como concluídos, mas SEM DATA preenchida (provavelmente causados pela importação de CSV com a coluna de status vazia).\n\nEsses '+(corrLf+corrEn)+' registro(s), em '+docsAfetados+' documento(s), serão revertidos para "Pendente".\n\nConfirmar a correção?')){
+    return;
+  }
+  _cdocSave(db);
+  cdocRenderDet();
+  showToast('Correção concluída', corrLf+' registro(s) de Lib. Fab. e '+corrEn+' de Envio revertidos para Pendente, em '+docsAfetados+' documento(s).', 'success');
+}
 function _cdocRepararGrds(){
   if(!_siderRequireEdit()) return;
   var db=_cdocDb();
@@ -25535,7 +25564,7 @@ function cdocSalvar(){
         var sgEl=document.getElementById('cef-sg'); if(sgEl) sgEl.value='EMITIDO';
       }
     }
-    var rec2={id:_cdocEditId||_cdocGenId(db,'det'),obraId:obra2,sub:sub2,num:num,cli:g('cef-cli'),tipo:g('cef-tipo'),engResp:g('cef-eng'),titulo:g('cef-titulo-det'),desc:g('cef-desc'),peca:g('cef-peca'),peso:g('cef-peso')||null,rev:g('cef-rev'),statusGeral:sgFinal,data:g('cef-data'),libfabHist:((_oldRec2&&_oldRec2.libfabHist)||[]).concat(_cdocPendingLibfab||[]),envioHist:((_oldRec2&&_oldRec2.envioHist)||[]).concat(_cdocPendingEnvio||[])};
+    var rec2={id:_cdocEditId||_cdocGenId(db,'det'),obraId:obra2,sub:sub2,num:num,cli:g('cef-cli'),tipo:g('cef-tipo'),engResp:g('cef-eng'),titulo:g('cef-titulo-det'),desc:g('cef-desc'),peca:g('cef-peca'),peso:g('cef-peso')||null,rev:g('cef-rev'),statusGeral:sgFinal,data:g('cef-data'),obsGeral:g('cef-obs-geral')||'',libfabHist:((_oldRec2&&_oldRec2.libfabHist)||[]).concat(_cdocPendingLibfab||[]),envioHist:((_oldRec2&&_oldRec2.envioHist)||[]).concat(_cdocPendingEnvio||[])};
     // Remove duplicatas no envioHist: mesma GRD + data + finalidade = mesmo registro
     rec2.envioHist=(function(hist){
       var seen=new Set();
@@ -26008,7 +26037,13 @@ function cdocImportDet(input){
       var temColEn = enStP||enDtP||enRevP||enFinP||enGrdP||enPrevRetP||enRetRealP||enSfinalP||enObsP;
       function _lfEntry(){
         var o={};
-        if(lfStP) o.status = lfSt||'Liberado';
+        // CORRIGIDO: quando a coluna de status vinha vazia no CSV, o sistema
+        // preenchia sozinho com 'Liberado' — fazendo documentos recém-cadastrados
+        // aparecerem como liberados para fabricação sem ninguém ter marcado isso.
+        // Agora só assume 'Liberado' quando há uma DATA de liberação preenchida
+        // (mesma regra usada no cadastro manual); sem data e sem status, fica
+        // 'Pendente' — a liberação precisa ser marcada manualmente.
+        if(lfStP) o.status = lfSt||(lfDt?'Liberado':'Pendente');
         if(lfDtP) o.data = lfDt;
         if(lfGrdP) o.grd = lfGrd;
         if(lfObsP) o.obs = lfObs;
@@ -26016,7 +26051,8 @@ function cdocImportDet(input){
       }
       function _enEntry(){
         var o={};
-        if(enStP) o.status = enSt||'Concluído';
+        // Mesma correção acima, para o histórico de envio ao cliente.
+        if(enStP) o.status = enSt||(enDt?'Concluído':'Pendente');
         if(enRevP) o.rev = enRev;
         if(enFinP) o.finalidade = enFin;
         if(enDtP) o.data = enDt;
