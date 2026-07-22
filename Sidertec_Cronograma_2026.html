@@ -18959,6 +18959,11 @@ function _cdocPainelToggleDet(){
   }
 }</script>
         <div class="cdoc-sticky-top">
+          <div onclick="_cdocToggleFiltros('bas')" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:2px 4px;margin-bottom:2px;">
+            <span id="cdb-filtros-chevron" style="font-size:10px;color:#64748b;transition:transform .15s;">▼</span>
+            <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;">Filtros e Comandos</span>
+          </div>
+          <div id="cdb-filtros-wrap">
           <div class="cdoc-bar">
             <span style="font-size:12px;font-weight:700;color:#64748b;">FILTROS:</span>
             <select id="cdb-f-obra" onchange="_cdocSyncGlobalFromTab('cdb-f-obra');cdocRenderBas()"><option value="">Todas obras</option></select>
@@ -18988,6 +18993,7 @@ function _cdocPainelToggleDet(){
             <button id="cdb-btn-del-sel" onclick="cdocDelSelBas()" title="Excluir selecionados" class="cdoc-cmdbtn" style="display:none;background:#dc2626;">🗑<span class="badge" id="cdb-del-count">0</span></button>
             <button onclick="_cdocBasClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
           </div>
+          </div>
           <div id="cdb-peso-painel" style="display:none;margin-top:.5rem;"></div>
           <div id="cdb-resumo" style="margin-top:.5rem;"></div>
           <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span></div>
@@ -19005,6 +19011,11 @@ function _cdocPainelToggleDet(){
       <!-- PROJETO DETALHADO -->
       <div class="cdoc-pane" id="cdoc-pane-detalhado">
         <div class="cdoc-sticky-top">
+          <div onclick="_cdocToggleFiltros('det')" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:2px 4px;margin-bottom:2px;">
+            <span id="cdd-filtros-chevron" style="font-size:10px;color:#64748b;transition:transform .15s;">▼</span>
+            <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;">Filtros e Comandos</span>
+          </div>
+          <div id="cdd-filtros-wrap">
           <div class="cdoc-bar">
             <span style="font-size:12px;font-weight:700;color:#64748b;">FILTROS:</span>
             <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
@@ -19058,6 +19069,7 @@ function _cdocPainelToggleDet(){
               <button id="cdd-btn-del-sel" onclick="cdocDelSelDet()" title="Excluir selecionados" class="cdoc-cmdbtn" style="display:none;background:#dc2626;">🗑<span class="badge" id="cdd-del-count">0</span></button>
             </div>
             <button onclick="_cdocDetClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
+          </div>
           </div>
           <div id="cdd-peso-painel" style="display:none;margin-top:.5rem;"></div>
           <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdd-info"></span><span id="cdd-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdd-peso-sel" style="font-weight:700;color:#7c3aed;"></span></div>
@@ -20432,6 +20444,31 @@ function _cdocSyncGlobalFromTab(srcId){
   });
   _cdocGlobalObraInfo();
 }
+// Expande/recolhe a seção de Filtros + Comandos (Básico/Detalhado), com preferência salva
+function _cdocToggleFiltros(tab){
+  var wrapId = tab==='bas' ? 'cdb-filtros-wrap' : 'cdd-filtros-wrap';
+  var chevId = tab==='bas' ? 'cdb-filtros-chevron' : 'cdd-filtros-chevron';
+  var wrap=document.getElementById(wrapId); var chev=document.getElementById(chevId);
+  if(!wrap) return;
+  var collapsed = wrap.style.display==='none';
+  wrap.style.display = collapsed ? '' : 'none';
+  if(chev) chev.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+  try{ localStorage.setItem('_cdoc_filtros_collapsed_'+tab, collapsed?'0':'1'); }catch(e){}
+}
+// Restaura a preferência de recolhido/expandido salva anteriormente
+function _cdocRestaurarFiltrosState(){
+  ['bas','det'].forEach(function(tab){
+    var wasCollapsed=false;
+    try{ wasCollapsed = localStorage.getItem('_cdoc_filtros_collapsed_'+tab)==='1'; }catch(e){}
+    if(!wasCollapsed) return;
+    var wrapId = tab==='bas' ? 'cdb-filtros-wrap' : 'cdd-filtros-wrap';
+    var chevId = tab==='bas' ? 'cdb-filtros-chevron' : 'cdd-filtros-chevron';
+    var wrap=document.getElementById(wrapId); var chev=document.getElementById(chevId);
+    if(wrap) wrap.style.display='none';
+    if(chev) chev.style.transform='rotate(-90deg)';
+  });
+}
+document.addEventListener('DOMContentLoaded', function(){ setTimeout(_cdocRestaurarFiltrosState, 300); });
 function cdocTab(t){
   document.querySelectorAll('.cdoc-tab').forEach(function(el,i){el.classList.toggle('active',['visao','basico','detalhado','diario'][i]===t);});
   document.querySelectorAll('.cdoc-pane').forEach(function(el){el.classList.remove('active');});
