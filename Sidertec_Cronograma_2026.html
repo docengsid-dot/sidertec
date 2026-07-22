@@ -635,11 +635,11 @@ canvas{overflow:visible!important;}
 .cron-modal-overlay.show{opacity:1;pointer-events:all;}
 .cron-modal-box{background:#fff;border-radius:var(--r);width:1300px;max-width:100%;box-shadow:var(--shadow2);transform:translateY(-16px);transition:transform .2s;}
 .cron-modal-overlay.show .cron-modal-box{transform:translateY(0);}
-.cron-mhd{background:var(--ink);border-radius:var(--r) var(--r) 0 0;padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;}
+.cron-mhd{background:var(--ink);border-radius:var(--r) var(--r) 0 0;padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .cron-mhd-title{font-family:'Georgia',serif,serif;font-size:17px;color:#fff;flex:1;}
 .cron-mhd-sub{font-size:16px;color:rgba(255,255,255,.45);}
-.cron-mbody{padding:1.25rem;max-height:85vh;overflow-y:auto;}
-.cron-mfooter{padding:.9rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.6rem;}
+.cron-mbody{padding:1.25rem;max-height:85vh;overflow-y:auto;flex:1;min-height:0;}
+.cron-mfooter{padding:.9rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-shrink:0;}
 
 /* ── ETAPA GRID — TABELA DE DESTAQUE ─────────────────────────────── */
 .cron-etapas-table-wrap{overflow-x:auto;border-radius:var(--r);border:2px solid var(--blue);box-shadow:0 4px 18px rgba(26,74,122,.13);margin-bottom:.75rem;}
@@ -18795,19 +18795,19 @@ function cotExportarCSV(){
 .cdoc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:.4rem .7rem;margin-bottom:.5rem;}
 .cdoc-bar select,.cdoc-bar input{font-size:12px;padding:4px 9px;border:1px solid #cbd5e1;border-radius:5px;max-width:180px;}
 /* ── Rail de comandos (ícones compactos) ── */
-.cdoc-cmd-rail{display:flex;flex-direction:column;gap:6px;position:sticky;top:0;align-self:flex-start;flex-shrink:0;padding-top:1px;}
-.cdoc-cmdbtn{width:38px;height:38px;border:none;border-radius:10px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 1px 3px rgba(15,23,42,.15);transition:transform .1s ease,box-shadow .1s ease,opacity .1s ease;color:#fff;padding:0;}
+.cdoc-cmd-rail{display:flex;flex-direction:column;gap:5px;position:sticky;top:0;align-self:flex-start;flex-shrink:0;padding-top:1px;}
+.cdoc-cmdbtn{width:30px;height:30px;border:none;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 1px 3px rgba(15,23,42,.15);transition:transform .1s ease,box-shadow .1s ease,opacity .1s ease;color:#fff;padding:0;}
 .cdoc-cmdbtn:hover{transform:translateY(-1px) scale(1.05);box-shadow:0 4px 10px rgba(15,23,42,.22);}
 .cdoc-cmdbtn:active{transform:scale(.94);}
 .cdoc-cmdbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;transform:none;}
-.cdoc-cmdbtn .badge{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px #fff;line-height:1;}
+.cdoc-cmdbtn .badge{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:8px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 2px;box-shadow:0 0 0 2px #fff;line-height:1;}
 .cdoc-cmd-sep{height:1px;background:#e2e8f0;margin:1px 4px;}
 .cdoc-multi-item{display:flex;align-items:center;gap:6px;padding:4px 12px;font-size:12px;color:#334155;cursor:pointer;white-space:nowrap;}
 .cdoc-multi-item:hover{background:#f0f9ff;}
 .cdoc-multi-item input{cursor:pointer;flex-shrink:0;}
-.cdoc-cmd-bar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;}
-.cdoc-cmd-sep-v{width:1px;height:26px;background:#e2e8f0;margin:0 2px;flex-shrink:0;}
-.cdoc-sticky-top{position:sticky;top:0;z-index:5;background:#fff;padding-top:2px;padding-bottom:.5rem;}
+.cdoc-cmd-bar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px;}
+.cdoc-cmd-sep-v{width:1px;height:20px;background:#e2e8f0;margin:0 1px;flex-shrink:0;}
+.cdoc-sticky-top{position:sticky;top:0;z-index:5;background:#fff;padding-top:1px;padding-bottom:.3rem;}
 .cdoc-sticky-head{position:sticky;top:0;z-index:6;background:#fff;}
 .cdoc-tbl{width:100%;border-collapse:collapse;font-size:13px;font-family:'Calibri',Arial,sans-serif;}
 .cdoc-tbl thead th{background:#d6e4f0;color:#1e293b;padding:6px 8px;text-align:left;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid #a8c4d8;position:sticky;top:0;z-index:2;user-select:none;}
@@ -18980,7 +18980,7 @@ function _cdocPainelToggleDet(){
             <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="_cdocRenderBasDebounced()" style="max-width:130px;" maxlength="10">
             <button onclick="cdocLimparBas()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;">✕ Limpar filtros</button>
           </div>
-          <div class="cdoc-cmd-bar" style="margin-top:.5rem;">
+          <div class="cdoc-cmd-bar" style="margin-top:.3rem;">
             <button onclick="cdocNovoBas()" title="+ Novo projeto básico" class="cdoc-cmdbtn" style="background:#0369a1;">➕</button>
             <button onclick="cdocExportBas()" title="Exportar CSV (tudo)" class="cdoc-cmdbtn" style="background:#16a34a;">⬇</button>
             <button onclick="cdocExportBasSel()" title="Exportar CSV (apenas selecionados)" class="cdoc-cmdbtn" style="background:#059669;">✓</button>
@@ -18997,9 +18997,9 @@ function _cdocPainelToggleDet(){
             <button onclick="_cdocBasClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
           </div>
           </div>
-          <div id="cdb-peso-painel" style="display:none;margin-top:.5rem;"></div>
-          <div id="cdb-resumo" style="margin-top:.5rem;"></div>
-          <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdb-info"></span><span id="cdb-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdb-peso-sel" style="font-weight:700;color:#7c3aed;"></span></div>
+          <div id="cdb-peso-painel" style="display:none;margin-top:.4rem;"></div>
+          <div id="cdb-resumo" style="margin-top:.4rem;"></div>
+          <div style="font-size:12px;color:#7c3aed;font-weight:700;"><span id="cdb-info" style="display:none;"></span><span id="cdb-peso-total" style="display:none;"></span><span id="cdb-peso-sel"></span></div>
         </div>
         <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 260px);margin-top:.5rem;">
           <table class="cdoc-tbl">
@@ -19034,6 +19034,9 @@ function _cdocPainelToggleDet(){
                   <span onclick="event.stopPropagation();_cdocMultiClear('cdd-f-tipo',_cdocRenderDetDebounced)" style="font-size:9px;color:#0369a1;cursor:pointer;font-weight:600;">Limpar</span>
                 </div>
                 <div id="cdd-f-tipo-items"></div>
+                <div style="padding:.35rem .65rem 0;border-top:1px solid #e2e8f0;margin-top:.3rem;">
+                  <button onclick="event.stopPropagation();_cdocMultiToggleDropdown('cdd-f-tipo')" style="width:100%;background:#0369a1;color:#fff;border:none;border-radius:5px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;">✓ OK</button>
+                </div>
               </div>
             </div>
             <div class="cdoc-multi-wrap" style="position:relative;">
@@ -19047,6 +19050,9 @@ function _cdocPainelToggleDet(){
                   <span onclick="event.stopPropagation();_cdocMultiClear('cdd-f-desc',_cdocRenderDetDebounced)" style="font-size:9px;color:#0369a1;cursor:pointer;font-weight:600;">Limpar</span>
                 </div>
                 <div id="cdd-f-desc-items"></div>
+                <div style="padding:.35rem .65rem 0;border-top:1px solid #e2e8f0;margin-top:.3rem;">
+                  <button onclick="event.stopPropagation();_cdocMultiToggleDropdown('cdd-f-desc')" style="width:100%;background:#0369a1;color:#fff;border:none;border-radius:5px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;">✓ OK</button>
+                </div>
               </div>
             </div>
             <select id="cdd-f-status" onchange="_cdocRenderDetDebounced()">
@@ -19070,7 +19076,7 @@ function _cdocPainelToggleDet(){
             </select>
             <button onclick="cdocLimparDet()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;">✕ Limpar filtros</button>
           </div>
-          <div class="cdoc-cmd-bar" style="margin-top:.5rem;">
+          <div class="cdoc-cmd-bar" style="margin-top:.3rem;">
             <button id="cdd-btn-rev-up" onclick="cdocBumpRev('det',1)" title="Subir revisão do documento selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
             <button id="cdd-btn-rev-dn" onclick="cdocBumpRev('det',-1)" title="Descer revisão do documento selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
             <button onclick="if(_cdocDetSel.size)cdocEmitirGrd();else alert('Selecione os documentos na tabela e clique em Emitir GRD na barra inferior.');" id="cdd-btn-grd" title="Emitir GRD — selecione linhas na tabela" class="cdoc-cmdbtn" style="background:#7c3aed;">📋</button>
@@ -19094,8 +19100,8 @@ function _cdocPainelToggleDet(){
             <button onclick="_cdocDetClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
           </div>
           </div>
-          <div id="cdd-peso-painel" style="display:none;margin-top:.5rem;"></div>
-          <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;font-size:13px;color:#64748b;flex-wrap:wrap;"><span id="cdd-info"></span><span id="cdd-peso-total" style="font-weight:700;color:#0369a1;"></span><span id="cdd-peso-sel" style="font-weight:700;color:#7c3aed;"></span></div>
+          <div id="cdd-peso-painel" style="display:none;margin-top:.4rem;"></div>
+          <div style="font-size:12px;color:#7c3aed;font-weight:700;"><span id="cdd-info" style="display:none;"></span><span id="cdd-peso-total" style="display:none;"></span><span id="cdd-peso-sel"></span></div>
         </div>
         <div class="xl-table-wrap" style="border:1.5px solid #bae6fd;border-radius:6px;max-height:calc(100vh - 260px);margin-top:.5rem;">
           <table class="cdoc-tbl">
@@ -19850,7 +19856,7 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
        !diffDet.upserts.length && !diffDet.deletes.length &&
        !diffGrd.upserts.length && !diffGrd.deletes.length && !metaMudou){
       // Nada realmente mudou em relação ao último save confirmado — nada a fazer.
-      _cdocSBCache = snapshot;
+      // NÃO tocar em _cdocSBCache aqui — ver explicação detalhada abaixo.
       try{ localStorage.setItem('sider_ctrldoc_pending','0'); }catch(e){}
       return {ok:true};
     }
@@ -19864,8 +19870,22 @@ async function _cdocSaveWithRetry(snapshot, tentativa){
       _cdocMetaVersion = await _cdocSBPushMeta(metaSnapshot, _cdocMetaVersion);
     }
 
-    // ── Atualiza cache e baseline para o próximo diff ──────────────
-    _cdocSBCache = snapshot;
+    // ── Atualiza baseline para o próximo diff ──────────────
+    // CORRIGIDO (bug grave de reversão de dados): esta função é assíncrona —
+    // entre o momento em que "snapshot" foi clonado (no início de _cdocSave)
+    // e o momento em que a gravação na nuvem termina, o usuário pode ter
+    // continuado editando (ex.: Status em Lote seguido, poucos segundos
+    // depois, de um registro individual de retorno em outro documento).
+    // Essa edição mais nova já está no objeto "db" ao vivo (mesma referência
+    // usada por _cdocDb() em toda a tela), mas NÃO está dentro deste
+    // "snapshot" antigo. Antes, a linha abaixo fazia "_cdocSBCache=snapshot",
+    // TROCANDO o objeto ao vivo (com a edição mais nova) por este clone
+    // desatualizado — apagando silenciosamente da tela/cache qualquer coisa
+    // editada nesse intervalo, até o próximo save (em fila) terminar. Se a
+    // aba fosse fechada nesse meio-tempo, a edição mais nova nunca chegava a
+    // ser salva de fato. _cdocSBCache não precisa ser tocado aqui: ele já
+    // aponta para o objeto "db" ao vivo desde o início de _cdocSave(), e
+    // continua sendo mutado diretamente por todas as telas.
     _cdocLastSnapshot = _cdocCloneDb(snapshot);
     try{ localStorage.setItem('sider_ctrldoc',JSON.stringify(snapshot)); }catch(e){}
     _cdocIdbSet(snapshot).catch(function(){});
@@ -22442,7 +22462,7 @@ function _cdocLibfabHistHtml(rec){
     +h.map(function(r,i){return '<tr style="border-top:1px solid #e2e8f0;">'
       +'<td style="padding:2px 6px;">'+_cdocBadgeHtml(r.status)+'</td>'
       +'<td style="padding:2px 6px;font-family:Courier New,monospace;">'+_fD2(r.data||'')+'</td>'
-      +'<td style="padding:2px 6px;font-family:Courier New,monospace;color:#7c3aed;font-weight:700;">'+_esc(r.grd||'&#8212;')+'</td>'
+      +'<td style="padding:2px 6px;font-family:Courier New,monospace;color:#7c3aed;font-weight:700;">'+(r.grd?_esc(r.grd):'—')+'</td>'
       +'<td style="padding:2px 6px;color:#64748b;font-size:9px;">'+_esc(r.obs||'')+'</td>'
       +'<td><button type="button" onclick="cdocDelLibfabHist('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;padding:0 2px;">&#10005;</button></td>'
       +'</tr>';}).join('')+'</tbody></table></div>';
@@ -22572,10 +22592,19 @@ function cdocAddEnvioHist(){
     var sg=document.getElementById('cef-sg');
     if(sg && (sg.value===''||sg.value==='EMITIDO'||sg.value==='EM EMISSÃO')) sg.value='ENVIADO AO CLIENTE';
   }
+  // CORRIGIDO: este bloco sobrescrevia o status geral SEM NENHUMA verificação
+  // do valor atual, toda vez que Retorno Real + Status Final eram preenchidos
+  // juntos — apagando qualquer status definido manualmente antes (ex.: 'FLUXO
+  // COM CLIENTE' via Status em Lote). Mesma família de bug já corrigida em
+  // cdocEmitirGrd(), na confirmação de envio de GRD, em _cdocAutoStatusEnvio()
+  // e no bloco acima — agora só avança automaticamente se o status atual
+  // ainda estiver num estado "em trânsito" (vazio/EMITIDO/EM EMISSÃO/ENVIADO
+  // AO CLIENTE), nunca sobre um status definido manualmente depois disso.
   if(retornoReal&&statusFinal){
     var sg2=document.getElementById('cef-sg');
     var sfMap={'APROVADO':'APROVADO','CERTIFICADO':'CERTIFICADO','COM COMENTÁRIOS':'EM REVISÃO','REPROVADO':'EM REVISÃO'};
-    if(sg2&&sfMap[statusFinal]) sg2.value=sfMap[statusFinal];
+    var _estadosEmTransito=['','EMITIDO','EM EMISSÃO','ENVIADO AO CLIENTE'];
+    if(sg2&&sfMap[statusFinal]&&_estadosEmTransito.indexOf(sg2.value)!==-1) sg2.value=sfMap[statusFinal];
   }
   var entry={rev:rev,data:data,finalidade:finalidade,grd:grd,prevRetorno:prevRetorno,retornoReal:retornoReal,statusFinal:statusFinal,obs:obs,status:envioStatus};
   _cdocPendingEnvio=_cdocPendingEnvio||[];
@@ -26589,7 +26618,10 @@ function _cdocApplyColFlts(rows,tbl){
   var flts=tbl==='bas'?_cdocColFltsBas:_cdocColFltsDet;
   return rows.filter(function(r){
     return Object.keys(flts).every(function(col){
-      if(!flts[col]||!flts[col].size) return true;
+      // Presença da chave = filtro ativo nessa coluna (mesmo que o conjunto
+      // esteja vazio, o que significa "nenhum valor selecionado ainda" —
+      // ausência da chave = sem filtro nenhum nessa coluna (mostra tudo).
+      if(!flts[col]) return true;
       return flts[col].has((r[col]||'(vazio)').toString());
     });
   });
@@ -26795,7 +26827,7 @@ function _cdocShowColFlt(e,tbl,col){
   allRows=allRows.filter(function(r){
     return Object.keys(fltsAtuais).every(function(c){
       if(c===col) return true;
-      if(!fltsAtuais[c]||!fltsAtuais[c].size) return true;
+      if(!fltsAtuais[c]) return true;
       return fltsAtuais[c].has((r[c]||'(vazio)').toString());
     });
   });
@@ -26803,6 +26835,7 @@ function _cdocShowColFlt(e,tbl,col){
   var vals={};
   allRows.forEach(function(r){var v=(r[col]||'(vazio)').toString();vals[v]=(vals[v]||0)+1;});
   var sorted=Object.keys(vals).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+  var _fltAtivo = col in flts; // chave presente = há filtro nesta coluna (mesmo vazio)
   var curFlt=flts[col]||new Set();
   var popup=document.createElement('div');
   popup.id='cdoc-col-flt-popup';
@@ -26818,7 +26851,7 @@ function _cdocShowColFlt(e,tbl,col){
     +'</div>';
   var list='<div id="cdoc-flt-list" style="overflow-y:auto;flex:1;">';
   sorted.forEach(function(v){
-    var chk=curFlt.size===0||curFlt.has(v);
+    var chk=!_fltAtivo||curFlt.has(v);
     list+='<label class="cdoc-flt-item" style="display:flex;align-items:center;gap:6px;padding:3px 2px;cursor:pointer;white-space:nowrap;">'
       +'<input type="checkbox" '+(chk?'checked':'')+' onchange="_cdocFltToggle(\''+tbl+'\',\''+col+'\',this.value,this.checked)" value="'+v.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" style="cursor:pointer;">'
       +'<span>'+_esc(v.length>40?v.substring(0,40)+'…':v)+'<span style="color:#94a3b8;margin-left:3px;font-size:9px;">('+vals[v]+')</span></span>'
@@ -26866,17 +26899,25 @@ function _cdocFltSearch(q){
 }
 function _cdocFltSelAll(tbl,col,sel){
   var flts=tbl==='bas'?_cdocColFltsBas:(tbl==='dia'?_cdocColFltsDia:_cdocColFltsDet);
-  var db=_cdocDb(); var allRows=tbl==='bas'?db.basicos:db.detalhados;
+  // "Todos" = remove o filtro desta coluna (mostra tudo).
+  // "Nenhum" = filtro ATIVO mas com conjunto VAZIO — nenhuma linha passa até
+  // o usuário marcar algum valor específico. (Antes isto preenchia errado
+  // com TODOS os valores, fazendo o filtro não ter efeito nenhum.)
   if(sel){ delete flts[col]; }
-  else { var allVals=new Set(); allRows.forEach(function(r){allVals.add((r[col]||'(vazio)').toString());}); flts[col]=allVals; }
+  else { flts[col]=new Set(); }
   var popup=document.getElementById('cdoc-col-flt-popup');
   if(popup) popup.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=sel;});
   if(tbl==='bas') cdocRenderBas(); else if(tbl==='dia') cdocRenderDiario(); else cdocRenderDet();
 }
 function _cdocFltToggle(tbl,col,val,checked){
   var flts=tbl==='bas'?_cdocColFltsBas:(tbl==='dia'?_cdocColFltsDia:_cdocColFltsDet);
-  var db=_cdocDb(); var allRows=tbl==='bas'?db.basicos:db.detalhados;
-  if(!flts[col]||flts[col].size===0){
+  // Só inicializa com TODOS os valores se a coluna ainda não tinha filtro
+  // algum (chave ausente). Se já existe um filtro (mesmo vazio, vindo do
+  // "Nenhum"), usa o conjunto atual — sem isso, marcar um único valor depois
+  // de clicar "Nenhum" não tinha efeito, porque o valor já "existia" no
+  // conjunto (que tinha sido preenchido, por engano, com tudo).
+  if(!(col in flts)){
+    var db=_cdocDb(); var allRows=tbl==='bas'?db.basicos:db.detalhados;
     var allVals=new Set(); allRows.forEach(function(r){allVals.add((r[col]||'(vazio)').toString());}); flts[col]=allVals;
   }
   if(checked) flts[col].add(val); else flts[col].delete(val);
@@ -27233,25 +27274,16 @@ document.addEventListener('DOMContentLoaded', function(){
   }, 1500);
 });
 
-// Pré-carregamento silencioso do CDOC via Supabase
-document.addEventListener('DOMContentLoaded', function(){
-  setTimeout(function(){
-    try{
-      if(typeof _sbUrl!=='function'||typeof _SB_H==='undefined') return;
-      var url=_sbUrl('cdoc_database?key=eq.main&select=data');
-      if(!url||url.indexOf('undefined')!==-1||url.indexOf('null')!==-1) return;
-      fetch(url,{headers:_SB_H}).then(function(r){
-        if(!r.ok) return; return r.json();
-      }).then(function(rows){
-        if(rows&&rows.length&&rows[0].data){
-          _cdocSBCache=rows[0].data;
-          try{localStorage.setItem('sider_ctrldoc',JSON.stringify(_cdocSBCache));}catch(e){}
-          _cdocIdbSet(_cdocSBCache).catch(function(){});
-        }
-      }).catch(function(){});
-    }catch(e){}
-  },3000);
-});
+// REMOVIDO (bug grave encontrado em varredura): havia aqui um "pré-carregamento
+// silencioso" que, 3 segundos após CADA abertura da página, buscava a tabela
+// LEGADA "cdoc_database?key=eq.main" (formato antigo de antes da migração para
+// uma linha por documento — usada hoje só como fonte de migração única, nunca
+// mais atualizada) e SOBRESCREVIA _cdocSBCache com esse dado congelado/antigo,
+// sem nenhuma verificação de pendência ou merge. Isso apagava, de forma
+// determinística e silenciosa, qualquer edição feita nos primeiros segundos
+// após abrir/reabrir o app — inclusive o próprio carregamento correto feito
+// por _cdocSBLoad(). Provável causa raiz principal dos "status/retornos que
+// voltam ao estado anterior ao reabrir o app".
 </script>
 
 <script>
