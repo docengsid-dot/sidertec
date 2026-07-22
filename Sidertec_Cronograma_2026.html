@@ -18802,6 +18802,9 @@ function cotExportarCSV(){
 .cdoc-cmdbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;transform:none;}
 .cdoc-cmdbtn .badge{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px #fff;line-height:1;}
 .cdoc-cmd-sep{height:1px;background:#e2e8f0;margin:1px 4px;}
+.cdoc-multi-item{display:flex;align-items:center;gap:6px;padding:4px 12px;font-size:12px;color:#334155;cursor:pointer;white-space:nowrap;}
+.cdoc-multi-item:hover{background:#f0f9ff;}
+.cdoc-multi-item input{cursor:pointer;flex-shrink:0;}
 .cdoc-cmd-bar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;}
 .cdoc-cmd-sep-v{width:1px;height:26px;background:#e2e8f0;margin:0 2px;flex-shrink:0;}
 .cdoc-sticky-top{position:sticky;top:0;z-index:5;background:#fff;padding-top:2px;padding-bottom:.5rem;}
@@ -19020,17 +19023,37 @@ function _cdocPainelToggleDet(){
             <span style="font-size:12px;font-weight:700;color:#64748b;">FILTROS:</span>
             <select id="cdd-f-obra" onchange="_cdocSyncGlobalFromTab('cdd-f-obra');cdocRenderDet()"><option value="">Todas obras</option></select>
             <input id="cdd-f-sub" placeholder="TAG (ex: CBL, AAH, BBE)" title="Digite uma ou mais TAGs separadas por vírgula" oninput="_cdocRenderDetDebounced()" style="max-width:150px;">
-            <select id="cdd-f-tipo" onchange="_cdocRenderDetDebounced()">
-              <option value="">Todos tipos</option>
-            </select>
-            <select id="cdd-f-desc" onchange="_cdocRenderDetDebounced()">
-              <option value="">Todas descrições</option>
-            </select>
+            <div class="cdoc-multi-wrap" style="position:relative;">
+              <div class="cdoc-multi-btn" onclick="_cdocMultiToggleDropdown('cdd-f-tipo')" style="display:flex;align-items:center;gap:4px;min-width:100px;max-width:150px;background:#fff;border:1px solid #cbd5e1;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:12px;user-select:none;">
+                <span id="cdd-f-tipo-label" style="flex:1;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Todos tipos</span>
+                <span style="color:#94a3b8;font-size:9px;">▾</span>
+              </div>
+              <div id="cdd-f-tipo-dropdown" class="cdoc-multi-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:210px;max-height:260px;overflow-y:auto;padding:.4rem 0;">
+                <div style="padding:.2rem .65rem .35rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Selecionar Tipo(s)</span>
+                  <span onclick="event.stopPropagation();_cdocMultiClear('cdd-f-tipo',_cdocRenderDetDebounced)" style="font-size:9px;color:#0369a1;cursor:pointer;font-weight:600;">Limpar</span>
+                </div>
+                <div id="cdd-f-tipo-items"></div>
+              </div>
+            </div>
+            <div class="cdoc-multi-wrap" style="position:relative;">
+              <div class="cdoc-multi-btn" onclick="_cdocMultiToggleDropdown('cdd-f-desc')" style="display:flex;align-items:center;gap:4px;min-width:110px;max-width:160px;background:#fff;border:1px solid #cbd5e1;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:12px;user-select:none;">
+                <span id="cdd-f-desc-label" style="flex:1;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Todas descrições</span>
+                <span style="color:#94a3b8;font-size:9px;">▾</span>
+              </div>
+              <div id="cdd-f-desc-dropdown" class="cdoc-multi-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:230px;max-height:260px;overflow-y:auto;padding:.4rem 0;">
+                <div style="padding:.2rem .65rem .35rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Selecionar Descrição(ões)</span>
+                  <span onclick="event.stopPropagation();_cdocMultiClear('cdd-f-desc',_cdocRenderDetDebounced)" style="font-size:9px;color:#0369a1;cursor:pointer;font-weight:600;">Limpar</span>
+                </div>
+                <div id="cdd-f-desc-items"></div>
+              </div>
+            </div>
             <select id="cdd-f-status" onchange="_cdocRenderDetDebounced()">
               <option value="">Todos status</option>
             </select>
-            <input id="cdd-f-num" placeholder="Nº Sidertec..." oninput="_cdocRenderDetDebounced()" style="max-width:110px;">
-            <input id="cdd-f-cli" placeholder="Nº Cliente..." oninput="_cdocRenderDetDebounced()" style="max-width:100px;">
+            <input id="cdd-f-num" placeholder="Nº Sidertec (separe por vírgula)..." title="Você pode digitar vários números separados por vírgula (ex: S176AF-001, S176AF-002)" oninput="_cdocRenderDetDebounced()" style="max-width:150px;">
+            <input id="cdd-f-cli" placeholder="Nº Cliente (separe por vírgula)..." title="Você pode digitar vários números separados por vírgula" oninput="_cdocRenderDetDebounced()" style="max-width:140px;">
             <select id="cdd-f-finalidade" onchange="_cdocRenderDetDebounced()">
               <option value="">Toda finalidade</option>
               <option>Para Aprovação</option>
@@ -21500,37 +21523,71 @@ function _cdocCorrigirPesoTag(tagEnc, obraEnc, alvo){
 }
 
 /* ── PROJ. DETALHADO render ── */
+// ═══ Multi-select genérico com checkboxes (usado nos filtros Tipo/Descrição) ═══
+var _cdocMultiSel = {}; // { 'cdd-f-tipo': ['ART','Cronograma'], ... }
+function _cdocMultiToggleDropdown(id){
+  var dd=document.getElementById(id+'-dropdown'); if(!dd) return;
+  var abrir = dd.style.display!=='block';
+  document.querySelectorAll('.cdoc-multi-dropdown').forEach(function(el){el.style.display='none';});
+  if(abrir) dd.style.display='block';
+}
+document.addEventListener('click', function(ev){
+  if(ev.target.closest && ev.target.closest('.cdoc-multi-wrap')) return;
+  document.querySelectorAll('.cdoc-multi-dropdown').forEach(function(el){el.style.display='none';});
+});
+function _cdocMultiToggleValue(id, val, renderFn){
+  _cdocMultiSel[id]=_cdocMultiSel[id]||[];
+  var arr=_cdocMultiSel[id];
+  var idx=arr.indexOf(val);
+  if(idx>=0) arr.splice(idx,1); else arr.push(val);
+  _cdocMultiUpdateLabel(id);
+  if(renderFn) renderFn();
+}
+function _cdocMultiUpdateLabel(id){
+  var lbl=document.getElementById(id+'-label'); if(!lbl) return;
+  var arr=_cdocMultiSel[id]||[];
+  var placeholders={'cdd-f-tipo':'Todos tipos','cdd-f-desc':'Todas descrições'};
+  lbl.textContent = arr.length ? (arr.length===1?arr[0]:arr.length+' selecionados') : (placeholders[id]||'Todos');
+}
+function _cdocMultiClear(id, renderFn){
+  _cdocMultiSel[id]=[];
+  _cdocMultiUpdateLabel(id);
+  var box=document.getElementById(id+'-items');
+  if(box) box.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  if(renderFn) renderFn();
+}
+// Casa um texto de filtro (que pode ter vários termos separados por vírgula/;) contra um campo
+function _cdocMultiTextMatch(fieldVal, termo){
+  if(!termo) return true;
+  var terms = termo.split(/[,;]/).map(function(t){return t.trim().toLowerCase();}).filter(Boolean);
+  if(!terms.length) return true;
+  var v=(fieldVal||'').toLowerCase();
+  return terms.some(function(t){return v.indexOf(t)!==-1;});
+}
 function _cdocPopulateTipoFiltro(){
-  var sel=document.getElementById('cdd-f-tipo'); if(!sel) return;
-  var cur=sel.value;
+  var box=document.getElementById('cdd-f-tipo-items'); if(!box) return;
   var db=_cdocDb();
-  // Merge _cdocTipos + tipos reais nos documentos
   var set=new Set((_cdocTipos||[]).map(function(t){return t;}));
   (db.detalhados||[]).forEach(function(d){if(d.tipo) set.add(d.tipo);});
   var list=Array.from(set).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
-  // Rebuild options preserving current selection
-  sel.innerHTML='<option value="">Todos tipos</option>';
-  list.forEach(function(t){
-    var o=document.createElement('option'); o.value=t; o.textContent=t;
-    sel.appendChild(o);
-  });
-  if(cur) sel.value=cur;
+  var sel=_cdocMultiSel['cdd-f-tipo']||[];
+  box.innerHTML=list.map(function(t){
+    return '<label class="cdoc-multi-item"><input type="checkbox" value="'+_esc(t)+'" '+(sel.indexOf(t)!==-1?'checked':'')+' onchange="_cdocMultiToggleValue(\'cdd-f-tipo\',this.value,_cdocRenderDetDebounced)"> '+_esc(t)+'</label>';
+  }).join('');
+  _cdocMultiUpdateLabel('cdd-f-tipo');
 }
 
 function _cdocPopulateDescFiltro(){
-  var sel=document.getElementById('cdd-f-desc'); if(!sel) return;
-  var cur=sel.value;
+  var box=document.getElementById('cdd-f-desc-items'); if(!box) return;
   var db=_cdocDb();
-  // Coleta descrições únicas cadastradas nos documentos
   var set=new Set();
   (db.detalhados||[]).forEach(function(d){if(d.desc&&d.desc.trim()) set.add(d.desc.trim());});
   var list=Array.from(set).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
-  sel.innerHTML='<option value="">Todas descrições</option>';
-  list.forEach(function(d){
-    var o=document.createElement('option'); o.value=d; o.textContent=d;
-    sel.appendChild(o);
-  });
-  if(cur) sel.value=cur;
+  var sel=_cdocMultiSel['cdd-f-desc']||[];
+  box.innerHTML=list.map(function(d){
+    return '<label class="cdoc-multi-item"><input type="checkbox" value="'+_esc(d)+'" '+(sel.indexOf(d)!==-1?'checked':'')+' onchange="_cdocMultiToggleValue(\'cdd-f-desc\',this.value,_cdocRenderDetDebounced)"> '+_esc(d)+'</label>';
+  }).join('');
+  _cdocMultiUpdateLabel('cdd-f-desc');
 }
 function cdocRenderDet(){
   // Popula filtros de forma assíncrona para não bloquear a renderização
@@ -21540,22 +21597,22 @@ function cdocRenderDet(){
   var db=_cdocDb();
   var fObra=(document.getElementById('cdd-f-obra')||{}).value||'';
   var fSub=(document.getElementById('cdd-f-sub')||{}).value||'';
-  var fTipo=(document.getElementById('cdd-f-tipo')||{}).value||'';
-  var fDesc=(document.getElementById('cdd-f-desc')||{}).value||'';
+  var fTipoArr=_cdocMultiSel['cdd-f-tipo']||[];
+  var fDescArr=_cdocMultiSel['cdd-f-desc']||[];
   var fSt=(document.getElementById('cdd-f-status')||{}).value||'';
-  var fNum=((document.getElementById('cdd-f-num')||{}).value||'').toLowerCase();
-  var fCli=((document.getElementById('cdd-f-cli')||{}).value||'').toLowerCase();
+  var fNum=(document.getElementById('cdd-f-num')||{}).value||'';
+  var fCli=(document.getElementById('cdd-f-cli')||{}).value||'';
   var fFin=(document.getElementById('cdd-f-finalidade')||{}).value||'';
   var fGrd=((document.getElementById('cdd-f-grd')||{}).value||'').toLowerCase();
   var fSf=(document.getElementById('cdd-f-statusfinal')||{}).value||'';
   var rows=db.detalhados.filter(function(d){
     if(fObra&&d.obraId!==fObra) return false;
     if(fSub&&!_cdocSubMatch(d.sub||'',fSub)) return false;
-    if(fTipo&&(d.tipo||'').toLowerCase()!==fTipo.toLowerCase()) return false;
-    if(fDesc&&(d.desc||'').trim()!==fDesc) return false;
+    if(fTipoArr.length&&!fTipoArr.some(function(v){return (d.tipo||'').toLowerCase()===v.toLowerCase();})) return false;
+    if(fDescArr.length&&fDescArr.indexOf((d.desc||'').trim())===-1) return false;
     if(fSt&&d.statusGeral!==fSt) return false;
-    if(fNum&&!(d.num||'').toLowerCase().includes(fNum)&&!(d.cli||'').toLowerCase().includes(fNum)) return false;
-    if(fCli&&!(d.cli||'').toLowerCase().includes(fCli)) return false;
+    if(fNum&&!_cdocMultiTextMatch(d.num,fNum)&&!_cdocMultiTextMatch(d.cli,fNum)) return false;
+    if(fCli&&!_cdocMultiTextMatch(d.cli,fCli)) return false;
     if(fFin){var _eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eh||!_cdocFinInfo(_eh.finalidade)||_cdocFinInfo(_eh.finalidade).label!==fFin) return false;}
     if(fGrd){var _eg=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eg||!(_eg.grd||'').toLowerCase().includes(fGrd)) return false;}
     if(fSf){var _esf=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_esf||(_esf.statusFinal||'')!==fSf) return false;}
@@ -21851,7 +21908,7 @@ function cdocBumpRev(modulo, dir){
 
 /* ── Limpar filtros ── */
 function cdocLimparBas(){ ['cdb-f-obra','cdb-f-sub','cdb-f-status','cdb-f-txt','cdb-f-cli','cdb-f-grd','cdb-f-proj','cdb-f-data'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderBas(); }
-function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-tipo','cdd-f-desc','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
+function cdocLimparDet(){ ['cdd-f-obra','cdd-f-sub','cdd-f-status','cdd-f-num','cdd-f-cli','cdd-f-finalidade','cdd-f-grd','cdd-f-statusfinal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); _cdocMultiClear('cdd-f-tipo'); _cdocMultiClear('cdd-f-desc'); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; cdocRenderDet(); }
 function cdocLimparDiario(){ ['cdd-df-secao','cdd-df-status','cdd-df-obra','cdd-df-eng','cdd-df-sub','cdd-df-fin','cdd-df-grd','cdd-df-prev','cdd-df-sf'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';}); var g=document.getElementById('cdoc-g-obra');if(g)g.value=''; _cdocDiarioSortDir=1; _cdocColFltsDia={}; cdocRenderDiario(); }
 
 /* ── Formulário Básico ── */
@@ -26697,22 +26754,22 @@ function _cdocRowsParaFiltroColuna(tbl){
   if(tbl==='det'){
     var fObra2=(document.getElementById('cdd-f-obra')||{}).value||'';
     var fSub2=(document.getElementById('cdd-f-sub')||{}).value||'';
-    var fTipo=(document.getElementById('cdd-f-tipo')||{}).value||'';
-    var fDesc=(document.getElementById('cdd-f-desc')||{}).value||'';
+    var fTipoArr2=_cdocMultiSel['cdd-f-tipo']||[];
+    var fDescArr2=_cdocMultiSel['cdd-f-desc']||[];
     var fSt2=(document.getElementById('cdd-f-status')||{}).value||'';
-    var fNum=((document.getElementById('cdd-f-num')||{}).value||'').toLowerCase();
-    var fCli2=((document.getElementById('cdd-f-cli')||{}).value||'').toLowerCase();
+    var fNum=(document.getElementById('cdd-f-num')||{}).value||'';
+    var fCli2=(document.getElementById('cdd-f-cli')||{}).value||'';
     var fFin=(document.getElementById('cdd-f-finalidade')||{}).value||'';
     var fGrd2=((document.getElementById('cdd-f-grd')||{}).value||'').toLowerCase();
     var fSf=(document.getElementById('cdd-f-statusfinal')||{}).value||'';
     return (db.detalhados||[]).filter(function(d){
       if(fObra2&&d.obraId!==fObra2) return false;
       if(fSub2&&!_cdocSubMatch(d.sub||'',fSub2)) return false;
-      if(fTipo&&(d.tipo||'').toLowerCase()!==fTipo.toLowerCase()) return false;
-      if(fDesc&&(d.desc||'').trim()!==fDesc) return false;
+      if(fTipoArr2.length&&!fTipoArr2.some(function(v){return (d.tipo||'').toLowerCase()===v.toLowerCase();})) return false;
+      if(fDescArr2.length&&fDescArr2.indexOf((d.desc||'').trim())===-1) return false;
       if(fSt2&&d.statusGeral!==fSt2) return false;
-      if(fNum&&!(d.num||'').toLowerCase().includes(fNum)&&!(d.cli||'').toLowerCase().includes(fNum)) return false;
-      if(fCli2&&!(d.cli||'').toLowerCase().includes(fCli2)) return false;
+      if(fNum&&!_cdocMultiTextMatch(d.num,fNum)&&!_cdocMultiTextMatch(d.cli,fNum)) return false;
+      if(fCli2&&!_cdocMultiTextMatch(d.cli,fCli2)) return false;
       if(fFin){var _eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eh||!_cdocFinInfo(_eh.finalidade)||_cdocFinInfo(_eh.finalidade).label!==fFin) return false;}
       if(fGrd2){var _eg=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_eg||!(_eg.grd||'').toLowerCase().includes(fGrd2)) return false;}
       if(fSf){var _esf=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;if(!_esf||(_esf.statusFinal||'')!==fSf) return false;}
