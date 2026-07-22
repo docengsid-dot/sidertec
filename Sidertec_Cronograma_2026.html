@@ -22504,15 +22504,16 @@ function cdocAddEnvioHist(){
   var statusFinal=(document.getElementById('cef-en-status-final')||{}).value||'';
   var obs=(document.getElementById('cef-en-obs')||{}).value||'';
   var envioStatus=data?'Concluído':'Pendente';
-  // Sempre que a finalidade for "Para Aprovação" e houver data, o status atual do
-  // documento deve ser ENVIADO AO CLIENTE — independente do status anterior
-  // (exceto se já houver retorno com status final definido nesta mesma gravação)
-  if(data && (finalidade==='Para Aprovação' || finalidade==='Para Certificação' || finalidade==='Para Informação')){
+  // CORRIGIDO: a condição antiga usava (finalidade==='Para Aprovação'||'Para Certificação'|
+  // 'Para Informação') — que são as 3 ÚNICAS opções possíveis de finalidade — então essa
+  // condição era SEMPRE verdadeira e todo novo envio registrado forçava o status de volta
+  // para 'ENVIADO AO CLIENTE', apagando qualquer status alterado manualmente depois (ex.:
+  // 'FLUXO COM CLIENTE' definido via Status em Lote). O bloco "else" com a checagem correta
+  // (só avançar se o status atual ainda está em estado inicial) nunca era alcançado. Mesmo
+  // bug já corrigido em cdocEmitirGrd() e na confirmação de envio de GRD — unificado aqui.
+  if(data && !(retornoReal&&statusFinal)){
     var sg=document.getElementById('cef-sg');
-    if(sg && !(retornoReal&&statusFinal)) sg.value='ENVIADO AO CLIENTE';
-  } else if(data){
-    var sgLegacy=document.getElementById('cef-sg');
-    if(sgLegacy&&(sgLegacy.value===''||sgLegacy.value==='EMITIDO'||sgLegacy.value==='EM EMISSÃO')) sgLegacy.value='ENVIADO AO CLIENTE';
+    if(sg && (sg.value===''||sg.value==='EMITIDO'||sg.value==='EM EMISSÃO')) sg.value='ENVIADO AO CLIENTE';
   }
   if(retornoReal&&statusFinal){
     var sg2=document.getElementById('cef-sg');
@@ -22596,10 +22597,15 @@ function _cdocLfDataChange(){
 }
 function _cdocAutoStatusEnvio(input){
   if(!input.value) return;
-  // Quando data de envio preenchida, o status geral do documento deve
-  // SEMPRE ir para ENVIADO AO CLIENTE — independente do status anterior
+  // CORRIGIDO: esta função forçava o status geral do documento para 'ENVIADO AO
+  // CLIENTE' SEMPRE que uma data de envio era escolhida, sem verificar o status
+  // atual — apagando na hora, na tela, qualquer status alterado manualmente antes
+  // (ex.: 'FLUXO COM CLIENTE' definido via Status em Lote), mesmo sem o usuário
+  // clicar em nada além de escolher a data. Mesmo bug já corrigido em cdocEmitirGrd(),
+  // na confirmação de envio de GRD e em cdocAddEnvioHist() — agora só avança
+  // automaticamente quando o documento ainda está num estado inicial/em branco.
   var sg=document.getElementById('cef-sg');
-  if(sg) sg.value='ENVIADO AO CLIENTE';
+  if(sg && (sg.value===''||sg.value==='EMITIDO'||sg.value==='EM EMISSÃO')) sg.value='ENVIADO AO CLIENTE';
 }
 function cdocSubirRevDet(){var el=document.getElementById('cef-rev');if(el)el.value=_cdocIncrRev(el.value.trim(),1);}
 function cdocDescerRevDet(){var el=document.getElementById('cef-rev');if(el)el.value=_cdocIncrRev(el.value.trim(),-1);}
@@ -24863,9 +24869,14 @@ function cdocEnviarGrd(grdId){
         doc.envioHist.push({rev:doc.rev||'',data:dataEnvio,finalidade:g2.tipo||'',grd:g2.numero,
           responsavel:resp,obs:g2.obs||'',status:'Concluído'});
       }
-      var _finReg=g2.tipo||'';
-      if(!doc.statusGeral||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO'||
-         _finReg.indexOf('Para Aprovação')!==-1||_finReg.indexOf('Para Certificação')!==-1||_finReg.indexOf('Para Informação')!==-1)
+      // CORRIGIDO: esta condição incluía _finReg.indexOf('Para Aprovação'/'Certificação'/
+      // 'Informação'), que são as 3 únicas opções de finalidade possíveis — ou seja, a
+      // condição era SEMPRE verdadeira e TODA confirmação de envio de GRD forçava o status
+      // de volta para 'ENVIADO AO CLIENTE', apagando qualquer status alterado manualmente
+      // depois (ex.: 'FLUXO COM CLIENTE' definido via Status em Lote). Mesmo bug já corrigido
+      // em cdocEmitirGrd() — agora só avança automaticamente quando o documento ainda está
+      // num estado inicial/em branco.
+      if(!doc.statusGeral||doc.statusGeral==='EMITIDO'||doc.statusGeral==='EM EMISSÃO')
         doc.statusGeral='ENVIADO AO CLIENTE';
       // Atualizar revisão do doc com a última rev enviada
       var lastEnvio=doc.envioHist[doc.envioHist.length-1];
