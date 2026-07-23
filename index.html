@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-22-01 -->
+<!-- SIDER_APP_BUILD: 2026-07-23-01 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -18881,6 +18881,7 @@ function cotExportarCSV(){
         <button onclick="_cdocRepararGrds()" title="Reconstrói a lista de GRDs Emitidas a partir do histórico de envio dos documentos (corrige GRDs que não aparecem na lista)" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Reparar GRDs</button>
         <button onclick="_cdocAbrirMesclarStatus()" title="Une dois status que na verdade são o mesmo (ex.: 'FLUXO COM CLIENTE' e 'FLUXO COM O CLIENTE' criados por pessoas diferentes) em um só, em todos os documentos" style="background:#9333ea;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔀 Mesclar Status Duplicado</button>
         <button onclick="_cdocCorrigirLiberadoSemData()" title="Corrige documentos que ficaram com 'Liberado' na Liberação para Fabricação (ou 'Concluído' no Envio ao Cliente) sem nenhuma data preenchida — reverte para 'Pendente'" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Liberado sem Data</button>
+        <button onclick="_cdocMesclarEnviosFragmentados()" title="Junta linhas de Envio ao Cliente / Liberação para Fabricação que ficaram fragmentadas (retorno registrado separado, criando uma linha extra em branco) de volta na linha correta" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Mesclar Envios Fragmentados</button>
       </div>
     </div>
     <div class="cron-mbody">
@@ -22573,7 +22574,23 @@ function cdocAddLibfabHist(){
   // Auto: se tem data → status Liberado
   if(data&&status==='Pendente') status='Liberado';
   _cdocPendingLibfab=_cdocPendingLibfab||[];
-  _cdocPendingLibfab.push({status:status,data:data,grd:grd,obs:obs});
+  // CORRIGIDO (perda de dados percebida): se o usuário só trocou o status
+  // (sem preencher data/GRD/obs), a intenção é atualizar o registro que já
+  // existe, não criar uma segunda linha em branco (ex.: "Liberado" e depois
+  // "Pendente", ambos sem data — ficava parecendo dados perdidos/confusos).
+  var _semDadosNovos = !data && !grd && !obs;
+  var _todosAtuais = _cdocCurrentLibfab();
+  var _ultimo = _todosAtuais.length ? _todosAtuais[_todosAtuais.length-1] : null;
+  if(_semDadosNovos && _ultimo){
+    _ultimo.status = status;
+    var _db3=_cdocLoad();
+    var _base3=(_cdocEditId?_db3.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
+    if(_base3 && _base3.libfabHist && _base3.libfabHist.indexOf(_ultimo)!==-1){
+      _cdocSave(_db3);
+    }
+  } else {
+    _cdocPendingLibfab.push({status:status,data:data,grd:grd,obs:obs});
+  }
   ['cef-lf-data','cef-lf-grd','cef-lf-obs'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   var wrap=document.getElementById('cef-libfab-hist-wrap');
   if(wrap) wrap.innerHTML=_cdocLibfabHistHtml({libfabHist:_cdocCurrentLibfab()});
@@ -22641,7 +22658,35 @@ function cdocAddEnvioHist(){
     var btn=document.getElementById('cef-en-add-btn');
     if(btn){btn.textContent='+ Reg.';btn.style.background='#0369a1';}
   } else {
-    _cdocPendingEnvio.push(entry);
+    // CORRIGIDO (perda de dados percebida): se o usuário só preenche os
+    // campos de RETORNO (sem digitar de novo rev/data/finalidade/GRD), a
+    // intenção quase certamente é registrar o retorno de um envio já
+    // existente — não criar uma linha nova, em branco, fragmentada. Antes
+    // isso sempre criava uma linha nova, fazendo o envio original "parecer"
+    // sem retorno e a nova linha "parecer" um envio perdido/incompleto.
+    var _semDadosNovos = !rev && !data && !finalidade && !grd;
+    var _temRetorno = retornoReal || statusFinal;
+    var _todosAtuais = _cdocCurrentEnvio();
+    var _ultimoAberto = null;
+    for(var _i=_todosAtuais.length-1; _i>=0; _i--){
+      if(!_todosAtuais[_i].retornoReal){ _ultimoAberto=_todosAtuais[_i]; break; }
+    }
+    if(_semDadosNovos && _temRetorno && _ultimoAberto){
+      // _cdocCurrentEnvio() não clona os objetos — mutar aqui já reflete no
+      // array original (base.envioHist ou _cdocPendingEnvio).
+      _ultimoAberto.prevRetorno = prevRetorno || _ultimoAberto.prevRetorno || '';
+      _ultimoAberto.retornoReal = retornoReal;
+      _ultimoAberto.statusFinal = statusFinal;
+      if(obs) _ultimoAberto.obs = obs;
+      _ultimoAberto.status = 'Concluído';
+      var _db2=_cdocLoad();
+      var _base2=(_cdocEditId?_db2.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
+      if(_base2 && _base2.envioHist && _base2.envioHist.indexOf(_ultimoAberto)!==-1){
+        _cdocSave(_db2);
+      }
+    } else {
+      _cdocPendingEnvio.push(entry);
+    }
   }
   // Auto-atualizar REVISÃO do documento se rev enviada for informada
   if(rev){
@@ -23570,6 +23615,60 @@ function _cdocSyncGrdFromEnvio(doc, envio){
 // Reconstrói db._grds a partir do histórico de envio de TODOS os documentos —
 // corrige GRDs que ficaram registradas apenas no histórico do documento (texto
 // livre) e nunca geraram (ou perderam) o registro formal usado por "GRDs Emitidas".
+function _cdocMesclarEnviosFragmentados(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  var corrEn=0, corrLf=0, docsAfetados=0;
+  (db.detalhados||[]).forEach(function(doc){
+    var afetou=false;
+    // ── Envio ao Cliente: junta uma linha "fragmentada" (só retorno, sem
+    // rev/data/finalidade/GRD) na linha anterior ainda aberta (sem retorno) ──
+    if(doc.envioHist && doc.envioHist.length>1){
+      for(var i=doc.envioHist.length-1;i>0;i--){
+        var frag=doc.envioHist[i];
+        var fragVazia = !frag.rev && !frag.data && !frag.finalidade && !frag.grd && (frag.retornoReal||frag.statusFinal);
+        if(!fragVazia) continue;
+        // Procura, entre as linhas ANTERIORES a esta, a mais recente ainda aberta (sem retorno)
+        var alvo=null;
+        for(var j=i-1;j>=0;j--){
+          if(!doc.envioHist[j].retornoReal){ alvo=doc.envioHist[j]; break; }
+        }
+        if(alvo){
+          alvo.prevRetorno = frag.prevRetorno || alvo.prevRetorno || '';
+          alvo.retornoReal = frag.retornoReal || alvo.retornoReal || '';
+          alvo.statusFinal = frag.statusFinal || alvo.statusFinal || '';
+          if(frag.obs) alvo.obs = (alvo.obs?alvo.obs+' | ':'')+frag.obs;
+          alvo.status='Concluído';
+          doc.envioHist.splice(i,1);
+          corrEn++; afetou=true;
+        }
+      }
+    }
+    // ── Liberação para Fabricação: junta uma linha em branco (sem data/GRD/
+    // obs, só mudando status) na linha anterior imediata ──
+    if(doc.libfabHist && doc.libfabHist.length>1){
+      for(var k=doc.libfabHist.length-1;k>0;k--){
+        var f2=doc.libfabHist[k];
+        var f2Vazia = !f2.data && !f2.grd && !f2.obs;
+        if(!f2Vazia) continue;
+        doc.libfabHist[k-1].status = f2.status || doc.libfabHist[k-1].status;
+        doc.libfabHist.splice(k,1);
+        corrLf++; afetou=true;
+      }
+    }
+    if(afetou) docsAfetados++;
+  });
+  if(!corrEn && !corrLf){
+    showToast('Nada a corrigir', 'Não foram encontradas linhas fragmentadas de Envio ao Cliente ou Liberação para Fabricação.', 'info');
+    return;
+  }
+  if(!confirm('Foram encontradas '+corrEn+' linha(s) fragmentada(s) de Envio ao Cliente e '+corrLf+' de Liberação para Fabricação (retorno/status registrado separado, criando uma linha extra em branco), em '+docsAfetados+' documento(s).\n\nElas serão mescladas na linha correta, mantendo todos os dados.\n\nConfirmar a correção?')){
+    return;
+  }
+  _cdocSave(db);
+  cdocRenderDet();
+  showToast('Mesclagem concluída', corrEn+' linha(s) de Envio e '+corrLf+' de Lib. Fab. mescladas corretamente, em '+docsAfetados+' documento(s).', 'success');
+}
 function _cdocCorrigirLiberadoSemData(){
   if(!_siderRequireEdit()) return;
   var db=_cdocDb();
@@ -34565,7 +34664,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-22-01';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-01';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
