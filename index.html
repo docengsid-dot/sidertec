@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-23-07 -->
+<!-- SIDER_APP_BUILD: 2026-07-23-09 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -21686,10 +21686,10 @@ function cdocRenderDet(){
         +(function(){
           // Coluna Lib. Fab.: último hist
           var lh=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
-          if(!lh&&d.libfab&&d.libfab!=='Pendente') lh={status:d.libfab,data:d.libfabData||'',grd:''};
+          if(!lh&&d.libfab&&d.libfab!=='Pendente') lh={status:d.libfab,data:d.libfabData||'',rev:d.rev||''};
           var lbBadge=lh?_cdocBadgeHtml(lh.status):_cdocBadgeHtml(d.libfab||null);
           var lbDate=lh&&lh.data?'<div style="font-size:9px;color:#475569;font-family:Courier New,monospace;white-space:nowrap;">'+lh.data.split('-').reverse().join('/')+'</div>':'';
-          var lbGrd=lh&&lh.grd?'<div style="font-size:8px;color:#7c3aed;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis;" title="'+_esc(lh.grd)+'">'+_esc(lh.grd)+'</div>':'';
+          var lbGrd=lh&&lh.rev?'<div style="font-size:8px;color:#7c3aed;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis;font-weight:700;" title="Revisão: '+_esc(lh.rev)+'">'+_esc(lh.rev)+'</div>':'';
           var lbCnt=d.libfabHist&&d.libfabHist.length>1?'<span style="font-size:8px;color:#7c3aed;font-weight:700;">x'+d.libfabHist.length+'</span>':'';
           return '<td style="min-width:90px;">'+lbBadge+lbCnt+lbDate+lbGrd+'</td>';
         })()
@@ -22371,7 +22371,7 @@ function cdocRelatorioExcelSel(){
   if(typeof XLSX==='undefined'){ alert('A biblioteca de Excel ainda está carregando. Aguarde alguns segundos e tente novamente.'); return; }
   var db=_cdocDb();
   var docs=db.detalhados.filter(function(d){return _cdocDetSel.has(d.id);});
-  var hdr=['Obra','TAG','Nº Sidertec','Nº Cliente','Título','Tipo','Descrição','Peça','Peso (kg)','Rev','Status Geral','Eng.Resp','Lib.Fab','Data Lib.Fab','Envio Cliente','Data Envio','Rev Enviada','Finalidade','GRD Envio','Prev. Retorno','Retorno Real','Status Final','Obs Envio'];
+  var hdr=['Obra','TAG','Nº Sidertec','Nº Cliente','Título','Tipo','Descrição','Peça','Peso (kg)','Rev','Status Geral','Eng.Resp','Lib.Fab','Rev Lib.Fab','Data Lib.Fab','Envio Cliente','Data Envio','Rev Enviada','Finalidade','GRD Envio','Prev. Retorno','Retorno Real','Status Final','Obs Envio'];
   var aoa=[hdr];
   docs.forEach(function(d){
     var lf=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
@@ -22379,13 +22379,13 @@ function cdocRelatorioExcelSel(){
     aoa.push([
       d.obraId||'', d.sub||'', d.num||'', d.cli||'', d.titulo||'', d.tipo||'', d.desc||'', d.peca||'',
       parseFloat(d.peso)||0, d.rev||'', d.statusGeral||'', d.engResp||'',
-      lf?lf.status:'', lf?lf.data:'',
+      lf?lf.status:'', lf?lf.rev:'', lf?lf.data:'',
       eh?'Sim':'', eh?eh.data:'', eh?eh.rev:'', eh?eh.finalidade:'', eh?eh.grd:'',
       eh?eh.prevRetorno:'', eh?eh.retornoReal:'', eh?eh.statusFinal:'', eh?eh.obs:''
     ]);
   });
   var ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols']=[{wch:20},{wch:10},{wch:14},{wch:16},{wch:26},{wch:16},{wch:22},{wch:10},{wch:11},{wch:6},{wch:20},{wch:16},{wch:10},{wch:11},{wch:10},{wch:11},{wch:9},{wch:16},{wch:12},{wch:12},{wch:12},{wch:16},{wch:24}];
+  ws['!cols']=[{wch:20},{wch:10},{wch:14},{wch:16},{wch:26},{wch:16},{wch:22},{wch:10},{wch:11},{wch:6},{wch:20},{wch:16},{wch:10},{wch:10},{wch:11},{wch:10},{wch:11},{wch:9},{wch:16},{wch:12},{wch:12},{wch:12},{wch:16},{wch:24}];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Proj. Detalhado');
   var hoje=new Date().toISOString().slice(0,10);
@@ -22455,9 +22455,9 @@ function cdocRelatorioLibEnvioSel(){
   var sfCores={'APROVADO':'#166534','CERTIFICADO':'#166534','COM COMENTÁRIOS':'#92400e','REPROVADO':'#991b1b'};
   var blocosHtml=docs.map(function(d){
     var libHtml = (d.libfabHist&&d.libfabHist.length)
-      ? '<table class="mini"><thead><tr><th>Status</th><th>Data</th><th>GRD</th><th>Obs.</th></tr></thead><tbody>'
+      ? '<table class="mini"><thead><tr><th>Status</th><th>Revisão</th><th>Data</th></tr></thead><tbody>'
         +d.libfabHist.map(function(h){
-          return '<tr><td>'+_cdocBadgeHtml(h.status)+'</td><td>'+fmtData(h.data)+'</td><td>'+_esc(h.grd||'—')+'</td><td>'+_esc(h.obs||'')+'</td></tr>';
+          return '<tr><td>'+_cdocBadgeHtml(h.status)+'</td><td>'+_esc(h.rev||'—')+'</td><td>'+fmtData(h.data)+'</td></tr>';
         }).join('')+'</tbody></table>'
       : '<p class="vazio">Sem registros de liberação para fabricação.</p>';
     var envHtml = (d.envioHist&&d.envioHist.length)
@@ -22581,9 +22581,8 @@ function _cdocAbrirFormDet(rec){
     +'<div id="cef-libfab-hist-wrap">'+_cdocLibfabHistHtml(rec)+'</div>'
     +'<div class="cdoc-ef2" style="margin-top:.3rem;">'
     +'<select id="cef-lf-status" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;"><option>Pendente</option><option>Liberado</option><option>Encerrado</option></select>'
+    +'<input id="cef-lf-rev" placeholder="Rev. (ex: RA1)" style="width:110px;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();">'
     +'<input id="cef-lf-data" type="date" onchange="_cdocLfDataChange()" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<input id="cef-lf-grd" placeholder="GRD n\u00ba" style="width:90px;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
-    +'<input id="cef-lf-obs" placeholder="Obs." style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;">'
     +'<button type="button" onclick="cdocAddLibfabHist()" style="padding:6px 14px;font-size:13px;font-weight:700;background:#0369a1;color:#fff;border:none;border-radius:5px;cursor:pointer;white-space:nowrap;">+ Reg.</button>'
     +'</div>'
     +'<div class="cdoc-sec">Histórico — Envio ao Cliente</div>'
@@ -22609,6 +22608,7 @@ function _cdocAbrirFormDet(rec){
     _cdocPopStatusForm();
     ss('cef-sg',rec.statusGeral||'');
     ss('cef-obs-geral',rec.obsGeral||'');
+    ss('cef-lf-rev',rec.rev||'');
   } else {
     _cdocPopStatusForm();
   }
@@ -22620,21 +22620,19 @@ function _cdocLibfabHistHtml(rec){
   var h=(rec&&rec.libfabHist)||[];
   // migrar dados legados (campo libfab/libfabData antigo)
   if(!h.length&&rec&&rec.libfab&&rec.libfab!=='Pendente'){
-    h=[{status:rec.libfab,data:rec.libfabData||'',grd:'',obs:'(migrado)'}];
+    h=[{status:rec.libfab,data:rec.libfabData||'',rev:rec.rev||'',obs:'(migrado)'}];
   }
   if(!h.length) return '<div style="font-size:10px;color:#94a3b8;padding:3px 0;font-style:italic;">Sem registros.</div>';
   return '<div style="max-height:110px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:4px;">'
     +'<table style="width:100%;border-collapse:collapse;font-size:10px;"><thead><tr style="background:#f1f5f9;">'
     +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Status</th>'
+    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Revisão</th>'
     +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Data</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">GRD</th>'
-    +'<th style="padding:2px 6px;font-size:9px;text-transform:uppercase;color:#475569;">Obs.</th>'
     +'<th style="width:22px;"></th></tr></thead><tbody>'
     +h.map(function(r,i){return '<tr style="border-top:1px solid #e2e8f0;">'
       +'<td style="padding:2px 6px;">'+_cdocBadgeHtml(r.status)+'</td>'
+      +'<td style="padding:2px 6px;font-family:Courier New,monospace;font-weight:700;">'+(r.rev?_esc(r.rev):'—')+'</td>'
       +'<td style="padding:2px 6px;font-family:Courier New,monospace;">'+_fD2(r.data||'')+'</td>'
-      +'<td style="padding:2px 6px;font-family:Courier New,monospace;color:#7c3aed;font-weight:700;">'+(r.grd?_esc(r.grd):'—')+'</td>'
-      +'<td style="padding:2px 6px;color:#64748b;font-size:9px;">'+_esc(r.obs||'')+'</td>'
       +'<td><button type="button" onclick="cdocDelLibfabHist('+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;padding:0 2px;">&#10005;</button></td>'
       +'</tr>';}).join('')+'</tbody></table></div>';
 }
@@ -22737,29 +22735,33 @@ function _cdocCurrentEnvio(){
 function cdocAddLibfabHist(){
   var status=(document.getElementById('cef-lf-status')||{}).value||'Liberado';
   var data=(document.getElementById('cef-lf-data')||{}).value||'';
-  var grd=(document.getElementById('cef-lf-grd')||{}).value||'';
-  var obs=(document.getElementById('cef-lf-obs')||{}).value||'';
+  var rev=((document.getElementById('cef-lf-rev')||{}).value||'').trim().toUpperCase();
   // Auto: se tem data → status Liberado
   if(data&&status==='Pendente') status='Liberado';
   _cdocPendingLibfab=_cdocPendingLibfab||[];
-  // CORRIGIDO (perda de dados percebida): se o usuário só trocou o status
-  // (sem preencher data/GRD/obs), a intenção é atualizar o registro que já
-  // existe, não criar uma segunda linha em branco (ex.: "Liberado" e depois
-  // "Pendente", ambos sem data — ficava parecendo dados perdidos/confusos).
-  var _semDadosNovos = !data && !grd && !obs;
   var _todosAtuais = _cdocCurrentLibfab();
   var _ultimo = _todosAtuais.length ? _todosAtuais[_todosAtuais.length-1] : null;
+  // CORRIGIDO (perda de dados percebida): se o usuário só trocou o status,
+  // sem informar uma data nova e sem mudar a revisão em relação ao último
+  // registro, a intenção é atualizar o registro que já existe, não criar
+  // uma segunda linha em branco (ex.: "Liberado" e depois "Pendente", ambos
+  // sem data — ficava parecendo dados perdidos/confusos). Se houver uma
+  // data nova OU uma revisão diferente da última, é um evento novo de
+  // verdade — cria um registro novo no histórico.
+  var _mesmaRev = _ultimo ? (rev===(_ultimo.rev||'')) : !rev;
+  var _semDadosNovos = !data && _mesmaRev;
   if(_semDadosNovos && _ultimo){
     _ultimo.status = status;
+    if(rev) _ultimo.rev = rev;
     var _db3=_cdocLoad();
     var _base3=(_cdocEditId?_db3.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
     if(_base3 && _base3.libfabHist && _base3.libfabHist.indexOf(_ultimo)!==-1){
       _cdocSave(_db3);
     }
   } else {
-    _cdocPendingLibfab.push({status:status,data:data,grd:grd,obs:obs});
+    _cdocPendingLibfab.push({status:status,data:data,rev:rev});
   }
-  ['cef-lf-data','cef-lf-grd','cef-lf-obs'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  var _lfDataEl=document.getElementById('cef-lf-data'); if(_lfDataEl) _lfDataEl.value='';
   var wrap=document.getElementById('cef-libfab-hist-wrap');
   if(wrap) wrap.innerHTML=_cdocLibfabHistHtml({libfabHist:_cdocCurrentLibfab()});
 }
@@ -23876,14 +23878,15 @@ function _cdocMesclarEnviosFragmentados(){
         }
       }
     }
-    // ── Liberação para Fabricação: junta uma linha em branco (sem data/GRD/
-    // obs, só mudando status) na linha anterior imediata ──
+    // ── Liberação para Fabricação: junta uma linha em branco (sem data,
+    // mesma revisão da anterior — só mudando status) na linha anterior ──
     if(doc.libfabHist && doc.libfabHist.length>1){
       for(var k=doc.libfabHist.length-1;k>0;k--){
         var f2=doc.libfabHist[k];
-        var f2Vazia = !f2.data && !f2.grd && !f2.obs;
+        var f2Vazia = !f2.data && (!f2.rev || f2.rev===(doc.libfabHist[k-1].rev||''));
         if(!f2Vazia) continue;
         doc.libfabHist[k-1].status = f2.status || doc.libfabHist[k-1].status;
+        if(f2.rev) doc.libfabHist[k-1].rev = f2.rev;
         doc.libfabHist.splice(k,1);
         corrLf++; afetou=true;
       }
@@ -25866,10 +25869,9 @@ function cdocSalvar(){
     var lfData=g('cef-lf-data');
     if(lfData){
       var lfSt=g('cef-lf-status')||'Liberado';
-      var lfGrd=g('cef-lf-grd');
-      var lfObs=g('cef-lf-obs');
+      var lfRev=(g('cef-lf-rev')||'').toUpperCase();
       _cdocPendingLibfab=_cdocPendingLibfab||[];
-      _cdocPendingLibfab.push({status:lfSt,data:lfData,grd:lfGrd,obs:lfObs});
+      _cdocPendingLibfab.push({status:lfSt,data:lfData,rev:lfRev});
     }
     // Auto-commit: se usuário preencheu data de envio mas não clicou + Reg., adiciona agora
     var enData=g('cef-en-data');
@@ -26057,11 +26059,12 @@ function cdocExportDet(){
   // Importante: um filtro que resulta em ZERO documentos deve exportar um CSV
   // vazio, não "cair" para a base inteira.
   var exportRows = (window._cdocDetRowsAll!==undefined && window._cdocDetRowsAll!==null) ? window._cdocDetRowsAll : db.detalhados;
-  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
+  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Rev Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
   var rows=[hdr];
   exportRows.forEach(function(d){
     var lh=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
     var lfSt=lh?lh.status:(d.libfab||'');
+    var lfRv=lh?(lh.rev||''):'';
     var lfDt=lh?lh.data:(d.libfabData||'');
     var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
     var enSt=eh?eh.status:(d.envio||'');
@@ -26073,7 +26076,7 @@ function cdocExportDet(){
     var enReal=eh?eh.retornoReal||'':'';
     var enSf=eh?eh.statusFinal||'':'';
     var enObs=eh?eh.obs||'':'';
-    rows.push([d.obraId,d.sub,d.num,d.cli||'',d.titulo||'',d.tipo||'',d.desc||'',d.peca||'',d.peso||'',d.rev||'',d.statusGeral||'',d.engResp||'',d.data||'',lfSt,lfDt,enSt,enDt,enRev,enFin,enGrd,enPrev,enReal,enSf,enObs].join(';'));
+    rows.push([d.obraId,d.sub,d.num,d.cli||'',d.titulo||'',d.tipo||'',d.desc||'',d.peca||'',d.peso||'',d.rev||'',d.statusGeral||'',d.engResp||'',d.data||'',lfSt,lfRv,lfDt,enSt,enDt,enRev,enFin,enGrd,enPrev,enReal,enSf,enObs].join(';'));
   });
   _cdocDownload(rows.join('\n'),'proj_detalhado.csv');
 }
@@ -26081,14 +26084,14 @@ function cdocExportDet(){
 function cdocExportDetSel(){
   if(!_cdocDetSel||!_cdocDetSel.size){alert('Selecione ao menos um documento na tabela.');return;}
   var db=_cdocDb();
-  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
+  var hdr='Obra;TAG;Nº Sidertec;Nº Cliente;Título;Tipo;Descrição;Peça;Peso (kg);Rev;Status Geral;Eng.Resp;Data;Lib.Fab;Rev Lib.Fab;Data Lib.Fab;Envio;Data Envio;Rev Enviada;Finalidade;GRD Envio;Prev. Retorno;Retorno Real;Status Final;Obs Envio';
   var rows=db.detalhados.filter(function(d){return _cdocDetSel.has(d.id);}).map(function(d){
     var lf=d.libfabHist&&d.libfabHist.length?d.libfabHist[d.libfabHist.length-1]:null;
     var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
     function q(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}
     return [q(d.obraId),q(d.sub),q(d.num),q(d.cli),q(d.titulo),q(d.tipo),q(d.desc),q(d.peca),
       (d.peso||''),q(d.rev),q(d.statusGeral),q(d.engResp),q(d.data),
-      q(lf?lf.status:''),q(lf?lf.data:''),
+      q(lf?lf.status:''),q(lf?lf.rev:''),q(lf?lf.data:''),
       q(eh?'Sim':''),q(eh?eh.data:''),q(eh?eh.rev:''),
       q(eh?eh.finalidade:''),q(eh?eh.grd:''),
       q(eh?eh.prevRetorno:''),q(eh?eh.retornoReal:''),
@@ -26255,6 +26258,7 @@ function cdocImportDet(input){
     function colPresent(names){ return names.some(function(n){return _headerSet[n];}); }
     var ALIASES_LF_ST=['Lib.Fab','Status Lib. Fab.','Lib. Fab.','libfab'];
     var ALIASES_LF_DT=['Data Lib.Fab','Data Liberação','data_libfab'];
+    var ALIASES_LF_REV=['Rev Lib.Fab','Rev.Lib.Fab','Revisão Lib.Fab','rev_libfab'];
     var ALIASES_LF_GRD=['GRD Lib.Fab','GRD'];
     var ALIASES_LF_OBS=['Obs Lib.Fab'];
     var ALIASES_EN_ST=['Envio','Status Envio','envio'];
@@ -26283,18 +26287,23 @@ function cdocImportDet(input){
     // Upsert no envioHist: chave = rev + grd (mesma revisão + mesma GRD = mesmo registro)
     // Se existir, atualiza campos que vieram preenchidos; senão, cria novo
     function upsertEnvio(hist, entry){
-      if(!entry.grd && !entry.data && !entry.rev) return hist;
-      // Chave primária: rev+grd quando ambos existem, senão rev+data, senão data+finalidade
-      var keyMatch = function(h){
-        if(entry.grd && h.grd && entry.rev && h.rev)
-          return h.grd === entry.grd && h.rev === entry.rev;
-        if(entry.grd && h.grd)
-          return h.grd === entry.grd;
-        if(entry.rev && h.rev && entry.data && h.data)
-          return h.rev === entry.rev && h.data === entry.data;
-        return false;
-      };
-      var idx = hist.findIndex(keyMatch);
+      if(!Object.keys(entry).length) return hist;
+      // CORRIGIDO: a regra antiga só encontrava a linha existente quando AMBOS
+      // os lados já tinham GRD preenchida (h.grd && entry.grd) — se a linha
+      // existente ainda estava com GRD em branco (ex.: envio registrado sem
+      // GRD ainda), nunca batia, e a importação empilhava uma linha nova só
+      // pra adicionar a GRD, duplicando o envio. Agora o critério principal é
+      // a REVISÃO: mesma revisão = mesma linha, e as informações novas do CSV
+      // são adicionadas/atualizadas nela. Só cria uma linha nova quando a
+      // revisão informada no CSV é diferente de todas as já registradas. Se o
+      // CSV não trouxer coluna de revisão nesta importação, assume que se
+      // refere ao envio mais recente (último registro).
+      var idx = -1;
+      if(entry.rev){
+        idx = hist.findIndex(function(h){ return (h.rev||'')===entry.rev; });
+      } else if(hist.length){
+        idx = hist.length-1;
+      }
       if(idx >= 0){
         // Atualiza os campos que vieram no objeto entry — inclusive quando vazios,
         // pois a ausência da chave (não incluída pelo chamador) já indica "coluna
@@ -26312,10 +26321,21 @@ function cdocImportDet(input){
     // Upsert no libfabHist: chave = data + status
     function upsertLibfab(hist, entry){
       if(!entry.data&&!entry.status) return hist;
-      var idx=hist.findIndex(function(h){
-        return h.data&&entry.data&&h.data===entry.data&&h.status===entry.status;
-      });
-      if(idx>=0){ Object.assign(hist[idx],entry); } else { hist.push(entry); }
+      // CORRIGIDO: a regra antiga só atualizava um registro existente se DATA
+      // E STATUS fossem exatamente iguais — na prática isso nunca batia
+      // quando o status mudava (ex.: "Pendente"→"Liberado"), então TODA
+      // importação de CSV empilhava um registro novo em vez de atualizar o
+      // atual, deixando o histórico com vários registros em branco/duplicados
+      // e o "último status" mostrado incorreto. Agora, se a revisão não
+      // mudou e não há uma data nova, apenas atualiza o último registro —
+      // mesma regra usada no cadastro manual (cdocAddLibfabHist).
+      var ultimo = hist.length ? hist[hist.length-1] : null;
+      var mesmaRev = ultimo ? ((entry.rev||'')===(ultimo.rev||'')) : !entry.rev;
+      if(ultimo && !entry.data && mesmaRev){
+        Object.assign(ultimo, entry);
+      } else {
+        hist.push(entry);
+      }
       return hist;
     }
 
@@ -26350,8 +26370,7 @@ function cdocImportDet(input){
       var cli=row['Nº Cliente']||row['No Cliente']||'';
       var lfSt=row['Lib.Fab']||row['Status Lib. Fab.']||row['Lib. Fab.']||row['libfab']||'';
       var lfDt=normData(row['Data Lib.Fab']||row['Data Liberação']||row['data_libfab']||'');
-      var lfGrd=row['GRD Lib.Fab']||row['GRD']||'';
-      var lfObs=row['Obs Lib.Fab']||'';
+      var lfRev=row['Rev Lib.Fab']||row['Rev.Lib.Fab']||row['Revisão Lib.Fab']||row['rev_libfab']||'';
       var enSt=row['Envio']||row['Status Envio']||row['envio']||'';
       var enDt=normData(row['Data Envio']||row['data_envio']||'');
       var enRev=row['Rev Enviada']||row['Rev.Enviada']||'';
@@ -26364,11 +26383,11 @@ function cdocImportDet(input){
 
       // Presença das colunas nesta importação (não depende do valor da linha) —
       // usado para saber se um campo vazio é "limpar" ou "coluna nem existe".
-      var lfStP=colPresent(ALIASES_LF_ST), lfDtP=colPresent(ALIASES_LF_DT), lfGrdP=colPresent(ALIASES_LF_GRD), lfObsP=colPresent(ALIASES_LF_OBS);
+      var lfStP=colPresent(ALIASES_LF_ST), lfDtP=colPresent(ALIASES_LF_DT), lfRevP=colPresent(ALIASES_LF_REV);
       var enStP=colPresent(ALIASES_EN_ST), enDtP=colPresent(ALIASES_EN_DT), enRevP=colPresent(ALIASES_EN_REV), enFinP=colPresent(ALIASES_EN_FIN),
           enGrdP=colPresent(ALIASES_EN_GRD), enPrevRetP=colPresent(ALIASES_EN_PREVRET), enRetRealP=colPresent(ALIASES_EN_RETREAL),
           enSfinalP=colPresent(ALIASES_EN_SFINAL), enObsP=colPresent(ALIASES_EN_OBS);
-      var temColLf = lfStP||lfDtP||lfGrdP||lfObsP;
+      var temColLf = lfStP||lfDtP||lfRevP;
       var temColEn = enStP||enDtP||enRevP||enFinP||enGrdP||enPrevRetP||enRetRealP||enSfinalP||enObsP;
       function _lfEntry(){
         var o={};
@@ -26380,8 +26399,7 @@ function cdocImportDet(input){
         // 'Pendente' — a liberação precisa ser marcada manualmente.
         if(lfStP) o.status = lfSt||(lfDt?'Liberado':'Pendente');
         if(lfDtP) o.data = lfDt;
-        if(lfGrdP) o.grd = lfGrd;
-        if(lfObsP) o.obs = lfObs;
+        if(lfRevP) o.rev = lfRev;
         return o;
       }
       function _enEntry(){
@@ -26463,7 +26481,7 @@ function cdocImportDet(input){
         newData.id=_cdocGenId(db,'det');
         var lhistNew=[];
         var ehistNew=[];
-        if(lfSt||lfDt) lhistNew=[_lfEntry()];
+        if(lfSt||lfDt||lfRev) lhistNew=[_lfEntry()];
         if(enSt||enDt||enPrevRet||enRetReal||enSfinal||enGrd||enRev){
           ehistNew=[_enEntry()];
         }
@@ -34898,7 +34916,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-07';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-09';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
