@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-23-03 -->
+<!-- SIDER_APP_BUILD: 2026-07-23-05 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -21849,7 +21849,8 @@ function _cdocNextRev(rev, dir){
 function cdocBumpRev(modulo, dir){
   if(!_siderRequireEdit()) return;
   var sel = modulo==='bas' ? _cdocBasSel : _cdocDetSel;
-  if(sel.size!==1){ alert('Selecione exatamente 1 '+(modulo==='bas'?'projeto básico':'documento')+' para alterar a revisão.'); return; }
+  if(!sel.size){ alert('Selecione pelo menos 1 '+(modulo==='bas'?'projeto básico':'documento')+' para alterar a revisão.'); return; }
+  if(sel.size>1){ _cdocBumpRevLote(modulo, dir, sel); return; }
   var db=_cdocDb();
   var id=Array.from(sel)[0];
   var rec = modulo==='bas'
@@ -21930,6 +21931,83 @@ function cdocBumpRev(modulo, dir){
   };
   // Foco no campo de revisão
   setTimeout(function(){var inp=document.getElementById('_rv-inp');if(inp){inp.focus();inp.select();}},80);
+}
+// Subir/descer revisão em VÁRIOS documentos/projetos básicos de uma vez.
+// Cada um avança a PRÓPRIA revisão atual (ex.: um que está em RA1 vira RA2,
+// outro que já está em RB3 vira RB4) — não faz sentido forçar o mesmo texto
+// de revisão em documentos que estavam em revisões diferentes.
+function _cdocBumpRevLote(modulo, dir, sel){
+  var db=_cdocDb();
+  var ids=Array.from(sel);
+  var recs=ids.map(function(id){
+    return modulo==='bas' ? db.basicos.find(function(b){return b.id===id;}) : db.detalhados.find(function(d){return d.id===id;});
+  }).filter(Boolean);
+  if(!recs.length){ showToast&&showToast('Erro','Nenhum registro encontrado.','error'); return; }
+  var hojeISO=_cdocHojeISO();
+  var dirLabel=dir>0?'▲ Subir':'▼ Descer';
+  var dirColor=dir>0?'#166534':'#9a3412';
+  var dirBg=dir>0?'#dcfce7':'#ffedd5';
+  var dirBorder=dir>0?'#86efac':'#fdba74';
+  var preview=recs.slice(0,6).map(function(r){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;font-size:11px;">'
+      +'<span style="color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">'+_esc((r.titulo||r.sub||'').slice(0,40))+'</span>'
+      +'<span style="font-family:Courier New,monospace;font-weight:800;white-space:nowrap;">'+_esc(r.rev||'RAI')+' → <span style="color:'+dirColor+';">'+_esc(_cdocNextRev(r.rev||'RAI',dir))+'</span></span>'
+      +'</div>';
+  }).join('');
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:199999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:380px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
+    +'<div style="font-size:14px;font-weight:700;color:#0c4a6e;margin-bottom:4px;">'+dirLabel+' Revisão em Lote</div>'
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:12px;">'+recs.length+' '+(modulo==='bas'?'projeto(s) básico(s)':'documento(s)')+' selecionado(s). Cada um avança a própria revisão atual.</div>'
+    +'<div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-bottom:14px;background:#f8fafc;">'
+      +preview
+      +(recs.length>6?'<div style="font-size:10px;color:#94a3b8;padding-top:4px;">... e mais '+(recs.length-6)+'</div>':'')
+    +'</div>'
+    +'<div style="margin-bottom:16px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da revisão (aplicada a todos)</label>'
+    +'<input id="_rvl-data" type="date" value="'+hojeISO+'" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;">'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +'<button id="_rvl-cancel" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:6px 16px;font-size:12px;cursor:pointer;">Cancelar</button>'
+    +'<button id="_rvl-ok" style="background:'+dirColor+';color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;font-weight:700;cursor:pointer;">Confirmar para '+recs.length+'</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('_rvl-cancel').onclick=function(){document.body.removeChild(ov);};
+  document.getElementById('_rvl-ok').onclick=function(){
+    var novaData=(document.getElementById('_rvl-data').value||'').trim();
+    document.body.removeChild(ov);
+    var db2=_cdocDb();
+    var qtd=0;
+    ids.forEach(function(id){
+      if(modulo==='bas'){
+        var bas=db2.basicos.find(function(b){return b.id===id;});
+        if(bas){
+          var novaRevB=_cdocNextRev(bas.rev||'RAI', dir);
+          bas._revAnterior=bas.rev||'';
+          bas.rev=novaRevB;
+          if(novaData) bas.data=novaData;
+          bas.revisoes=bas.revisoes||[];
+          bas.revisoes.push({rev:novaRevB,data:novaData,anterior:bas._revAnterior,por:'lote',ts:new Date().toISOString()});
+          qtd++;
+        }
+      } else {
+        var det=db2.detalhados.find(function(d){return d.id===id;});
+        if(det){
+          var novaRevD=_cdocNextRev(det.rev||'RAI', dir);
+          det._revAnterior=det.rev||'';
+          det.rev=novaRevD;
+          if(novaData) det.data=novaData;
+          qtd++;
+        }
+      }
+    });
+    _cdocSave(db2);
+    if(modulo==='bas'){ cdocRenderBas(); } else { cdocRenderDet(); }
+    cdocRenderVisao();
+    showToast&&showToast('Revisão atualizada em lote',
+      qtd+' '+(modulo==='bas'?'projeto(s) básico(s)':'documento(s)')+' — cada um avançou sua própria revisão'+(novaData?' | '+novaData.split('-').reverse().join('/'):''),
+      'success');
+  };
 }
 
 /* ── Limpar filtros ── */
@@ -22552,6 +22630,12 @@ function cdocEditEnvioHistRow(idx){
   g('cef-en-status-final',r.statusFinal); g('cef-en-obs',r.obs);
   _cdocAtualizarDiasEnvio();
   _cdocEnvioEditIdx=idx;
+  // Guarda também a referência do OBJETO em si (não só a posição numérica).
+  // Se, entre clicar no lápis e clicar em Salvar, uma sincronização com a
+  // nuvem (outro usuário editando ao mesmo tempo) mudar o array por baixo,
+  // a posição numérica pode não apontar mais para a linha certa — a
+  // referência do objeto continua válida e é usada como prioridade no save.
+  _cdocEnvioEditRef=r;
   var btn=document.getElementById('cef-en-add-btn');
   if(btn){btn.textContent='✓ Salvar';btn.style.background='#166534';}
   // scroll form into view
@@ -22596,6 +22680,7 @@ function cdocAddLibfabHist(){
   if(wrap) wrap.innerHTML=_cdocLibfabHistHtml({libfabHist:_cdocCurrentLibfab()});
 }
 var _cdocEnvioEditIdx=null; // índice sendo editado (-1 = novo)
+var _cdocEnvioEditRef=null; // referência do objeto sendo editado (mais confiável que o índice)
 function cdocAddEnvioHist(){
   var rev=(document.getElementById('cef-en-rev')||{}).value||'';
   var data=(document.getElementById('cef-en-data')||{}).value||'';
@@ -22634,27 +22719,55 @@ function cdocAddEnvioHist(){
   var entry={rev:rev,data:data,finalidade:finalidade,grd:grd,prevRetorno:prevRetorno,retornoReal:retornoReal,statusFinal:statusFinal,obs:obs,status:envioStatus};
   _cdocPendingEnvio=_cdocPendingEnvio||[];
   if(_cdocEnvioEditIdx!==null){
-    // MODO EDIÇÃO: substituir a entrada existente
-    var all=_cdocCurrentEnvio();
+    // MODO EDIÇÃO: substituir a entrada existente.
+    // CORRIGIDO (registro duplicado ao editar): se, entre clicar no lápis e
+    // clicar em Salvar, uma sincronização em segundo plano (outro usuário
+    // editando ao mesmo tempo) alterou o array por baixo, a POSIÇÃO numérica
+    // guardada podia não apontar mais para a linha certa — o salvamento
+    // então caía no índice errado (ou um índice que já não existia mais do
+    // jeito esperado), e a linha original acabava não sendo substituída,
+    // sobrando como uma duplicata. Agora localiza a linha pela REFERÊNCIA do
+    // objeto (guardada no momento do clique no lápis), que continua válida
+    // mesmo que a posição no array tenha mudado; só usa a posição numérica
+    // como último recurso, se a referência não for encontrada.
     var db=_cdocLoad(); var base=(_cdocEditId?db.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
-    var savedLen=(base&&base.envioHist)?base.envioHist.length:0;
-    if(_cdocEnvioEditIdx<savedLen){
-      if(base){
-        base.envioHist[_cdocEnvioEditIdx]=entry;
+    var achou=false;
+    if(base && base.envioHist){
+      var posRef=_cdocEnvioEditRef?base.envioHist.indexOf(_cdocEnvioEditRef):-1;
+      if(posRef!==-1){
+        base.envioHist[posRef]=entry;
         _cdocSave(db);
-        // Garante que a GRD digitada apareça em "GRDs Emitidas"
         if(entry.grd){ try{ _cdocSyncGrdFromEnvio(base, entry); }catch(eGrdSync){ console.warn('[cdocAddEnvioHist→GRD]', eGrdSync.message); } }
-        // Sincroniza cronograma se houver GRD/data
         if(entry.grd||entry.data){
           try{ _cdocGrdDetAtualizarCronograma([base], entry.data||_cdocHojeISO(), entry.grd||'', [entry.finalidade||'Para Aprovação']); }
           catch(eSync){ console.warn('[cdocAddEnvioHist→Cron]', eSync.message); }
         }
+        achou=true;
       }
-    } else {
-      var pIdx=_cdocEnvioEditIdx-savedLen;
-      if(_cdocPendingEnvio[pIdx]!==undefined) _cdocPendingEnvio[pIdx]=entry;
+    }
+    if(!achou && _cdocEnvioEditRef){
+      var posPend=(_cdocPendingEnvio||[]).indexOf(_cdocEnvioEditRef);
+      if(posPend!==-1){ _cdocPendingEnvio[posPend]=entry; achou=true; }
+    }
+    if(!achou){
+      // Último recurso: usa a posição numérica salva originalmente.
+      var all=_cdocCurrentEnvio();
+      var savedLen=(base&&base.envioHist)?base.envioHist.length:0;
+      if(_cdocEnvioEditIdx<savedLen){
+        if(base){ base.envioHist[_cdocEnvioEditIdx]=entry; _cdocSave(db); achou=true; }
+      } else {
+        var pIdx=_cdocEnvioEditIdx-savedLen;
+        if(_cdocPendingEnvio[pIdx]!==undefined){ _cdocPendingEnvio[pIdx]=entry; achou=true; }
+      }
+    }
+    if(!achou){
+      // Não foi possível localizar a linha original de forma alguma — para
+      // NUNCA descartar silenciosamente o que o usuário digitou, adiciona
+      // como um novo registro em vez de perder a edição.
+      _cdocPendingEnvio.push(entry);
     }
     _cdocEnvioEditIdx=null;
+    _cdocEnvioEditRef=null;
     var btn=document.getElementById('cef-en-add-btn');
     if(btn){btn.textContent='+ Reg.';btn.style.background='#0369a1';}
   } else {
@@ -23113,6 +23226,8 @@ function cdocAbrirStatusLote(){
       +'<input type="text" id="csl-rev" disabled placeholder="Ex: R1" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
       +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-data" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-data\').disabled=!this.checked;">Alterar <u>Data</u> do envio (do último envio) para:</label>'
       +'<input type="date" id="csl-data" value="'+hoje+'" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-grd" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-grd\').disabled=!this.checked;">Alterar <u>GRD</u> (do último envio) para:</label>'
+      +'<input type="text" id="csl-grd" disabled placeholder="Ex: S176-GRD-0150" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
       +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;"><input type="checkbox" id="csl-chk-fin" style="width:15px;height:15px;cursor:pointer;" onchange="document.getElementById(\'csl-fin\').disabled=!this.checked;">Alterar <u>Finalidade</u> (do último envio) para:</label>'
       +'<select id="csl-fin" disabled style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:14px;">'
         +'<option value="">-- Selecione --</option>'
@@ -23141,6 +23256,8 @@ function _cdocAplicarStatusLote(){
   var novoRev=((document.getElementById('csl-rev')||{}).value||'').trim();
   var alterarData=(document.getElementById('csl-chk-data')||{}).checked;
   var novoData=(document.getElementById('csl-data')||{}).value;
+  var alterarGrd=(document.getElementById('csl-chk-grd')||{}).checked;
+  var novoGrd=((document.getElementById('csl-grd')||{}).value||'').trim();
   var alterarFin=(document.getElementById('csl-chk-fin')||{}).checked;
   var novoFin=(document.getElementById('csl-fin')||{}).value;
   var alterarPr=(document.getElementById('csl-chk-pr')||{}).checked;
@@ -23154,19 +23271,20 @@ function _cdocAplicarStatusLote(){
   if(alterarSg&&!novoSg){ alert('Selecione o novo Status, ou desmarque a opção.'); return; }
   if(alterarRev&&!novoRev){ alert('Digite a Revisão Enviada, ou desmarque a opção.'); return; }
   if(alterarData&&!novoData){ alert('Selecione a Data do envio, ou desmarque a opção.'); return; }
+  if(alterarGrd&&!novoGrd){ alert('Digite o número da GRD, ou desmarque a opção.'); return; }
   if(alterarFin&&!novoFin){ alert('Selecione a Finalidade, ou desmarque a opção.'); return; }
   if(alterarPr&&!novoPr){ alert('Selecione a data de Retorno Previsto, ou desmarque a opção.'); return; }
   if(alterarSf&&!novoSf){ alert('Selecione o novo Status Final, ou desmarque a opção.'); return; }
   if(alterarRr&&!novoRr){ alert('Selecione a data de Retorno Real, ou desmarque a opção.'); return; }
   if(alterarObs&&!novoObs){ alert('Digite a Observação, ou desmarque a opção.'); return; }
-  if(!alterarSg&&!alterarRev&&!alterarData&&!alterarFin&&!alterarPr&&!alterarSf&&!alterarRr&&!alterarObs){ alert('Marque pelo menos uma das opções.'); return; }
+  if(!alterarSg&&!alterarRev&&!alterarData&&!alterarGrd&&!alterarFin&&!alterarPr&&!alterarSf&&!alterarRr&&!alterarObs){ alert('Marque pelo menos uma das opções.'); return; }
   var db=_cdocDb();
-  var qtdSg=0, qtdRev=0, qtdData=0, qtdFin=0, qtdPr=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdNovoEnvio=0;
+  var qtdSg=0, qtdRev=0, qtdData=0, qtdGrd=0, qtdFin=0, qtdPr=0, qtdSf=0, qtdRr=0, qtdObs=0, qtdNovoEnvio=0;
   _cdocDetSel.forEach(function(id){
     var doc=db.detalhados.find(function(d){return d.id===id;});
     if(!doc) return;
     if(alterarSg){ doc.statusGeral=novoSg; qtdSg++; }
-    if(alterarRev||alterarData||alterarFin||alterarPr||alterarSf||alterarRr||alterarObs){
+    if(alterarRev||alterarData||alterarGrd||alterarFin||alterarPr||alterarSf||alterarRr||alterarObs){
       if(doc.envioHist&&doc.envioHist.length){
         var ult=doc.envioHist[doc.envioHist.length-1];
         // Proteção extra: se por algum motivo a última entrada for um
@@ -23178,6 +23296,7 @@ function _cdocAplicarStatusLote(){
         }
         if(alterarRev){ ult.rev=novoRev; doc.rev=novoRev; qtdRev++; }
         if(alterarData){ ult.data=novoData; qtdData++; }
+        if(alterarGrd){ ult.grd=novoGrd; qtdGrd++; try{ _cdocSyncGrdFromEnvio(doc, ult); }catch(eGrdSync){ console.warn('[StatusLote→GRD]', eGrdSync.message); } }
         if(alterarFin){ ult.finalidade=novoFin; qtdFin++; }
         if(alterarPr){ ult.prevRetorno=novoPr; qtdPr++; }
         if(alterarSf){ ult.statusFinal=novoSf; qtdSf++; }
@@ -23190,7 +23309,7 @@ function _cdocAplicarStatusLote(){
           rev: alterarRev?novoRev:'',
           data: alterarData?novoData:'',
           finalidade: alterarFin?novoFin:'',
-          grd:'',
+          grd: alterarGrd?novoGrd:'',
           prevRetorno: alterarPr?novoPr:'',
           retornoReal: alterarRr?novoRr:'',
           statusFinal: alterarSf?novoSf:'',
@@ -23201,6 +23320,7 @@ function _cdocAplicarStatusLote(){
         doc.envioHist.push(novoEntry);
         if(alterarRev){ doc.rev=novoRev; qtdRev++; }
         if(alterarData) qtdData++;
+        if(alterarGrd){ qtdGrd++; try{ _cdocSyncGrdFromEnvio(doc, novoEntry); }catch(eGrdSync2){ console.warn('[StatusLote→GRD]', eGrdSync2.message); } }
         if(alterarFin) qtdFin++;
         if(alterarPr) qtdPr++;
         if(alterarSf) qtdSf++;
@@ -23216,6 +23336,7 @@ function _cdocAplicarStatusLote(){
   if(alterarSg) msg.push(qtdSg+' com Status atualizado');
   if(alterarRev) msg.push(qtdRev+' com Revisão Enviada atualizada');
   if(alterarData) msg.push(qtdData+' com Data atualizada');
+  if(alterarGrd) msg.push(qtdGrd+' com GRD atualizada');
   if(alterarFin) msg.push(qtdFin+' com Finalidade atualizada');
   if(alterarPr) msg.push(qtdPr+' com Retorno Previsto atualizado');
   if(alterarSf) msg.push(qtdSf+' com Status Final atualizado');
@@ -23650,6 +23771,25 @@ function _cdocMesclarEnviosFragmentados(){
         if(alvo.retornoReal) alvo.status='Concluído';
         doc.envioHist.splice(i,1);
         corrEn++; afetou=true;
+      }
+      // ── Linhas QUASE idênticas (mesmo rev+data+finalidade+prevRetorno+
+      // retornoReal+statusFinal), diferindo só no GRD — uma com GRD vazio e
+      // outra já preenchida. Acontece quando editar pelo lápis para só
+      // adicionar o GRD acabava criando uma linha nova em vez de atualizar a
+      // original (bug já corrigido, esta limpa o que sobrou de antes). ──
+      for(var i2=doc.envioHist.length-1;i2>0;i2--){
+        var a=doc.envioHist[i2], b=doc.envioHist[i2-1];
+        var _mesmaBase = (a.rev||'')===(b.rev||'') && (a.data||'')===(b.data||'') &&
+          (a.finalidade||'')===(b.finalidade||'') && (a.prevRetorno||'')===(b.prevRetorno||'') &&
+          (a.retornoReal||'')===(b.retornoReal||'') && (a.statusFinal||'')===(b.statusFinal||'');
+        var _grdDif = (a.grd||'')!==(b.grd||'') && (!a.grd || !b.grd);
+        if(_mesmaBase && _grdDif){
+          // Mantém o GRD preenchido (de qualquer uma das duas) e remove a duplicata
+          if(!b.grd && a.grd) b.grd=a.grd;
+          if(a.obs && b.obs!==a.obs) b.obs=(b.obs?b.obs+' | ':'')+a.obs;
+          doc.envioHist.splice(i2,1);
+          corrEn++; afetou=true;
+        }
       }
     }
     // ── Liberação para Fabricação: junta uma linha em branco (sem data/GRD/
@@ -34672,7 +34812,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-03';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-05';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
