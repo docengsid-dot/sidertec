@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-23-02 -->
+<!-- SIDER_APP_BUILD: 2026-07-23-03 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -23169,6 +23169,13 @@ function _cdocAplicarStatusLote(){
     if(alterarRev||alterarData||alterarFin||alterarPr||alterarSf||alterarRr||alterarObs){
       if(doc.envioHist&&doc.envioHist.length){
         var ult=doc.envioHist[doc.envioHist.length-1];
+        // Proteção extra: se por algum motivo a última entrada for um
+        // fragmento vazio (sem rev/data/finalidade/GRD — resquício de um
+        // bug já corrigido), usa a entrada de verdade anterior a ela, em
+        // vez de preencher o retorno num fragmento sem informação nenhuma.
+        if(ult && !ult.rev && !ult.data && !ult.finalidade && !ult.grd && doc.envioHist.length>1){
+          ult=doc.envioHist[doc.envioHist.length-2];
+        }
         if(alterarRev){ ult.rev=novoRev; doc.rev=novoRev; qtdRev++; }
         if(alterarData){ ult.data=novoData; qtdData++; }
         if(alterarFin){ ult.finalidade=novoFin; qtdFin++; }
@@ -34665,7 +34672,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-02';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-03';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
