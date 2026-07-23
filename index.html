@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-23-05 -->
+<!-- SIDER_APP_BUILD: 2026-07-23-07 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -18993,8 +18993,8 @@ function _cdocPainelToggleDet(){
             <button onclick="document.getElementById('cdoc-import-bas').click()" title="Importar CSV" class="cdoc-cmdbtn" style="background:#d97706;">⬆</button>
             <input type="file" id="cdoc-import-bas" accept=".csv" style="display:none" onchange="cdocImportBas(this)">
             <div class="cdoc-cmd-sep-v"></div>
-            <button id="cdb-btn-rev-up" onclick="cdocBumpRev('bas',1)" title="Subir revisão do item selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
-            <button id="cdb-btn-rev-dn" onclick="cdocBumpRev('bas',-1)" title="Descer revisão do item selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
+            <button id="cdb-btn-rev-up" onclick="cdocBumpRev('bas',1)" title="Subir revisão — funciona com 1 ou mais selecionados" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
+            <button id="cdb-btn-rev-dn" onclick="cdocBumpRev('bas',-1)" title="Descer revisão — funciona com 1 ou mais selecionados" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
             <button onclick="cdocEmitirGrdBas()" id="cdb-btn-grd" title="Emitir GRD de Remessa para selecionados" class="cdoc-cmdbtn" style="background:#7c3aed;">📋</button>
             <button onclick="cdocAbrirGrdsBas()" title="Ver GRDs emitidas" class="cdoc-cmdbtn" style="background:#5b21b6;">📁</button>
             <button onclick="cdocRelBas()" title="Relatório de Projetos Básicos" class="cdoc-cmdbtn" style="background:#0f172a;">📊</button>
@@ -19083,8 +19083,8 @@ function _cdocPainelToggleDet(){
             <button onclick="cdocLimparDet()" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;">✕ Limpar filtros</button>
           </div>
           <div class="cdoc-cmd-bar" style="margin-top:.3rem;">
-            <button id="cdd-btn-rev-up" onclick="cdocBumpRev('det',1)" title="Subir revisão do documento selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
-            <button id="cdd-btn-rev-dn" onclick="cdocBumpRev('det',-1)" title="Descer revisão do documento selecionado (selecione 1 linha)" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
+            <button id="cdd-btn-rev-up" onclick="cdocBumpRev('det',1)" title="Subir revisão — funciona com 1 ou mais selecionados" class="cdoc-cmdbtn" style="background:#16a34a;" disabled>▲</button>
+            <button id="cdd-btn-rev-dn" onclick="cdocBumpRev('det',-1)" title="Descer revisão — funciona com 1 ou mais selecionados" class="cdoc-cmdbtn" style="background:#ea580c;" disabled>▼</button>
             <button onclick="if(_cdocDetSel.size)cdocEmitirGrd();else alert('Selecione os documentos na tabela e clique em Emitir GRD na barra inferior.');" id="cdd-btn-grd" title="Emitir GRD — selecione linhas na tabela" class="cdoc-cmdbtn" style="background:#7c3aed;">📋</button>
             <button onclick="cdocAbrirGrds()" title="GRDs Emitidas" class="cdoc-cmdbtn" style="background:#1e40af;">📁</button>
             <button onclick="if(_cdocDetSel.size)cdocAbrirStatusLote();else alert('Marque os documentos na coluna de seleção da tabela (1ª coluna) e clique aqui para alterar Status/Status Final de todos de uma vez.');" id="cdd-btn-status-lote-top" title="Status em Lote — marque documentos na tabela" class="cdoc-cmdbtn" style="background:#b45309;">📝</button>
@@ -19101,6 +19101,7 @@ function _cdocPainelToggleDet(){
               <button id="cdd-btn-lista-resp" onclick="cdocImprimirListaResponsavel()" title="Lista p/ Responsável — lista simples agrupada por Eng. Responsável, para imprimir/PDF" class="cdoc-cmdbtn" style="display:none;background:#0e7490;">🖨<span class="badge" id="cdd-lista-resp-count">0</span></button>
               <button id="cdd-btn-relatorio-pdf" onclick="cdocRelatorioPdfSel()" title="Relatório PDF dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#991b1b;">📄<span class="badge" id="cdd-relatorio-pdf-count">0</span></button>
               <button id="cdd-btn-relatorio-xlsx" onclick="cdocRelatorioExcelSel()" title="Relatório Excel dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#15803d;">📊<span class="badge" id="cdd-relatorio-xlsx-count">0</span></button>
+              <button id="cdd-btn-relatorio-libenvio" onclick="cdocRelatorioLibEnvioSel()" title="Relatório de Liberação p/ Fabricação + Envio ao Cliente + Retornos (histórico completo) dos selecionados" class="cdoc-cmdbtn" style="display:none;background:#0369a1;">📋<span class="badge" id="cdd-relatorio-libenvio-count">0</span></button>
               <button id="cdd-btn-del-sel" onclick="cdocDelSelDet()" title="Excluir selecionados" class="cdoc-cmdbtn" style="display:none;background:#dc2626;">🗑<span class="badge" id="cdd-del-count">0</span></button>
             </div>
             <button onclick="_cdocDetClearSel()" title="Limpar seleção" class="cdoc-cmdbtn" style="background:#64748b;">✕</button>
@@ -21344,10 +21345,10 @@ function cdocRenderBas(){
   var psEl=document.getElementById('cdb-peso-sel'); if(psEl) psEl.textContent=_cdocBasSel.size?'Selecionados ('+_cdocBasSel.size+'): '+fmt(selPesoB)+' kg':'';
   var bdelBtn=document.getElementById('cdb-btn-del-sel'); var bdelCnt=document.getElementById('cdb-del-count');
   if(bdelBtn){ bdelBtn.style.display=_cdocBasSel.size?'':'none'; if(bdelCnt) bdelCnt.textContent=_cdocBasSel.size; }
-  // ── Botões ▲▼ Rev — ativam só com 1 selecionado ──
+  // ── Botões ▲▼ Rev — ativam com 1 ou mais selecionados (1 = individual com edição livre, 2+ = em lote) ──
   var _bru=document.getElementById('cdb-btn-rev-up'); var _brd=document.getElementById('cdb-btn-rev-dn');
-  if(_bru){_bru.disabled=_cdocBasSel.size!==1;_bru.style.opacity=_cdocBasSel.size===1?'1':'.45';}
-  if(_brd){_brd.disabled=_cdocBasSel.size!==1;_brd.style.opacity=_cdocBasSel.size===1?'1':'.45';}
+  if(_bru){_bru.disabled=!_cdocBasSel.size;_bru.style.opacity=_cdocBasSel.size?'1':'.45';}
+  if(_brd){_brd.disabled=!_cdocBasSel.size;_brd.style.opacity=_cdocBasSel.size?'1':'.45';}
   // ── Painel de peso ──
   (function(){
     var painel=document.getElementById('cdb-peso-painel'); if(!painel) return;
@@ -21806,10 +21807,12 @@ function cdocRenderDet(){
   if(pdfBtn){ pdfBtn.style.display=_cdocDetSel.size?'':'none'; if(pdfCnt) pdfCnt.textContent=_cdocDetSel.size; }
   var xlsxBtn=document.getElementById('cdd-btn-relatorio-xlsx'); var xlsxCnt=document.getElementById('cdd-relatorio-xlsx-count');
   if(xlsxBtn){ xlsxBtn.style.display=_cdocDetSel.size?'':'none'; if(xlsxCnt) xlsxCnt.textContent=_cdocDetSel.size; }
-  // ── Botões ▲▼ Rev — ativam só com 1 selecionado ──
+  var leBtn=document.getElementById('cdd-btn-relatorio-libenvio'); var leCnt=document.getElementById('cdd-relatorio-libenvio-count');
+  if(leBtn){ leBtn.style.display=_cdocDetSel.size?'':'none'; if(leCnt) leCnt.textContent=_cdocDetSel.size; }
+  // ── Botões ▲▼ Rev — ativam com 1 ou mais selecionados (1 = individual com edição livre, 2+ = em lote) ──
   var _dru=document.getElementById('cdd-btn-rev-up'); var _drd=document.getElementById('cdd-btn-rev-dn');
-  if(_dru){_dru.disabled=_cdocDetSel.size!==1;_dru.style.opacity=_cdocDetSel.size===1?'1':'.45';}
-  if(_drd){_drd.disabled=_cdocDetSel.size!==1;_drd.style.opacity=_cdocDetSel.size===1?'1':'.45';}
+  if(_dru){_dru.disabled=!_cdocDetSel.size;_dru.style.opacity=_cdocDetSel.size?'1':'.45';}
+  if(_drd){_drd.disabled=!_cdocDetSel.size;_drd.style.opacity=_cdocDetSel.size?'1':'.45';}
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -21948,20 +21951,27 @@ function _cdocBumpRevLote(modulo, dir, sel){
   var dirColor=dir>0?'#166534':'#9a3412';
   var dirBg=dir>0?'#dcfce7':'#ffedd5';
   var dirBorder=dir>0?'#86efac':'#fdba74';
-  var preview=recs.slice(0,6).map(function(r){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;font-size:11px;">'
-      +'<span style="color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">'+_esc((r.titulo||r.sub||'').slice(0,40))+'</span>'
-      +'<span style="font-family:Courier New,monospace;font-weight:800;white-space:nowrap;">'+_esc(r.rev||'RAI')+' → <span style="color:'+dirColor+';">'+_esc(_cdocNextRev(r.rev||'RAI',dir))+'</span></span>'
-      +'</div>';
-  }).join('');
+  function montarPreview(manual){
+    return recs.slice(0,6).map(function(r){
+      var alvo = manual ? manual : _cdocNextRev(r.rev||'RAI', dir);
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;font-size:11px;">'
+        +'<span style="color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">'+_esc((r.titulo||r.sub||'').slice(0,40))+'</span>'
+        +'<span style="font-family:Courier New,monospace;font-weight:800;white-space:nowrap;">'+_esc(r.rev||'RAI')+' → <span style="color:'+dirColor+';">'+_esc(alvo||'—')+'</span></span>'
+        +'</div>';
+    }).join('')+(recs.length>6?'<div style="font-size:10px;color:#94a3b8;padding-top:4px;">... e mais '+(recs.length-6)+'</div>':'');
+  }
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:199999;display:flex;align-items:center;justify-content:center;';
   ov.innerHTML='<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:380px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.25);">'
     +'<div style="font-size:14px;font-weight:700;color:#0c4a6e;margin-bottom:4px;">'+dirLabel+' Revisão em Lote</div>'
-    +'<div style="font-size:11px;color:#64748b;margin-bottom:12px;">'+recs.length+' '+(modulo==='bas'?'projeto(s) básico(s)':'documento(s)')+' selecionado(s). Cada um avança a própria revisão atual.</div>'
-    +'<div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-bottom:14px;background:#f8fafc;">'
-      +preview
-      +(recs.length>6?'<div style="font-size:10px;color:#94a3b8;padding-top:4px;">... e mais '+(recs.length-6)+'</div>':'')
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:12px;">'+recs.length+' '+(modulo==='bas'?'projeto(s) básico(s)':'documento(s)')+' selecionado(s).</div>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155;margin-bottom:10px;cursor:pointer;">'
+      +'<input type="checkbox" id="_rvl-manual-chk" style="width:15px;height:15px;cursor:pointer;">'
+      +'Definir uma revisão manual (mesma para todos), em vez de avançar automaticamente'
+    +'</label>'
+    +'<input type="text" id="_rvl-manual-txt" placeholder="Ex: RB1" disabled style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px;font-family:Courier New,monospace;text-transform:uppercase;margin-bottom:12px;">'
+    +'<div id="_rvl-preview" style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-bottom:14px;background:#f8fafc;">'
+      +montarPreview(null)
     +'</div>'
     +'<div style="margin-bottom:16px;">'
     +'<label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da revisão (aplicada a todos)</label>'
@@ -21972,9 +21982,24 @@ function _cdocBumpRevLote(modulo, dir, sel){
     +'<button id="_rvl-ok" style="background:'+dirColor+';color:#fff;border:none;border-radius:4px;padding:6px 18px;font-size:12px;font-weight:700;cursor:pointer;">Confirmar para '+recs.length+'</button>'
     +'</div></div>';
   document.body.appendChild(ov);
+  var manualChk=document.getElementById('_rvl-manual-chk');
+  var manualTxt=document.getElementById('_rvl-manual-txt');
+  var previewBox=document.getElementById('_rvl-preview');
+  function atualizarPreview(){
+    var manual = manualChk.checked ? (manualTxt.value||'').trim().toUpperCase() : null;
+    previewBox.innerHTML=montarPreview(manual);
+  }
+  manualChk.onchange=function(){
+    manualTxt.disabled=!manualChk.checked;
+    if(manualChk.checked){ manualTxt.focus(); }
+    atualizarPreview();
+  };
+  manualTxt.oninput=function(){ this.value=this.value.toUpperCase(); atualizarPreview(); };
   document.getElementById('_rvl-cancel').onclick=function(){document.body.removeChild(ov);};
   document.getElementById('_rvl-ok').onclick=function(){
     var novaData=(document.getElementById('_rvl-data').value||'').trim();
+    var manualRev = manualChk.checked ? (manualTxt.value||'').trim().toUpperCase() : null;
+    if(manualChk.checked && !manualRev){ alert('Digite a revisão manual, ou desmarque a opção para avançar automaticamente.'); return; }
     document.body.removeChild(ov);
     var db2=_cdocDb();
     var qtd=0;
@@ -21982,7 +22007,7 @@ function _cdocBumpRevLote(modulo, dir, sel){
       if(modulo==='bas'){
         var bas=db2.basicos.find(function(b){return b.id===id;});
         if(bas){
-          var novaRevB=_cdocNextRev(bas.rev||'RAI', dir);
+          var novaRevB=manualRev || _cdocNextRev(bas.rev||'RAI', dir);
           bas._revAnterior=bas.rev||'';
           bas.rev=novaRevB;
           if(novaData) bas.data=novaData;
@@ -21993,7 +22018,7 @@ function _cdocBumpRevLote(modulo, dir, sel){
       } else {
         var det=db2.detalhados.find(function(d){return d.id===id;});
         if(det){
-          var novaRevD=_cdocNextRev(det.rev||'RAI', dir);
+          var novaRevD=manualRev || _cdocNextRev(det.rev||'RAI', dir);
           det._revAnterior=det.rev||'';
           det.rev=novaRevD;
           if(novaData) det.data=novaData;
@@ -22005,7 +22030,7 @@ function _cdocBumpRevLote(modulo, dir, sel){
     if(modulo==='bas'){ cdocRenderBas(); } else { cdocRenderDet(); }
     cdocRenderVisao();
     showToast&&showToast('Revisão atualizada em lote',
-      qtd+' '+(modulo==='bas'?'projeto(s) básico(s)':'documento(s)')+' — cada um avançou sua própria revisão'+(novaData?' | '+novaData.split('-').reverse().join('/'):''),
+      qtd+' '+(modulo==='bas'?'projeto(s) básico(s)':'documento(s)')+(manualRev?' → '+manualRev:' — cada um avançou sua própria revisão')+(novaData?' | '+novaData.split('-').reverse().join('/'):''),
       'success');
   };
 }
@@ -22417,6 +22442,65 @@ function cdocRelatorioPdfSel(){
     +'<div class="resumo"><div><b>'+docs.length+'</b>Documento(s)</div><div><b>'+fmtKg(pesoTotal)+' kg</b>Peso total</div></div>'
     +'<table><thead><tr><th style="width:22px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Tipo</th><th>Título/Descrição</th><th>Status</th><th>Peça</th><th style="text-align:right;">Peso (kg)</th><th>Rev</th><th>Finalidade</th><th>GRD</th><th>Data Envio</th><th>Prev. Retorno</th><th>Status Final</th></tr></thead>'
     +'<tbody>'+rowsHtml+'</tbody></table>'
+    +'</body></html>');
+  w.document.close();
+}
+function cdocRelatorioLibEnvioSel(){
+  if(!_cdocDetSel||!_cdocDetSel.size){ showToast('Nenhum documento selecionado','Marque os documentos na tabela antes de gerar o relatório.','warn'); return; }
+  var db=_cdocDb();
+  var docs=db.detalhados.filter(function(d){return _cdocDetSel.has(d.id);});
+  var obraNome=(document.getElementById('cdd-f-obra')||{}).value||'';
+  var hoje=new Date().toLocaleDateString('pt-BR');
+  var fmtData=function(s){return s?s.split('-').reverse().join('/'):'—';};
+  var sfCores={'APROVADO':'#166534','CERTIFICADO':'#166534','COM COMENTÁRIOS':'#92400e','REPROVADO':'#991b1b'};
+  var blocosHtml=docs.map(function(d){
+    var libHtml = (d.libfabHist&&d.libfabHist.length)
+      ? '<table class="mini"><thead><tr><th>Status</th><th>Data</th><th>GRD</th><th>Obs.</th></tr></thead><tbody>'
+        +d.libfabHist.map(function(h){
+          return '<tr><td>'+_cdocBadgeHtml(h.status)+'</td><td>'+fmtData(h.data)+'</td><td>'+_esc(h.grd||'—')+'</td><td>'+_esc(h.obs||'')+'</td></tr>';
+        }).join('')+'</tbody></table>'
+      : '<p class="vazio">Sem registros de liberação para fabricação.</p>';
+    var envHtml = (d.envioHist&&d.envioHist.length)
+      ? '<table class="mini"><thead><tr><th>Rev.</th><th>Data</th><th>Finalidade</th><th>GRD</th><th>Prev. Retorno</th><th>Retorno Real</th><th>Status Final</th><th>Obs.</th></tr></thead><tbody>'
+        +d.envioHist.map(function(h){
+          var sfColor=sfCores[h.statusFinal]||'#64748b';
+          return '<tr><td>'+_esc(h.rev||'—')+'</td><td>'+fmtData(h.data)+'</td><td>'+_esc(h.finalidade||'—')+'</td><td>'+_esc(h.grd||'—')+'</td>'
+            +'<td>'+fmtData(h.prevRetorno)+'</td><td>'+fmtData(h.retornoReal)+'</td>'
+            +'<td style="color:'+sfColor+';font-weight:700;">'+_esc(h.statusFinal||'—')+'</td><td>'+_esc(h.obs||'')+'</td></tr>';
+        }).join('')+'</tbody></table>'
+      : '<p class="vazio">Sem registros de envio ao cliente.</p>';
+    return '<div class="doc-bloco">'
+      +'<div class="doc-hd">'
+        +'<div><b>'+_esc(d.sub||'')+'</b> — '+_esc(d.num||'')+(d.cli?' &middot; Cliente: '+_esc(d.cli):'')+'</div>'
+        +'<div class="doc-hd-sub">'+_esc(d.obraId||'')+' &middot; '+_esc(d.tipo||'')+' &middot; '+_esc(d.titulo||d.desc||'')+' &middot; Status atual: '+_cdocBadgeHtml(d.statusGeral)+' &middot; Rev. '+_esc(d.rev||'—')+'</div>'
+      +'</div>'
+      +'<div class="sec-tit">📦 Liberação para Fabricação</div>'+libHtml
+      +'<div class="sec-tit">📨 Envio ao Cliente / Retornos</div>'+envHtml
+      +(d.obsGeral?'<div class="sec-tit">📝 Obs. Geral</div><p class="obsgeral">'+_esc(d.obsGeral)+'</p>':'')
+    +'</div>';
+  }).join('');
+  var w=window.open('','_blank','width=1200,height=850');
+  if(!w){ alert('Permita popups para gerar o relatório em PDF.'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Liberação e Envio</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;font-size:11px;}'
+    +'h2{color:#0c4a6e;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 16px;}'
+    +'.doc-bloco{border:1px solid #cbd5e1;border-radius:8px;padding:12px 16px;margin-bottom:16px;page-break-inside:avoid;}'
+    +'.doc-hd{border-bottom:2px solid #0c4a6e;padding-bottom:6px;margin-bottom:8px;}'
+    +'.doc-hd b{font-size:14px;color:#0c4a6e;}'
+    +'.doc-hd-sub{font-size:10px;color:#64748b;margin-top:2px;}'
+    +'.sec-tit{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0369a1;margin:10px 0 4px;}'
+    +'table.mini{width:100%;border-collapse:collapse;margin-bottom:2px;}'
+    +'table.mini thead th{background:#f0f9ff;color:#0c4a6e;padding:4px 6px;text-align:left;font-size:9px;border-bottom:1px solid #bae6fd;}'
+    +'table.mini tbody td{padding:3px 6px;border-bottom:1px solid #e2e8f0;font-size:9.5px;}'
+    +'p.vazio{color:#94a3b8;font-size:10px;font-style:italic;margin:2px 0 0;}'
+    +'p.obsgeral{font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:6px 8px;margin:0;}'
+    +'.cdoc-badge{display:inline-block;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;white-space:nowrap;}'
+    +'.btn-print{margin-bottom:14px;background:#0369a1;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;}'
+    +'@media print{.btn-print{display:none;}.doc-bloco{border:1px solid #94a3b8;}}</style></head><body>'
+    +'<button class="btn-print" onclick="window.print()">🖨 Imprimir / Salvar como PDF</button>'
+    +'<h2>Relatório — Liberação para Fabricação, Envio ao Cliente e Retornos</h2>'
+    +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS'+(obraNome?' &middot; Obra: '+_esc(obraNome):'')+' &middot; '+docs.length+' documento(s) &middot; Gerado em '+hoje+'</p>'
+    +blocosHtml
     +'</body></html>');
   w.document.close();
 }
@@ -26967,8 +27051,8 @@ function _cdocAtualizarBarraSelBas(){
   var ps=document.getElementById('cdb-peso-sel'); if(ps) ps.textContent=_cdocBasSel.size?'Selecionados ('+_cdocBasSel.size+'): '+fmtD(selPeso)+' kg':'';
   var btn=document.getElementById('cdb-btn-del-sel'); if(btn) btn.style.display=_cdocBasSel.size?'':'none';
   var cnt=document.getElementById('cdb-del-count'); if(cnt) cnt.textContent=_cdocBasSel.size;
-  var bru=document.getElementById('cdb-btn-rev-up'); if(bru){bru.disabled=_cdocBasSel.size!==1;bru.style.opacity=_cdocBasSel.size===1?'1':'.45';}
-  var brd=document.getElementById('cdb-btn-rev-dn'); if(brd){brd.disabled=_cdocBasSel.size!==1;brd.style.opacity=_cdocBasSel.size===1?'1':'.45';}
+  var bru=document.getElementById('cdb-btn-rev-up'); if(bru){bru.disabled=!_cdocBasSel.size;bru.style.opacity=_cdocBasSel.size?'1':'.45';}
+  var brd=document.getElementById('cdb-btn-rev-dn'); if(brd){brd.disabled=!_cdocBasSel.size;brd.style.opacity=_cdocBasSel.size?'1':'.45';}
 }
 function _cdocAtualizarBarraSelDet(){
   var fmtD=function(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
@@ -26988,8 +27072,10 @@ function _cdocAtualizarBarraSelDet(){
   var pdfc=document.getElementById('cdd-relatorio-pdf-count'); if(pdfc) pdfc.textContent=_cdocDetSel.size;
   var xlsx=document.getElementById('cdd-btn-relatorio-xlsx'); if(xlsx) xlsx.style.display=_cdocDetSel.size?'':'none';
   var xlsxc=document.getElementById('cdd-relatorio-xlsx-count'); if(xlsxc) xlsxc.textContent=_cdocDetSel.size;
-  var dru=document.getElementById('cdd-btn-rev-up'); if(dru){dru.disabled=_cdocDetSel.size!==1;dru.style.opacity=_cdocDetSel.size===1?'1':'.45';}
-  var drd=document.getElementById('cdd-btn-rev-dn'); if(drd){drd.disabled=_cdocDetSel.size!==1;drd.style.opacity=_cdocDetSel.size===1?'1':'.45';}
+  var le=document.getElementById('cdd-btn-relatorio-libenvio'); if(le) le.style.display=_cdocDetSel.size?'':'none';
+  var lec=document.getElementById('cdd-relatorio-libenvio-count'); if(lec) lec.textContent=_cdocDetSel.size;
+  var dru=document.getElementById('cdd-btn-rev-up'); if(dru){dru.disabled=!_cdocDetSel.size;dru.style.opacity=_cdocDetSel.size?'1':'.45';}
+  var drd=document.getElementById('cdd-btn-rev-dn'); if(drd){drd.disabled=!_cdocDetSel.size;drd.style.opacity=_cdocDetSel.size?'1':'.45';}
 }
 function _cdocBasSelAll(cb){
   _cdocBasSel.clear();
@@ -34812,7 +34898,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-05';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-07';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
