@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-23-01 -->
+<!-- SIDER_APP_BUILD: 2026-07-23-02 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -22667,18 +22667,18 @@ function cdocAddEnvioHist(){
     var _semDadosNovos = !rev && !data && !finalidade && !grd;
     var _temRetorno = retornoReal || statusFinal;
     var _todosAtuais = _cdocCurrentEnvio();
-    var _ultimoAberto = null;
-    for(var _i=_todosAtuais.length-1; _i>=0; _i--){
-      if(!_todosAtuais[_i].retornoReal){ _ultimoAberto=_todosAtuais[_i]; break; }
-    }
+    // Alvo é sempre o último envio existente — não exige que esteja "aberto"
+    // (sem retorno ainda). Só preenche campos que estiverem vazios no alvo,
+    // então é seguro mesmo que ele já tenha algum retorno registrado.
+    var _ultimoAberto = _todosAtuais.length ? _todosAtuais[_todosAtuais.length-1] : null;
     if(_semDadosNovos && _temRetorno && _ultimoAberto){
       // _cdocCurrentEnvio() não clona os objetos — mutar aqui já reflete no
       // array original (base.envioHist ou _cdocPendingEnvio).
-      _ultimoAberto.prevRetorno = prevRetorno || _ultimoAberto.prevRetorno || '';
-      _ultimoAberto.retornoReal = retornoReal;
-      _ultimoAberto.statusFinal = statusFinal;
-      if(obs) _ultimoAberto.obs = obs;
-      _ultimoAberto.status = 'Concluído';
+      if(!_ultimoAberto.prevRetorno && prevRetorno) _ultimoAberto.prevRetorno=prevRetorno;
+      if(!_ultimoAberto.retornoReal && retornoReal) _ultimoAberto.retornoReal=retornoReal;
+      if(!_ultimoAberto.statusFinal && statusFinal) _ultimoAberto.statusFinal=statusFinal;
+      if(obs && _ultimoAberto.obs!==obs) _ultimoAberto.obs=(_ultimoAberto.obs?_ultimoAberto.obs+' | ':'')+obs;
+      if(_ultimoAberto.retornoReal) _ultimoAberto.status = 'Concluído';
       var _db2=_cdocLoad();
       var _base2=(_cdocEditId?_db2.detalhados.find(function(d){return d.id===_cdocEditId;}):null);
       if(_base2 && _base2.envioHist && _base2.envioHist.indexOf(_ultimoAberto)!==-1){
@@ -23622,26 +23622,27 @@ function _cdocMesclarEnviosFragmentados(){
   (db.detalhados||[]).forEach(function(doc){
     var afetou=false;
     // ── Envio ao Cliente: junta uma linha "fragmentada" (só retorno, sem
-    // rev/data/finalidade/GRD) na linha anterior ainda aberta (sem retorno) ──
+    // rev/data/finalidade/GRD) na linha IMEDIATAMENTE anterior. CORRIGIDO:
+    // antes só mesclava se a linha anterior ainda estivesse "aberta" (sem
+    // retorno) — se alguém já tinha corrigido manualmente a linha anterior
+    // (preenchendo o retorno nela também, por fora desta ferramenta), a
+    // busca não achava alvo válido e a linha fragmentada sobrava, duplicada.
+    // Agora sempre mescla na linha anterior, só preenchendo os campos que
+    // ainda estiverem vazios nela (nunca sobrescreve algo já preenchido).
     if(doc.envioHist && doc.envioHist.length>1){
       for(var i=doc.envioHist.length-1;i>0;i--){
         var frag=doc.envioHist[i];
         var fragVazia = !frag.rev && !frag.data && !frag.finalidade && !frag.grd && (frag.retornoReal||frag.statusFinal);
         if(!fragVazia) continue;
-        // Procura, entre as linhas ANTERIORES a esta, a mais recente ainda aberta (sem retorno)
-        var alvo=null;
-        for(var j=i-1;j>=0;j--){
-          if(!doc.envioHist[j].retornoReal){ alvo=doc.envioHist[j]; break; }
-        }
-        if(alvo){
-          alvo.prevRetorno = frag.prevRetorno || alvo.prevRetorno || '';
-          alvo.retornoReal = frag.retornoReal || alvo.retornoReal || '';
-          alvo.statusFinal = frag.statusFinal || alvo.statusFinal || '';
-          if(frag.obs) alvo.obs = (alvo.obs?alvo.obs+' | ':'')+frag.obs;
-          alvo.status='Concluído';
-          doc.envioHist.splice(i,1);
-          corrEn++; afetou=true;
-        }
+        var alvo=doc.envioHist[i-1];
+        if(!alvo) continue;
+        if(!alvo.prevRetorno && frag.prevRetorno) alvo.prevRetorno=frag.prevRetorno;
+        if(!alvo.retornoReal && frag.retornoReal) alvo.retornoReal=frag.retornoReal;
+        if(!alvo.statusFinal && frag.statusFinal) alvo.statusFinal=frag.statusFinal;
+        if(frag.obs && alvo.obs!==frag.obs) alvo.obs=(alvo.obs?alvo.obs+' | ':'')+frag.obs;
+        if(alvo.retornoReal) alvo.status='Concluído';
+        doc.envioHist.splice(i,1);
+        corrEn++; afetou=true;
       }
     }
     // ── Liberação para Fabricação: junta uma linha em branco (sem data/GRD/
@@ -34664,7 +34665,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-01';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-02';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
