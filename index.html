@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-27-13 -->
+<!-- SIDER_APP_BUILD: 2026-07-27-14 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -19164,6 +19164,7 @@ function cotExportarCSV(){
         <button onclick="_cdocCorrigirLiberadoSemData()" title="Corrige documentos que ficaram com 'Liberado' na Liberação para Fabricação (ou 'Concluído' no Envio ao Cliente) sem nenhuma data preenchida — reverte para 'Pendente'" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Liberado sem Data</button>
         <button onclick="_cdocMesclarEnviosFragmentados()" title="Junta linhas de Envio ao Cliente / Liberação para Fabricação que ficaram fragmentadas (retorno registrado separado, criando uma linha extra em branco) de volta na linha correta" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Mesclar Envios Fragmentados</button>
         <button onclick="_cdocCorrigirIdsDuplicados()" title="Corrige documentos com ID duplicado — causa do erro 'ON CONFLICT DO UPDATE... duplicate' ao salvar. Dá um novo ID único aos duplicados, sem perder nenhum dado." style="background:#be123c;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🆔 Corrigir IDs Duplicados</button>
+        <button onclick="_cdocAbrirAuditoria()" title="Histórico de alterações — quem mudou o quê e quando, com busca e exportação em CSV" style="background:#0f172a;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">📜 Histórico de Alterações</button>
       </div>
     </div>
     <div class="cron-mbody">
@@ -19863,6 +19864,155 @@ async function _cdocSBPushMeta(metaObj, versaoAtual){
   });
   if(!r.ok){ var d=''; try{d=(await r.text()).slice(0,300);}catch(eD){} throw new Error('HTTP '+r.status+(d?(' — '+d):'')); }
   return payload.version;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   LOG DE AUDITORIA (Histórico de Alterações) — Controle de Documentos
+   Registra QUEM mudou O QUÊ e QUANDO, guardado na nuvem (reaproveita a
+   tabela cdoc_database já existente, key='cdoc_audit_log', mesmo padrão
+   dos metadados). Cada chamada a _cdocLog() só entra numa fila local; a
+   gravação de fato na nuvem é agrupada (debounce) a cada ~1,5s, buscando
+   o log mais atual antes de acrescentar (evita perder registros gravados
+   por outra pessoa entre uma gravação e outra). Mantém só os últimos 3000
+   registros, pra não crescer sem limite.
+   ══════════════════════════════════════════════════════════════════════ */
+var _cdocAuditQueue = [];
+var _cdocAuditFlushTimer = null;
+function _cdocLog(acao, alvo, detalhe){
+  try{
+    _cdocAuditQueue.push({
+      ts: new Date().toISOString(),
+      usuario: (typeof _siderCurrentUser!=='undefined' && _siderCurrentUser && _siderCurrentUser.nome) || '?',
+      acao: acao||'',
+      alvo: alvo||'',
+      detalhe: detalhe||''
+    });
+    clearTimeout(_cdocAuditFlushTimer);
+    _cdocAuditFlushTimer = setTimeout(_cdocAuditFlush, 1500);
+  }catch(e){ console.warn('[_cdocLog]', e.message); }
+}
+async function _cdocAuditFlush(){
+  if(!_cdocAuditQueue.length) return;
+  var pendentes = _cdocAuditQueue.slice();
+  _cdocAuditQueue = [];
+  try{
+    var r = await fetch(_sbUrl('cdoc_database?key=eq.cdoc_audit_log&select=data,version'), {headers:_SB_H});
+    var atual = [], versao = 0;
+    if(r.ok){
+      var rows = await r.json();
+      if(rows.length && rows[0].data){ atual = rows[0].data; versao = rows[0].version||0; }
+    }
+    var novo = atual.concat(pendentes);
+    if(novo.length > 3000) novo = novo.slice(novo.length-3000);
+    var payload = {key:'cdoc_audit_log', data:novo, version:versao+1};
+    var r2 = await fetch(_sbUrl('cdoc_database'), {
+      method:'POST',
+      headers:Object.assign({},_SB_H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify(payload)
+    });
+    if(!r2.ok) throw new Error('HTTP '+r2.status);
+  }catch(e){
+    _cdocAuditQueue = pendentes.concat(_cdocAuditQueue);
+    console.warn('[_cdocAuditFlush]', e.message);
+  }
+}
+
+var _cdocAuditCache = null;
+async function _cdocAbrirAuditoria(){
+  var old = document.getElementById('cdoc-audit-ov'); if(old) old.remove();
+  var box = document.createElement('div');
+  box.id = 'cdoc-audit-ov';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199999;display:flex;align-items:center;justify-content:center;';
+  box.innerHTML = '<div style="background:#fff;border-radius:10px;width:min(1150px,95vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3);">'
+    +'<div style="background:#0f172a;color:#fff;padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+      +'<div style="font-size:15px;font-weight:700;">📜 Histórico de Alterações — quem mudou o quê e quando</div>'
+      +'<button onclick="document.getElementById(\'cdoc-audit-ov\').remove()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">✕</button>'
+    +'</div>'
+    +'<div style="padding:12px 20px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;">'
+      +'<input type="text" id="cdoc-audit-busca" placeholder="Buscar por TAG, ação, usuário..." oninput="_cdocAuditRender()" style="flex:1;min-width:220px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;">'
+      +'<input type="date" id="cdoc-audit-de" onchange="_cdocAuditRender()" style="padding:7px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;">'
+      +'<span style="font-size:11px;color:#94a3b8;">até</span>'
+      +'<input type="date" id="cdoc-audit-ate" onchange="_cdocAuditRender()" style="padding:7px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;">'
+      +'<button onclick="_cdocAuditExportarCSV()" style="background:#16a34a;color:#fff;border:none;border-radius:5px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ CSV</button>'
+      +'<button onclick="_cdocAuditRecarregar()" style="background:#0369a1;color:#fff;border:none;border-radius:5px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 Atualizar</button>'
+    +'</div>'
+    +'<div id="cdoc-audit-body" style="flex:1;overflow-y:auto;padding:0;">'
+      +'<div style="padding:40px;text-align:center;color:#94a3b8;">Carregando...</div>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(box);
+  await _cdocAuditRecarregar();
+}
+async function _cdocAuditRecarregar(){
+  var bodyEl = document.getElementById('cdoc-audit-body');
+  if(bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;">Carregando...</div>';
+  try{
+    if(_cdocAuditQueue.length){ clearTimeout(_cdocAuditFlushTimer); await _cdocAuditFlush(); }
+    var r = await fetch(_sbUrl('cdoc_database?key=eq.cdoc_audit_log&select=data'), {headers:_SB_H});
+    var data = [];
+    if(r.ok){
+      var rows = await r.json();
+      if(rows.length && rows[0].data) data = rows[0].data;
+    }
+    _cdocAuditCache = data.slice().reverse();
+    _cdocAuditRender();
+  }catch(e){
+    if(bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:#991b1b;">Erro ao carregar: '+e.message+'</div>';
+  }
+}
+function _cdocAuditRender(){
+  var bodyEl = document.getElementById('cdoc-audit-body');
+  if(!bodyEl || !_cdocAuditCache) return;
+  var busca = ((document.getElementById('cdoc-audit-busca')||{}).value||'').toLowerCase().trim();
+  var de = (document.getElementById('cdoc-audit-de')||{}).value;
+  var ate = (document.getElementById('cdoc-audit-ate')||{}).value;
+  var lista = _cdocAuditCache.filter(function(x){
+    if(busca){
+      var alvoStr = ((x.usuario||'')+' '+(x.acao||'')+' '+(x.alvo||'')+' '+(x.detalhe||'')).toLowerCase();
+      if(alvoStr.indexOf(busca)===-1) return false;
+    }
+    if(de && x.ts.slice(0,10) < de) return false;
+    if(ate && x.ts.slice(0,10) > ate) return false;
+    return true;
+  });
+  if(!lista.length){
+    bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;">Nenhum registro encontrado.</div>';
+    return;
+  }
+  var rowsHtml = lista.slice(0,500).map(function(x){
+    var dt = new Date(x.ts);
+    var dtStr = dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    return '<tr style="border-top:1px solid #e2e8f0;">'
+      +'<td style="padding:6px 12px;font-size:11px;color:#64748b;white-space:nowrap;font-family:monospace;">'+dtStr+'</td>'
+      +'<td style="padding:6px 12px;font-size:12px;font-weight:700;color:#0369a1;white-space:nowrap;">'+_esc(x.usuario||'?')+'</td>'
+      +'<td style="padding:6px 12px;font-size:12px;color:#334155;white-space:nowrap;">'+_esc(x.acao||'')+'</td>'
+      +'<td style="padding:6px 12px;font-size:12px;color:#7c3aed;font-family:monospace;white-space:nowrap;">'+_esc(x.alvo||'')+'</td>'
+      +'<td style="padding:6px 12px;font-size:12px;color:#475569;">'+_esc(x.detalhe||'')+'</td>'
+      +'</tr>';
+  }).join('');
+  bodyEl.innerHTML = '<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#f1f5f9;">'
+      +'<th style="padding:6px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:#475569;position:sticky;top:0;background:#f1f5f9;">Quando</th>'
+      +'<th style="padding:6px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:#475569;position:sticky;top:0;background:#f1f5f9;">Usuário</th>'
+      +'<th style="padding:6px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:#475569;position:sticky;top:0;background:#f1f5f9;">Ação</th>'
+      +'<th style="padding:6px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:#475569;position:sticky;top:0;background:#f1f5f9;">TAG/Doc</th>'
+      +'<th style="padding:6px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:#475569;position:sticky;top:0;background:#f1f5f9;">Detalhe</th>'
+    +'</tr></thead><tbody>'+rowsHtml+'</tbody></table>'
+    +(lista.length>500?'<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px;">Mostrando os 500 mais recentes de '+lista.length+' encontrados. Use a busca/data pra refinar.</div>':'');
+}
+function _cdocAuditExportarCSV(){
+  if(!_cdocAuditCache || !_cdocAuditCache.length){ alert('Nada para exportar.'); return; }
+  var hdr = ['Quando','Usuário','Ação','TAG/Doc','Detalhe'];
+  var rows = [hdr.join(';')];
+  _cdocAuditCache.forEach(function(x){
+    var dt = new Date(x.ts);
+    rows.push([dt.toLocaleString('pt-BR'), x.usuario||'', x.acao||'', x.alvo||'', (x.detalhe||'').replace(/;/g,',')].join(';'));
+  });
+  var blob = new Blob(['\ufeff'+rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'historico_alteracoes_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Funções do formato ANTIGO (fatias em bloco único) — mantidas só para
@@ -22360,6 +22510,7 @@ function cdocDelSelBas(){
   db.basicos=db.basicos.filter(function(b){return !idSet.has(String(b.id));});
   db._deletedBasIds=(db._deletedBasIds||[]).concat(ids);
   _cdocSave(db);
+  _cdocLog('Excluiu projeto(s) básico(s)', ids.length+' registro(s)', '');
   _cdocBasSel.clear();
   cdocRenderBas();
   cdocRenderVisao();
@@ -22821,6 +22972,7 @@ function cdocDelSelDet(){
   db.detalhados=db.detalhados.filter(function(d){return !idSet.has(String(d.id));});
   db._deletedDetIds=(db._deletedDetIds||[]).concat(ids);
   _cdocSave(db);
+  _cdocLog('Excluiu documento(s)', ids.length+' documento(s)', '');
   _cdocDetSel.clear();
   cdocRenderDet();
   cdocRenderVisao();
@@ -23734,6 +23886,7 @@ function _cdocAplicarStatusLote(){
   if(alterarSf) msg.push(qtdSf+' com Status Final atualizado');
   if(alterarRr) msg.push(qtdRr+' com Retorno Real registrado');
   if(alterarObs) msg.push(qtdObs+' com Observação adicionada');
+  _cdocLog('Status em Lote', _cdocDetSel.size+' documento(s)', (alterarSg?'Status→'+novoSg+' ':'')+(alterarSf?'StatusFinal→'+novoSf+' ':'')+(alterarRr?'RetornoReal→'+novoRr+' ':'')+(alterarGrd?'GRD→'+novoGrd+' ':'').trim());
   if(qtdNovoEnvio) msg.push(qtdNovoEnvio+' sem envio anterior — primeiro envio criado agora');
   var msgFinal = msg.join(' · ')+'.';
   showToast('Aplicando em lote...', msgFinal+' Enviando para a nuvem...', 'info');
@@ -24166,6 +24319,7 @@ function _cdocCorrigirIdsDuplicados(){
     return;
   }
   _cdocSave(db);
+  _cdocLog('Manutenção: Corrigir IDs Duplicados', corrigidos+' documento(s)', '');
   cdocRenderDet(); cdocRenderBas();
   showToast('IDs corrigidos', corrigidos+' documento(s) receberam um novo ID único. Salvando na nuvem...', 'success');
 }
@@ -24241,6 +24395,7 @@ function _cdocMesclarEnviosFragmentados(){
     return;
   }
   _cdocSave(db);
+  _cdocLog('Manutenção: Mesclar Envios Fragmentados', docsAfetados+' documento(s)', corrEn+' linha(s) de Envio, '+corrLf+' de Lib. Fab.');
   cdocRenderDet();
   showToast('Mesclagem concluída', corrEn+' linha(s) de Envio e '+corrLf+' de Lib. Fab. mescladas corretamente, em '+docsAfetados+' documento(s).', 'success');
 }
@@ -24266,6 +24421,7 @@ function _cdocCorrigirLiberadoSemData(){
     return;
   }
   _cdocSave(db);
+  _cdocLog('Manutenção: Corrigir Liberado sem Data', docsAfetados+' documento(s)', corrLf+' Lib.Fab, '+corrEn+' Envio revertidos para Pendente');
   cdocRenderDet();
   showToast('Correção concluída', corrLf+' registro(s) de Lib. Fab. e '+corrEn+' de Envio revertidos para Pendente, em '+docsAfetados+' documento(s).', 'success');
 }
@@ -26107,6 +26263,7 @@ function cdocSalvar(){
     }
     else{ db.basicos.push(rec); _cdocCriarNoCronograma(rec); }
     _cdocSave(db);
+    _cdocLog(_oldRec?'Editou Projeto Básico':'Criou Projeto Básico', sub, 'Status: '+(rec.status||'')+(rec.rev?' · Rev: '+rec.rev:''));
     // ── SYNC: CDOC Projeto Básico → Cronograma ──────────────────────
     // Sincroniza: equipe (projetista), descricao e peso_previsto
     (function(){
@@ -26267,6 +26424,7 @@ function cdocSalvar(){
     }
     else{ db.detalhados.push(rec2); }
     _cdocSave(db);
+    _cdocLog(_cdocEditId?'Editou documento':'Criou documento', rec2.sub||rec2.num||'', 'Status: '+(rec2.statusGeral||'')+(rec2.rev?' · Rev: '+rec2.rev:''));
     // ── SYNC: novo registro de envio/GRD → atualiza Etapa 2 do Cronograma ──
     if(_novosEnvios.length){
       _novosEnvios.forEach(function(envio){
@@ -26557,6 +26715,7 @@ function cdocImportBas(input){
     }
     var msg=added+' novo(s) + '+updated+' atualizado(s).';
     if(erros.length) msg+='\n\nLinhas com erro:\n'+erros.slice(0,5).join('\n')+(erros.length>5?'\n...e mais '+(erros.length-5):'');
+    _cdocLog('Importou CSV (Básico)', (added+updated)+' linha(s)', added+' novo(s), '+updated+' atualizado(s)'+(erros.length?', '+erros.length+' erro(s)':''));
     var resultadoSave = await Promise.resolve(_cdocSave(db));
     if(resultadoSave && resultadoSave.ok===false){
       alert('⚠ A IMPORTAÇÃO FOI PROCESSADA, MAS NÃO FOI SALVA NA NUVEM AINDA\n\n'
@@ -26852,6 +27011,7 @@ function cdocImportDet(input){
     var msg=added+' novo(s) adicionado(s), '+updated+' atualizado(s).';
     if(erros.length) msg+=' ('+erros.length+' linha(s) com erro)';
     showToast('Processando importação', msg+' Enviando para a nuvem...', 'info');
+    _cdocLog('Importou CSV (Detalhado)', (added+updated)+' linha(s)', added+' novo(s), '+updated+' atualizado(s)'+(erros.length?', '+erros.length+' erro(s)':''));
     setTimeout(function(){ cdocRenderDet(); cdocRenderVisao(); }, 0);
     Promise.resolve(_cdocSave(db)).then(function(resultado){
       if(resultado && resultado.ok===false){
@@ -35256,7 +35416,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-13';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-14';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
