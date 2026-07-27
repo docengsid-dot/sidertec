@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-27-02 -->
+<!-- SIDER_APP_BUILD: 2026-07-27-12 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -1843,10 +1843,15 @@ ALTER TABLE medicao_terceiros
             <input type="text" id="med-tags-busca" placeholder="Buscar TAG…"
               style="border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);border-radius:4px;padding:2px 7px;font-size:10px;color:#fff;outline:none;width:120px;"
               oninput="renderMedTags()">
+            <button id="btn-med-ordenar" onclick="medToggleOrdenacao()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;white-space:nowrap;" title="Ordenar a lista de TAGs">🔼 A-Z</button>
             <button onclick="medTagsSelectAll(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;">✓ Todos</button>
             <button onclick="medTagsSelectAll(false)" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;">✕ Limpar</button>
             <button id="btn-apenas-selecionadas" onclick="toggleApenasSelMedTags()" style="background:rgba(255,200,0,.18);border:1px solid rgba(255,200,0,.35);color:#fde68a;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;transition:all .15s;" title="Mostrar apenas TAGs já selecionadas">☑ Só selecionadas</button>
             <button id="btn-saldo-med" onclick="toggleSaldoMed()" style="background:rgba(56,189,248,.18);border:1px solid rgba(56,189,248,.4);color:#bae6fd;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;transition:all .15s;" title="Mostrar apenas TAGs da Obra + Equipe selecionadas que ainda têm saldo (%) a medir">🎯 Só c/ saldo a medir</button>
+            <span style="width:1px;height:16px;background:rgba(255,255,255,.25);"></span>
+            <button onclick="medExportTemplateCSV()" style="background:rgba(34,197,94,.18);border:1px solid rgba(34,197,94,.4);color:#bbf7d0;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;" title="Baixa uma planilha simples (TAG + Peso Medido) só com as TAGs JÁ SELECIONADAS nesta medição — marque as TAGs primeiro, depois baixe o modelo">⬇ Modelo CSV</button>
+            <button onclick="document.getElementById('med-import-csv-input').click()" style="background:rgba(251,191,36,.18);border:1px solid rgba(251,191,36,.4);color:#fde68a;border-radius:3px;padding:2px 7px;font-size:9px;cursor:pointer;font-weight:700;" title="Importa a planilha (TAG + Peso): já traz as TAGs selecionadas e com o peso preenchido, recolhidas — depois é só expandir cada uma (seta ▶) pra conferir o que já foi medido e o que resta, marcar as etapas e aceitar">⬆ Importar CSV</button>
+            <input type="file" id="med-import-csv-input" accept=".csv" style="display:none" onchange="medImportCSV(this)">
           </div>
         </div>
         <div id="med-tags-lista" style="overflow-y:auto;background:#f8fafc;">
@@ -11619,6 +11624,8 @@ function renderAnexosMed(parcela){
 // _medTagsMap: Map<id, {etapas:Set<'modelo'|'pacote'|'diagrama'>, pct:number, peso_med?:number}>
 // pct é calculado dinamicamente: soma dos pct de cada etapa marcada
 var _medTagsMap = new Map();
+var _medExpandedSet = new Set(); // ids das TAGs com o painel de etapas expandido (independente de selecionada)
+var _medOrdenacao = 'asc'; // 'asc' | 'desc' | null — ordenação da lista de TAGs por nome
 var _medApenasSelected = false; // filtro "Só selecionadas"
 var _medSoComSaldo = false; // filtro "Só com saldo a medir" (Obra + Equipe)
 
@@ -11665,6 +11672,45 @@ function _buildMedHistoricoPctMap(){
   return m;
 }
 // Retorna array de {bm, pct} de todos BMs anteriores que mediram esta TAG
+// Histórico de medição POR ETAPA (Modelo/Pacote/Diagrama) — diferente de
+// _buildMedHistoricoDetalhes (que soma tudo junto), esta retorna, para cada
+// etapa, em quais BMs ela foi marcada e quanto % dela mesma já foi concluído
+// em cada um, com peso e valor correspondentes. Usado no painel de medição
+// para mostrar "já medido" e "saldo" separadamente por etapa.
+function _buildMedEtapaHistorico(tagSid){
+  var out = {};
+  MED_ETAPAS.forEach(function(e){ out[e.key] = []; });
+  var sub = (allCronSubobras||[]).find(function(x){return String(x.id)===String(tagSid);});
+  var pesoRefTotal = sub ? (Number(sub.peso_detalhado)||Number(sub.peso_previsto)||0) : 0;
+  (allMedicoes||[]).forEach(function(med){
+    if(editingMedicaoId&&String(med.id)===String(editingMedicaoId)) return;
+    try{
+      var arr = JSON.parse(med.subobras_ids||'[]');
+      arr.forEach(function(item){
+        if(String(item.id||item)!==String(tagSid)) return;
+        var etapasArr = Array.isArray(item.etapas) ? item.etapas : (item.etapa?[item.etapa]:[]);
+        if(!etapasArr.length) return;
+        var pctConcl = item.pct_manual!=null ? (Number(item.pct_manual)||0) : 100;
+        var pesoRefEfetivo = Number(item.peso_med)>0 ? Number(item.peso_med) : pesoRefTotal;
+        etapasArr.forEach(function(ek){
+          var eDef = MED_ETAPAS.find(function(x){return x.key===ek;});
+          if(!eDef || !out[ek]) return;
+          // CORRIGIDO: "peso" aqui deve ser o PESO DE REFERÊNCIA TOTAL da TAG
+          // (ex.: 1997,05kg) — não uma fração dele. A % da etapa/concluído só
+          // deve reduzir o VALOR (R$), nunca o peso mostrado. Antes o peso
+          // exibido já vinha reduzido (ex.: 798,82kg = 40% de 1997,05kg),
+          // dando a impressão errada de que só uma parte do peso da peça
+          // estava sendo medida — a peça inteira é pesada, só o % de
+          // conclusão/valor é que é parcial.
+          var pesoParaValor = pesoRefEfetivo*(eDef.pct/100)*(pctConcl/100);
+          var valorEtapa = pesoParaValor*(Number(med.valor_kg)||0);
+          out[ek].push({bm: med.bm||med.num_ps||('Med#'+med.id), pctConcl: pctConcl, peso: pesoRefEfetivo, valor: valorEtapa});
+        });
+      });
+    }catch(e){}
+  });
+  return out;
+}
 function _buildMedHistoricoDetalhes(tagSid){
   var list=[];
   var sub=(allCronSubobras||[]).find(function(x){return String(x.id)===String(tagSid);});
@@ -11678,12 +11724,21 @@ function _buildMedHistoricoDetalhes(tagSid){
         var _etPct=MED_ETAPAS.filter(function(e){return (item.etapas||[]).includes(e.key);}).reduce(function(a,e){return a+e.pct;},0);
         var pct=item.pct_manual!=null?Math.round(_etPct*(Number(item.pct_manual)||0))/100:_etPct;
         if(pct>0){
-          // Peso efetivamente medido nesta BM: usa o peso_med registrado na
-          // época, se houver; senão estima pela % das etapas sobre o peso
-          // de referência atual da TAG (detalhado, ou básico na falta dele).
-          var pesoMed = Number(item.peso_med)>0 ? Number(item.peso_med) : (pesoRef*(pct/100));
-          var valorMed = pesoMed*(Number(med.valor_kg)||0);
-          list.push({bm:med.bm||med.num_ps||('Med#'+med.id), pct:pct, peso:pesoMed, valor:valorMed});
+          // CORRIGIDO: item.peso_med (quando informado) é o peso de
+          // REFERÊNCIA/TOTAL da TAG naquela medição (o mesmo papel que
+          // peso_detalhado/peso_previsto cumprem quando não é informado) —
+          // não é o peso já incremental daquele %. Antes, quando peso_med
+          // existia, ele era usado diretamente como se já fosse o peso
+          // medido, sem aplicar o percentual — mostrando o valor do TOTAL
+          // (100%) mesmo quando só uma fração (ex.: 40%) foi medida naquela
+          // BM. Agora sempre aplica pct/100 sobre o peso de referência.
+          var pesoRefEfetivo = Number(item.peso_med)>0 ? Number(item.peso_med) : pesoRef;
+          var pesoParaValor = pesoRefEfetivo*(pct/100);
+          var valorMed = pesoParaValor*(Number(med.valor_kg)||0);
+          // "peso" = peso de referência TOTAL (não reduzido pelo %) — só o
+          // valor (R$) reflete a fração medida. Ver explicação detalhada em
+          // _buildMedEtapaHistorico().
+          list.push({bm:med.bm||med.num_ps||('Med#'+med.id), pct:pct, peso:pesoRefEfetivo, valor:valorMed});
         }
       });
     }catch(e){}
@@ -16255,6 +16310,19 @@ function toggleSaldoMed(){
   renderMedTags();
 }
 
+// Alterna a ordenação da lista de TAGs: crescente → decrescente → sem
+// ordenação (ordem original) → crescente...
+function medToggleOrdenacao(){
+  _medOrdenacao = _medOrdenacao==='asc' ? 'desc' : (_medOrdenacao==='desc' ? null : 'asc');
+  const btn = document.getElementById('btn-med-ordenar');
+  if(btn){
+    if(_medOrdenacao==='asc'){ btn.textContent='🔼 A-Z'; btn.style.background='rgba(255,255,255,.15)'; }
+    else if(_medOrdenacao==='desc'){ btn.textContent='🔽 Z-A'; btn.style.background='rgba(255,255,255,.35)'; }
+    else { btn.textContent='↕ Original'; btn.style.background='rgba(255,255,255,.08)'; }
+  }
+  renderMedTags();
+}
+
 // ── DIVERGÊNCIA DE PESO — Básico x Detalhado x Medido ──────────────────
 // Compara os valores disponíveis para a TAG e sinaliza quando a diferença
 // entre o maior e o menor deles é "gritante" (acima do limite definido).
@@ -16309,6 +16377,16 @@ function renderMedTags(){
       const emAndamento = _medTagsMap.has(String(s.id)) ? _medPct(_medTagsMap.get(String(s.id))) : 0;
       const saldo = Math.max(0, 100 - hist - emAndamento);
       return matchEquipe && saldo > 0;
+    });
+  }
+
+  // ── Ordenação por TAG (crescente/decrescente) — usa comparação "natural"
+  // (numeric:true) pra ordenar PF9, PF144, PF145 corretamente na sequência
+  // numérica, em vez de ordem alfabética pura (que colocaria PF144 antes de PF9).
+  if(_medOrdenacao){
+    subs = subs.slice().sort(function(a,b){
+      const cmp = (a.subobra||'').localeCompare((b.subobra||''), 'pt-BR', {numeric:true, sensitivity:'base'});
+      return _medOrdenacao==='asc' ? cmp : -cmp;
     });
   }
 
@@ -16424,55 +16502,96 @@ function renderMedTags(){
         +(_st==='correcao'?'❌ Correção':'❌')+'</button>'
     ) : '<span style="color:#cbd5e1;font-size:9px;">—</span>';
 
-    // ── Painel de etapas (expande ao clicar na linha) ──
+    // ── Painel de etapas (expande/recolhe independente da seleção) ──
+    var expandido = _medExpandedSet.has(String(s.id));
     var panel = '';
-    if(sel){
+    if(sel && expandido){
       var etapasSet = entry.etapas||new Set();
       var pesoMedAtual = entry.peso_med||'';
       var pctTotal = _medPct(entry);
       var etPct = (!entry.etapas||!entry.etapas.size)?0:MED_ETAPAS.filter(function(e){return entry.etapas.has(e.key);}).reduce(function(a,e){return a+e.pct;},0);
-      var chks = MED_ETAPAS.map(function(e){
+      var pctManualEfetivo = (entry&&entry.pct_manual!=null)?Number(entry.pct_manual):100;
+
+      // ── Tabela compacta: uma linha por etapa, com % fixo, o que já foi
+      // medido (em qual BM), o que está sendo medido agora e o saldo ──
+      var _etHist = (typeof _buildMedEtapaHistorico==='function') ? _buildMedEtapaHistorico(String(s.id)) : {};
+      var etapaRows = MED_ETAPAS.map(function(e){
         var marcada = etapasSet.has(e.key);
-        var valorEt = vkg>0&&pesoRef>0?vkg*pesoRef*(e.pct/100):0;
-        return '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.35rem;'
-          +'border:2px solid '+(marcada?e.cor:'#e2e8f0')+';background:'+(marcada?e.bg:'#fff')
-          +';border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:'+(marcada?'800':'500')
-          +';color:'+(marcada?e.cor:'#64748b')+';white-space:nowrap;user-select:none;">'
-          +'<input type="checkbox" '+(marcada?'checked':'')
-          +' onchange="event.stopPropagation();medTagToggleEtapa(\''+s.id+'\',\''+e.key+'\',this.checked)"'
-          +' style="accent-color:'+e.cor+';cursor:pointer;width:15px;height:15px;">'
-          +' '+e.icon+' '+e.label
-          +' <span style="background:'+(marcada?e.cor:'#e2e8f0')+';color:'+(marcada?'#fff':'#94a3b8')
-          +';border-radius:9px;padding:1px 6px;font-size:11px;font-weight:700;">'+e.pct+'%</span>'
-          +(marcada&&valorEt>0?'<span style="font-size:11px;color:'+e.cor+';font-family:monospace;">'+valorEt.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')
-          +'</label>';
+        var hist = _etHist[e.key]||[];
+        var histPctSum = hist.reduce(function(a,x){return a+x.pctConcl;},0);
+        // "peso" já é o peso de referência TOTAL (não reduzido) — não soma
+        // entre várias BMs (senão duplicaria o peso a cada medição parcial),
+        // só pega uma vez; quem soma mesmo é o VALOR de cada BM.
+        var histPesoRef = hist.length ? hist[0].peso : 0;
+        var histValorSum = hist.reduce(function(a,x){return a+x.valor;},0);
+        var histTxt = hist.length
+          ? hist.map(function(x){return '<b>'+_esc(x.bm)+'</b> '+x.pctConcl+'%';}).join(', ')
+          : '<span style="color:#cbd5e1;">— nenhuma BM ainda</span>';
+        // CORRIGIDO: "peso" exibido é sempre o peso de referência TOTAL da
+        // TAG (ex.: 1997,05kg) — a peça inteira é pesada; só o % de
+        // conclusão/valor é parcial. Antes mostrava o peso já reduzido pela
+        // %, dando a impressão errada de "798,82kg medidos" quando na
+        // verdade o peso da peça é 1997,05kg e só 40% do VALOR está sendo
+        // medido agora.
+        var valorAgora = (marcada && pesoRef>0) ? pesoRef*(e.pct/100)*(pctManualEfetivo/100)*(vkg||0) : 0;
+        var saldoEt = Math.max(0, 100-histPctSum-(marcada?pctManualEfetivo:0));
+        var etPend = (e.key==='diagrama' && _dp);
+        return '<tr style="border-top:1px solid #e2e8f0;background:'+(marcada?e.bg:'#fff')+';">'
+          +'<td style="padding:8px 10px;text-align:center;width:30px;">'
+            +'<input type="checkbox" '+(marcada?'checked':'')
+            +' id="med-etapa-chk-'+s.id+'-'+e.key+'"'
+            +' onclick="event.stopPropagation()"'
+            +' onchange="event.stopPropagation();medTagToggleEtapa(\''+s.id+'\',\''+e.key+'\',this.checked)"'
+            +' style="accent-color:'+e.cor+';cursor:pointer;width:17px;height:17px;">'
+          +'</td>'
+          +'<td style="padding:8px 10px;font-weight:700;color:'+e.cor+';white-space:nowrap;font-size:13px;">'+e.icon+' '+e.label+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;font-weight:800;color:'+e.cor+';font-size:13px;">'+e.pct+'%</td>'
+          +'<td style="padding:8px 10px;font-size:12px;color:#854d0e;">'+histTxt
+            +(histPesoRef>0?' <span style="color:#64748b;white-space:nowrap;">('+Math.round(histPesoRef)+'kg · R$ '+histValorSum.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+')</span>':'')
+          +'</td>'
+          +'<td id="med-etapa-agora-'+s.id+'-'+e.key+'" style="padding:8px 10px;font-size:13px;font-weight:700;color:#166534;white-space:nowrap;">'
+            +(marcada&&valorAgora>0?Math.round(pesoRef)+'kg · R$ '+valorAgora.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'<span style="color:#cbd5e1;font-weight:400;">—</span>')
+          +'</td>'
+          +'<td style="padding:8px 10px;text-align:center;font-weight:800;color:'+(saldoEt>0?'#1d4ed8':'#166534')+';font-size:13px;">'+saldoEt+'%'
+            +(etPend?'<div style="font-size:10px;color:#b45309;font-weight:700;white-space:nowrap;" title="Etapa 11 (Diagrama) ainda pendente de liberação">⏳ Et.11</div>':'')
+          +'</td>'
+          +'</tr>';
       }).join('');
 
-      var _hDetBm=(typeof _buildMedHistoricoDetalhes==='function'?_buildMedHistoricoDetalhes(String(s.id)):[]);
-      var _hPctBm=_hDetBm.reduce(function(a,x){return a+x.pct;},0);
-      var _thisPctBm=_medPct(entry)||pct;
-      var _saldoBm=Math.max(0,100-_hPctBm-_thisPctBm);
-      var _hDetHtml=_hDetBm.length>0
-        ?'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;color:#854d0e;white-space:nowrap;">'+
-          '📋 Medido: '+_hDetBm.map(function(x){
-            return '<b>'+x.bm+'</b> '+x.pct+'%'
-              +(x.peso>0?' ('+x.peso.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})+'kg'
-                +(x.valor>0?' · R$ '+x.valor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+')':'');
-          }).join(' · ')+
-          ' = '+_hPctBm+'%</div>'
-        :'';
-      var pctBar='<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:8px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:6px;margin-bottom:8px;">'
-        +'<span style="font-size:11px;color:#92400e;font-weight:700;white-space:nowrap;" title="Quanto das etapas marcadas você já concluiu AGORA. Deixe em branco (ou 100) se marcou as etapas como totalmente concluídas.">📏 % concluído das etapas marcadas (deixe em branco = 100%):</span>'
-        +'<input type="number" min="0" max="100" step="1" placeholder="100"'
-        +' value="'+(entry&&entry.pct_manual!=null?entry.pct_manual:'')+'"\''
-        +' oninput="event.stopPropagation();medTagSetPctManual(\''+s.id+'\',this.value)"'
-        +' onclick="event.stopPropagation()"'
-        +' style="width:80px;font-size:16px;padding:5px 8px;border:2px solid #d97706;border-radius:5px;background:#fff;color:#b45309;font-family:monospace;font-weight:700;">'
-        +'<span style="font-size:13px;color:#92400e;font-weight:700;">%</span>'
-        +'<span id="med-pct-calc-'+s.id+'" style="background:#dbeafe;color:#1e40af;border-radius:5px;padding:4px 10px;font-size:12px;font-weight:800;white-space:nowrap;" title="Resultado: '+etPct+'% (soma das etapas marcadas) × '+(entry&&entry.pct_manual!=null?entry.pct_manual:100)+'% (o que você digitou acima)">= '+pctTotal+'% do peso total</span>'
-        +_hDetHtml
-        +'<span id="med-saldo-'+s.id+'" style="background:'+(_saldoBm>0?'#eff6ff':'#dcfce7')+';color:'+(_saldoBm>0?'#1d4ed8':'#166534')+';border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap;">Saldo: '+_saldoBm+'%</span>'
-        +'</div>';
+      var etapasTabela = '<div style="border:1.5px solid #cbd5e1;border-radius:6px;overflow:visible;margin-bottom:8px;">'
+        +'<table style="width:100%;border-collapse:collapse;">'
+        +'<thead><tr style="background:#f1f5f9;">'
+          +'<th style="padding:6px 10px;"></th>'
+          +'<th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#475569;">Etapa</th>'
+          +'<th style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:#475569;">%</th>'
+          +'<th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#475569;">📋 Já medido</th>'
+          +'<th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#475569;">✏ Medindo agora</th>'
+          +'<th style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:#475569;">Saldo</th>'
+        +'</tr></thead><tbody>'+etapaRows+'</tbody></table>'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fffbeb;border-top:1.5px solid #fde68a;border-radius:0 0 6px 6px;">'
+          +'<span style="font-size:13px;color:#92400e;font-weight:700;white-space:nowrap;" title="Quanto das etapas marcadas você já concluiu AGORA. Deixe em branco (ou 100) se marcou as etapas como totalmente concluídas.">📏 % concluído:</span>'
+          +'<input type="number" min="0" max="100" step="1" placeholder="100"'
+          +' value="'+(entry&&entry.pct_manual!=null?entry.pct_manual:'')+'"\''
+          +' id="med-pctman-input-'+s.id+'"'
+          +' oninput="event.stopPropagation();medTagSetPctManual(\''+s.id+'\',this.value);_medAtualizaValorLive(\''+s.id+'\','+(etPct||0)+','+(vkg||0)+','+((pesoD>0?pesoD:pesoB)||0)+')"'
+          +' onclick="event.stopPropagation()"'
+          +' style="width:80px;font-size:17px;padding:6px 8px;border:2px solid #d97706;border-radius:5px;background:#fff;color:#b45309;font-family:monospace;font-weight:700;">'
+          +'<span style="font-size:14px;color:#92400e;font-weight:700;">%</span>'
+          +'<span style="background:#dbeafe;color:#1e40af;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:800;white-space:nowrap;">= '+pctTotal+'% do peso total</span>'
+          +'<span style="font-size:13px;color:#475569;font-weight:700;white-space:nowrap;">⚖ Peso medido:</span>'
+          +'<input type="number" min="0" step="0.01" placeholder="'+(pesoRef>0?pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' (auto)':'0,00')+'"'
+          +' value="'+(pesoMedAtual||'')+'"'
+          +' id="med-peso-input-'+s.id+'"'
+          +' oninput="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',this.value);_medAtualizaValorLive(\''+s.id+'\','+(etPct||0)+','+(vkg||0)+','+((pesoD>0?pesoD:pesoB)||0)+')"'
+          +' onclick="event.stopPropagation()"'
+          +' style="width:120px;font-size:16px;padding:6px 8px;border:2px solid '+(pesoMedAtual>0?'#d97706':'#cbd5e1')+';border-radius:5px;'
+          +'background:'+(pesoMedAtual>0?'#fffbeb':'#fff')+';font-family:monospace;">'
+          +(pesoMedAtual>0?'<button onclick="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',\'\');_medAtualizaValorLive(\''+s.id+'\','+(etPct||0)+','+(vkg||0)+','+((pesoD>0?pesoD:pesoB)||0)+')" style="background:#fee2e2;border:none;border-radius:3px;padding:4px 9px;font-size:13px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>':'')
+          +'<span id="med-valor-live-'+s.id+'" title="Valor desta medição = Peso medido × R$/kg × % sendo medido agora" style="background:#dcfce7;color:#166534;border-radius:6px;padding:7px 14px;font-size:16px;font-weight:800;font-family:monospace;white-space:nowrap;">'
+            +((pesoRef>0 && vkg>0 && pctTotal>0)?'= R$ '+(pesoRef*vkg*(pctTotal/100)).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pctTotal+'%)':'')
+          +'</span>'
+        +'</div></div>';
+
       var correcaoInput = _st==='correcao'
         ? '<div style="margin-top:6px;display:flex;align-items:center;gap:7px;">'
           +'<span style="font-size:11px;color:#991b1b;font-weight:700;white-space:nowrap;">📝 Correção:</span>'
@@ -16515,24 +16634,7 @@ function renderMedTags(){
         +'</label>'
         +'</div>';
 
-      var _valorLiveInicial = (pesoMedAtual>0 && vkg>0) ? '= R$ '+(pesoMedAtual*vkg).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-      var etapasBlock = isTelha ? '' : (pctBar
-        +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">'
-        +'<span style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;white-space:nowrap;">Etapas:</span>'
-        +chks
-        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#475569;margin-left:12px;white-space:nowrap;">'
-        +'<span style="font-weight:700;">⚖ Peso medido:</span>'
-        +'<input type="number" min="0" step="0.01" placeholder="'+(pesoRef>0?pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' (auto)':'0,00')+'"'
-        +' value="'+(pesoMedAtual||'')+'"'
-        +' id="med-peso-input-'+s.id+'"'
-        +' oninput="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',this.value);_medAtualizaValorLive(\''+s.id+'\',this.value,'+(vkg||0)+')"'
-        +' onclick="event.stopPropagation()"'
-        +' style="width:130px;font-size:13px;padding:5px 8px;border:2px solid '+(pesoMedAtual>0?'#d97706':'#cbd5e1')+';border-radius:5px;'
-        +'background:'+(pesoMedAtual>0?'#fffbeb':'#fff')+';font-family:monospace;">'
-        +(pesoMedAtual>0?'<button onclick="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',\'\');_medAtualizaValorLive(\''+s.id+'\',\'\','+(vkg||0)+')" style="background:#fee2e2;border:none;border-radius:3px;padding:3px 7px;font-size:11px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>':'')
-        +'</label>'
-        +'<span id="med-valor-live-'+s.id+'" style="background:#dcfce7;color:#166534;border-radius:5px;padding:5px 12px;font-size:13px;font-weight:800;font-family:monospace;white-space:nowrap;">'+_valorLiveInicial+'</span>'
-        +'</div>');
+      var etapasBlock = isTelha ? '' : etapasTabela;
 
       panel = '<tr style="background:'+(rowBg)+';"><td colspan="9" style="padding:8px 14px 10px 36px;border-bottom:2px solid '+rowBorder+';">'
         +telhaToggle
@@ -16542,8 +16644,9 @@ function renderMedTags(){
     }
 
     var mainRow = '<tr style="background:'+rowBg+';border-bottom:1px solid '+rowBorder+';cursor:pointer;" onclick="medTagToggle(\''+s.id+'\')">'
-      +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;text-align:center;width:24px;">'
-        +'<span style="font-size:13px;">'+(sel?'☑':'☐')+'</span>'
+      +'<td style="padding:5px 6px;border-right:1px solid #e5e7eb;text-align:center;width:40px;white-space:nowrap;">'
+        +(sel?'<button onclick="event.stopPropagation();medTagToggleExpand(\''+s.id+'\')" title="'+(expandido?'Recolher':'Expandir')+'" style="background:none;border:none;cursor:pointer;font-size:11px;color:#1d4ed8;padding:0 2px;vertical-align:middle;">'+(expandido?'▼':'▶')+'</button>':'')
+        +'<span style="font-size:13px;vertical-align:middle;">'+(sel?'☑':'☐')+'</span>'
       +'</td>'
       +'<td style="padding:5px 8px;border-right:1px solid #e5e7eb;white-space:nowrap;">'
         +'<span style="font-family:monospace;font-size:11px;font-weight:800;color:'+(sel?(_st==='aceito'?'#166534':_st==='correcao'?'#991b1b':'#1d4ed8'):'#64748b')+';">'+s.subobra+'</span>'
@@ -16600,8 +16703,22 @@ function medTagSetStatusPeso(id,status){
   const prev=_medTagsMap.get(sid);
   if(!prev) return;
   if(prev.status_peso===status){prev.status_peso=null;prev.obs_correcao=null;}
-  else{prev.status_peso=status;if(status!=='correcao') prev.obs_correcao=null;}
+  else{
+    prev.status_peso=status;
+    if(status!=='correcao') prev.obs_correcao=null;
+    // Ao ACEITAR, recolhe a TAG automaticamente — já foi conferida, libera
+    // espaço na tela pra seguir conferindo as próximas.
+    if(status==='aceito') _medExpandedSet.delete(sid);
+  }
   _medTagsMap.set(sid,prev);
+  renderMedTags();
+}
+// Expande/recolhe o painel de etapas de uma TAG, independente de ela estar
+// selecionada ou não — permite conferir uma por vez sem perder a seleção.
+function medTagToggleExpand(id){
+  const sid = String(id);
+  if(_medExpandedSet.has(sid)) _medExpandedSet.delete(sid);
+  else _medExpandedSet.add(sid);
   renderMedTags();
 }
 function medTagSetObsCorrecao(id,val){
@@ -16616,13 +16733,105 @@ function medTagToggle(id){
   const sid = String(id);
   if(_medTagsMap.has(sid)){
     _medTagsMap.delete(sid);
+    _medExpandedSet.delete(sid);
   } else {
     // Inicia sem nenhuma etapa marcada — usuário escolhe
     _medTagsMap.set(sid, {etapas: new Set(), pct:0, peso_med:null});
+    _medExpandedSet.add(sid); // já expande ao selecionar, pra conferir na hora
   }
   renderMedTags();
 }
 
+// ── Exporta um modelo CSV com as TAGs filtradas (Obra/Equipe/busca atuais),
+// já mostrando o que cada uma tem de referência e o que já foi medido, com
+// colunas em branco para preencher em campo (o que está sendo medido agora
+// e o peso) — depois é só importar de volta com medImportCSV().
+function medExportTemplateCSV(){
+  const obra = document.getElementById('med-obra')?.value;
+  if(!obra){ alert('Selecione uma Obra antes de baixar o modelo.'); return; }
+  // CORRIGIDO: só entram as TAGs JÁ SELECIONADAS nesta medição (marcadas com
+  // o checkbox), não todas as TAGs da Obra/Equipe filtrada — o relatório é
+  // sobre esta medição específica, não um levantamento geral da equipe.
+  if(!_medTagsMap.size){ alert('Nenhuma TAG selecionada nesta medição ainda. Marque as TAGs que vai medir antes de baixar o modelo.'); return; }
+  let subs = (allCronSubobras||[]).filter(s => _medTagsMap.has(String(s.id)));
+  if(!subs.length){ alert('Nenhuma TAG selecionada encontrada.'); return; }
+  const histMap = (typeof _buildMedHistoricoPctMap==='function') ? _buildMedHistoricoPctMap() : new Map();
+  // Modelo simples: só TAG + Peso Medido (as demais colunas são só referência
+  // informativa — a escolha de qual etapa marcar é feita na tela, ao expandir
+  // e conferir cada TAG depois de importar).
+  const hdr = ['TAG','Descrição','Peso Ref. (kg)','Já Medido Total (%)','Peso Medido (kg)'];
+  const rows = [hdr.join(';')];
+  subs.forEach(s=>{
+    const entry = _medTagsMap.get(String(s.id));
+    const pesoRef = Number(s.peso_detalhado)||Number(s.peso_previsto)||0;
+    const jaMedido = histMap.get(String(s.id))||0;
+    const pesoMed = entry&&entry.peso_med ? entry.peso_med : '';
+    rows.push([s.subobra||'', (s.descricao||'').replace(/;/g,','), pesoRef, jaMedido, pesoMed].join(';'));
+  });
+  const blob = new Blob(['\ufeff'+rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'modelo_medicao_'+obra.replace(/[^a-zA-Z0-9]/g,'_')+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Importa o CSV com só TAG + Peso Medido: confere cada TAG com a lista da
+// Obra e já traz SELECIONADA (mas recolhida) com o peso preenchido. As
+// etapas a marcar continuam sendo escolhidas manualmente ao expandir e
+// conferir cada TAG na tela (clicando na seta ▶ ao lado do checkbox) — lá já
+// aparece o que já foi medido antes e o que resta, pra você confirmar e
+// clicar em "✅ Aceito", que recolhe a TAG automaticamente.
+function medImportCSV(inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){ alert('Arquivo vazio ou sem dados.'); inputEl.value=''; return; }
+      const sep = lines[0].includes(';') ? ';' : ',';
+      const headers = lines[0].split(sep).map(h=>h.trim().replace(/^\uFEFF/,''));
+      let ok=0, ignoradas=0; const avisos=[];
+      for(let i=1;i<lines.length;i++){
+        const cols = lines[i].split(sep);
+        const row = {}; headers.forEach((h,idx)=>row[h]=(cols[idx]||'').trim());
+        const tag = row['TAG'];
+        if(!tag) continue;
+        const s = (allCronSubobras||[]).find(x=>(x.subobra||'').toLowerCase()===tag.toLowerCase());
+        if(!s){ avisos.push('Linha '+(i+1)+': TAG "'+tag+'" não encontrada nesta Obra/Equipe.'); continue; }
+        const pesoMedRaw = row['Peso Medido (kg)'];
+        if(!pesoMedRaw){ ignoradas++; continue; } // sem peso informado, nada a importar nesta linha
+        const n = parseFloat(pesoMedRaw.replace(',','.'));
+        if(isNaN(n)||n<=0){ avisos.push('Linha '+(i+1)+': peso inválido para a TAG "'+tag+'".'); continue; }
+        const sid = String(s.id);
+        let entry = _medTagsMap.get(sid);
+        if(!entry){ entry = {etapas:new Set(), pct:0}; }
+        if(!entry.etapas) entry.etapas = new Set();
+        entry.peso_med = n;
+        entry.pct = _medPct(entry);
+        _medTagsMap.set(sid, entry);
+        // Fica selecionada, mas RECOLHIDA — você vai expandindo uma a uma pra conferir.
+        ok++;
+      }
+      renderMedTags();
+      if(typeof atualizarResumoMedTags==='function') atualizarResumoMedTags();
+      if(typeof recalcularMedicao==='function') recalcularMedicao();
+      let msg;
+      if(ok===0 && ignoradas>0){
+        msg = '⚠️ NENHUMA TAG foi importada.\n\nA coluna "Peso Medido (kg)" está VAZIA em todas as '+ignoradas+' linha(s) com TAG válida.\n\nAbra o arquivo CSV, preencha o peso medido de cada TAG nessa última coluna, salve e importe de novo.';
+      } else {
+        msg = '✅ '+ok+' TAG(s) selecionada(s) com o peso importado.'+(ignoradas?' ('+ignoradas+' linha(s) sem peso, ignoradas.)':'')+'\n\nAgora clique na seta ▶ de cada TAG pra conferir o que já foi medido, marcar as etapas e aceitar.';
+      }
+      if(avisos.length) msg += '\n\n⚠ Avisos:\n'+avisos.slice(0,15).join('\n')+(avisos.length>15?'\n... e mais '+(avisos.length-15)+' aviso(s)':'');
+      alert(msg);
+    }catch(err){
+      alert('Erro ao processar o CSV: '+err.message);
+    }
+    inputEl.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
 // Toggle de uma etapa individual (checkbox)
 function medTagToggleEtapa(id, etapaKey, checked){
   const sid = String(id);
@@ -16636,6 +16845,17 @@ function medTagToggleEtapa(id, etapaKey, checked){
   // Atualiza só os valores sem re-renderizar tudo (evita perda de foco)
   _atualizarPainelTag(sid);
   atualizarResumoMedTags();
+  // Recalcula em tempo real a coluna "Medindo agora" de cada etapa e o
+  // valor total, já refletindo a etapa que acabou de ser marcada/desmarcada
+  // (esta função não re-renderiza a tabela inteira, por isso precisa disso).
+  const s = (allCronSubobras||[]).find(x=>String(x.id)===sid);
+  if(s && typeof _medAtualizaValorLive==='function'){
+    const vkgAtual = parseFloat(document.getElementById('med-valor-kg')?.value)||0;
+    const pesoDAtual = Number(s.peso_detalhado)||0;
+    const pesoBAtual = Number(s.peso_previsto)||0;
+    const etPctNovo = MED_ETAPAS.filter(e=>prev.etapas.has(e.key)).reduce((a,e)=>a+e.pct,0);
+    _medAtualizaValorLive(sid, etPctNovo, vkgAtual, (pesoDAtual>0?pesoDAtual:pesoBAtual));
+  }
 }
 
 // Atualiza apenas o span de valor da TAG sem re-renderizar toda a lista
@@ -16699,14 +16919,44 @@ function medTagSetPesoMed(id, val){
   clearTimeout(window._pesoMedTimer);
   window._pesoMedTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
 }
-// Mostra, ao lado do campo "Peso medido", o valor em R$ calculado com o peso
-// que está sendo digitado — ANTES de aceitar/confirmar, sem esperar o
-// re-render completo (que só ocorre depois de um pequeno delay).
-function _medAtualizaValorLive(id, val, vkg){
+// Mostra, ao lado do campo "Peso medido", o valor em R$ desta medição —
+// ANTES de aceitar/confirmar, sem esperar o re-render completo (que só
+// ocorre depois de um pequeno delay). CORRIGIDO: antes multiplicava peso ×
+// R$/kg direto, mostrando o valor como se 100% estivesse sendo medido —
+// agora aplica também o % das etapas marcadas × % concluído digitado (o
+// mesmo percentual mostrado em "= X% do peso total"), então o valor exibido
+// já é o valor real desta medição parcial (ex.: 40% do peso → 40% do valor).
+function _medAtualizaValorLive(id, etPct, vkg, pesoRefAuto){
   var el = document.getElementById('med-valor-live-'+id);
-  if(!el) return;
-  var v = parseFloat((val||'').toString().replace(',','.')) || 0;
-  el.textContent = (v>0 && vkg>0) ? '= R$ '+(v*vkg).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+  var pesoEl = document.getElementById('med-peso-input-'+id);
+  var pctManEl = document.getElementById('med-pctman-input-'+id);
+  var pesoDigitado = parseFloat((pesoEl&&pesoEl.value||'').toString().replace(',','.')) || 0;
+  // Se o campo "Peso medido" está vazio, usa o mesmo peso automático (Detalhado
+  // ou Básico) que o placeholder mostra — mesma regra usada no primeiro render.
+  var peso = pesoDigitado>0 ? pesoDigitado : (pesoRefAuto||0);
+  var pctManRaw = pctManEl ? pctManEl.value : '';
+  var pctMan = (pctManRaw===''||pctManRaw==null) ? 100 : (parseFloat(pctManRaw.toString().replace(',','.'))||0);
+  var pctTotal = Math.round((etPct||0)*pctMan)/100;
+  if(el){
+    el.textContent = (peso>0 && vkg>0 && pctTotal>0)
+      ? '= R$ '+(peso*vkg*(pctTotal/100)).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pctTotal+'% do peso)'
+      : '';
+  }
+  // Atualiza também a coluna "Medindo agora" de cada etapa MARCADA, com o
+  // peso e o % concluído que estão sendo digitados agora (antes usava só o
+  // peso/percentual do último render, ficando desatualizado ao digitar).
+  MED_ETAPAS.forEach(function(e){
+    var elEt = document.getElementById('med-etapa-agora-'+id+'-'+e.key);
+    var chkEt = document.getElementById('med-etapa-chk-'+id+'-'+e.key);
+    if(!elEt) return;
+    var marcada = chkEt && chkEt.checked;
+    // CORRIGIDO: mostra o peso de referência TOTAL (ex.: 1997,05kg), não
+    // reduzido pela % da etapa/concluído — só o valor (R$) é proporcional.
+    var valorEt = (marcada && peso>0) ? peso*(e.pct/100)*(pctMan/100)*(vkg||0) : 0;
+    elEt.innerHTML = (marcada && valorEt>0)
+      ? Math.round(peso)+'kg · R$ '+valorEt.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
+      : '<span style="color:#cbd5e1;font-weight:400;">—</span>';
+  });
 }
 
 // Liga/desliga o modo "100% Projeto de Telha" para uma TAG — quando ligado, a
@@ -34947,7 +35197,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-02';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-12';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
