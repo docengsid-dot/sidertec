@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-27-12 -->
+<!-- SIDER_APP_BUILD: 2026-07-27-13 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -19163,6 +19163,7 @@ function cotExportarCSV(){
         <button onclick="_cdocAbrirMesclarStatus()" title="Une dois status que na verdade são o mesmo (ex.: 'FLUXO COM CLIENTE' e 'FLUXO COM O CLIENTE' criados por pessoas diferentes) em um só, em todos os documentos" style="background:#9333ea;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔀 Mesclar Status Duplicado</button>
         <button onclick="_cdocCorrigirLiberadoSemData()" title="Corrige documentos que ficaram com 'Liberado' na Liberação para Fabricação (ou 'Concluído' no Envio ao Cliente) sem nenhuma data preenchida — reverte para 'Pendente'" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Corrigir Liberado sem Data</button>
         <button onclick="_cdocMesclarEnviosFragmentados()" title="Junta linhas de Envio ao Cliente / Liberação para Fabricação que ficaram fragmentadas (retorno registrado separado, criando uma linha extra em branco) de volta na linha correta" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔧 Mesclar Envios Fragmentados</button>
+        <button onclick="_cdocCorrigirIdsDuplicados()" title="Corrige documentos com ID duplicado — causa do erro 'ON CONFLICT DO UPDATE... duplicate' ao salvar. Dá um novo ID único aos duplicados, sem perder nenhum dado." style="background:#be123c;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">🆔 Corrigir IDs Duplicados</button>
       </div>
     </div>
     <div class="cron-mbody">
@@ -19791,6 +19792,19 @@ async function _cdocPushTabela(tabela, upserts, deletes){
       try{ loteMerged=await _cdocMergeComRemotoAntesDeSalvar(tabela, loteOriginal, kind); }
       catch(eMerge){ console.warn('[CDOC merge concorrente] seguindo sem mesclar:',eMerge.message); }
     }
+    // PROTEÇÃO EXTRA contra o erro "ON CONFLICT DO UPDATE... duplicate":
+    // se por qualquer motivo sobrarem duas linhas com o mesmo id na mesma
+    // remessa (ex.: dado antigo já duplicado, de antes da correção na
+    // geração de id), o Postgres rejeita a remessa inteira. Aqui garante-se
+    // que cada id apareça só uma vez por remessa (mantém a última ocorrência,
+    // que é a versão mais recente), em vez de deixar o Supabase recusar tudo.
+    var _porId={}, _ordemIds=[];
+    loteMerged.forEach(function(r){
+      var _k=String(r.id);
+      if(!(_k in _porId)) _ordemIds.push(_k);
+      _porId[_k]=r;
+    });
+    loteMerged=_ordemIds.map(function(_k){return _porId[_k];});
     var lote=loteMerged.map(function(r){return {id:r.id, data:r, updated_at:new Date().toISOString()};});
     var _bodyStr=JSON.stringify(lote);
     var r=await fetch(_sbUrl(tabela),{
@@ -20263,7 +20277,18 @@ function _cdocDb(){ return _cdocLoad(); }
 // criam documentos ao mesmo tempo em sessões diferentes (um contador
 // compartilhado só se atualiza quando alguém salva, então duas sessões
 // abertas simultaneamente podiam "sortear" o mesmo próximo número).
-function _cdocGenIdSeguro(){ return Date.now()*1000 + Math.floor(Math.random()*1000); }
+// CORRIGIDO (erro "ON CONFLICT DO UPDATE... duplicate" no Supabase): a versão
+// antiga combinava o timestamp com um número ALEATÓRIO (0-999) pra tentar
+// evitar ids repetidos — mas se a função fosse chamada várias vezes muito
+// rápido (ex.: importação de CSV criando várias linhas novas em sequência,
+// ou Status em Lote), existia uma chance real de duas chamadas caírem no
+// mesmo milissegundo E sortearem o mesmo número aleatório, gerando DOIS
+// documentos com o MESMO id — o que o Postgres rejeita justamente com esse
+// erro ao tentar salvar os dois na mesma remessa. Agora usa um contador que
+// SEMPRE avança (nunca repete, mesmo chamado centenas de vezes em sequência),
+// eliminando a dependência de sorte.
+var _cdocIdSeq = 0;
+function _cdocGenIdSeguro(){ _cdocIdSeq = (_cdocIdSeq+1) % 1000000; return Date.now()*1000000 + _cdocIdSeq; }
 function _cdocGenId(db,k){ db._ids=db._ids||{bas:1,det:1}; db._ids[k]=(db._ids[k]||1)+1; return _cdocGenIdSeguro(); }
 function _cdocGenGrdId(){ return _cdocGenIdSeguro(); }
 
@@ -24110,6 +24135,40 @@ function _cdocSyncGrdFromEnvio(doc, envio){
 // Reconstrói db._grds a partir do histórico de envio de TODOS os documentos —
 // corrige GRDs que ficaram registradas apenas no histórico do documento (texto
 // livre) e nunca geraram (ou perderam) o registro formal usado por "GRDs Emitidas".
+// ── Corrige documentos/projetos básicos com ID DUPLICADO — causa do erro
+// "ON CONFLICT DO UPDATE... duplicate" ao salvar. Isso podia acontecer se
+// dois documentos novos fossem criados muito rápido em sequência (ex.:
+// importação de CSV, Status em Lote) antes da correção na geração de id.
+// Mantém o PRIMEIRO documento com aquele id como está, e dá um id novo
+// (único) para os demais que colidirem — sem apagar nenhum dado.
+function _cdocCorrigirIdsDuplicados(){
+  if(!_siderRequireEdit()) return;
+  var db=_cdocDb();
+  var corrigidos=0;
+  ['detalhados','basicos'].forEach(function(campo){
+    var vistos={};
+    (db[campo]||[]).forEach(function(rec){
+      var k=String(rec.id);
+      if(vistos[k]){
+        var novoId=_cdocGenIdSeguro();
+        rec.id=novoId;
+        corrigidos++;
+      } else {
+        vistos[k]=true;
+      }
+    });
+  });
+  if(!corrigidos){
+    showToast('Nada a corrigir', 'Não foram encontrados documentos com ID duplicado.', 'info');
+    return;
+  }
+  if(!confirm('Foram encontrados '+corrigidos+' documento(s)/projeto(s) básico(s) com ID duplicado (causa do erro ao salvar).\n\nEles serão mantidos, apenas recebendo um novo ID único cada um — nenhum dado será perdido.\n\nConfirmar a correção e salvar agora?')){
+    return;
+  }
+  _cdocSave(db);
+  cdocRenderDet(); cdocRenderBas();
+  showToast('IDs corrigidos', corrigidos+' documento(s) receberam um novo ID único. Salvando na nuvem...', 'success');
+}
 function _cdocMesclarEnviosFragmentados(){
   if(!_siderRequireEdit()) return;
   var db=_cdocDb();
@@ -35197,7 +35256,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-12';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-13';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
