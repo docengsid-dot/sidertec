@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-23-09 -->
+<!-- SIDER_APP_BUILD: 2026-07-27-01 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -5747,12 +5747,13 @@ function renderCronograma(){
         s.data_limite_fab,
       ].map(v => (v||'').toLowerCase()).join(' ');
       const tagAtual = (s.subobra||'').toLowerCase();
-      // Cada termo buscado: a TAG precisa ser IGUAL (não apenas "conter") para contar como match —
-      // isso evita que buscar "S176AA" traga também "S176AAA", "S176AAB" etc. Nos demais campos
-      // (descrição, obra, equipe...) a busca continua parcial, por flexibilidade.
+      // A partir de agora, a busca por TAG é PARCIAL (contém) — buscar "PF257"
+      // encontra "11-4600-PF-PF257", por exemplo. Antes exigia o texto EXATO
+      // da TAG completa, o que obrigava digitar tudo (11-4600-PF-PF257) para
+      // achar qualquer coisa.
       const matched = _todosTags.some(t => {
         const tl = t.toLowerCase();
-        return tagAtual === tl || searchFieldsLivres.includes(tl);
+        return tagAtual.includes(tl) || searchFieldsLivres.includes(tl);
       });
       if(!matched) return false;
     }
@@ -11666,6 +11667,8 @@ function _buildMedHistoricoPctMap(){
 // Retorna array de {bm, pct} de todos BMs anteriores que mediram esta TAG
 function _buildMedHistoricoDetalhes(tagSid){
   var list=[];
+  var sub=(allCronSubobras||[]).find(function(x){return String(x.id)===String(tagSid);});
+  var pesoRef = sub ? (Number(sub.peso_detalhado)||Number(sub.peso_previsto)||0) : 0;
   (allMedicoes||[]).forEach(function(med){
     if(editingMedicaoId&&String(med.id)===String(editingMedicaoId)) return;
     try{
@@ -11674,7 +11677,14 @@ function _buildMedHistoricoDetalhes(tagSid){
         if(String(item.id||item)!==String(tagSid)) return;
         var _etPct=MED_ETAPAS.filter(function(e){return (item.etapas||[]).includes(e.key);}).reduce(function(a,e){return a+e.pct;},0);
         var pct=item.pct_manual!=null?Math.round(_etPct*(Number(item.pct_manual)||0))/100:_etPct;
-        if(pct>0) list.push({bm:med.bm||med.num_ps||('Med#'+med.id), pct:pct});
+        if(pct>0){
+          // Peso efetivamente medido nesta BM: usa o peso_med registrado na
+          // época, se houver; senão estima pela % das etapas sobre o peso
+          // de referência atual da TAG (detalhado, ou básico na falta dele).
+          var pesoMed = Number(item.peso_med)>0 ? Number(item.peso_med) : (pesoRef*(pct/100));
+          var valorMed = pesoMed*(Number(med.valor_kg)||0);
+          list.push({bm:med.bm||med.num_ps||('Med#'+med.id), pct:pct, peso:pesoMed, valor:valorMed});
+        }
       });
     }catch(e){}
   });
@@ -16391,10 +16401,15 @@ function renderMedTags(){
       : '#93c5fd';
 
     // ── Badges extras ──
+    var _histDetTip = (_histPct>0 && typeof _buildMedHistoricoDetalhes==='function')
+      ? _buildMedHistoricoDetalhes(String(s.id)).map(function(x){
+          return x.bm+': '+x.pct+'%'+(x.peso>0?' ('+x.peso.toLocaleString('pt-BR',{maximumFractionDigits:0})+'kg'+(x.valor>0?' / R$ '+x.valor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+')':'');
+        }).join(' | ')
+      : '';
     var extraBadges = ''
       +(_diverg.divergente?'<span title="'+_diverg.detalhe+'" style="background:#f43f5e;color:#fff;border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:800;white-space:nowrap;">🚨 DIVERGÊNCIA '+_diverg.pct+'%</span>':'')
-      +(_histPct>=100?'<span style="background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⛔ 100% já med.</span>':
-        _histPct>0?'<span style="background:#fef9c3;color:#854d0e;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⚠ '+_histPct+'% med.</span>':'')
+      +(_histPct>=100?'<span title="'+_esc(_histDetTip)+'" style="background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⛔ 100% já med.</span>':
+        _histPct>0?'<span title="'+_esc(_histDetTip)+'" style="background:#fef9c3;color:#854d0e;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⚠ '+_histPct+'% med.</span>':'')
       +(_dp&&sel?'<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-size:7.5px;font-weight:700;white-space:nowrap;">⏳ Et.11</span>':'');
 
     // ── Botões BM ──
@@ -16439,7 +16454,11 @@ function renderMedTags(){
       var _saldoBm=Math.max(0,100-_hPctBm-_thisPctBm);
       var _hDetHtml=_hDetBm.length>0
         ?'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:3px;padding:2px 7px;font-size:8px;font-weight:700;color:#854d0e;white-space:nowrap;">'+
-          '📋 Medido: '+_hDetBm.map(function(x){return '<b>'+x.bm+'</b> '+x.pct+'%';}).join(' · ')+
+          '📋 Medido: '+_hDetBm.map(function(x){
+            return '<b>'+x.bm+'</b> '+x.pct+'%'
+              +(x.peso>0?' ('+x.peso.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})+'kg'
+                +(x.valor>0?' · R$ '+x.valor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+')':'');
+          }).join(' · ')+
           ' = '+_hPctBm+'%</div>'
         :'';
       var pctBar='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 6px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;margin-bottom:4px;">'
@@ -34916,7 +34935,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-23-09';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-01';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
