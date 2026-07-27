@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-27-01 -->
+<!-- SIDER_APP_BUILD: 2026-07-27-02 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -16434,17 +16434,17 @@ function renderMedTags(){
       var chks = MED_ETAPAS.map(function(e){
         var marcada = etapasSet.has(e.key);
         var valorEt = vkg>0&&pesoRef>0?vkg*pesoRef*(e.pct/100):0;
-        return '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.25rem;'
+        return '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.35rem;'
           +'border:2px solid '+(marcada?e.cor:'#e2e8f0')+';background:'+(marcada?e.bg:'#fff')
-          +';border-radius:5px;padding:2px 7px;cursor:pointer;font-size:9px;font-weight:'+(marcada?'800':'500')
+          +';border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:'+(marcada?'800':'500')
           +';color:'+(marcada?e.cor:'#64748b')+';white-space:nowrap;user-select:none;">'
           +'<input type="checkbox" '+(marcada?'checked':'')
           +' onchange="event.stopPropagation();medTagToggleEtapa(\''+s.id+'\',\''+e.key+'\',this.checked)"'
-          +' style="accent-color:'+e.cor+';cursor:pointer;width:11px;height:11px;">'
+          +' style="accent-color:'+e.cor+';cursor:pointer;width:15px;height:15px;">'
           +' '+e.icon+' '+e.label
           +' <span style="background:'+(marcada?e.cor:'#e2e8f0')+';color:'+(marcada?'#fff':'#94a3b8')
-          +';border-radius:8px;padding:0 4px;font-size:8px;font-weight:700;">'+e.pct+'%</span>'
-          +(marcada&&valorEt>0?'<span style="font-size:8px;color:'+e.cor+';font-family:monospace;">'+valorEt.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')
+          +';border-radius:9px;padding:1px 6px;font-size:11px;font-weight:700;">'+e.pct+'%</span>'
+          +(marcada&&valorEt>0?'<span style="font-size:11px;color:'+e.cor+';font-family:monospace;">'+valorEt.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')
           +'</label>';
       }).join('');
 
@@ -16453,7 +16453,7 @@ function renderMedTags(){
       var _thisPctBm=_medPct(entry)||pct;
       var _saldoBm=Math.max(0,100-_hPctBm-_thisPctBm);
       var _hDetHtml=_hDetBm.length>0
-        ?'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:3px;padding:2px 7px;font-size:8px;font-weight:700;color:#854d0e;white-space:nowrap;">'+
+        ?'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;color:#854d0e;white-space:nowrap;">'+
           '📋 Medido: '+_hDetBm.map(function(x){
             return '<b>'+x.bm+'</b> '+x.pct+'%'
               +(x.peso>0?' ('+x.peso.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})+'kg'
@@ -16461,77 +16461,80 @@ function renderMedTags(){
           }).join(' · ')+
           ' = '+_hPctBm+'%</div>'
         :'';
-      var pctBar='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 6px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;margin-bottom:4px;">'
-        +'<span style="font-size:8px;color:#92400e;font-weight:700;white-space:nowrap;" title="Quanto das etapas marcadas você já concluiu AGORA. Deixe em branco (ou 100) se marcou as etapas como totalmente concluídas.">📏 % concluído das etapas marcadas (deixe em branco = 100%):</span>'
+      var pctBar='<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:8px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:6px;margin-bottom:8px;">'
+        +'<span style="font-size:11px;color:#92400e;font-weight:700;white-space:nowrap;" title="Quanto das etapas marcadas você já concluiu AGORA. Deixe em branco (ou 100) se marcou as etapas como totalmente concluídas.">📏 % concluído das etapas marcadas (deixe em branco = 100%):</span>'
         +'<input type="number" min="0" max="100" step="1" placeholder="100"'
         +' value="'+(entry&&entry.pct_manual!=null?entry.pct_manual:'')+'"\''
         +' oninput="event.stopPropagation();medTagSetPctManual(\''+s.id+'\',this.value)"'
         +' onclick="event.stopPropagation()"'
-        +' style="width:65px;font-size:12px;padding:2px 6px;border:2px solid #d97706;border-radius:3px;background:#fff;color:#b45309;font-family:monospace;font-weight:700;">'
-        +'<span style="font-size:10px;color:#92400e;font-weight:700;">%</span>'
-        +'<span id="med-pct-calc-'+s.id+'" style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:800;white-space:nowrap;" title="Resultado: '+etPct+'% (soma das etapas marcadas) × '+(entry&&entry.pct_manual!=null?entry.pct_manual:100)+'% (o que você digitou acima)">= '+pctTotal+'% do peso total</span>'
+        +' style="width:80px;font-size:16px;padding:5px 8px;border:2px solid #d97706;border-radius:5px;background:#fff;color:#b45309;font-family:monospace;font-weight:700;">'
+        +'<span style="font-size:13px;color:#92400e;font-weight:700;">%</span>'
+        +'<span id="med-pct-calc-'+s.id+'" style="background:#dbeafe;color:#1e40af;border-radius:5px;padding:4px 10px;font-size:12px;font-weight:800;white-space:nowrap;" title="Resultado: '+etPct+'% (soma das etapas marcadas) × '+(entry&&entry.pct_manual!=null?entry.pct_manual:100)+'% (o que você digitou acima)">= '+pctTotal+'% do peso total</span>'
         +_hDetHtml
-        +'<span id="med-saldo-'+s.id+'" style="background:'+(_saldoBm>0?'#eff6ff':'#dcfce7')+';color:'+(_saldoBm>0?'#1d4ed8':'#166534')+';border-radius:3px;padding:2px 7px;font-size:8px;font-weight:700;white-space:nowrap;">Saldo: '+_saldoBm+'%</span>'
+        +'<span id="med-saldo-'+s.id+'" style="background:'+(_saldoBm>0?'#eff6ff':'#dcfce7')+';color:'+(_saldoBm>0?'#1d4ed8':'#166534')+';border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap;">Saldo: '+_saldoBm+'%</span>'
         +'</div>';
       var correcaoInput = _st==='correcao'
-        ? '<div style="margin-top:4px;display:flex;align-items:center;gap:4px;">'
-          +'<span style="font-size:8px;color:#991b1b;font-weight:700;white-space:nowrap;">📝 Correção:</span>'
+        ? '<div style="margin-top:6px;display:flex;align-items:center;gap:7px;">'
+          +'<span style="font-size:11px;color:#991b1b;font-weight:700;white-space:nowrap;">📝 Correção:</span>'
           +'<input type="text" placeholder="Descrever a correção solicitada..." value="'+(_ob||'')+'"'
           +' oninput="event.stopPropagation();medTagSetObsCorrecao(\''+s.id+'\',this.value)"'
           +' onclick="event.stopPropagation()"'
-          +' style="flex:1;font-size:9px;padding:2px 6px;border:1px solid #fca5a5;border-radius:3px;background:#fff1f2;color:#991b1b;">'
+          +' style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fff1f2;color:#991b1b;">'
           +'</div>'
         : '';
 
       var isTelha = !!entry.telha;
       var valorManualAtual = entry.valor_manual!=null ? entry.valor_manual : '';
-      var telhaToggle = '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.3rem;'
+      var telhaToggle = '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.4rem;'
         +'border:2px solid '+(isTelha?'#b45309':'#e2e8f0')+';background:'+(isTelha?'#fef3c7':'#fff')
-        +';border-radius:5px;padding:2px 8px;cursor:pointer;font-size:9px;font-weight:'+(isTelha?'800':'500')
-        +';color:'+(isTelha?'#92400e':'#64748b')+';white-space:nowrap;user-select:none;margin-bottom:4px;">'
+        +';border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:'+(isTelha?'800':'500')
+        +';color:'+(isTelha?'#92400e':'#64748b')+';white-space:nowrap;user-select:none;margin-bottom:8px;">'
         +'<input type="checkbox" '+(isTelha?'checked':'')
         +' onchange="event.stopPropagation();medTagToggleTelha(\''+s.id+'\',this.checked)"'
-        +' style="accent-color:#b45309;cursor:pointer;width:11px;height:11px;">'
+        +' style="accent-color:#b45309;cursor:pointer;width:15px;height:15px;">'
         +' 🧱 100% Projeto de Telha (informar peso e valor manualmente)'
         +'</label>';
 
-      var telhaBlock = '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:4px 6px;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;margin-bottom:4px;">'
-        +'<span style="font-size:8px;color:#92400e;font-weight:700;">🧱 Este item não usa as etapas padrão — informe abaixo:</span>'
-        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:8px;color:#475569;white-space:nowrap;">'
+      var telhaBlock = '<div style="display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;padding:8px 12px;background:#fef3c7;border:1.5px solid #fde68a;border-radius:6px;margin-bottom:8px;">'
+        +'<span style="font-size:11px;color:#92400e;font-weight:700;">🧱 Este item não usa as etapas padrão — informe abaixo:</span>'
+        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#475569;white-space:nowrap;">'
         +'<span style="font-weight:700;">⚖ Peso a medir (kg):</span>'
         +'<input type="number" min="0" step="0.01" placeholder="0,00"'
         +' value="'+(pesoMedAtual||'')+'"'
         +' oninput="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',this.value)"'
         +' onclick="event.stopPropagation()"'
-        +' style="width:100px;font-size:9px;padding:2px 5px;border:1px solid #d97706;border-radius:3px;background:#fff;font-family:monospace;">'
+        +' style="width:130px;font-size:13px;padding:5px 8px;border:2px solid #d97706;border-radius:5px;background:#fff;font-family:monospace;">'
         +'</label>'
-        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:8px;color:#475569;white-space:nowrap;margin-left:6px;">'
+        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#475569;white-space:nowrap;margin-left:8px;">'
         +'<span style="font-weight:700;">💵 Valor a medir (R$):</span>'
         +'<input type="number" min="0" step="0.01" placeholder="0,00"'
         +' value="'+(valorManualAtual||'')+'"'
         +' oninput="event.stopPropagation();medTagSetTelhaValor(\''+s.id+'\',this.value)"'
         +' onclick="event.stopPropagation()"'
-        +' style="width:110px;font-size:9px;padding:2px 5px;border:1px solid #d97706;border-radius:3px;background:#fff;font-family:monospace;">'
+        +' style="width:140px;font-size:13px;padding:5px 8px;border:2px solid #d97706;border-radius:5px;background:#fff;font-family:monospace;">'
         +'</label>'
         +'</div>';
 
+      var _valorLiveInicial = (pesoMedAtual>0 && vkg>0) ? '= R$ '+(pesoMedAtual*vkg).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
       var etapasBlock = isTelha ? '' : (pctBar
-        +'<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:2px;">'
-        +'<span style="font-size:8px;color:#94a3b8;font-weight:700;text-transform:uppercase;white-space:nowrap;">Etapas:</span>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">'
+        +'<span style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;white-space:nowrap;">Etapas:</span>'
         +chks
-        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:8px;color:#475569;margin-left:8px;white-space:nowrap;">'
+        +'<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#475569;margin-left:12px;white-space:nowrap;">'
         +'<span style="font-weight:700;">⚖ Peso medido:</span>'
         +'<input type="number" min="0" step="0.01" placeholder="'+(pesoRef>0?pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' (auto)':'0,00')+'"'
         +' value="'+(pesoMedAtual||'')+'"'
-        +' oninput="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',this.value)"'
+        +' id="med-peso-input-'+s.id+'"'
+        +' oninput="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',this.value);_medAtualizaValorLive(\''+s.id+'\',this.value,'+(vkg||0)+')"'
         +' onclick="event.stopPropagation()"'
-        +' style="width:100px;font-size:9px;padding:2px 5px;border:1px solid '+(pesoMedAtual>0?'#d97706':'#cbd5e1')+';border-radius:3px;'
+        +' style="width:130px;font-size:13px;padding:5px 8px;border:2px solid '+(pesoMedAtual>0?'#d97706':'#cbd5e1')+';border-radius:5px;'
         +'background:'+(pesoMedAtual>0?'#fffbeb':'#fff')+';font-family:monospace;">'
-        +(pesoMedAtual>0?'<button onclick="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',\'\')" style="background:#fee2e2;border:none;border-radius:2px;padding:1px 4px;font-size:8px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>':'')
+        +(pesoMedAtual>0?'<button onclick="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',\'\');_medAtualizaValorLive(\''+s.id+'\',\'\','+(vkg||0)+')" style="background:#fee2e2;border:none;border-radius:3px;padding:3px 7px;font-size:11px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>':'')
         +'</label>'
+        +'<span id="med-valor-live-'+s.id+'" style="background:#dcfce7;color:#166534;border-radius:5px;padding:5px 12px;font-size:13px;font-weight:800;font-family:monospace;white-space:nowrap;">'+_valorLiveInicial+'</span>'
         +'</div>');
 
-      panel = '<tr style="background:'+(rowBg)+';"><td colspan="9" style="padding:4px 10px 6px 32px;border-bottom:2px solid '+rowBorder+';">'
+      panel = '<tr style="background:'+(rowBg)+';"><td colspan="9" style="padding:8px 14px 10px 36px;border-bottom:2px solid '+rowBorder+';">'
         +telhaToggle
         +(isTelha ? telhaBlock : etapasBlock)
         +correcaoInput
@@ -16695,6 +16698,15 @@ function medTagSetPesoMed(id, val){
   // Re-render com pequeno delay para não perder foco durante digitação
   clearTimeout(window._pesoMedTimer);
   window._pesoMedTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
+}
+// Mostra, ao lado do campo "Peso medido", o valor em R$ calculado com o peso
+// que está sendo digitado — ANTES de aceitar/confirmar, sem esperar o
+// re-render completo (que só ocorre depois de um pequeno delay).
+function _medAtualizaValorLive(id, val, vkg){
+  var el = document.getElementById('med-valor-live-'+id);
+  if(!el) return;
+  var v = parseFloat((val||'').toString().replace(',','.')) || 0;
+  el.textContent = (v>0 && vkg>0) ? '= R$ '+(v*vkg).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
 }
 
 // Liga/desliga o modo "100% Projeto de Telha" para uma TAG — quando ligado, a
@@ -34935,7 +34947,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-01';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-02';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
