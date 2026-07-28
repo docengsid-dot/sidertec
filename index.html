@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-27-14 -->
+<!-- SIDER_APP_BUILD: 2026-07-27-15 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -20433,12 +20433,22 @@ function _cdocDb(){ return _cdocLoad(); }
 // rápido (ex.: importação de CSV criando várias linhas novas em sequência,
 // ou Status em Lote), existia uma chance real de duas chamadas caírem no
 // mesmo milissegundo E sortearem o mesmo número aleatório, gerando DOIS
-// documentos com o MESMO id — o que o Postgres rejeita justamente com esse
-// erro ao tentar salvar os dois na mesma remessa. Agora usa um contador que
-// SEMPRE avança (nunca repete, mesmo chamado centenas de vezes em sequência),
-// eliminando a dependência de sorte.
+// documentos com o MESMO id.
+// ⚠️ CORREÇÃO ANTERIOR TINHA UM BUG AINDA PIOR: multiplicava o timestamp por
+// 1.000.000, o que ultrapassa Number.MAX_SAFE_INTEGER do JavaScript (o maior
+// número inteiro que o JS consegue representar com exatidão). Passado esse
+// limite, o JavaScript ARREDONDA o resultado — e o arredondamento era tão
+// grosseiro que TODAS as chamadas feitas em sequência rápida (ex.: importar
+// um CSV com 214 linhas) devolviam exatamente o MESMO número, mesmo com o
+// contador diferente a cada vez. Ou seja, a correção anterior não reduzia a
+// chance de colisão — ela GARANTIA a colisão em qualquer lote. Agora usa uma
+// multiplicação bem menor (×2.000, não ×1.000.000), que mantém o resultado
+// sempre dentro da faixa segura do JavaScript e garante até 2.000 ids
+// diferentes por milissegundo sem repetir — bem acima de qualquer lote real
+// (importação de CSV, Status em Lote etc. giram em torno de centenas de
+// linhas, não milhares no mesmo milissegundo).
 var _cdocIdSeq = 0;
-function _cdocGenIdSeguro(){ _cdocIdSeq = (_cdocIdSeq+1) % 1000000; return Date.now()*1000000 + _cdocIdSeq; }
+function _cdocGenIdSeguro(){ _cdocIdSeq = (_cdocIdSeq+1) % 2000; return Date.now()*2000 + _cdocIdSeq; }
 function _cdocGenId(db,k){ db._ids=db._ids||{bas:1,det:1}; db._ids[k]=(db._ids[k]||1)+1; return _cdocGenIdSeguro(); }
 function _cdocGenGrdId(){ return _cdocGenIdSeguro(); }
 
@@ -27620,7 +27630,27 @@ function _cdocDetSelAll(cb){
       );
       if(!confirmar){ cb.checked=false; return; }
     }
+    // ── DIAGNÓSTICO: se o número de ids únicos for menor que o total de
+    // linhas, mostra exatamente por quê (id vazio/nulo, ou id repetido entre
+    // linhas diferentes) — em vez de só a seleção "sumir" sem explicação.
+    var _idsVistos={}, _semId=0, _repetidos=[];
     todosRows.forEach(function(d){
+      if(d.id===undefined||d.id===null||d.id===''){ _semId++; return; }
+      var k=String(d.id);
+      if(_idsVistos[k]) _repetidos.push(k+' — "'+(d.sub||'')+' / '+(d.num||'')+'" repete o id de "'+(_idsVistos[k].sub||'')+' / '+(_idsVistos[k].num||'')+'"');
+      else _idsVistos[k]=d;
+    });
+    var _totalUnicos=Object.keys(_idsVistos).length;
+    if(_totalUnicos < todosRows.length){
+      var _msgDiag='⚠️ DIAGNÓSTICO — só '+_totalUnicos+' de '+todosRows.length+' linhas têm um ID único e válido.\n\n';
+      if(_semId) _msgDiag+='• '+_semId+' linha(s) SEM id (vazio/nulo).\n';
+      if(_repetidos.length) _msgDiag+='• '+_repetidos.length+' linha(s) com id REPETIDO de outra linha:\n'+_repetidos.slice(0,10).join('\n')+(_repetidos.length>10?'\n... e mais '+(_repetidos.length-10):'');
+      _msgDiag+='\n\nCopie esta mensagem e envie para o suporte/desenvolvedor — isso identifica exatamente onde está o problema.';
+      alert(_msgDiag);
+      console.warn('[_cdocDetSelAll diagnóstico]', _msgDiag, todosRows);
+    }
+    todosRows.forEach(function(d){
+      if(d.id===undefined||d.id===null||d.id===''){ return; } // não seleciona linha sem id — evitaria juntar todas elas
       var nid = isNaN(d.id) ? d.id : Number(d.id);
       _cdocDetSel.add(nid);
     });
@@ -35416,7 +35446,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-14';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-15';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
