@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-28-03 -->
+<!-- SIDER_APP_BUILD: 2026-07-28-05 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -19214,7 +19214,7 @@ function cotExportarCSV(){
 .cdoc-cmdbtn:hover{transform:translateY(-1px) scale(1.05);box-shadow:0 4px 10px rgba(15,23,42,.22);}
 .cdoc-cmdbtn:active{transform:scale(.94);}
 .cdoc-cmdbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;transform:none;}
-.cdoc-cmdbtn .badge{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:8px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 2px;box-shadow:0 0 0 2px #fff;line-height:1;}
+.cdoc-cmdbtn .badge{position:absolute;top:-7px;right:-7px;background:#dc2626;color:#fff;font-size:12px;font-weight:800;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px #fff;line-height:1;}
 .cdoc-cmd-sep{height:1px;background:#e2e8f0;margin:1px 4px;}
 .cdoc-multi-item{display:flex;align-items:center;gap:6px;padding:4px 12px;font-size:12px;color:#334155;cursor:pointer;white-space:nowrap;}
 .cdoc-multi-item:hover{background:#f0f9ff;}
@@ -19392,7 +19392,7 @@ function _cdocPainelToggleDet(){
             <select id="cdb-f-status" onchange="_cdocRenderBasDebounced()">
               <option value="">Todos status</option><option>LD</option><option>Em andamento</option><option>Concluído</option>
             </select>
-            <input id="cdb-f-txt" placeholder="Buscar..." oninput="_cdocRenderBasDebounced()" style="max-width:130px;">
+            <input id="cdb-f-txt" placeholder="Buscar (título, descrição, TAG, cliente)..." title="Busca por qualquer nome ou identificação: título, descrição, TAG ou cliente" oninput="_cdocRenderBasDebounced()" style="max-width:200px;">
             <input id="cdb-f-grd" placeholder="GRD..." oninput="_cdocRenderBasDebounced()" style="max-width:90px;">
             <select id="cdb-f-proj" onchange="_cdocRenderBasDebounced()" style="max-width:130px;"><option value="">Todos projetistas</option></select>
             <input id="cdb-f-data" placeholder="Data (dd/mm/aaaa)" oninput="_cdocRenderBasDebounced()" style="max-width:130px;" maxlength="10">
@@ -21848,7 +21848,7 @@ function cdocRenderBas(){
     if(fObra&&b.obraId!==fObra) return false;
     if(fSub&&!_cdocSubMatch(b.sub||'',fSub)) return false;
     if(fSt&&b.status!==fSt) return false;
-    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
+    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)&&!(b.descbas||'').toLowerCase().includes(fTxt)) return false;
     if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
     if(fGrd&&!(b.remessaGRD||'').toLowerCase().includes(fGrd)) return false;
     if(fProj){ var _ep=_cdocGetProj(b); if(_ep!==fProj) return false; }
@@ -23711,6 +23711,33 @@ function _cdocSalvarAcaoLista(docIds, acaoTexto, prazo, prioridade, revisao, fin
   showToast('Ação registrada', '"'+acaoTexto+'" registrada em '+qtd+' documento(s).', 'success');
   return {ok:true, qtd:qtd, dataBR:hoje.split('-').reverse().join('/')};
 }
+// Igual a _cdocSalvarAcaoLista, mas com uma ação/revisão DIFERENTE por
+// documento (usado na coluna "Ação" da Lista de Verificação) — cada item
+// sinaliza se aquele documento específico deve: emitir revisão superior (e
+// qual), finalizar o fluxo, corrigir e emitir revisão superior, corrigir e
+// manter a revisão atual, ou uma ação digitada manualmente.
+function _cdocSalvarAcoesIndividuais(itens){
+  if(!_siderRequireEdit()) return {ok:false, erro:'Sessão sem permissão de edição — faça login novamente na aba principal.'};
+  if(!itens||!itens.length) return {ok:false, erro:'Nenhuma ação individual informada.'};
+  var db=_cdocDb();
+  var hoje=_cdocHojeISO();
+  var qtd=0;
+  itens.forEach(function(it){
+    if(!it||!it.acao) return;
+    var doc=db.detalhados.find(function(d){return String(d.id)===String(it.docId);});
+    if(!doc) return;
+    doc.acaoPendente={
+      texto: it.acao, data:hoje, por:(_siderCurrentUser?_siderCurrentUser.nome:''),
+      revisaoSugerida: it.revisao||'', finalidadeSugerida:'',
+      prazo:'', prioridade:'', obsTexto:'', obsImagem:''
+    };
+    qtd++;
+  });
+  _cdocSave(db);
+  cdocRenderDet();
+  showToast('Ações individuais registradas', qtd+' documento(s) atualizado(s), cada um com sua própria ação.', 'success');
+  return {ok:true, qtd:qtd, dataBR:hoje.split('-').reverse().join('/')};
+}
 function cdocImprimirListaResponsavel(){
   if(!_cdocDetSel.size){ showToast('Nenhum documento selecionado','Marque os documentos na tabela antes de gerar a lista.','warn'); return; }
   var db=_cdocDb();
@@ -23727,7 +23754,7 @@ function cdocImprimirListaResponsavel(){
   var rowsHtml='';
   ordem.forEach(function(resp){
     var lista=grupos[resp];
-    rowsHtml+='<tr><td colspan="9" style="padding:8px 10px;background:#0e7490;color:#fff;font-weight:700;font-size:12px;">👤 '+_esc(resp)+' ('+lista.length+' doc(s))</td></tr>';
+    rowsHtml+='<tr><td colspan="10" style="padding:8px 10px;background:#0e7490;color:#fff;font-weight:700;font-size:12px;">👤 '+_esc(resp)+' ('+lista.length+' doc(s))</td></tr>';
     lista.forEach(function(d,i){
       var eh=d.envioHist&&d.envioHist.length?d.envioHist[d.envioHist.length-1]:null;
       var sf=eh&&eh.statusFinal?eh.statusFinal:'';
@@ -23735,12 +23762,27 @@ function cdocImprimirListaResponsavel(){
       rowsHtml+='<tr><td>'+(i+1)+'</td><td>'+_esc(d.obraId||'')+'</td><td>'+_esc(d.sub||'')+'</td>'
         +'<td>'+_esc(d.num||'')+'</td><td>'+_esc(d.cli||'')+'</td><td>'+_esc(d.tipo||'')+'</td>'
         +'<td style="font-size:10px;">'+_esc(d.titulo||d.desc||'')+'</td>'
+        +'<td style="font-family:Courier New,monospace;font-weight:700;text-align:center;">'+_esc(d.rev||'—')+'</td>'
         +'<td>'+_cdocBadgeHtml(d.statusGeral)+'</td>'
-        +'<td>'+sfHtml+'</td></tr>';
+        +'<td>'+sfHtml+'</td>'
+        +'<td class="no-print" style="min-width:230px;">'
+          +'<select class="lra-acao-doc" data-doc-id="'+d.id+'" onchange="_lraAcaoDocMudou(this)" style="width:100%;font-size:11px;font-weight:700;padding:5px 6px;border:2px solid #cbd5e1;border-radius:5px;background:#f8fafc;color:#334155;">'
+            +'<option value="" style="color:#334155;background:#f8fafc;">-- Nenhuma ação --</option>'
+            +'<option value="Emitir Revisão Superior" style="color:#1e3a8a;background:#eff6ff;">Emitir Revisão Superior</option>'
+            +'<option value="Finalizar Fluxo" style="color:#14532d;background:#f0fdf4;">Finalizar Fluxo</option>'
+            +'<option value="Corrigir e Emitir Revisão Superior" style="color:#92400e;background:#fff7ed;">Corrigir e Emitir Revisão Superior</option>'
+            +'<option value="Corrigir e Manter Revisão Atual" style="color:#581c87;background:#faf5ff;">Corrigir e Manter Revisão Atual</option>'
+            +'<option value="__manual__" style="color:#334155;background:#f1f5f9;">Outra (inserir manualmente)...</option>'
+          +'</select>'
+          +'<input type="text" class="lra-rev-doc" data-doc-id="'+d.id+'" placeholder="Revisão a emitir (ex: RB1)" style="display:none;width:100%;font-size:10px;padding:3px 4px;border:1px solid #cbd5e1;border-radius:4px;margin-top:3px;">'
+          +'<input type="text" class="lra-manual-doc" data-doc-id="'+d.id+'" placeholder="Descreva a ação..." style="display:none;width:100%;font-size:10px;padding:3px 4px;border:1px solid #cbd5e1;border-radius:4px;margin-top:3px;">'
+        +'</td>'
+        +'<td class="print-only" style="display:none;font-size:10px;" data-print-acao-doc="'+d.id+'"></td>'
+        +'</tr>';
     });
   });
   var docIds=docs.map(function(d){return d.id;});
-  var acoesFixas=['EMITIR PACOTE DE FABRICAÇÃO','CORRIGIR MODELO E REENVIAR PARA APROVAÇÃO','ATENDER COMENTÁRIOS E REENVIAR PARA APROVAÇÃO','ENVIAR EM REVISÃO SUPERIOR PARA CERTIFICAR','FINALIZAR'];
+  var acoesFixas=['EMITIR PACOTE DE FABRICAÇÃO','CORRIGIR MODELO E REENVIAR PARA APROVAÇÃO','ATENDER COMENTÁRIOS E REENVIAR PARA APROVAÇÃO','ENVIAR EM REVISÃO SUPERIOR PARA CERTIFICAR','AO ARQUIVO','FINALIZAR'];
   var w=window.open('','_blank','width=1100,height=850');
   if(!w){alert('Permita popups para gerar a lista.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista para Responsável</title>'
@@ -23748,11 +23790,15 @@ function cdocImprimirListaResponsavel(){
     +'h2{color:#0e7490;margin:0 0 2px;}p.sub{color:#475569;font-size:11px;margin:0 0 12px;}'
     +'table{width:100%;border-collapse:collapse;}thead th{background:#0c4a6e;color:#fff;padding:6px 8px;text-align:left;font-size:11px;}'
     +'tbody td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;}'
-    +'@media print{.no-print{display:none;}.print-only{display:block !important;}}</style></head><body>'
+    +'@media print{.no-print{display:none;}.print-only{display:table-cell !important;}}</style></head><body>'
     +'<h2>Lista de Documentos — Para Verificação</h2>'
     +'<p class="sub">SIDERTEC ESTRUTURAS METÁLICAS &middot; Gerado em '+hoje+' &middot; Total: '+docs.length+' documento(s)</p>'
-    +'<table><thead><tr><th style="width:25px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Tipo</th><th>Título/Descrição</th><th>Status</th><th>Status Final</th></tr></thead>'
+    +'<table><thead><tr><th style="width:25px">#</th><th>Obra</th><th>TAG</th><th>Nº Sidertec</th><th>Nº Cliente</th><th>Tipo</th><th>Título/Descrição</th><th>Rev.</th><th>Status</th><th>Status Final</th><th class="no-print">Ação (por documento)</th><th class="print-only" style="display:none;">Ação</th></tr></thead>'
     +'<tbody>'+rowsHtml+'</tbody></table>'
+    +'<div class="no-print" style="margin:10px 0;">'
+    +'<button id="lra-salvar-individuais-btn" onclick="_lraSalvarIndividuais()" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;">💾 Salvar Ações Individuais (por documento)</button>'
+    +'<span id="lra-individuais-resultado" style="margin-left:10px;font-size:11px;color:#166534;font-weight:700;"></span>'
+    +'</div>'
     +'<div id="lra-print-summary" class="print-only" style="display:none;margin-top:18px;border-top:2px solid #0c4a6e;padding-top:10px;"></div>'
     +'<div class="no-print" style="margin-top:20px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;max-width:560px;">'
     +'<div style="font-weight:700;font-size:13px;color:#0e7490;margin-bottom:8px;">📌 Ação</div>'
@@ -23830,6 +23876,55 @@ function cdocImprimirListaResponsavel(){
         +'if(items[i].type&&items[i].type.indexOf("image")===0){ _lraLerImagem(items[i].getAsFile()); e.preventDefault(); break; }'
       +'}'
     +'});'
+    +'function _lraAcaoDocMudou(sel){'
+      +'var docId=sel.getAttribute("data-doc-id");'
+      +'var revInp=document.querySelector(\'.lra-rev-doc[data-doc-id="\'+docId+\'"]\');'
+      +'var manInp=document.querySelector(\'.lra-manual-doc[data-doc-id="\'+docId+\'"]\');'
+      +'var precisaRev = sel.value==="Emitir Revisão Superior" || sel.value==="Corrigir e Emitir Revisão Superior";'
+      +'if(revInp) revInp.style.display = precisaRev ? "block" : "none";'
+      +'if(manInp) manInp.style.display = sel.value==="__manual__" ? "block" : "none";'
+      +'var cores={'
+        +'"":{bg:"#f8fafc",bd:"#cbd5e1",tx:"#334155"},'
+        +'"Emitir Revisão Superior":{bg:"#eff6ff",bd:"#1d4ed8",tx:"#1e3a8a"},'
+        +'"Finalizar Fluxo":{bg:"#f0fdf4",bd:"#16a34a",tx:"#14532d"},'
+        +'"Corrigir e Emitir Revisão Superior":{bg:"#fff7ed",bd:"#d97706",tx:"#92400e"},'
+        +'"Corrigir e Manter Revisão Atual":{bg:"#faf5ff",bd:"#9333ea",tx:"#581c87"},'
+        +'"__manual__":{bg:"#f1f5f9",bd:"#64748b",tx:"#334155"}'
+      +'};'
+      +'var c=cores[sel.value]||cores[""];'
+      +'sel.style.background=c.bg; sel.style.borderColor=c.bd; sel.style.color=c.tx;'
+    +'}'
+    +'function _lraSalvarIndividuais(){'
+      +'if(!window.opener || !window.opener._cdocSalvarAcoesIndividuais){ alert("Não foi possível conectar à janela principal. Feche esta janela e gere a lista novamente."); return; }'
+      +'var selects=document.querySelectorAll(".lra-acao-doc");'
+      +'var itens=[];'
+      +'selects.forEach(function(sel){'
+        +'var docId=sel.getAttribute("data-doc-id");'
+        +'var v=sel.value;'
+        +'if(!v) return;'
+        +'var acaoTexto=v;'
+        +'var revisao="";'
+        +'if(v==="__manual__"){'
+          +'var manInp=document.querySelector(\'.lra-manual-doc[data-doc-id="\'+docId+\'"]\');'
+          +'acaoTexto=(manInp&&manInp.value.trim())||"";'
+          +'if(!acaoTexto) return;'
+        +'} else if(v==="Emitir Revisão Superior"||v==="Corrigir e Emitir Revisão Superior"){'
+          +'var revInp=document.querySelector(\'.lra-rev-doc[data-doc-id="\'+docId+\'"]\');'
+          +'revisao=(revInp&&revInp.value.trim())||"";'
+        +'}'
+        +'itens.push({docId:(isNaN(docId)?docId:Number(docId)), acao:acaoTexto, revisao:revisao});'
+      +'});'
+      +'if(!itens.length){ alert("Nenhuma ação individual foi selecionada nas linhas da tabela."); return; }'
+      +'var r=window.opener._cdocSalvarAcoesIndividuais(itens);'
+      +'var resEl=document.getElementById("lra-individuais-resultado");'
+      +'if(r&&r.ok){'
+        +'if(resEl) resEl.textContent="✔ "+r.qtd+" ação(ões) individual(is) registrada(s) em "+r.dataBR+".";'
+        +'itens.forEach(function(it){'
+          +'var td=document.querySelector(\'[data-print-acao-doc="\'+it.docId+\'"]\');'
+          +'if(td) td.textContent=it.acao+(it.revisao?" ("+it.revisao+")":"");'
+        +'});'
+      +'} else if(r&&r.erro){ alert(r.erro); }'
+    +'}'
     +'function _lraAtualizarResumoImpressao(){'
       +'var el=document.getElementById("lra-print-summary"); if(!el) return;'
       +'var sel=document.getElementById("lra-acao").value;'
@@ -24787,7 +24882,7 @@ function cdocRelBas(){
     if(fObra&&b.obraId!==fObra) return false;
     if(fSub&&!_cdocSubMatch(b.sub||'',fSub)) return false;
     if(fSt&&b.status!==fSt) return false;
-    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
+    if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)&&!(b.descbas||'').toLowerCase().includes(fTxt)) return false;
     if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
     if(fGrd&&!(b.remessaGRD||'').toLowerCase().includes(fGrd)) return false;
     return true;
@@ -27826,7 +27921,7 @@ function _cdocRowsParaFiltroColuna(tbl){
       if(fObra&&b.obraId!==fObra) return false;
       if(fSub&&!_cdocSubMatch(b.sub||'',fSub)) return false;
       if(fSt&&b.status!==fSt) return false;
-      if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)) return false;
+      if(fTxt&&!(b.titulo||'').toLowerCase().includes(fTxt)&&!(b.sub||'').toLowerCase().includes(fTxt)&&!(b.cli||'').toLowerCase().includes(fTxt)&&!(b.descbas||'').toLowerCase().includes(fTxt)) return false;
       if(fCli&&!(b.cli||'').toLowerCase().includes(fCli)) return false;
       if(fGrd&&!(b.remessaGRD||'').toLowerCase().includes(fGrd)) return false;
       if(fProj){ var _ep=_cdocGetProj(b); if(_ep!==fProj) return false; }
@@ -35575,7 +35670,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-28-03';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-28-05';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
