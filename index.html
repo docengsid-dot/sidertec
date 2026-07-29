@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-27-15 -->
+<!-- SIDER_APP_BUILD: 2026-07-28-01 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -10996,6 +10996,16 @@ async function carregarMedicoes(){
     // Detectar se colunas de ajuste existem
     window._colAjusteExiste = allMedicoes.length > 0 && ('acrescimo_telhas' in allMedicoes[0]);
     if(!window._colAjusteExiste && !localStorage.getItem('sider_mig_ajuste_done')){ setTimeout(_mostrarMigracaoAjuste, 2000); }
+    // CORRIGIDO (Acréscimo Retrabalho não salvava): esta coluna foi adicionada
+    // DEPOIS da migração de acrescimo_telhas/desconto/valor_debito — quem já
+    // tinha rodado a migração antiga (e por isso _colAjusteExiste=true) nunca
+    // via o aviso pra rodar a migração NOVA, porque só a coluna antiga era
+    // checada. O sistema tentava salvar acrescimo_retrabalho mesmo sem essa
+    // coluna existir no Supabase, e o banco rejeitava/descartava o valor —
+    // por isso "salvava" na tela mas não persistia depois de recarregar.
+    // Agora verifica esta coluna separadamente, com aviso próprio.
+    window._colRetrabalhoExiste = allMedicoes.length > 0 && ('acrescimo_retrabalho' in allMedicoes[0]);
+    if(!window._colRetrabalhoExiste && !localStorage.getItem('sider_mig_retrabalho_done')){ setTimeout(_mostrarMigracaoRetrabalho, 2200); }
     window._colPropostaExiste = allMedicoes.length > 0 && ('proposta' in allMedicoes[0]);
     if(!window._colPropostaExiste && !localStorage.getItem('sider_mig_proposta_done')){ setTimeout(_mostrarMigracaoProposta, 2500); }
   }catch(e){ allMedicoes=[]; }
@@ -11380,6 +11390,22 @@ function imprimirMedicao(id){
       );
     })()+
 
+    (m.obs_contrato?'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:#78350f;"><strong>Observações:</strong> '+m.obs_contrato+'</div>':'')+
+
+    '<h3 style="font-size:13px;color:#0c4a6e;margin:0 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">TAGs incluídas nesta medição</h3>'+
+    (tagRows?
+      '<table><thead><tr>'+
+        '<th style="min-width:80px;">TAG</th>'+
+        '<th style="min-width:160px;">Descrição</th>'+
+        '<th style="text-align:center;">Status</th>'+
+        '<th style="text-align:center;background:#374151;">Etapas / %</th>'+
+        '<th style="text-align:right;background:#065f46;">⚖ Básico</th>'+
+        '<th style="text-align:right;background:#1e3a5f;">📐 Detalhado</th>'+
+        '<th style="text-align:right;background:#78350f;">📏 Med / Valor</th>'+
+        '<th style="text-align:center;background:#1e3a5f;">BM Status</th>'+
+        '<th style="text-align:left;background:#7c2d12;">📝 Correção</th>'+
+      '</tr></thead><tbody>'+tagRows+'</tbody>'+tagFooter+'</table>'
+      :'<p style="font-size:12px;color:#94a3b8;">Nenhuma TAG vinculada.</p>')+
     (temAjusteRel ?
       '<div style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px 10px;margin-bottom:6px;background:#f8fafc;">' +
         '<div style="font-size:10px;font-weight:800;color:#0c4a6e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">📊 Composição do Valor Final</div>' +
@@ -11425,22 +11451,6 @@ function imprimirMedicao(id){
       '</div>':'<div style="margin-bottom:8px;"></div>'
     )+
 
-    (m.obs_contrato?'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:#78350f;"><strong>Observações:</strong> '+m.obs_contrato+'</div>':'')+
-
-    '<h3 style="font-size:13px;color:#0c4a6e;margin:0 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">TAGs incluídas nesta medição</h3>'+
-    (tagRows?
-      '<table><thead><tr>'+
-        '<th style="min-width:80px;">TAG</th>'+
-        '<th style="min-width:160px;">Descrição</th>'+
-        '<th style="text-align:center;">Status</th>'+
-        '<th style="text-align:center;background:#374151;">Etapas / %</th>'+
-        '<th style="text-align:right;background:#065f46;">⚖ Básico</th>'+
-        '<th style="text-align:right;background:#1e3a5f;">📐 Detalhado</th>'+
-        '<th style="text-align:right;background:#78350f;">📏 Med / Valor</th>'+
-        '<th style="text-align:center;background:#1e3a5f;">BM Status</th>'+
-        '<th style="text-align:left;background:#7c2d12;">📝 Correção</th>'+
-      '</tr></thead><tbody>'+tagRows+'</tbody>'+tagFooter+'</table>'
-      :'<p style="font-size:12px;color:#94a3b8;">Nenhuma TAG vinculada.</p>')+
 
     anexosHtml+
 
@@ -12955,7 +12965,48 @@ function _mostrarMigracaoAjuste(){
   div.appendChild(hd); div.appendChild(sub); div.appendChild(pre); div.appendChild(btnRow);
   document.body.appendChild(div);
 }
-
+// Aviso de migração específico para as colunas de Retrabalho de Engenharia —
+// adicionadas depois da migração original (acrescimo_telhas/desconto/débito),
+// por isso precisam de checagem e SQL próprios.
+function _mostrarMigracaoRetrabalho(){
+  var sqlLines = [
+    '-- Execute no Supabase SQL Editor:',
+    'ALTER TABLE medicao_terceiros',
+    '  ADD COLUMN IF NOT EXISTS acrescimo_retrabalho NUMERIC,',
+    '  ADD COLUMN IF NOT EXISTS obs_retrabalho       TEXT;'
+  ];
+  var sqlText = sqlLines.join('\n');
+  if(document.getElementById('sider-mig-retrabalho')) return;
+  var div = document.createElement('div');
+  div.id = 'sider-mig-retrabalho';
+  div.style.cssText = 'position:fixed;bottom:60px;right:16px;z-index:9999;background:#7c2d12;color:#fff7ed;border-radius:8px;padding:12px 16px;font-size:11px;max-width:440px;box-shadow:0 4px 20px rgba(0,0,0,.4);';
+  var pre = document.createElement('pre');
+  pre.style.cssText = 'background:#431407;border-radius:4px;padding:8px;font-size:9px;overflow-x:auto;margin:6px 0 8px;white-space:pre;';
+  pre.textContent = sqlText;
+  var hd = document.createElement('div');
+  hd.style.cssText = 'font-weight:800;font-size:12px;margin-bottom:4px;';
+  hd.textContent = '🔧 Migração necessária — Acréscimo Retrabalho de Engenharia';
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:10px;opacity:.9;margin-bottom:4px;';
+  sub.textContent = 'Sem esta migração, o valor digitado em "Acréscimo Retrabalho de Engenharia" NÃO é salvo (some ao recarregar). Execute este SQL no Supabase:';
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px;';
+  var btnCopy = document.createElement('button');
+  btnCopy.style.cssText = 'background:#0369a1;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-weight:700;';
+  btnCopy.textContent = '📋 Copiar SQL';
+  btnCopy.onclick = function(){ navigator.clipboard.writeText(sqlText).then(function(){ showToast('Copiado','SQL copiado para área de transferência.','ok'); }); };
+  var btnDone = document.createElement('button');
+  btnDone.style.cssText = 'background:#16a34a;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-weight:700;';
+  btnDone.textContent = '✔ Já executei';
+  btnDone.onclick = function(){ localStorage.setItem('sider_mig_retrabalho_done','1'); div.remove(); location.reload(); };
+  var btnClose = document.createElement('button');
+  btnClose.style.cssText = 'background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;';
+  btnClose.textContent = '✕ Fechar';
+  btnClose.onclick = function(){ div.remove(); };
+  btnRow.appendChild(btnCopy); btnRow.appendChild(btnDone); btnRow.appendChild(btnClose);
+  div.appendChild(hd); div.appendChild(sub); div.appendChild(pre); div.appendChild(btnRow);
+  document.body.appendChild(div);
+}
 async function salvarMedicao(){
   const data     = document.getElementById('med-data')?.value;
   const equipe   = document.getElementById('med-equipe')?.value;
@@ -12992,10 +13043,16 @@ async function salvarMedicao(){
     ...(_colAjusteExiste ? {
       acrescimo_telhas:    parseFloat(document.getElementById('med-acrescimo-telhas')?.value)||null,
       obs_telhas:          gv('med-obs-telhas'),
-      acrescimo_retrabalho: parseFloat(document.getElementById('med-acrescimo-retrabalho')?.value)||null,
-      obs_retrabalho:      gv('med-obs-retrabalho'),
       desconto:            parseFloat(document.getElementById('med-desconto')?.value)||null,
       obs_ajuste:          gv('med-obs-ajuste'),
+    } : {}),
+    // CORRIGIDO: só envia acrescimo_retrabalho/obs_retrabalho se a coluna
+    // realmente existir no Supabase — antes isso ia junto com os campos de
+    // ajuste "antigos" mesmo quando essa coluna específica não existia,
+    // fazendo o banco rejeitar/descartar o valor silenciosamente.
+    ...(_colRetrabalhoExiste ? {
+      acrescimo_retrabalho: parseFloat(document.getElementById('med-acrescimo-retrabalho')?.value)||null,
+      obs_retrabalho:      gv('med-obs-retrabalho'),
     } : {}),
     ...(_colPropostaExiste ? {proposta: (document.getElementById('med-proposta')?.value||'').trim().toUpperCase()||null} : {}),
     status_contrato: gv('med-status-contrato')||'ATIVO',
@@ -35446,7 +35503,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-27-15';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-28-01';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
