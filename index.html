@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-28-01 -->
+<!-- SIDER_APP_BUILD: 2026-07-28-03 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -1261,6 +1261,7 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
     <button class="cdoc-cmdbtn" onclick="downloadTemplateAvancoFab()" title="Baixar planilha modelo para preenchimento do Avanço Fab." style="background:#ea580c;">⬇</button>
     <div class="cdoc-cmd-sep-v"></div>
     <button class="cdoc-cmdbtn" onclick="abrirRelatorioCron()" title="Relatório" style="background:#7c3aed;">📊</button>
+    <button class="cdoc-cmdbtn" onclick="_cronLimparDuplicatas()" title="Limpar sub-obras duplicadas no banco (mesma Obra+TAG salva mais de uma vez)" style="background:#be123c;">🧹</button>
   </div>
 
   <!-- Guia de colunas CSV -->
@@ -5393,6 +5394,67 @@ function normalizarStatusLegado(s){
     return Object.assign({}, s, {status: STATUS_LEGADO_MAP[st]});
   }
   return s;
+}
+
+// ── Limpa sub-obras DUPLICADAS de verdade no banco (mesma Obra+TAG salva
+// como duas linhas diferentes) — o carregamento normal já esconde isso da
+// tela (mantém só a mais recente na exibição), mas as linhas antigas
+// continuam ocupando espaço no Supabase. Esta ferramenta as remove de fato.
+async function _cronLimparDuplicatas(){
+  if(typeof _siderRequireEdit==='function' && !_siderRequireEdit()) return;
+  showToast('Verificando...', 'Buscando todas as sub-obras para checar duplicatas...', 'info');
+  try{
+    var PAGE=5000, offset=0, rawData=[], safety=0;
+    while(true){
+      var {data,error}=await sbClient.from('cronograma_subobras').order('criado_em',{ascending:false}).limit(PAGE).offset(offset).select();
+      if(error) throw new Error(error.message||JSON.stringify(error));
+      var page=data||[];
+      rawData=rawData.concat(page);
+      if(page.length<PAGE) break;
+      offset+=PAGE;
+      safety++;
+      if(safety>50) break;
+    }
+    var _grupos = {};
+    rawData.forEach(function(s){
+      var chave = (s.obra||'') + '|||' + (s.subobra||'');
+      (_grupos[chave]=_grupos[chave]||[]).push(s);
+    });
+    var idsParaExcluir = [];
+    var afetados = 0;
+    Object.keys(_grupos).forEach(function(chave){
+      var grupo = _grupos[chave];
+      if(grupo.length<=1) return;
+      afetados++;
+      // Mantém a linha mais recente (maior atualizado_em/criado_em); exclui as demais
+      grupo.sort(function(a,b){
+        var ta=a.atualizado_em||a.criado_em||'', tb=b.atualizado_em||b.criado_em||'';
+        return tb.localeCompare(ta); // mais recente primeiro
+      });
+      for(var i=1;i<grupo.length;i++){ idsParaExcluir.push(grupo[i].id); }
+    });
+    if(!idsParaExcluir.length){
+      showToast('Nada a corrigir', 'Não foram encontradas sub-obras duplicadas no banco.', 'success');
+      return;
+    }
+    if(!confirm('Foram encontradas '+idsParaExcluir.length+' linha(s) duplicada(s) no banco, afetando '+afetados+' TAG(s) diferentes.\n\nSerão EXCLUÍDAS as cópias mais antigas de cada uma (a mais recente de cada TAG é mantida).\n\nEsta ação NÃO pode ser desfeita.\n\nConfirmar a limpeza?')){
+      return;
+    }
+    showToast('Limpando...', 'Excluindo '+idsParaExcluir.length+' linha(s) duplicada(s)... isso pode levar um tempo.', 'info');
+    var erros=0;
+    for(var i=0;i<idsParaExcluir.length;i++){
+      try{
+        var res = await sbClient.from('cronograma_subobras').eq('id',idsParaExcluir[i]).delete().select();
+        if(res.error){ console.warn('[_cronLimparDuplicatas]', res.error.message); erros++; }
+      }catch(e){ console.warn('[_cronLimparDuplicatas]', e.message); erros++; }
+    }
+    var msg = (idsParaExcluir.length-erros)+' linha(s) duplicada(s) removida(s), em '+afetados+' TAG(s).'+(erros?' ('+erros+' com erro, veja o console.)':'');
+    showToast('Limpeza concluída', msg+' Recarregando...', 'success');
+    setTimeout(function(){ location.reload(); }, 2000);
+  }catch(e){
+    console.error('[_cronLimparDuplicatas]', e);
+    alert('Erro ao limpar duplicatas: '+e.message);
+  }
 }
 
 async function carregarCronograma(){
@@ -11042,7 +11104,8 @@ function renderMedicao(){
   lista = medXlFiltrar(lista);;
 
   // KPIs
-  const totalValor  = lista.reduce((s,m)=>{ const _vt=Number(m.valor_total)||0; const _a=_parseAjuste(m); return s + _vt + _a.acr - _a.des - _a.deb; },0);
+  // CORRIGIDO: também não incluía _a.ret (Acréscimo Retrabalho de Engenharia).
+  const totalValor  = lista.reduce((s,m)=>{ const _vt=Number(m.valor_total)||0; const _a=_parseAjuste(m); return s + _vt + _a.acr + _a.ret - _a.des - _a.deb; },0);
   const totalPago   = lista.reduce((s,m)=>{
     let p=0;
     if((m.p1_status==='PAGO')) p+=Number(m.valor_total)*0.4;
@@ -11074,8 +11137,6 @@ function renderMedicao(){
       <tbody>
         ${lista.map((m,idx)=>{
           const vt = Number(m.valor_total)||0;
-          const vtLiq = vt + (Number(m.acrescimo_telhas)||0) - (Number(m.desconto)||0) - (Number(m.valor_debito)||0);
-          const vtDisplay = (m.acrescimo_telhas||m.desconto||m.valor_debito) ? vtLiq : vt;
           const statusC = (m.status_contrato||'ATIVO')==='ATIVO'
             ? '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ATIVO</span>'
             : '<span style="background:#f1f5f9;color:#64748b;border-radius:3px;padding:2px 6px;font-size:8px;font-weight:700;">ENCERRADO</span>';
@@ -11098,7 +11159,12 @@ function renderMedicao(){
             return a+(pm>0?pm:(pd>0?pd:pb));
           },0);
           const _adjR = _parseAjuste(m);
-          const vtDisplay2 = (_adjR.acr||_adjR.des||_adjR.deb) ? (Number(m.valor_total)||0)+_adjR.acr-_adjR.des-_adjR.deb : (Number(m.valor_total)||0);
+          // CORRIGIDO: esta conta não incluía _adjR.ret (Acréscimo Retrabalho de
+          // Engenharia) — só Telhas/Desconto/Débito. Por isso a coluna "Valor
+          // Total" da listagem continuava mostrando o valor bruto/antigo mesmo
+          // depois de salvar um Acréscimo Retrabalho (que a tela de edição já
+          // calculava certo, mas essa listagem não refletia).
+          const vtDisplay2 = (_adjR.acr||_adjR.ret||_adjR.des||_adjR.deb) ? (Number(m.valor_total)||0)+_adjR.acr+_adjR.ret-_adjR.des-_adjR.deb : (Number(m.valor_total)||0);
 
           // Status distintos das TAGs (do cronograma)
           const statusSet = [...new Set(tagSubs.map(s=>s.status).filter(Boolean))];
@@ -13541,7 +13607,12 @@ function buildDashboardCM(){
   if(medEl){
     const total     = meds.length;
     const contratos = new Set(meds.map(m => m.contrato||m.fornecedor||m.equipe).filter(Boolean)).size;
-    const valorTotal= meds.reduce((a,m) => a + (Number(m.valor_total)||0), 0);
+    // CORRIGIDO: somava só o valor_total bruto, sem os ajustes (Acréscimo
+    // Telhas/Retrabalho, Desconto, Débito) que podem existir em cada medição.
+    const valorTotal= meds.reduce((a,m) => {
+      const _a = (typeof _parseAjuste==='function') ? _parseAjuste(m) : {acr:0,ret:0,des:0,deb:0};
+      return a + (Number(m.valor_total)||0) + _a.acr + _a.ret - _a.des - _a.deb;
+    }, 0);
     const valorPago = meds.reduce((a,m) => a + (Number(m.valor_pago)||0), 0);
     const pendente  = valorTotal - valorPago;
     const fmtM = v => v >= 1e6 ? 'R$ '+(v/1e6).toFixed(2)+' M' : v >= 1000 ? 'R$ '+(v/1000).toFixed(0)+' k' : 'R$ '+v.toFixed(0);
@@ -13590,7 +13661,8 @@ function buildDashboardCM(){
       recEl.innerHTML = '<div style="color:var(--ink3);font-size:16px;padding:.5rem 0">Nenhuma medição cadastrada.</div>';
     } else {
       recEl.innerHTML = recent.map(m => {
-        const val = (Number(m.valor_total)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+        const _a = (typeof _parseAjuste==='function') ? _parseAjuste(m) : {acr:0,ret:0,des:0,deb:0};
+        const val = ((Number(m.valor_total)||0)+_a.acr+_a.ret-_a.des-_a.deb).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
         return `<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding:5px 0;gap:.5rem;">
           <div style="min-width:0;">
             <div style="font-size:16px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.descricao||m.fornecedor||'—'}</div>
@@ -35503,7 +35575,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-28-01';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-28-03';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
