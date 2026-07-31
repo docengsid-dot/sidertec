@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SIDER_APP_BUILD: 2026-07-28-05 -->
+<!-- SIDER_APP_BUILD: 2026-07-31-01 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -29782,7 +29782,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
         <div class="field-group" style="grid-column:1/-1;">
           <label class="field-label">Projeto * &nbsp;<a href="javascript:void(0)" id="ev-proj-toggle-link" onclick="evToggleProjManual()" style="font-size:10px;font-weight:400;color:var(--blue);">✏️ Digitar projeto manualmente</a></label>
-          <select class="field-input" id="ev-proj"><option value="">— Selecione —</option></select>
+          <select class="field-input" id="ev-proj" onchange="evAtualizarInfoContrato()"><option value="">— Selecione —</option></select>
           <input type="text" class="field-input" id="ev-proj-manual" placeholder="Nome do novo projeto…" autocomplete="off" style="display:none;margin-top:.3rem;">
         </div>
         <div class="field-group" style="grid-column:1/-1;">
@@ -29798,8 +29798,12 @@ document.addEventListener('DOMContentLoaded', function(){
           <input type="date" class="field-input" id="ev-venc">
         </div>
         <div class="field-group">
+          <label class="field-label">% do Contrato &nbsp;<span id="ev-contrato-info" style="font-weight:400;color:var(--ink3);font-size:9px;"></span></label>
+          <input type="number" class="field-input" id="ev-percentual" placeholder="Ex: 25" min="0" max="100" step="0.01" oninput="evCalcValorPorPercentual()">
+        </div>
+        <div class="field-group">
           <label class="field-label">Valor do Evento (R$) *</label>
-          <input type="number" class="field-input" id="ev-valor" placeholder="0,00" min="0" step="0.01" oninput="calcSaldoEvento()">
+          <input type="number" class="field-input" id="ev-valor" placeholder="0,00" min="0" step="0.01" oninput="evValorEditadoManualmente=true;calcSaldoEvento()">
         </div>
         <div class="field-group">
           <label class="field-label">Valor Faturado (R$)</label>
@@ -29963,6 +29967,8 @@ document.addEventListener('DOMContentLoaded', function(){
   <!-- SUB: Contratos -->
   <div id="tcsub-contratos" style="display:none;">
     <div class="filters">
+      <input type="text" id="tc-ct-filtro-busca" placeholder="🔍 Buscar (empresa, trabalho, proposta, projeto)…" oninput="tcRenderContratos()" style="min-width:220px;">
+      <div class="fsep"></div>
       <label>Empresa:</label>
       <select id="tc-ct-filtro-emp" onchange="tcRenderContratos()" style="min-width:180px;"><option value="">Todas</option></select>
       <div class="fsep"></div>
@@ -29974,6 +29980,8 @@ document.addEventListener('DOMContentLoaded', function(){
         <option value="">Todos</option><option value="ativo">Ativo</option>
         <option value="concluido">Concluído</option><option value="suspenso">Suspenso</option>
       </select>
+      <div class="fsep"></div>
+      <button class="btn btn-secondary" id="tc-ct-btn-ordenar" onclick="tcAlternarOrdenacao()" title="Ordenar a lista" style="font-size:10px;padding:5px 12px;">🔼 A-Z</button>
       <div class="fsep"></div>
       <button class="btn btn-primary" onclick="tcAbrirModalContrato(null)" style="padding:5px 14px;font-size:11px;background:var(--purple);">+ Novo Contrato</button>
       <div class="fsep"></div>
@@ -30474,7 +30482,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <th title="Verde = retorno recebido | Âmbar = solicitado, aguardando | — = não iniciado">Solic. Signatário</th>
           <th>Emissão Atestado</th><th>Emissão Aceite</th>
           <th>Emissão Quest.</th><th>Envio Cliente</th>
-          <th>Retorno Assinado</th><th>Cobranças</th><th>Status</th><th>Ação</th>
+          <th>Retorno Assinado</th><th>Cobranças</th><th>Status</th>
           <th>Obs. Gerais</th><th style="text-align:center;">Ações</th>
         </tr>
       </thead>
@@ -32707,7 +32715,7 @@ function calcSaldoEvento(){
 function abrirModalEvento(id){
   editingEvId=id;
   popularSelectsProjetos();
-  ['ev-proj','ev-num','ev-desc','ev-venc','ev-valor','ev-faturado','ev-recibo','ev-obs'].forEach(f=>{
+  ['ev-proj','ev-num','ev-desc','ev-venc','ev-percentual','ev-valor','ev-faturado','ev-recibo','ev-obs'].forEach(f=>{
     const el=document.getElementById(f); if(el) el.value='';
   });
   // Reset manual project field
@@ -32728,9 +32736,11 @@ function abrirModalEvento(id){
     sv('ev-venc',e.data_vencimento); sv('ev-valor',e.valor);
     sv('ev-faturado',e.valor_faturado); sv('ev-recibo',e.valor_recibo);
     sv('ev-status',e.status); sv('ev-obs',e.obs);
+    evAtualizarInfoContrato();
     calcSaldoEvento();
   } else {
     document.getElementById('modal-ev-title').textContent = 'Novo Evento de Pagamento';
+    const info = document.getElementById('ev-contrato-info'); if(info) info.textContent='';
   }
   document.getElementById('modal-evento').classList.add('show');
   // Atualizar contador de anexos no botão
@@ -32753,6 +32763,33 @@ function evToggleProjManual(){
   } else {
     sel.style.display='block'; manual.style.display='none'; manual.value='';
     link.textContent='✏️ Digitar projeto manualmente';
+  }
+}
+
+// Mostra o valor do contrato do projeto selecionado (cadastrado na aba
+// Projetos) ao lado do campo "% do Contrato", e recalcula o Valor do Evento
+// se já tiver um percentual digitado.
+function evAtualizarInfoContrato(){
+  const projId = document.getElementById('ev-proj')?.value;
+  const proj = _ct_allProjetos.find(p=>p.id===projId);
+  const valorContrato = Number(proj?.valor_contrato)||0;
+  const info = document.getElementById('ev-contrato-info');
+  if(info) info.textContent = valorContrato>0 ? '(Contrato: '+fmtC(valorContrato)+')' : '';
+  evCalcValorPorPercentual();
+}
+// Ao digitar a porcentagem, calcula sozinho: Valor do Evento = Valor do
+// Contrato (cadastrado em Projetos) × percentual/100 — sem travar o campo,
+// então quem quiser ainda pode digitar o valor na mão por cima.
+var evValorEditadoManualmente = false;
+function evCalcValorPorPercentual(){
+  const projId = document.getElementById('ev-proj')?.value;
+  const proj = _ct_allProjetos.find(p=>p.id===projId);
+  const valorContrato = Number(proj?.valor_contrato)||0;
+  const pct = parseFloat(document.getElementById('ev-percentual')?.value)||0;
+  if(valorContrato>0 && pct>0){
+    document.getElementById('ev-valor').value = (valorContrato*pct/100).toFixed(2);
+    evValorEditadoManualmente = false;
+    calcSaldoEvento();
   }
 }
 
@@ -33261,16 +33298,38 @@ function tcPopularSelects(){
   });
 }
 
+var tcOrdenacao = 'asc'; // 'asc' | 'desc' | null — ordem da lista de Contratos (por nome da Empresa)
+function tcAlternarOrdenacao(){
+  tcOrdenacao = tcOrdenacao==='asc' ? 'desc' : (tcOrdenacao==='desc' ? null : 'asc');
+  const btn = document.getElementById('tc-ct-btn-ordenar');
+  if(btn) btn.textContent = tcOrdenacao==='asc' ? '🔼 A-Z' : (tcOrdenacao==='desc' ? '🔽 Z-A' : '↕ Original');
+  tcRenderContratos();
+}
 function tcRenderContratos(){
   const empF    = document.getElementById('tc-ct-filtro-emp')?.value||'';
   const projF   = document.getElementById('tc-ct-filtro-proj')?.value||'';
   const statusF = document.getElementById('tc-ct-filtro-status')?.value||'';
-  const lista   = tcContratos.filter(c=>{
+  const buscaF  = (document.getElementById('tc-ct-filtro-busca')?.value||'').toLowerCase().trim();
+  let lista   = tcContratos.filter(c=>{
     if(empF   && c.empresa_id!==empF) return false;
     if(projF  && c.projeto_id!==projF) return false;
     if(statusF && c.status!==statusF) return false;
+    if(buscaF){
+      const emp  = tcEmpresas.find(e=>e.id===c.empresa_id);
+      const proj = _ct_allProjetos.find(p=>p.id===c.projeto_id);
+      const alvo = [emp?.nome, c.trabalho, c.proposta, proj?.nome, c.tags||c.tag].filter(Boolean).join(' ').toLowerCase();
+      if(!alvo.includes(buscaF)) return false;
+    }
     return true;
   });
+  if(tcOrdenacao){
+    lista = lista.slice().sort((a,b)=>{
+      const nomeA = tcEmpresas.find(e=>e.id===a.empresa_id)?.nome||'';
+      const nomeB = tcEmpresas.find(e=>e.id===b.empresa_id)?.nome||'';
+      const cmp = nomeA.localeCompare(nomeB, 'pt-BR', {numeric:true, sensitivity:'base'});
+      return tcOrdenacao==='asc' ? cmp : -cmp;
+    });
+  }
   const tbody=document.getElementById('tbody-tc-contratos');
   if(!lista.length){ tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhum contrato encontrado.</td></tr>'; return; }
   tbody.innerHTML = lista.map(c=>{
@@ -35232,16 +35291,45 @@ const DCTS_STATUS_MANUAL_LABELS = {
   ag_assinatura:          'AG. ASSINATURA',
   concluido:              'CONCLUÍDO'
 };
+const DCTS_STATUS_MANUAL_CORES = {
+  ag_signatario:        {bg:'#fef3c7',fg:'#92400e'},
+  em_emissao_documento: {bg:'#dbeafe',fg:'#1e40af'},
+  ag_assinatura:        {bg:'#fce7f3',fg:'#9d174d'},
+  concluido:            {bg:'#dcfce7',fg:'#166534'}
+};
 function dctsStatusManualBadge(v){
   if(!v) return '<span style="color:#ccc;">—</span>';
-  const cores = {
-    ag_signatario:        {bg:'#fef3c7',fg:'#92400e'},
-    em_emissao_documento: {bg:'#dbeafe',fg:'#1e40af'},
-    ag_assinatura:        {bg:'#fce7f3',fg:'#9d174d'},
-    concluido:            {bg:'#dcfce7',fg:'#166534'}
-  };
-  const c = cores[v]||{bg:'#f1f5f9',fg:'#475569'};
+  const c = DCTS_STATUS_MANUAL_CORES[v]||{bg:'#f1f5f9',fg:'#475569'};
   return '<span style="background:'+c.bg+';color:'+c.fg+';font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;white-space:nowrap;">'+(DCTS_STATUS_MANUAL_LABELS[v]||v)+'</span>';
+}
+// Salva o Status (agora manual, escolhido direto na tabela) sem precisar
+// abrir o modal — mesmo padrão de "salvar otimista" usado no toggle de ART:
+// atualiza a tela na hora e confirma no banco depois, revertendo se falhar.
+async function dctsAtualizarStatusManualInline(id, valor){
+  const d = _ct_allDcts.find(x=>x.id===id);
+  if(!d) return;
+  const antes = d.status_manual;
+  d.status_manual = valor||null;
+  dctsRender();
+  try{
+    const patchRes = await sbPatch(DCTS_TABLE, id, {status_manual:d.status_manual});
+    if(!patchRes || !patchRes.length){
+      let existeDeVerdade = false;
+      try{
+        const chk = await fetch(_sbUrlCt(DCTS_TABLE+'?id=eq.'+id+'&select=id'), {headers:_SB_H_CT});
+        if(chk.ok){ const rows = await chk.json(); existeDeVerdade = Array.isArray(rows) && rows.length>0; }
+      }catch(eChk){ console.warn('[dctsAtualizarStatusManualInline] Falha ao verificar existência:', eChk); }
+      if(!existeDeVerdade){
+        const payloadCompleto = {...d, status_manual:d.status_manual};
+        await sbPost(DCTS_TABLE, payloadCompleto);
+      }
+    }
+  }catch(err){
+    d.status_manual = antes;
+    dctsRender();
+    if(typeof _ct_showToast==='function') _ct_showToast('Erro','Não foi possível salvar o status: '+err.message,'error');
+    else alert('Não foi possível salvar o status: '+err.message);
+  }
 }
 
 function fmtD(s){ if(!s) return '<span style="color:#ccc;">—</span>'; const[y,m,d]=s.split('-'); return d+'/'+m+'/'+y; }
@@ -35337,8 +35425,12 @@ function dctsRender(){
     <td style="text-align:center;">${cel(d.envio_real,d.envio_data)}${obs(d.envio_obs)}</td>
     <td style="text-align:center;">${d.retorno_data?'<b style="color:var(--green);">'+fmtD(d.retorno_data)+'</b>':fmtD('')}${obs(d.retorno_obs)}</td>
     <td style="text-align:center;">${cobCel(d.cobrancas)}</td>
-    <td style="text-align:center;">${dctsStatusBadge(d._st)}</td>
-    <td style="text-align:center;">${dctsStatusManualBadge(d.status_manual)}</td>
+    <td style="text-align:center;">
+      <select onchange="dctsAtualizarStatusManualInline('${d.id}',this.value)" style="font-size:9px;font-weight:700;padding:3px 6px;border-radius:3px;border:1px solid var(--border);background:${(DCTS_STATUS_MANUAL_CORES[d.status_manual]||{bg:'#f1f5f9'}).bg};color:${(DCTS_STATUS_MANUAL_CORES[d.status_manual]||{fg:'#475569'}).fg};">
+        <option value="" ${!d.status_manual?'selected':''}>— Selecione —</option>
+        ${Object.keys(DCTS_STATUS_MANUAL_LABELS).map(v=>`<option value="${v}" ${d.status_manual===v?'selected':''}>${DCTS_STATUS_MANUAL_LABELS[v]}</option>`).join('')}
+      </select>
+    </td>
     <td style="font-size:10px;color:var(--ink3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(d.obs_geral||'').replace(/"/g,"'")}">${d.obs_geral||'—'}</td>
     <td style="text-align:center;white-space:nowrap;"><button onclick="dctsAbrirModal('${d.id}')" style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;font-size:10px;padding:3px 10px;cursor:pointer;font-family:'Outfit',sans-serif;">✏️ Editar</button></td>
   </tr>`).join('');
@@ -35346,11 +35438,11 @@ function dctsRender(){
 }
 
 function dctsAtualizarKPIs(lista){
-  const l = lista || _ct_allDcts.map(d=>({...d,_st:dctsCalcStatusItem(d)}));
+  const l = lista || _ct_allDcts;
   document.getElementById('dcts-k-total').textContent     = _ct_allDcts.length;
-  document.getElementById('dcts-k-ok').textContent        = l.filter(d=>d._st==='completo').length;
-  document.getElementById('dcts-k-andamento').textContent = l.filter(d=>d._st==='andamento').length;
-  document.getElementById('dcts-k-pendente').textContent  = l.filter(d=>d._st==='pendente'||d._st==='atrasado').length;
+  document.getElementById('dcts-k-ok').textContent        = l.filter(d=>d.status_manual==='concluido').length;
+  document.getElementById('dcts-k-andamento').textContent = l.filter(d=>d.status_manual && d.status_manual!=='concluido').length;
+  document.getElementById('dcts-k-pendente').textContent  = l.filter(d=>!d.status_manual).length;
 }
 
 function dctsCalcStatus(){
@@ -35670,7 +35762,7 @@ async function dctsMigrarLocalStorage(){
 </div>
 <script>
 (function(){
-  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-28-05';
+  var BUILD_ATUAL = 'SIDER_APP_BUILD: 2026-07-31-01';
   function checarNovaVersao(){
     fetch(location.href, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
       if(html.indexOf(BUILD_ATUAL)===-1){
