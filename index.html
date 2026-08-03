@@ -1490,7 +1490,7 @@ ALTER TABLE medicao_terceiros
     <label style="font-size:10px;">Busca:</label>
     <div id="cf-busca-wrap" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;min-width:110px;max-width:220px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r2);padding:2px 5px;cursor:text;" onclick="document.getElementById('cf-busca-input').focus()">
       <div id="cf-busca-tags" style="display:flex;flex-wrap:wrap;gap:2px;"></div>
-      <input type="text" id="cf-busca-input" placeholder="TAG, código…" style="border:none;background:transparent;outline:none;font-size:11px;min-width:70px;flex:1;padding:0;font-family:var(--font-main);color:var(--ink);"
+      <input type="text" id="cf-busca-input" placeholder="TAG, descrição, GRD…" style="border:none;background:transparent;outline:none;font-size:11px;min-width:70px;flex:1;padding:0;font-family:var(--font-main);color:var(--ink);"
         oninput="onBuscaInput(this)"
         onkeydown="onBuscaKeydown(event)">
     </div>
@@ -5629,7 +5629,9 @@ function getStatusFiltro(){
 var _buscaTags = []; // ex: ['S176AU', 'SS053', 'CHUMBADOR']
 
 function onBuscaInput(input){
-  // Nada a fazer em tempo real — Enter ou vírgula adicionam tag
+  // Busca ao vivo: filtra a cada tecla digitada (mesmo sem confirmar com Enter/vírgula),
+  // já que renderCronograma() considera o texto não confirmado do input em _todosTags.
+  if(typeof _renderCronogramaDebounced==='function') _renderCronogramaDebounced();
 }
 
 function onBuscaKeydown(e){
@@ -6049,12 +6051,11 @@ function limparFiltrosCron(){
   if(typeof _selectedIds !== 'undefined') { _selectedIds.clear(); }
   const selCb = document.getElementById('sel-all-cb');
   if(selCb) selCb.checked = false;
-  const btnGrid = document.getElementById('btn-grid-selecionados');
-  if(btnGrid) btnGrid.style.display = 'none';
-  const selCnt = document.getElementById('sel-count');
-  if(selCnt) selCnt.textContent = '0';
-  const btnLote0 = document.getElementById('btn-lote-selecionados');
-  if(btnLote0) btnLote0.style.display = 'none';
+  // Zera TODOS os botões/badges de seleção (Grid, Lote, CSV, PDF, Excluir) de uma vez —
+  // antes só Grid e Lote eram resetados aqui manualmente, então ao limpar os filtros
+  // os badges de CSV/PDF/Excluir continuavam mostrando a contagem antiga das TAGs
+  // que já tinham sido desmarcadas.
+  if(typeof _atualizarBtnGrid === 'function') _atualizarBtnGrid();
   if(_cronFullscreenOpen) cronFecharTelaCheia(); // ao limpar filtros, volta para a visão normal
   renderCronograma();
 }
@@ -13389,10 +13390,37 @@ function atualizarBannerFiltros(){
     partes.push(_statusSelecionados.length === 1 ? _statusSelecionados[0] : _statusSelecionados.length + ' status');
   if((typeof _buscaTags !== 'undefined') && _buscaTags.length > 0)
     partes.push('Busca: ' + _buscaTags.join(', '));
+  const buscaInputEl = document.getElementById('cf-busca-input');
+  const buscaNaoConfirmada = (buscaInputEl?.value||'').trim();
+  if(buscaNaoConfirmada) partes.push('Busca: ' + buscaNaoConfirmada);
   const obraF = document.getElementById('cf-obra')?.value;
   if(obraF) partes.push('Obra: ' + obraF.split(' ')[0]);
+  const equipeF = document.getElementById('cf-equipe')?.value;
+  if(equipeF) partes.push('Equipe: ' + equipeF);
+  const atrasoF = document.getElementById('cf-atraso')?.value;
+  const atrasoLabels = {atrasado:'Atrasadas', ok:'No prazo'};
+  if(atrasoF) partes.push(atrasoLabels[atrasoF] || ('Atraso: '+atrasoF));
+  const limFabF = document.getElementById('cf-limite-fab')?.value;
+  if(limFabF) partes.push('Lim. Fáb.: ' + limFabF);
+  const doc11F = document.getElementById('cf-doc11')?.value;
+  if(doc11F) partes.push('Doc. 11: ' + doc11F);
+  const telhaF = document.getElementById('cf-telha')?.value;
+  if(telhaF) partes.push('Telha: ' + telhaF);
+  const dataIniF = document.getElementById('cf-data-ini')?.value;
+  const dataFimF = document.getElementById('cf-data-fim')?.value;
+  if(dataIniF || dataFimF) partes.push('Prev.: ' + (dataIniF||'…') + ' a ' + (dataFimF||'…'));
+  const semPcpEl = document.getElementById('cf-sem-peso-pcp');
+  if(semPcpEl?.checked) partes.push('Lib. Fab. s/ PCP');
+
+  // Mostra o banner (com o botão "Limpar filtro") sempre que houver QUALQUER filtro
+  // ativo — antes só aparecia para status/busca/obra, deixando o usuário sem forma
+  // rápida de limpar quando filtrava só por Equipe, Atraso, Lim. Fáb., Telha etc.
+  const temFiltro = (typeof _cronTemFiltroAtivo==='function') ? _cronTemFiltroAtivo() : partes.length>0;
   if(partes.length > 0){
     bannerLabel.textContent = '🔍 Filtro ativo: ' + partes.join(' · ');
+    banner.style.display = 'flex';
+  } else if(temFiltro){
+    bannerLabel.textContent = '🔍 Filtro ativo';
     banner.style.display = 'flex';
   } else if(!window._cronStatFilter) {
     banner.style.display = 'none';
@@ -14816,6 +14844,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <input type="text" id="rev-search" placeholder="🔍 Buscar TAG, descrição…" oninput="renderRevisoes()" style="width:200px;">
     <button onclick="limparFiltrosRevisoes()" style="background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.45);border-radius:3px;color:#7c3aed;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);">✕ Limpar filtros</button>
     <div style="margin-left:auto;display:flex;gap:.5rem;">
+      <button class="btn btn-secondary" id="btn-rev-lote-selecionados" style="font-size:11px;padding:5px 12px;background:#1e40af;color:#fff;border-color:#1e40af;display:none;" onclick="abrirModalRevLote()">🔀 Alterar em Lote <span class="badge" id="rev-lote-sel-count">0</span></button>
       <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;" onclick="exportarRevisoesCSV()">⬇ CSV</button>
       <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;background:#1e3a5f;color:#fff;border-color:#1e3a5f;" onclick="abrirModalRelatorioRevisoes()">🖨 Relatório</button>
       <button class="btn btn-primary" style="font-size:11px;padding:5px 12px;background:#7c3aed;" onclick="abrirModalNovaRevisao()">＋ Nova Revisão</button>
@@ -14827,6 +14856,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <table class="xl-table" id="rev-table">
       <thead>
         <tr>
+          <!-- Seleção em lote -->
+          <th style="background:#217346;border:1px solid #155a32;width:26px;text-align:center;"><input type="checkbox" id="rev-chk-all" onchange="revToggleSelectAll(this)" style="accent-color:#7c3aed;width:13px;height:13px;cursor:pointer;" title="Selecionar todos"></th>
           <!-- Colunas base -->
           <th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Cliente</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();revXlOpenFilter('cliente',this)" data-rev-filter="cliente">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-cliente"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('cliente',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('cliente')">OK</button></div></div></th>
           <th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;">Data RP</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();revXlOpenFilter('data_rp',this)" data-rev-filter="data_rp">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-data_rp"><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('data_rp',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('data_rp')">OK</button></div></div></th>
@@ -14848,6 +14879,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <th style="background:#217346;border:1px solid #155a32;width:50px;"></th>
         </tr>
         <tr style="background:#2a2520;">
+          <!-- seleção -->
+          <th></th>
           <!-- base (6 cols) -->
           <th></th><th></th><th></th><th></th><th></th><th></th>
           <!-- Valor RP sub -->
@@ -15055,6 +15088,106 @@ document.addEventListener('DOMContentLoaded', function() {
         <button class="btn btn-secondary" onclick="fecharModalRevisao()">Cancelar</button>
         <button class="btn btn-primary" style="background:#7c3aed;" onclick="salvarRevisao()">💾 Salvar Revisão</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Alterar Revisões em Lote -->
+<div class="cron-modal-overlay" id="modal-rev-lote" onclick="if(event.target===this)fecharModalRevLote()">
+  <div class="cron-modal-box" onclick="event.stopPropagation()" style="width:640px;max-width:97vw;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="cron-mhd" style="background:linear-gradient(135deg,#3b0764,#7c3aed);">
+      <div style="flex:1;">
+        <div class="cron-mhd-title">🔀 Alterar Revisões em Lote</div>
+        <div class="cron-mhd-sub" id="rev-lote-label">0 revisões selecionadas</div>
+      </div>
+      <button onclick="fecharModalRevLote()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px;">✕</button>
+    </div>
+    <div class="cron-mbody" style="overflow-y:auto;flex:1;padding:1rem 1.1rem;">
+
+      <!-- TAGs selecionadas -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label">Revisões que serão alteradas</label>
+        <div id="rev-lote-chips" style="display:flex;flex-wrap:wrap;gap:4px;max-height:100px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:.5rem;"></div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Aprovação Engenharia Sidertec -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="revlote-chk-aprov-eng" onchange="document.getElementById('revlote-aprov-eng').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+          👷 Alterar Aprovação Engenharia Sidertec
+        </label>
+        <select class="field-input" id="revlote-aprov-eng" disabled>
+          <option value="">— Selecione —</option>
+          <option value="SIM">SIM</option>
+          <option value="NÃO">NÃO</option>
+        </select>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Liberação Fabricação -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="revlote-chk-status-lib" onchange="document.getElementById('revlote-status-lib').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+          🏭 Alterar Status Liberação Fabricação
+        </label>
+        <select class="field-input" id="revlote-status-lib" disabled>
+          <option value="">— Selecione —</option>
+          <option value="SIM">SIM</option>
+          <option value="NÃO">NÃO</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Responsável pelo Custo -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="revlote-chk-resp-custo" onchange="document.getElementById('revlote-resp-custo').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+          💼 Alterar Responsável pelo Custo
+        </label>
+        <select class="field-input" id="revlote-resp-custo" disabled>
+          <option value="">— Selecione —</option>
+          <option value="Cliente">Cliente</option>
+          <option value="Sidertec">Sidertec</option>
+        </select>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- Aprovação do Cliente -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="revlote-chk-aprov-cli" onchange="document.getElementById('revlote-aprov-cli').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+          🤝 Alterar Aprovação do Cliente
+        </label>
+        <select class="field-input" id="revlote-aprov-cli" disabled>
+          <option value="">— Selecione —</option>
+          <option value="SIM">SIM</option>
+          <option value="NÃO">NÃO</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
+      <!-- OBS -->
+      <div class="field-group" style="margin-bottom:.4rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="revlote-chk-obs" onchange="document.getElementById('revlote-obs').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+          📝 Alterar OBS
+        </label>
+        <textarea class="field-input" id="revlote-obs" disabled rows="2" placeholder="Ex: Em aprovação com o cliente…" style="font-family:inherit;resize:vertical;"></textarea>
+        <div style="font-size:9px;color:var(--ink3);margin-top:.25rem;">Substitui a OBS atual de todas as revisões selecionadas pelo texto acima.</div>
+      </div>
+
+    </div>
+    <div class="cron-mfooter">
+      <button class="btn btn-secondary" onclick="fecharModalRevLote()">Cancelar</button>
+      <button class="btn btn-primary" style="background:#7c3aed;" id="btn-aplicar-rev-lote" onclick="aplicarRevLote()">✓ Aplicar em Lote</button>
     </div>
   </div>
 </div>
@@ -15310,13 +15443,14 @@ function renderRevisoes(){
   var tbody=document.getElementById('rev-tbody');
   if(!tbody) return;
   if(!filtered.length){
-    tbody.innerHTML='<tr><td colspan="17" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhuma revisão encontrada.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhuma revisão encontrada.</td></tr>';
     return;
   }
 
   tbody.innerHTML=filtered.map(function(r){
     var fmtHH = function(v){ return v>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '—'; };
     return '<tr onclick="editarRevisao(\''+r.id+'\')" style="cursor:pointer;" onmouseover="this.style.background=\'#f5f0ff\'" onmouseout="this.style.background=\'\'">'+
+      '<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="rev-row-chk" data-id="'+r.id+'" onchange="revToggleRowSel(event,\''+r.id+'\')" '+(_revSelectedIds.has(r.id)?'checked':'')+' style="accent-color:#7c3aed;width:13px;height:13px;cursor:pointer;"></td>'+
       // base
       '<td><strong>'+r.cliente+'</strong></td>'+
       '<td style="white-space:nowrap;font-family:\'DM Mono\',monospace;font-size:10px;">'+_fmtDateBR(r.data_rp)+'</td>'+
@@ -15354,6 +15488,7 @@ function renderRevisoes(){
   if(tfoot){
     // cols: cliente | data_rp | descr | tag | motivo | eng | qtd_hh | vlr_hh | total_rp | data_eng | aprov_eng | data_lib | status_lib | aprov_cli | vlr_cobrar | faturado | resp_custo | obs | ações
     tfoot.innerHTML='<tr>'+
+      '<td></td>'+
       '<td colspan="6" style="color:#fff;font-size:10px;letter-spacing:.04em;text-transform:uppercase;">TOTAL — '+filtered.length+' revisões</td>'+
       '<td></td><td></td>'+
       '<td class="num" style="color:#c4b5fd;font-weight:700;">'+_fmtMoney(totalRp)+'</td>'+
@@ -15529,6 +15664,90 @@ function limparFiltrosRevisoes(){
   });
   var s=document.getElementById('rev-search'); if(s) s.value='';
   renderRevisoes();
+}
+
+// ═══ SELEÇÃO EM LOTE — REVISÕES ══════════════════════════
+var _revSelectedIds = new Set();
+
+function revToggleRowSel(e, id){
+  e.stopPropagation();
+  if(e.target.checked) _revSelectedIds.add(id);
+  else _revSelectedIds.delete(id);
+  _revAtualizarBtnLote();
+}
+
+function revToggleSelectAll(cb){
+  var rows = document.querySelectorAll('.rev-row-chk');
+  rows.forEach(function(r){
+    r.checked = cb.checked;
+    if(cb.checked) _revSelectedIds.add(r.dataset.id);
+    else _revSelectedIds.delete(r.dataset.id);
+  });
+  _revAtualizarBtnLote();
+}
+
+function _revAtualizarBtnLote(){
+  var btn = document.getElementById('btn-rev-lote-selecionados');
+  var cnt = document.getElementById('rev-lote-sel-count');
+  if(btn) btn.style.display = _revSelectedIds.size>0 ? 'inline-flex' : 'none';
+  if(cnt) cnt.textContent = _revSelectedIds.size;
+}
+
+function abrirModalRevLote(){
+  if(!_revSelectedIds.size){ if(typeof showToast==='function') showToast('Nenhuma selecionada','Marque ao menos uma revisão.','warn'); return; }
+  var subs = _revisoes.filter(function(r){ return _revSelectedIds.has(r.id); });
+  document.getElementById('rev-lote-label').textContent = subs.length+' revisão'+(subs.length!==1?'ões':'')+' selecionada'+(subs.length!==1?'s':'');
+  document.getElementById('rev-lote-chips').innerHTML = subs.map(function(r){
+    return '<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:2px 7px;font-size:10px;font-weight:600;">'+r.tag+'</span>';
+  }).join('');
+  // Reseta todos os campos do modal
+  [['revlote-chk-aprov-eng','revlote-aprov-eng'],['revlote-chk-status-lib','revlote-status-lib'],['revlote-chk-resp-custo','revlote-resp-custo'],['revlote-chk-aprov-cli','revlote-aprov-cli']].forEach(function(p){
+    document.getElementById(p[0]).checked=false;
+    var sel=document.getElementById(p[1]); sel.disabled=true; sel.value='';
+  });
+  document.getElementById('revlote-chk-obs').checked=false;
+  var obsEl=document.getElementById('revlote-obs'); obsEl.disabled=true; obsEl.value='';
+  var btn=document.getElementById('btn-aplicar-rev-lote'); btn.disabled=false; btn.textContent='✓ Aplicar em Lote';
+  document.getElementById('modal-rev-lote').classList.add('show');
+}
+
+function fecharModalRevLote(){ document.getElementById('modal-rev-lote').classList.remove('show'); }
+
+function aplicarRevLote(){
+  var alterarAprovEng = document.getElementById('revlote-chk-aprov-eng').checked;
+  var alterarStatusLib = document.getElementById('revlote-chk-status-lib').checked;
+  var alterarRespCusto = document.getElementById('revlote-chk-resp-custo').checked;
+  var alterarAprovCli = document.getElementById('revlote-chk-aprov-cli').checked;
+  var alterarObs = document.getElementById('revlote-chk-obs').checked;
+
+  if(!alterarAprovEng && !alterarStatusLib && !alterarRespCusto && !alterarAprovCli && !alterarObs){
+    if(typeof showToast==='function') showToast('Nada para alterar','Marque ao menos um campo para atualizar em lote.','warn');
+    return;
+  }
+
+  var novoAprovEng = document.getElementById('revlote-aprov-eng').value;
+  var novoStatusLib = document.getElementById('revlote-status-lib').value;
+  var novoRespCusto = document.getElementById('revlote-resp-custo').value;
+  var novoAprovCli = document.getElementById('revlote-aprov-cli').value;
+  var novoObs = document.getElementById('revlote-obs').value;
+
+  var qtd=0;
+  _revisoes.forEach(function(r){
+    if(!_revSelectedIds.has(r.id)) return;
+    if(alterarAprovEng) r.aprov_eng = novoAprovEng;
+    if(alterarStatusLib) r.status_lib = novoStatusLib;
+    if(alterarRespCusto) r.resp_custo = novoRespCusto;
+    if(alterarAprovCli) r.aprov_cli = novoAprovCli;
+    if(alterarObs) r.obs = novoObs;
+    qtd++;
+  });
+
+  _saveRevisoes();
+  _revSelectedIds.clear();
+  fecharModalRevLote();
+  renderRevisoes();
+  _revAtualizarBtnLote();
+  if(typeof showToast==='function') showToast('✓ Alterado em lote', qtd+' revisão'+(qtd!==1?'ões':'')+' atualizada'+(qtd!==1?'s':'')+'.','success');
 }
 
 function exportarRevisoesCSV(){
@@ -30630,6 +30849,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <label class="field-label">Ação</label>
           <select class="field-input" id="dcts-status-manual">
             <option value="">— Não informado —</option>
+            <option value="obra_andamento">OBRA EM ANDAMENTO</option>
             <option value="ag_signatario">EM ANDAMENTO - AG. SIGNATÁRIO</option>
             <option value="em_emissao_documento">EM EMISSÃO DE DOCUMENTO</option>
             <option value="ag_assinatura">AG. ASSINATURA</option>
@@ -30972,11 +31192,22 @@ function setSyncErr_ctOrig(){
 function _ct_iniciarRealtime(){ /* Supabase */ }
 
 function reRenderAtivo(){
-  const id=document.querySelector('.page.active')?.id?.replace('page-','');
+  // Mesmo bug de id duplicado já corrigido em _ct_showPage (ver comentário lá):
+  // existe outro elemento com id="page-dashboard" no módulo antigo do Cronograma,
+  // que fica com a classe "active" fixa desde o carregamento da página. Um
+  // querySelector('.page.active') sem escopo sempre pega esse elemento antigo
+  // primeiro e devolve "dashboard" — fazendo com que, depois de salvar um
+  // Evento/Projeto/Documento, a aba realmente aberta (eventos, dcts etc.) nunca
+  // fosse re-renderizada de fato, só aparecendo certo depois de um F5. Por isso
+  // a busca abaixo é restrita ao modal do Controle Contratual.
+  const id=document.querySelector('#ct-modal-wrap .page.active')?.id?.replace('page-','');
   if(id==='dashboard') _ct_renderDashboard();
   if(id==='projetos')  _ct_renderProjetos();
   if(id==='eventos')   _ct_renderEventos();
   if(id==='documentos') _ct_renderDocumentos();
+  if(id==='dcts' && typeof dctsRender==='function') dctsRender();
+  if(id==='terceiros' && typeof _ct_renderTerceiros==='function') _ct_renderTerceiros();
+  if(id==='relatorios' && typeof _ct_renderRelatorios==='function') _ct_renderRelatorios();
 }
 
 async function _ct_recarregarTudo(){
@@ -30988,7 +31219,7 @@ async function _ct_recarregarTudo(){
 // ═══════════════════════════════════════════════════════════
 // CALCS
 // ═══════════════════════════════════════════════════════════
-function eventosDoProjeto(projId){ return _ct_allEventos.filter(e=>e.projeto_id===projId); }
+function eventosDoProjeto(projId){ return _ct_allEventos.filter(e=>e.projeto_id===projId).sort(_ct_compareNumeroEvento); }
 
 function calcProjeto(proj){
   const evs = eventosDoProjeto(proj.id);
@@ -31031,7 +31262,7 @@ function abrirDetalheProjeto(id){
   _dpProjId = id;
   const p = _ct_allProjetos.find(x=>x.id===id);
   if(!p){ _ct_showToast('Erro','Projeto não encontrado.','error'); return; }
-  const evs = _ct_allEventos.filter(e=>e.projeto_id===id);
+  const evs = _ct_allEventos.filter(e=>e.projeto_id===id).sort(_ct_compareNumeroEvento);
   const c = calcProjeto(p);
 
   const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
@@ -31423,6 +31654,24 @@ function popularSelectsProjetos(){
   });
 }
 
+// Ordena eventos pelo número (ex.: E.1, E.2, E.10) extraindo a parte
+// numérica em vez de comparar como texto — assim "E.2" não fica antes de
+// "E.10" e "E.1" sempre aparece antes de "E.2".
+function _ct_numeroEventoParaOrdenacao(v){
+  const s = String(v||'');
+  const m = s.match(/(\d+(?:[.,]\d+)?)/g);
+  if(!m) return [Infinity];
+  return m.map(n=>parseFloat(n.replace(',','.')));
+}
+function _ct_compareNumeroEvento(a,b){
+  const na = _ct_numeroEventoParaOrdenacao(a.numero_evento);
+  const nb = _ct_numeroEventoParaOrdenacao(b.numero_evento);
+  for(let i=0;i<Math.max(na.length,nb.length);i++){
+    const va = na[i]??-Infinity, vb = nb[i]??-Infinity;
+    if(va!==vb) return va-vb;
+  }
+  return String(a.numero_evento||'').localeCompare(String(b.numero_evento||''));
+}
 function _ct_renderEventos(){
   const projF  = document.getElementById('ev-filtro-proj')?.value||'';
   const statusF= document.getElementById('ev-filtro-status')?.value||'';
@@ -31430,7 +31679,7 @@ function _ct_renderEventos(){
     if(projF   && e.projeto_id!==projF) return false;
     if(statusF && e.status!==statusF) return false;
     return true;
-  });
+  }).sort(_ct_compareNumeroEvento);
 
   // Saldo bar
   const sbTotal    = lista.reduce((s,e)=>s+(Number(e.valor)||0),0);
@@ -34962,7 +35211,7 @@ function gerarRelatorioPDF(){
 
   const projetosHTML = projetos.map(p=>{
     const calcP = calcProjeto(p);
-    const evs   = _ct_allEventos.filter(e=>e.projeto_id===p.id);
+    const evs   = _ct_allEventos.filter(e=>e.projeto_id===p.id).sort(_ct_compareNumeroEvento);
     const gars  = p.garantias||[];
     const ads   = p.aditivos||[];
     const rStatusMap = {agendada:'Agendada',realizada:'Realizada',cancelada:'Cancelada',reagendada:'Reagendada'};
@@ -35286,12 +35535,14 @@ function dctsStatusBadge(st){
 }
 
 const DCTS_STATUS_MANUAL_LABELS = {
+  obra_andamento:         'OBRA EM ANDAMENTO',
   ag_signatario:          'EM ANDAMENTO - AG. SIGNATÁRIO',
   em_emissao_documento:   'EM EMISSÃO DE DOCUMENTO',
   ag_assinatura:          'AG. ASSINATURA',
   concluido:              'CONCLUÍDO'
 };
 const DCTS_STATUS_MANUAL_CORES = {
+  obra_andamento:       {bg:'#e0e7ff',fg:'#3730a3'},
   ag_signatario:        {bg:'#fef3c7',fg:'#92400e'},
   em_emissao_documento: {bg:'#dbeafe',fg:'#1e40af'},
   ag_assinatura:        {bg:'#fce7f3',fg:'#9d174d'},
