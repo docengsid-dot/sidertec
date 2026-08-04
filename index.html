@@ -14930,6 +14930,25 @@ document.addEventListener('DOMContentLoaded', function() {
   <!-- KPI cards -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1.5rem;" id="rev-kpi-row"></div>
 
+  <!-- Quadro: Horas e Custo por Responsável -->
+  <div style="border:1px solid var(--border);border-radius:var(--r);padding:.9rem 1.1rem;margin-bottom:1.5rem;background:linear-gradient(135deg,#faf5ff,#f5f3ff);">
+    <div style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#7c3aed;font-weight:700;margin-bottom:.6rem;">⏱ Horas e Custo por Responsável</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;">
+      <div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);">Total HH</div>
+        <div id="rev-resumo-total-hh" style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);">—</div>
+      </div>
+      <div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#1e40af;">Valor Resp. Sidertec</div>
+        <div id="rev-resumo-valor-sidertec" style="font-family:'DM Serif Display',serif;font-size:22px;color:#1e3a5f;">—</div>
+      </div>
+      <div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#166534;">Valor Resp. Cliente</div>
+        <div id="rev-resumo-valor-cliente" style="font-family:'DM Serif Display',serif;font-size:22px;color:#065f46;">—</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Filters + Actions -->
   <div class="filters" style="margin-bottom:1rem;">
     <label>Cliente</label>
@@ -15275,64 +15294,188 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
 
-      <!-- Aprovação Engenharia Sidertec -->
-      <div class="field-group" style="margin-bottom:.9rem;">
-        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
-          <input type="checkbox" id="revlote-chk-aprov-eng" onchange="document.getElementById('revlote-aprov-eng').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
-          👷 Alterar Aprovação Engenharia Sidertec
-        </label>
-        <select class="field-input" id="revlote-aprov-eng" disabled="">
-          <option value="">— Selecione —</option>
-          <option value="SIM">SIM</option>
-          <option value="NÃO">NÃO</option>
-        </select>
-      </div>
+      <div class="field-label" style="margin-bottom:.6rem;color:#7c3aed;">Selecione os campos que deseja alterar em todas as revisões marcadas — todas as colunas do controle estão disponíveis</div>
 
-      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+      <!-- Todos os campos do controle, disponíveis para alteração em lote -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem 1.2rem;margin-bottom:.9rem;">
 
-      <!-- Liberação Fabricação -->
-      <div class="field-group" style="margin-bottom:.9rem;">
-        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
-          <input type="checkbox" id="revlote-chk-status-lib" onchange="document.getElementById('revlote-status-lib').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
-          🏭 Alterar Status Liberação Fabricação
-        </label>
-        <select class="field-input" id="revlote-status-lib" disabled="">
-          <option value="">— Selecione —</option>
-          <option value="SIM">SIM</option>
-          <option value="NÃO">NÃO</option>
-          <option value="N/A">N/A</option>
-        </select>
-      </div>
+        <!-- Cliente -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-cliente" onchange="document.getElementById('revlote-cliente').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🏢 Alterar Cliente
+          </label>
+          <input class="field-input" id="revlote-cliente" disabled placeholder="Ex: S169-VALMET" list="rev-m-cliente-list" autocomplete="off">
+        </div>
 
-      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+        <!-- Data RP -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-data-rp" onchange="document.getElementById('revlote-data-rp').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            📅 Alterar Data RP
+          </label>
+          <input class="field-input" id="revlote-data-rp" type="date" disabled>
+        </div>
 
-      <!-- Responsável pelo Custo -->
-      <div class="field-group" style="margin-bottom:.9rem;">
-        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
-          <input type="checkbox" id="revlote-chk-resp-custo" onchange="document.getElementById('revlote-resp-custo').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
-          💼 Alterar Responsável pelo Custo
-        </label>
-        <select class="field-input" id="revlote-resp-custo" disabled="">
-          <option value="">— Selecione —</option>
-          <option value="Cliente">Cliente</option>
-          <option value="Sidertec">Sidertec</option>
-        </select>
-      </div>
+        <!-- Descrição -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-descr" onchange="document.getElementById('revlote-descr').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            📄 Alterar Descrição
+          </label>
+          <input class="field-input" id="revlote-descr" disabled placeholder="Ex: 1263-004">
+        </div>
 
-      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+        <!-- TAG -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-tag" onchange="document.getElementById('revlote-tag').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🏷 Alterar TAG
+          </label>
+          <input class="field-input" id="revlote-tag" disabled placeholder="Ex: 4100-PB-PB001">
+        </div>
 
-      <!-- Aprovação do Cliente -->
-      <div class="field-group" style="margin-bottom:.9rem;">
-        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
-          <input type="checkbox" id="revlote-chk-aprov-cli" onchange="document.getElementById('revlote-aprov-cli').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
-          🤝 Alterar Aprovação do Cliente
-        </label>
-        <select class="field-input" id="revlote-aprov-cli" disabled="">
-          <option value="">— Selecione —</option>
-          <option value="SIM">SIM</option>
-          <option value="NÃO">NÃO</option>
-          <option value="N/A">N/A</option>
-        </select>
+        <!-- Motivo -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-motivo" onchange="document.getElementById('revlote-motivo').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            📌 Alterar Motivo
+          </label>
+          <input class="field-input" id="revlote-motivo" disabled placeholder="Ex: REVISÃO DE PROJETO BÁSICO">
+        </div>
+
+        <!-- Engenharia -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-eng" onchange="document.getElementById('revlote-eng').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🛠 Alterar Engenharia
+          </label>
+          <input class="field-input" id="revlote-eng" disabled placeholder="Ex: TCH" list="rev-m-eng-list" autocomplete="off">
+        </div>
+
+        <!-- Qtd HH -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-qtd-hh" onchange="document.getElementById('revlote-qtd-hh').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            ⏱ Alterar Qtd HH
+          </label>
+          <input class="field-input" id="revlote-qtd-hh" type="number" step="0.5" min="0" placeholder="0" disabled style="text-align:right;">
+        </div>
+
+        <!-- Vlr HH -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-valor-hh" onchange="document.getElementById('revlote-valor-hh').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            💵 Alterar Vlr HH
+          </label>
+          <input class="field-input" id="revlote-valor-hh" type="number" step="0.01" min="0" placeholder="0,00" disabled style="text-align:right;">
+        </div>
+
+        <!-- Total (Valor RP) -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-valor-rp" onchange="document.getElementById('revlote-valor-rp').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            💰 Alterar Total (Valor RP)
+          </label>
+          <input class="field-input" id="revlote-valor-rp" type="number" step="0.01" min="0" placeholder="0,00" disabled style="text-align:right;">
+        </div>
+
+        <!-- Data Rev. Eng. -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-data-eng" onchange="document.getElementById('revlote-data-eng').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            📅 Alterar Data Rev. Eng.
+          </label>
+          <input class="field-input" id="revlote-data-eng" type="date" disabled>
+        </div>
+
+        <!-- Aprovação Engenharia Sidertec -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-aprov-eng" onchange="document.getElementById('revlote-aprov-eng').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            👷 Alterar Aprov. Engenharia Sidertec
+          </label>
+          <select class="field-input" id="revlote-aprov-eng" disabled="">
+            <option value="">— Selecione —</option>
+            <option value="SIM">SIM</option>
+            <option value="NÃO">NÃO</option>
+          </select>
+        </div>
+
+        <!-- Data Lib. Fabricação -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-data-lib" onchange="document.getElementById('revlote-data-lib').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            📅 Alterar Data Lib. Fabricação
+          </label>
+          <input class="field-input" id="revlote-data-lib" type="date" disabled>
+        </div>
+
+        <!-- Status Liberação Fabricação -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-status-lib" onchange="document.getElementById('revlote-status-lib').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🏭 Alterar Status Lib. Fabricação
+          </label>
+          <select class="field-input" id="revlote-status-lib" disabled="">
+            <option value="">— Selecione —</option>
+            <option value="SIM">SIM</option>
+            <option value="NÃO">NÃO</option>
+            <option value="N/A">N/A</option>
+          </select>
+        </div>
+
+        <!-- Aprovação do Cliente -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-aprov-cli" onchange="document.getElementById('revlote-aprov-cli').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🤝 Alterar Aprovação do Cliente
+          </label>
+          <select class="field-input" id="revlote-aprov-cli" disabled="">
+            <option value="">— Selecione —</option>
+            <option value="SIM">SIM</option>
+            <option value="NÃO">NÃO</option>
+            <option value="N/A">N/A</option>
+          </select>
+        </div>
+
+        <!-- Vlr a Cobrar -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-valor-cobrar" onchange="document.getElementById('revlote-valor-cobrar').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            💲 Alterar Vlr a Cobrar
+          </label>
+          <input class="field-input" id="revlote-valor-cobrar" type="number" step="0.01" min="0" placeholder="0,00" disabled style="text-align:right;">
+        </div>
+
+        <!-- Faturado -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-faturado" onchange="document.getElementById('revlote-faturado').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🧾 Alterar Faturado?
+          </label>
+          <select class="field-input" id="revlote-faturado" disabled="">
+            <option value="">—</option>
+            <option value="SIM">SIM</option>
+            <option value="NÃO">NÃO</option>
+            <option value="N/A">N/A</option>
+            <option value="EM FATURAMENTO">EM FATURAMENTO</option>
+          </select>
+        </div>
+
+        <!-- Responsável pelo Custo -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-resp-custo" onchange="document.getElementById('revlote-resp-custo').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            💼 Alterar Responsável pelo Custo
+          </label>
+          <select class="field-input" id="revlote-resp-custo" disabled="">
+            <option value="">— Selecione —</option>
+            <option value="Cliente">Cliente</option>
+            <option value="Sidertec">Sidertec</option>
+          </select>
+        </div>
+
       </div>
 
       <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
@@ -15531,6 +15674,9 @@ function _fmtMoney(v){
   if(!v||v===0) return '—';
   return 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
+function _fmtHH(v){
+  return v>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '—';
+}
 function _badge(val,extra){
   if(!val||val.trim()==='') return '<span style="color:var(--ink3);font-size:9px;">—</span>';
   var v=val.trim().toUpperCase();
@@ -15589,6 +15735,14 @@ function renderRevisoes(){
   document.getElementById('rev-stat-valor-rp').textContent=_fmtMoney(totalRp);
   document.getElementById('rev-stat-valor-lib').textContent=_fmtMoney(totalLib);
   document.getElementById('rev-stat-pendentes').textContent=pendentes;
+
+  // Quadro: Horas e Custo por Responsável
+  var totalHH=filtered.reduce(function(a,r){return a+(r.qtd_hh||0);},0);
+  var totalRespSidertec=filtered.filter(function(r){return r.resp_custo==='Sidertec';}).reduce(function(a,r){return a+(r.valor_rp||0);},0);
+  var totalRespCliente=filtered.filter(function(r){return r.resp_custo==='Cliente';}).reduce(function(a,r){return a+(r.valor_rp||0);},0);
+  var elResumoHH=document.getElementById('rev-resumo-total-hh'); if(elResumoHH) elResumoHH.textContent=_fmtHH(totalHH);
+  var elResumoSid=document.getElementById('rev-resumo-valor-sidertec'); if(elResumoSid) elResumoSid.textContent=_fmtMoney(totalRespSidertec);
+  var elResumoCli=document.getElementById('rev-resumo-valor-cliente'); if(elResumoCli) elResumoCli.textContent=_fmtMoney(totalRespCliente);
 
   // KPI row
   var kpiRow=document.getElementById('rev-kpi-row');
@@ -15656,7 +15810,7 @@ function renderRevisoes(){
     tfoot.innerHTML='<tr>'+
       '<td></td>'+
       '<td colspan="6" style="color:#fff;font-size:10px;letter-spacing:.04em;text-transform:uppercase;">TOTAL — '+filtered.length+' revisões</td>'+
-      '<td></td><td></td>'+
+      '<td class="num" style="color:#c4b5fd;font-weight:700;">'+_fmtHH(totalHH)+'</td><td></td>'+
       '<td class="num" style="color:#c4b5fd;font-weight:700;">'+_fmtMoney(totalRp)+'</td>'+
       '<td colspan="4"></td>'+
       '<td></td>'+
@@ -15859,6 +16013,28 @@ function _revAtualizarBtnLote(){
   if(cnt) cnt.textContent = _revSelectedIds.size;
 }
 
+// Definição de todos os campos do controle disponíveis para alteração em lote
+var _REV_LOTE_FIELDS = [
+  {chk:'revlote-chk-cliente',      input:'revlote-cliente',      key:'cliente',      type:'text'},
+  {chk:'revlote-chk-data-rp',      input:'revlote-data-rp',      key:'data_rp',      type:'date'},
+  {chk:'revlote-chk-descr',        input:'revlote-descr',        key:'descr',        type:'text'},
+  {chk:'revlote-chk-tag',          input:'revlote-tag',          key:'tag',          type:'text'},
+  {chk:'revlote-chk-motivo',       input:'revlote-motivo',       key:'motivo',       type:'text'},
+  {chk:'revlote-chk-eng',          input:'revlote-eng',          key:'eng',          type:'text'},
+  {chk:'revlote-chk-qtd-hh',       input:'revlote-qtd-hh',       key:'qtd_hh',       type:'number'},
+  {chk:'revlote-chk-valor-hh',     input:'revlote-valor-hh',     key:'valor_hh',     type:'number'},
+  {chk:'revlote-chk-valor-rp',     input:'revlote-valor-rp',     key:'valor_rp',     type:'number'},
+  {chk:'revlote-chk-data-eng',     input:'revlote-data-eng',     key:'data_eng',     type:'date'},
+  {chk:'revlote-chk-aprov-eng',    input:'revlote-aprov-eng',    key:'aprov_eng',    type:'select'},
+  {chk:'revlote-chk-data-lib',     input:'revlote-data-lib',     key:'data_lib',     type:'date'},
+  {chk:'revlote-chk-status-lib',   input:'revlote-status-lib',   key:'status_lib',   type:'select'},
+  {chk:'revlote-chk-aprov-cli',    input:'revlote-aprov-cli',    key:'aprov_cli',    type:'select'},
+  {chk:'revlote-chk-valor-cobrar', input:'revlote-valor-cobrar', key:'valor_cobrar', type:'number'},
+  {chk:'revlote-chk-faturado',     input:'revlote-faturado',     key:'faturado',     type:'select'},
+  {chk:'revlote-chk-resp-custo',   input:'revlote-resp-custo',   key:'resp_custo',   type:'select'},
+  {chk:'revlote-chk-obs',          input:'revlote-obs',          key:'obs',          type:'textarea'}
+];
+
 function abrirModalRevLote(){
   if(!_revSelectedIds.size){ if(typeof showToast==='function') showToast('Nenhuma selecionada','Marque ao menos uma revisão.','warn'); return; }
   var subs = _revisoes.filter(function(r){ return _revSelectedIds.has(r.id); });
@@ -15910,12 +16086,12 @@ function abrirModalRevLote(){
   }
 
   // Reseta todos os campos do modal
-  [['revlote-chk-aprov-eng','revlote-aprov-eng'],['revlote-chk-status-lib','revlote-status-lib'],['revlote-chk-resp-custo','revlote-resp-custo'],['revlote-chk-aprov-cli','revlote-aprov-cli']].forEach(function(p){
-    document.getElementById(p[0]).checked=false;
-    var sel=document.getElementById(p[1]); sel.disabled=true; sel.value='';
+  _REV_LOTE_FIELDS.forEach(function(f){
+    var chk=document.getElementById(f.chk);
+    var el=document.getElementById(f.input);
+    if(chk) chk.checked=false;
+    if(el){ el.disabled=true; el.value=''; }
   });
-  document.getElementById('revlote-chk-obs').checked=false;
-  var obsEl=document.getElementById('revlote-obs'); obsEl.disabled=true; obsEl.value='';
   var btn=document.getElementById('btn-aplicar-rev-lote'); btn.disabled=false; btn.textContent='✓ Aplicar em Lote';
   document.getElementById('modal-rev-lote').classList.add('show');
 }
@@ -15923,31 +16099,29 @@ function abrirModalRevLote(){
 function fecharModalRevLote(){ document.getElementById('modal-rev-lote').classList.remove('show'); }
 
 function aplicarRevLote(){
-  var alterarAprovEng = document.getElementById('revlote-chk-aprov-eng').checked;
-  var alterarStatusLib = document.getElementById('revlote-chk-status-lib').checked;
-  var alterarRespCusto = document.getElementById('revlote-chk-resp-custo').checked;
-  var alterarAprovCli = document.getElementById('revlote-chk-aprov-cli').checked;
-  var alterarObs = document.getElementById('revlote-chk-obs').checked;
+  var ativos = _REV_LOTE_FIELDS.filter(function(f){
+    var chk=document.getElementById(f.chk);
+    return chk && chk.checked;
+  });
 
-  if(!alterarAprovEng && !alterarStatusLib && !alterarRespCusto && !alterarAprovCli && !alterarObs){
+  if(!ativos.length){
     if(typeof showToast==='function') showToast('Nada para alterar','Marque ao menos um campo para atualizar em lote.','warn');
     return;
   }
 
-  var novoAprovEng = document.getElementById('revlote-aprov-eng').value;
-  var novoStatusLib = document.getElementById('revlote-status-lib').value;
-  var novoRespCusto = document.getElementById('revlote-resp-custo').value;
-  var novoAprovCli = document.getElementById('revlote-aprov-cli').value;
-  var novoObs = document.getElementById('revlote-obs').value;
+  var valores = {};
+  ativos.forEach(function(f){
+    var el = document.getElementById(f.input);
+    var v = el ? el.value : '';
+    if(f.type==='number') v = parseFloat(v)||0;
+    else if(f.type==='text') v = (v||'').trim();
+    valores[f.key] = v;
+  });
 
   var qtd=0;
   _revisoes.forEach(function(r){
     if(!_revSelectedIds.has(r.id)) return;
-    if(alterarAprovEng) r.aprov_eng = novoAprovEng;
-    if(alterarStatusLib) r.status_lib = novoStatusLib;
-    if(alterarRespCusto) r.resp_custo = novoRespCusto;
-    if(alterarAprovCli) r.aprov_cli = novoAprovCli;
-    if(alterarObs) r.obs = novoObs;
+    ativos.forEach(function(f){ r[f.key] = valores[f.key]; });
     qtd++;
   });
 
