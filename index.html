@@ -15015,6 +15015,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <th colspan="3" style="background:#065f46;text-align:center;font-size:9px;color:#fff;padding:3px 4px;border:1px solid #044035;">🤝 Aprov. Cliente</th>
           <!-- Colunas finais -->
           <th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;" id="rev-th-label-resp_custo">Resp. Custo</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();revXlOpenFilter('resp_custo',this)" data-rev-filter="resp_custo">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-resp_custo"><div class="xl-sort-row"><button onclick="revXlSort('resp_custo','asc')">↑ Crescente</button><button onclick="revXlSort('resp_custo','desc')">↓ Decrescente</button></div><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('resp_custo',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('resp_custo')">OK</button></div></div></th>
+          <th style="background:#217346;border:1px solid #155a32;padding:0;position:relative;"><div style="display:flex;align-items:center;padding:2px 4px;min-height:22px;"><span style="flex:1;color:#fff;font-size:9px;font-weight:600;" id="rev-th-label-rp_faturada">RP Faturada?</span><button style="background:rgba(0,0,0,.25);border:none;color:#fff;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;margin-left:2px;" onclick="event.stopPropagation();revXlOpenFilter('rp_faturada',this)" data-rev-filter="rp_faturada">▾</button></div><div class="xl-filter-dd" id="rev-xl-dd-rp_faturada"><div class="xl-sort-row"><button onclick="revXlSort('rp_faturada','asc')">↑ Crescente</button><button onclick="revXlSort('rp_faturada','desc')">↓ Decrescente</button></div><input type="text" placeholder="Buscar..."><div class="xl-filter-list"></div><div class="xl-filter-footer"><button onclick="revXlToggleAll('rp_faturada',{checked:true})">Tudo</button><button class="ok" onclick="revXlOK('rp_faturada')">OK</button></div></div></th>
           <th style="background:#217346;border:1px solid #155a32;padding:3px 6px;font-size:9px;color:#fff;font-weight:600;">OBS</th>
           <th style="background:#217346;border:1px solid #155a32;width:50px;"></th>
         </tr>
@@ -15037,8 +15038,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <th style="background:#065f46;font-size:9px;color:rgba(255,255,255,.8);padding:3px 4px;">Aprov.?</th>
           <th style="background:#065f46;font-size:9px;color:rgba(255,255,255,.8);padding:3px 4px;" class="num">Vlr a Cobrar</th>
           <th style="background:#065f46;font-size:9px;color:rgba(255,255,255,.8);padding:3px 4px;">Faturado?</th>
-          <!-- finais -->
-          <th></th><th></th><th></th>
+          <!-- finais (resp_custo, rp_faturada, obs, ações) -->
+          <th></th><th></th><th></th><th></th>
         </tr>
       </thead>
       <tbody id="rev-tbody"></tbody>
@@ -15059,8 +15060,8 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <div class="cron-mbody" style="overflow-y:auto;">
 
-      <!-- Linha 1: Cliente / Data RP / Descrição / 💼 Resp. pelo Custo -->
-      <div style="display:grid;grid-template-columns:1.5fr 120px 1fr 1fr;gap:.45rem;margin-bottom:.45rem;">
+      <!-- Linha 1: Cliente / Data RP / Descrição / 💼 Resp. pelo Custo / 🧾 RP Faturada? -->
+      <div style="display:grid;grid-template-columns:1.3fr 115px 1fr 1fr 95px;gap:.45rem;margin-bottom:.45rem;">
         <div class="field-group">
           <label class="field-label">🏢 Cliente *</label>
           <input class="field-input" id="rev-m-cliente" placeholder="Ex: S169-VALMET" list="rev-m-cliente-list" autocomplete="off" onfocus="revPopularClientes()" oninput="revPopularClientes()">
@@ -15080,6 +15081,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <option value="">—</option>
             <option value="Cliente">Cliente</option>
             <option value="Sidertec">Sidertec</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">🧾 RP Faturada?</label>
+          <select class="field-input" id="rev-m-rp-faturada">
+            <option value="">—</option>
+            <option value="SIM">SIM</option>
+            <option value="NÃO">NÃO</option>
           </select>
         </div>
       </div>
@@ -15263,6 +15272,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <th style="padding:4px 6px;text-align:right;position:sticky;top:0;background:#065f46;">Vlr a Cobrar</th>
                 <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#065f46;">Faturado?</th>
                 <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#3b0764;">Resp. Custo</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#3b0764;">RP Faturada?</th>
                 <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">OBS</th>
               </tr>
             </thead>
@@ -15473,6 +15483,19 @@ document.addEventListener('DOMContentLoaded', function() {
             <option value="">— Selecione —</option>
             <option value="Cliente">Cliente</option>
             <option value="Sidertec">Sidertec</option>
+          </select>
+        </div>
+
+        <!-- RP Faturada? -->
+        <div class="field-group" style="margin-bottom:0;">
+          <label class="field-label" style="display:flex;align-items:center;gap:6px;font-size:10px;">
+            <input type="checkbox" id="revlote-chk-rp-faturada" onchange="document.getElementById('revlote-rp-faturada').disabled=!this.checked;" style="accent-color:#7c3aed;width:13px;height:13px;">
+            🧾 Alterar RP Faturada?
+          </label>
+          <select class="field-input" id="revlote-rp-faturada" disabled="">
+            <option value="">— Selecione —</option>
+            <option value="SIM">SIM</option>
+            <option value="NÃO">NÃO</option>
           </select>
         </div>
 
@@ -15763,7 +15786,7 @@ function renderRevisoes(){
   var tbody=document.getElementById('rev-tbody');
   if(!tbody) return;
   if(!filtered.length){
-    tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhuma revisão encontrada.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="21" style="text-align:center;padding:2rem;color:var(--ink3);">Nenhuma revisão encontrada.</td></tr>';
     return;
   }
 
@@ -15794,6 +15817,7 @@ function renderRevisoes(){
       '<td style="text-align:center;">'+_badge(r.faturado)+'</td>'+
       // finais
       '<td style="text-align:center;font-size:10px;font-weight:600;color:'+(r.resp_custo==='Cliente'?'var(--blue)':r.resp_custo==='Sidertec'?'var(--accent)':'var(--ink3)')+';">'+( r.resp_custo||'—')+'</td>'+
+      '<td style="text-align:center;">'+_badge(r.rp_faturada)+'</td>'+
       '<td style="font-size:9px;color:var(--ink3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(r.obs||'')+'">'+( r.obs||'')+'</td>'+
       '<td style="white-space:nowrap;" onclick="event.stopPropagation()">'+
         '<button class="rev-edit-btn" onclick="editarRevisao(\''+r.id+'\')" title="Editar">✏</button> '+
@@ -15806,7 +15830,7 @@ function renderRevisoes(){
   var tfoot=document.getElementById('rev-tfoot');
   var totalVlrCobrar=filtered.reduce(function(a,r){return a+(r.valor_cobrar||0);},0);
   if(tfoot){
-    // cols: cliente | data_rp | descr | tag | motivo | eng | qtd_hh | vlr_hh | total_rp | data_eng | aprov_eng | data_lib | status_lib | aprov_cli | vlr_cobrar | faturado | resp_custo | obs | ações
+    // cols: cliente | data_rp | descr | tag | motivo | eng | qtd_hh | vlr_hh | total_rp | data_eng | aprov_eng | data_lib | status_lib | aprov_cli | vlr_cobrar | faturado | resp_custo | rp_faturada | obs | ações
     tfoot.innerHTML='<tr>'+
       '<td></td>'+
       '<td colspan="6" style="color:#fff;font-size:10px;letter-spacing:.04em;text-transform:uppercase;">TOTAL — '+filtered.length+' revisões</td>'+
@@ -15815,7 +15839,7 @@ function renderRevisoes(){
       '<td colspan="4"></td>'+
       '<td></td>'+
       '<td class="num" style="color:#6ee7b7;font-weight:700;">'+_fmtMoney(totalVlrCobrar)+'</td>'+
-      '<td colspan="4"></td>'+
+      '<td colspan="5"></td>'+
     '</tr>';
   }
 }
@@ -15834,7 +15858,7 @@ function abrirModalNovaRevisao(){
   ['rev-m-qtd-hh','rev-m-valor-hh','rev-m-valor','rev-m-valor-lib','rev-m-valor-cobrar'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
-  ['rev-m-aprov-eng','rev-m-eng-sid-aprov','rev-m-status-lib','rev-m-aprov-cli','rev-m-resp-custo','rev-m-faturado'].forEach(function(id){
+  ['rev-m-aprov-eng','rev-m-eng-sid-aprov','rev-m-status-lib','rev-m-aprov-cli','rev-m-resp-custo','rev-m-faturado','rev-m-rp-faturada'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('modal-revisao').classList.add('show');
@@ -15867,6 +15891,7 @@ function editarRevisao(id){
   document.getElementById('rev-m-aprov-cli').value=r.aprov_cli||'';
   document.getElementById('rev-m-resp-custo').value=r.resp_custo||'';
   document.getElementById('rev-m-faturado').value=r.faturado||'';
+  document.getElementById('rev-m-rp-faturada').value=r.rp_faturada||'';
   var elVc=document.getElementById('rev-m-valor-cobrar');
   if(elVc) elVc.value=r.valor_cobrar||'';
   document.getElementById('rev-m-obs').value=r.obs||'';
@@ -15951,6 +15976,7 @@ function salvarRevisao(){
     status_lib: document.getElementById('rev-m-status-lib').value,
     aprov_cli: document.getElementById('rev-m-aprov-cli').value,
     resp_custo: document.getElementById('rev-m-resp-custo').value,
+    rp_faturada: (document.getElementById('rev-m-rp-faturada')?.value||''),
     faturado: document.getElementById('rev-m-faturado').value,
     valor_cobrar: parseFloat(document.getElementById('rev-m-valor-cobrar')?.value)||0,
     obs: document.getElementById('rev-m-obs').value.trim(),
@@ -16032,6 +16058,7 @@ var _REV_LOTE_FIELDS = [
   {chk:'revlote-chk-valor-cobrar', input:'revlote-valor-cobrar', key:'valor_cobrar', type:'number'},
   {chk:'revlote-chk-faturado',     input:'revlote-faturado',     key:'faturado',     type:'select'},
   {chk:'revlote-chk-resp-custo',   input:'revlote-resp-custo',   key:'resp_custo',   type:'select'},
+  {chk:'revlote-chk-rp-faturada',  input:'revlote-rp-faturada',  key:'rp_faturada',  type:'select'},
   {chk:'revlote-chk-obs',          input:'revlote-obs',          key:'obs',          type:'textarea'}
 ];
 
@@ -16061,6 +16088,7 @@ function abrirModalRevLote(){
       '<td style="padding:3px 6px;text-align:right;font-weight:700;color:#065f46;">'+(r.valor_cobrar>0?_fmtMoney(r.valor_cobrar):'—')+'</td>'+
       '<td style="padding:3px 6px;text-align:center;">'+_badge(r.faturado)+'</td>'+
       '<td style="padding:3px 6px;text-align:center;font-weight:600;color:'+(r.resp_custo==='Cliente'?'var(--blue)':r.resp_custo==='Sidertec'?'var(--accent)':'var(--ink3)')+';">'+(r.resp_custo||'—')+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;">'+_badge(r.rp_faturada)+'</td>'+
       '<td style="padding:3px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="'+(r.obs||'')+'">'+(r.obs||'')+'</td>'+
     '</tr>';
   }).join('');
@@ -16081,7 +16109,7 @@ function abrirModalRevLote(){
       '<td style="padding:4px 6px;text-align:right;">'+fmtHH(totalHH)+'</td>'+
       '<td></td>'+
       '<td style="padding:4px 6px;text-align:right;color:#5b21b6;">'+_fmtMoney(totalValor)+'</td>'+
-      '<td colspan="9"></td>'+
+      '<td colspan="10"></td>'+
     '</tr>';
   }
 
@@ -16134,9 +16162,9 @@ function aplicarRevLote(){
 }
 
 function exportarRevisoesCSV(){
-  var headers=['Cliente','Data RP','Descr.','Qtd HH','Valor HH','Valor RP','TAG Sidertec','Motivo','Data Rev. Eng.','Aprov. Eng.','Data Lib. Fab.','Status Lib.','Aprov. Cliente','Resp. Custo','Faturado','Valor a Cobrar','OBS'];
+  var headers=['Cliente','Data RP','Descr.','Qtd HH','Valor HH','Valor RP','TAG Sidertec','Motivo','Data Rev. Eng.','Aprov. Eng.','Data Lib. Fab.','Status Lib.','Aprov. Cliente','Resp. Custo','RP Faturada?','Faturado','Valor a Cobrar','OBS'];
   var rows=_revisoes.map(function(r){
-    return [r.cliente,_fmtDateBR(r.data_rp),r.descr,r.qtd_hh||'',r.valor_hh||'',r.valor_rp||'',r.tag,r.motivo,_fmtDateBR(r.data_eng),r.aprov_eng,_fmtDateBR(r.data_lib),r.status_lib,r.aprov_cli,r.resp_custo,r.faturado,r.valor_cobrar||'',r.obs]
+    return [r.cliente,_fmtDateBR(r.data_rp),r.descr,r.qtd_hh||'',r.valor_hh||'',r.valor_rp||'',r.tag,r.motivo,_fmtDateBR(r.data_eng),r.aprov_eng,_fmtDateBR(r.data_lib),r.status_lib,r.aprov_cli,r.resp_custo,r.rp_faturada,r.faturado,r.valor_cobrar||'',r.obs]
       .map(function(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');
   });
   var csv='\uFEFF'+headers.map(function(h){return '"'+h+'"';}).join(',')+'\n'+rows.join('\n');
