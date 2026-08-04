@@ -15210,7 +15210,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Modal Alterar Revisões em Lote -->
 <div class="cron-modal-overlay" id="modal-rev-lote" onclick="if(event.target===this)fecharModalRevLote()">
-  <div class="cron-modal-box" onclick="event.stopPropagation()" style="width:640px;max-width:97vw;max-height:88vh;display:flex;flex-direction:column;">
+  <div class="cron-modal-box" onclick="event.stopPropagation()" style="width:1180px;max-width:97vw;max-height:90vh;display:flex;flex-direction:column;">
     <div class="cron-mhd" style="background:linear-gradient(135deg,#3b0764,#7c3aed);">
       <div style="flex:1;">
         <div class="cron-mhd-title">🔀 Alterar Revisões em Lote</div>
@@ -15220,10 +15220,57 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <div class="cron-mbody" style="overflow-y:auto;flex:1;padding:1rem 1.1rem;">
 
-      <!-- TAGs selecionadas -->
-      <div class="field-group" style="margin-bottom:.9rem;">
+      <!-- Tabela com todas as colunas do controle, para as revisões selecionadas -->
+      <div class="field-group" style="margin-bottom:.7rem;">
         <label class="field-label">Revisões que serão alteradas</label>
-        <div id="rev-lote-chips" style="display:flex;flex-wrap:wrap;gap:4px;max-height:100px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:.5rem;"></div>
+        <div style="overflow:auto;max-height:280px;border:1px solid var(--border);border-radius:var(--r2);">
+          <table style="width:100%;border-collapse:collapse;font-size:9px;white-space:nowrap;">
+            <thead>
+              <tr style="background:#3b0764;color:#fff;">
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">Cliente</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">Data RP</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">Descrição</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">TAG</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">Motivo</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#3b0764;">Engenharia</th>
+                <th style="padding:4px 6px;text-align:right;position:sticky;top:0;background:#5b21b6;">Qtd HH</th>
+                <th style="padding:4px 6px;text-align:right;position:sticky;top:0;background:#5b21b6;">Vlr HH</th>
+                <th style="padding:4px 6px;text-align:right;position:sticky;top:0;background:#5b21b6;">Total</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#1e3a5f;">Data Rev.</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#1e3a5f;">Aprov.?</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#1a3a1a;">Data Lib.</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#1a3a1a;">Status</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#065f46;">Aprov.?</th>
+                <th style="padding:4px 6px;text-align:right;position:sticky;top:0;background:#065f46;">Vlr a Cobrar</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#065f46;">Faturado?</th>
+                <th style="padding:4px 6px;text-align:center;position:sticky;top:0;background:#3b0764;">Resp. Custo</th>
+                <th style="padding:4px 6px;text-align:left;position:sticky;top:0;background:#3b0764;">OBS</th>
+              </tr>
+            </thead>
+            <tbody id="rev-lote-tbody"></tbody>
+            <tfoot id="rev-lote-tfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resumo de totais -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:.9rem;">
+        <div style="background:#ede9fe;border-radius:var(--r2);padding:.55rem .7rem;">
+          <div style="font-size:8px;color:#5b21b6;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Total Qtd HH</div>
+          <div id="rev-lote-total-hh" style="font-size:14px;font-weight:700;color:#3b0764;">0,0</div>
+        </div>
+        <div style="background:#ede9fe;border-radius:var(--r2);padding:.55rem .7rem;">
+          <div style="font-size:8px;color:#5b21b6;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Total Valor RP</div>
+          <div id="rev-lote-total-valor" style="font-size:14px;font-weight:700;color:#3b0764;">R$ 0,00</div>
+        </div>
+        <div style="background:#dbeafe;border-radius:var(--r2);padding:.55rem .7rem;">
+          <div style="font-size:8px;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Soma Custo Resp. Sidertec</div>
+          <div id="rev-lote-total-sidertec" style="font-size:14px;font-weight:700;color:#1e3a5f;">R$ 0,00</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:var(--r2);padding:.55rem .7rem;">
+          <div style="font-size:8px;color:#166534;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">Soma Custo Resp. Cliente</div>
+          <div id="rev-lote-total-cliente" style="font-size:14px;font-weight:700;color:#065f46;">R$ 0,00</div>
+        </div>
       </div>
 
       <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
@@ -15816,9 +15863,52 @@ function abrirModalRevLote(){
   if(!_revSelectedIds.size){ if(typeof showToast==='function') showToast('Nenhuma selecionada','Marque ao menos uma revisão.','warn'); return; }
   var subs = _revisoes.filter(function(r){ return _revSelectedIds.has(r.id); });
   document.getElementById('rev-lote-label').textContent = subs.length+' revisão'+(subs.length!==1?'ões':'')+' selecionada'+(subs.length!==1?'s':'');
-  document.getElementById('rev-lote-chips').innerHTML = subs.map(function(r){
-    return '<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:2px 7px;font-size:10px;font-weight:600;">'+r.tag+'</span>';
+
+  // Tabela com todas as colunas do controle, para as revisões selecionadas
+  var fmtHH = function(v){ return v>0 ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '—'; };
+  document.getElementById('rev-lote-tbody').innerHTML = subs.map(function(r){
+    return '<tr>'+
+      '<td style="padding:3px 6px;"><strong>'+(r.cliente||'—')+'</strong></td>'+
+      '<td style="padding:3px 6px;font-family:\'DM Mono\',monospace;">'+_fmtDateBR(r.data_rp)+'</td>'+
+      '<td style="padding:3px 6px;font-family:\'DM Mono\',monospace;">'+(r.descr||'—')+'</td>'+
+      '<td style="padding:3px 6px;"><code style="background:var(--bg2);border-radius:3px;padding:1px 5px;">'+(r.tag||'—')+'</code></td>'+
+      '<td style="padding:3px 6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;" title="'+(r.motivo||'')+'">'+(r.motivo||'—')+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;font-weight:700;">'+(r.eng||'—')+'</td>'+
+      '<td style="padding:3px 6px;text-align:right;">'+fmtHH(r.qtd_hh)+'</td>'+
+      '<td style="padding:3px 6px;text-align:right;">'+(r.valor_hh>0?_fmtMoney(r.valor_hh):'—')+'</td>'+
+      '<td style="padding:3px 6px;text-align:right;font-weight:700;color:#5b21b6;">'+_fmtMoney(r.valor_rp)+'</td>'+
+      '<td style="padding:3px 6px;">'+_fmtDateBR(r.data_eng)+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;">'+_badge(r.aprov_eng)+'</td>'+
+      '<td style="padding:3px 6px;">'+_fmtDateBR(r.data_lib)+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;">'+_badge(r.status_lib)+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;">'+_badge(r.aprov_cli)+'</td>'+
+      '<td style="padding:3px 6px;text-align:right;font-weight:700;color:#065f46;">'+(r.valor_cobrar>0?_fmtMoney(r.valor_cobrar):'—')+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;">'+_badge(r.faturado)+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;font-weight:600;color:'+(r.resp_custo==='Cliente'?'var(--blue)':r.resp_custo==='Sidertec'?'var(--accent)':'var(--ink3)')+';">'+(r.resp_custo||'—')+'</td>'+
+      '<td style="padding:3px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="'+(r.obs||'')+'">'+(r.obs||'')+'</td>'+
+    '</tr>';
   }).join('');
+
+  // Totais: horas, valor RP, e custo por responsável
+  var totalHH = subs.reduce(function(a,r){ return a+(r.qtd_hh||0); },0);
+  var totalValor = subs.reduce(function(a,r){ return a+(r.valor_rp||0); },0);
+  var totalSidertec = subs.filter(function(r){ return r.resp_custo==='Sidertec'; }).reduce(function(a,r){ return a+(r.valor_rp||0); },0);
+  var totalCliente = subs.filter(function(r){ return r.resp_custo==='Cliente'; }).reduce(function(a,r){ return a+(r.valor_rp||0); },0);
+  document.getElementById('rev-lote-total-hh').textContent = fmtHH(totalHH);
+  document.getElementById('rev-lote-total-valor').textContent = _fmtMoney(totalValor);
+  document.getElementById('rev-lote-total-sidertec').textContent = _fmtMoney(totalSidertec);
+  document.getElementById('rev-lote-total-cliente').textContent = _fmtMoney(totalCliente);
+  var tfoot = document.getElementById('rev-lote-tfoot');
+  if(tfoot){
+    tfoot.innerHTML = '<tr style="background:#f3f0ff;font-weight:700;">'+
+      '<td colspan="6" style="padding:4px 6px;text-align:right;">TOTAL — '+subs.length+' revisão'+(subs.length!==1?'ões':'')+'</td>'+
+      '<td style="padding:4px 6px;text-align:right;">'+fmtHH(totalHH)+'</td>'+
+      '<td></td>'+
+      '<td style="padding:4px 6px;text-align:right;color:#5b21b6;">'+_fmtMoney(totalValor)+'</td>'+
+      '<td colspan="9"></td>'+
+    '</tr>';
+  }
+
   // Reseta todos os campos do modal
   [['revlote-chk-aprov-eng','revlote-aprov-eng'],['revlote-chk-status-lib','revlote-status-lib'],['revlote-chk-resp-custo','revlote-resp-custo'],['revlote-chk-aprov-cli','revlote-aprov-cli']].forEach(function(p){
     document.getElementById(p[0]).checked=false;
