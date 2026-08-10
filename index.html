@@ -5095,7 +5095,7 @@ function etapaSet(key,campo,valor){
         upd[col] = valor || null;
         // Atualiza array em memória
         var i = allCronSubobras.findIndex(function(x){return x.id===editingCronId;});
-        if(i>=0) allCronSubobras[i] = Object.assign({},allCronSubobras[i],upd);
+        if(i>=0) allCronSubobras[i] = normalizarStatusLegado(Object.assign({},allCronSubobras[i],upd));
         // Salva no Supabase
         sbClient.from('cronograma_subobras').update(upd).eq('id',editingCronId).select()
           .then(function(r){ if(r.error) console.warn('[etapaSet]',r.error.message); })
@@ -5128,7 +5128,7 @@ function etapaSetResultado(key,val){
       _etapasState[key].concluido = conc;
     }
     var i = allCronSubobras.findIndex(function(x){ return x.id===editingCronId; });
-    if(i>=0) allCronSubobras[i] = Object.assign({}, allCronSubobras[i], upd);
+    if(i>=0) allCronSubobras[i] = normalizarStatusLegado(Object.assign({}, allCronSubobras[i], upd));
     sbClient.from('cronograma_subobras').update(upd).eq('id', editingCronId).select()
       .then(function(r){ if(r.error) console.warn('[etapaSetResultado]', r.error.message); })
       .catch(function(e){ console.warn('[etapaSetResultado]', e.message); });
@@ -5148,7 +5148,7 @@ function etapaToggleMontagemNA(){
     var upd={montagem_na:novoVal, atualizado_em:new Date().toISOString()};
     if(novoVal){upd.prev_montagem=null;upd.real_montagem=null;}
     var i=allCronSubobras.findIndex(function(x){return x.id===editingCronId;});
-    if(i>=0) allCronSubobras[i]=Object.assign({},allCronSubobras[i],upd);
+    if(i>=0) allCronSubobras[i]=normalizarStatusLegado(Object.assign({},allCronSubobras[i],upd));
     sbClient.from('cronograma_subobras').update(upd).eq('id',editingCronId).select()
       .then(function(r){if(r.error)console.warn('[montagemNA]',r.error.message);})
       .catch(function(e){console.warn('[montagemNA]',e.message);});
@@ -5392,7 +5392,7 @@ function _telhaToggleNA(cronId){
     var upd={telha_na:novoVal, atualizado_em:new Date().toISOString()};
     if(novoVal){upd.prev_proj_telha=null;upd.real_proj_telha=null;}
     var i=allCronSubobras.findIndex(function(x){return x.id===cronId;});
-    if(i>=0) allCronSubobras[i]=Object.assign({},allCronSubobras[i],upd);
+    if(i>=0) allCronSubobras[i]=normalizarStatusLegado(Object.assign({},allCronSubobras[i],upd));
     sbClient.from('cronograma_subobras').update(upd).eq('id',cronId).select()
       .then(function(r){if(r.error)console.warn('[telhaNA]',r.error.message);})
       .catch(function(e){console.warn('[telhaNA]',e.message);});
@@ -5464,7 +5464,7 @@ function _salvarEtapaImediato(key, novoStatus){
   }
   _lsSet('cronograma_subobras', rows);
   var idx = allCronSubobras.findIndex(function(x){ return x.id === editingCronId; });
-  if(idx >= 0) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], updates);
+  if(idx >= 0) allCronSubobras[idx] = normalizarStatusLegado(Object.assign({}, allCronSubobras[idx], updates));
   // Salva no Supabase em background
   sbClient.from('cronograma_subobras').eq('id', editingCronId).update(updates).select()
     .then(function(r){ if(r.error) console.warn('[etapa] Supabase:', r.error.message); })
@@ -5546,11 +5546,28 @@ const STATUS_LEGADO_MAP = {
 };
 function normalizarStatusLegado(s){
   if(!s) return s;
+  var out = s;
   var st = s.status;
   if(st && STATUS_LEGADO_MAP[st] && STATUS_LEGADO_MAP[st] !== st){
-    return Object.assign({}, s, {status: STATUS_LEGADO_MAP[st]});
+    out = Object.assign({}, s, {status: STATUS_LEGADO_MAP[st]});
   }
-  return s;
+  // Sub-obras "FORA DE ESCOPO" não serão executadas: tratamos todas as
+  // etapas como concluídas (100% de avanço) e sem exigir liberação real,
+  // sem alterar as datas gravadas no banco — isso é só normalização em
+  // memória para exibição/cálculo (aplicada sempre que os dados são
+  // recarregados, em carregarCronograma()).
+  if((out.status||'') === 'FORA DE ESCOPO'){
+    out = Object.assign({}, out, {
+      conc_basico:true, conc_envio_detail:true, conc_materia_prima:true,
+      conc_envio_modelo:true, conc_resumo_mp:true, conc_retorno_modelo:true,
+      conc_pcte_fab:true, conc_inspecao_interna:true, conc_lib_fab:true,
+      conc_diagramas:true, conc_desenhos_fab:true, conc_diagrama_mont:true,
+      conc_proj_telha:true, conc_fabricacao:true, conc_preparacao:true,
+      conc_inspecao_fab:true, conc_pintura:true, conc_expedicao:true,
+      conc_montagem:true
+    });
+  }
+  return out;
 }
 
 // ── Limpa sub-obras DUPLICADAS de verdade no banco (mesma Obra+TAG salva
@@ -6093,7 +6110,7 @@ function renderCronograma(){
       }
     }
     // Filtro rapido por stat hero: andamento = exclui finalizadas
-    if(window._cronStatFilter === 'andamento' && ['LIB. FABRICAÇÃO','AG. DOCUMENTOS'].includes(s.status)) return false;
+    if(window._cronStatFilter === 'andamento' && ['LIB. FABRICAÇÃO','AG. DOCUMENTOS','FORA DE ESCOPO'].includes(s.status)) return false;
     return true;
   }).sort((a,b) => (a.subobra||'').localeCompare(b.subobra||'', 'pt-BR', {numeric:true}));
 
@@ -6109,7 +6126,7 @@ function renderCronograma(){
   const subsKpi = subs; // lista completamente filtrada
   const subsKpiObra = obraF ? allCronSubobras.filter(s=>s.obra===obraF) : allCronSubobras; // só filtro de obra (para referência total)
   const total     = subsKpi.length;
-  const andamento = subsKpi.filter(s=>!['LIB. FABRICAÇÃO','AG. DOCUMENTOS'].includes(s.status)).length;
+  const andamento = subsKpi.filter(s=>!['LIB. FABRICAÇÃO','AG. DOCUMENTOS','FORA DE ESCOPO'].includes(s.status)).length;
   const liberadas = subsKpi.filter(s=>s.status==='LIB. FABRICAÇÃO').length;
   const hold      = subsKpi.filter(s=>s.status==='HOLD').length;
   [['cron-stat-total',total],['cron-stat-andamento',andamento],['cron-stat-liberadas',liberadas],['cron-stat-hold',hold]].forEach(([id,val])=>{
@@ -6151,7 +6168,7 @@ function renderCronograma(){
   // Limite crítico — usa base total da obra (não filtrada por status/data) para não confundir
   const hojeKpi = new Date(); hojeKpi.setHours(0,0,0,0);
   const subsParaLimCrit = obraF ? allCronSubobras.filter(s=>s.obra===obraF) : allCronSubobras;
-  const limCritKpi = subsParaLimCrit.filter(s=>s.data_limite_fab && !s.real_lib_fab && Math.round((new Date(s.data_limite_fab+'T12:00:00')-hojeKpi)/86400000)<=7).length;
+  const limCritKpi = subsParaLimCrit.filter(s=>(s.status||'')!=='FORA DE ESCOPO' && s.data_limite_fab && !s.real_lib_fab && Math.round((new Date(s.data_limite_fab+'T12:00:00')-hojeKpi)/86400000)<=7).length;
   const elLimCrit = document.getElementById('cron-stat-lim-crit'); if(elLimCrit) elLimCrit.textContent=limCritKpi;
   // Only render views if cronograma page is active
   const cronKanban = document.getElementById('cron-kanban-view');
@@ -8447,7 +8464,7 @@ async function _importarAvançoBatch(resultados){
       }
     });
     if(pcpAutoPreenchido) pcpAutoPreenchidoCount++;
-    allCronSubobras[idx]=Object.assign({},sub,payload);
+    allCronSubobras[idx]=normalizarStatusLegado(Object.assign({},sub,payload));
     try{
       var r=await sbClient.from('cronograma_subobras').update(payload).eq('id',sub.id).select();
       if(r.error) erros.push(tag+': '+r.error.message);
@@ -8606,7 +8623,7 @@ async function processarImportacao(rows, tipo){
       else {
         ok++;
         const i=allCronSubobras.findIndex(x=>x.id===exists.id);
-        if(i>=0){ allCronSubobras[i]={...allCronSubobras[i],...payload}; }
+        if(i>=0){ allCronSubobras[i]=normalizarStatusLegado({...allCronSubobras[i],...payload}); }
         if(limFabRow){ allCronSubobras[i>=0?i:0].data_limite_fab=limFabRow; salvarLimiteFabLocal(exists.id, limFabRow); }
         if(pesoDetRow!=null){ salvarPesoDetLocal(exists.id, pesoDetRow); if(i>=0) allCronSubobras[i].peso_detalhado=pesoDetRow; }
       }
@@ -9412,7 +9429,7 @@ function gerarRelatorioCompleto(){
         <td style="color:#f5c89a;padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${totBas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</td>
         <td style="color:#93c5fd;padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${totDet>0?totDet.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
         <td style="color:#fdba74;padding:4px 5px;text-align:right;font-size:8px;font-family:'Courier New';">${totPcp>0?totPcp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg':'—'}</td>
-        <td style="color:#fde68a;padding:4px 4px;text-align:center;font-size:7px;">${subs.filter(s=>s.data_limite_fab&&!s.real_lib_fab&&Math.round((new Date(s.data_limite_fab+'T12:00:00')-new Date())/86400000)<=7).length} críticos</td>
+        <td style="color:#fde68a;padding:4px 4px;text-align:center;font-size:7px;">${subs.filter(s=>(s.status||'')!=='FORA DE ESCOPO'&&s.data_limite_fab&&!s.real_lib_fab&&Math.round((new Date(s.data_limite_fab+'T12:00:00')-new Date())/86400000)<=7).length} críticos</td>
       </tr></tfoot>
     </table>`;
 
@@ -10824,7 +10841,7 @@ async function salvarAndamento(){
     if(idx>=0){
       if(data && data[0]){
         // Preserva campos locais (peso_detalhado, etc)
-        allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], data[0]);
+        allCronSubobras[idx] = normalizarStatusLegado(Object.assign({}, allCronSubobras[idx], data[0]));
       } else {
         // Aplica updates diretamente se localStorage não retornou data
         Object.assign(allCronSubobras[idx], updates);
@@ -11166,7 +11183,7 @@ async function aplicarLote(){
       var idx = allCronSubobras.findIndex(function(x){return String(x.id)===String(s.id);});
       var _novoRegistro = null;
       if(idx>=0){
-        if(data && data[0]) allCronSubobras[idx] = Object.assign({}, allCronSubobras[idx], data[0]);
+        if(data && data[0]) allCronSubobras[idx] = normalizarStatusLegado(Object.assign({}, allCronSubobras[idx], data[0]));
         else Object.assign(allCronSubobras[idx], updates);
         _novoRegistro = allCronSubobras[idx];
       }
@@ -13617,6 +13634,7 @@ function atualizarAlerteLimiteFab(){
   var pillTxt = document.getElementById("cron-alerta-pill-txt");
   if(!banner || !lista) return;
   var conflitos = (allCronSubobras||[]).filter(function(s){
+    if((s.status||'')==='FORA DE ESCOPO') return false;
     if(!s.data_limite_fab || !s.prev_lib_fab) return false;
     if(s.real_lib_fab) return false;
     var lim  = new Date(s.data_limite_fab+"T12:00:00");
@@ -13786,6 +13804,7 @@ function buildDashboardCM(){
     }).length;
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const limCrit = subs.filter(s => {
+      if((s.status_atual||s.status||'')==='FORA DE ESCOPO') return false;
       if(!s.data_limite_fab) return false;
       const d = new Date(s.data_limite_fab + 'T12:00:00');
       return d <= new Date(hoje.getTime() + 7*86400000);
@@ -13893,13 +13912,14 @@ function renderDashEquipes(){
   var byEquipe = {};
   subs.forEach(function(s){
     var eq = (s.equipe || '— Sem equipe —').trim();
-    if(!byEquipe[eq]) byEquipe[eq] = {total:0, liberadas:0, hold:0, andamento:0, obras:new Set(), subs:[]};
+    if(!byEquipe[eq]) byEquipe[eq] = {total:0, liberadas:0, hold:0, andamento:0, foraEscopo:0, obras:new Set(), subs:[]};
     byEquipe[eq].total++;
     byEquipe[eq].obras.add(s.obra);
     byEquipe[eq].subs.push(s);
     var st = s.status || '';
     if(st.includes('LIB')) byEquipe[eq].liberadas++;
     else if(st.includes('HOLD')) byEquipe[eq].hold++;
+    else if(st.includes('ESCOPO')) byEquipe[eq].foraEscopo++;
     else byEquipe[eq].andamento++;
   });
 
@@ -13941,12 +13961,14 @@ function renderDashEquipes(){
         +(d.liberadas>0?'<div style="flex:'+d.liberadas+';background:#2A7A4A;" title="Liberadas: '+d.liberadas+'"></div>':'')
         +(d.andamento>0?'<div style="flex:'+d.andamento+';background:'+cor+';" title="Em andamento: '+d.andamento+'"></div>':'')
         +(d.hold>0?'<div style="flex:'+d.hold+';background:#C0392B;" title="Hold: '+d.hold+'"></div>':'')
+        +(d.foraEscopo>0?'<div style="flex:'+d.foraEscopo+';background:#94a3b8;" title="Fora de escopo: '+d.foraEscopo+'"></div>':'')
       +'</div>'
       // Contadores
       +'<div style="display:flex;gap:.4rem;margin-bottom:.5rem;flex-wrap:wrap;">'
         +(d.liberadas>0?'<span style="font-size:9px;font-weight:700;background:#dcfce7;color:#166534;border-radius:3px;padding:1px 6px;">🔩 '+d.liberadas+' lib.</span>':'')
         +(d.andamento>0?'<span style="font-size:9px;font-weight:700;background:var(--blue2);color:var(--blue);border-radius:3px;padding:1px 6px;">⚙ '+d.andamento+' and.</span>':'')
         +(d.hold>0?'<span style="font-size:9px;font-weight:700;background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 6px;">⏸ '+d.hold+' hold</span>':'')
+        +(d.foraEscopo>0?'<span style="font-size:9px;font-weight:700;background:#f1f5f9;color:#475569;border-radius:3px;padding:1px 6px;">📌 '+d.foraEscopo+' fora esc.</span>':'')
       +'</div>'
       // Pesos
       +(pesoBas>0?'<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--ink3);border-top:1px solid var(--border);padding-top:.4rem;margin-top:.3rem;">'
