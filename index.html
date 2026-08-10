@@ -9982,21 +9982,36 @@ async function processarImportacao(rows, tipo){
       if(limFabRow) payload.data_limite_fab = limFabRow;
 
       // ── HISTÓRICO DE DATAS ──────────────────────────────────────────────────
-      // Antes de sobrescrever, registra no histórico qualquer campo de data
-      // que mudou — mesmo comportamento da atualização manual pelo modal
-      const _camposData = [
-        'prev_basico','prev_envio_detail','prev_materia_prima',
-        'prev_envio_modelo','prev_retorno_modelo',
-        'prev_pcte_fab','prev_lib_fab','prev_diagramas',
-        'prev_expedicao','prev_montagem','prev_rec_modelo','prev_resumo_mp',
-        'prev_inspecao_interna','data_limite_fab'
+      // Antes de sobrescrever, registra no histórico qualquer campo de data que
+      // mudou. IMPORTANTE: usa _dhRegisterFor (grava direto no localStorage da
+      // TAG sendo importada), e não _dhRegister (que grava sempre na TAG que
+      // estiver com o modal ABERTO na tela no momento). Durante uma importação
+      // em massa não há modal aberto para cada TAG — usar _dhRegister fazia o
+      // registro ir parar na TAG errada (ou em lugar nenhum), e ainda usava um
+      // formato de chave (subobra+coluna) diferente do que o popover 🕓 lê
+      // (etapa+campo). Resultado: mudanças feitas via importação de planilha
+      // nunca apareciam no histórico de reprogramações da TAG correta.
+      const _camposDataHist = [
+        {col:'prev_basico',            key:'basico'},
+        {col:'prev_envio_detail',      key:'envio_detail'},
+        {col:'prev_materia_prima',     key:'materia_prima'},
+        {col:'prev_envio_modelo',      key:'envio_modelo'},
+        {col:'prev_rec_modelo',        key:'rec_modelo'},
+        {col:'prev_resumo_mp',         key:'lista_resumo_mp'},
+        {col:'prev_retorno_modelo',    key:'retorno_modelo'},
+        {col:'prev_pcte_fab',          key:'pcte_fab'},
+        {col:'prev_inspecao_interna',  key:'inspecao_interna'},
+        {col:'prev_lib_fab',           key:'lib_fab'},
+        {col:'prev_diagramas',         key:'diagramas'},
+        {col:'prev_expedicao',         key:'expedicao'},
+        {col:'prev_montagem',          key:'montagem'},
+        {col:'data_limite_fab',        key:'__lim_fab__'}
       ];
-      const _keyHist = String(exists.id);
-      _camposData.forEach(function(campo){
-        var valorAntigo = exists[campo] || '';
-        var valorNovo   = payload[campo] || (campo==='data_limite_fab'&&limFabRow?limFabRow:'') || '';
+      _camposDataHist.forEach(function(hd){
+        var valorAntigo = exists[hd.col] || '';
+        var valorNovo   = payload[hd.col] || (hd.col==='data_limite_fab'&&limFabRow?limFabRow:'') || '';
         if(valorAntigo && valorNovo && valorAntigo !== valorNovo){
-          _dhRegister(_keyHist, campo, valorAntigo, valorNovo);
+          _dhRegisterFor(exists.id, hd.key, 'prev', valorAntigo, valorNovo);
         }
       });
       // ────────────────────────────────────────────────────────────────────────
