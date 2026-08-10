@@ -1130,7 +1130,9 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
     <div class="hub-bar-tab" id="hbt-revisoes" onclick="hubEngNav('revisoes',this)">🔄 Revisões</div>
     <div class="hub-bar-tab" id="hbt-libfab" onclick="hubEngNav('libfab',this)">🏭 Lib. Fabricação</div>
     <div class="hub-bar-tab" id="hbt-expedicao" onclick="hubEngNav('expedicao',this)">🚚 Expedição</div>
+    <div class="hub-bar-tab" id="hbt-controle-cliente" onclick="hubEngNav('controle-cliente',this)">🤝 Controle Cliente</div>
     <div class="hub-bar-tab" id="hbt-cotacao" onclick="abrirModalCotacaoEng()" style="color:#7c3aed;">📉 Cotação Eng.</div>
+    <div class="hub-bar-tab" id="hbt-tarefas" onclick="abrirModalTarefas()" style="color:#0d9488;">✅ Tarefas Semanais</div>
     <div class="hub-bar-tab" id="hbt-diario" onclick="hubEngNav('diario',this)">📅 Diário</div>
   </div>
 </div>
@@ -1336,6 +1338,11 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarAvançoFabricacao(this)">
     </label>
     <button class="cdoc-cmdbtn" onclick="downloadTemplateAvancoFab()" title="Baixar planilha modelo para preenchimento do Avanço Fab." style="background:#ea580c;">⬇</button>
+    <div class="cdoc-cmd-sep-v"></div>
+    <label class="cdoc-cmdbtn" style="background:#7c2d12;" title="Importar Data Limite Fábrica a partir da planilha do cliente (aba GERAL, coluna PREV. LIBERAÇÃO PARA FÁBRICA, casando por TAG)">
+      📅
+      <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarDataLimiteFab(this)">
+    </label>
     <div class="cdoc-cmd-sep-v"></div>
     <button class="cdoc-cmdbtn" onclick="abrirRelatorioCron()" title="Relatório" style="background:#7c3aed;">📊</button>
     <button class="cdoc-cmdbtn" onclick="_cronLimparDuplicatas()" title="Limpar sub-obras duplicadas no banco (mesma Obra+TAG salva mais de uma vez)" style="background:#be123c;">🧹</button>
@@ -2577,6 +2584,89 @@ ALTER TABLE medicao_terceiros
   </div>
 </div>
 
+<!-- ═══ MODAL TAREFAS SEMANAIS (SUPERVISÃO) ═══ -->
+<div class="cron-modal-overlay" id="modal-tarefas" onclick="if(event.target===this)fecharModalTarefas()">
+  <div class="cron-modal-box" style="width:1500px;max-width:98vw;height:94vh;max-height:94vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="cron-mhd">
+      <div style="flex:1;">
+        <div class="cron-mhd-title">✅ Tarefas Semanais — Supervisão</div>
+        <div class="cron-mhd-sub" id="ts-resumo-label">0 tarefa(s)</div>
+      </div>
+      <button onclick="fecharModalTarefas()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div class="cron-mbody" style="padding:1rem 1.25rem;overflow-y:hidden;flex:1;display:flex;flex-direction:column;min-height:0;max-height:none;">
+
+      <!-- KPIs dinâmicos (refletem os filtros aplicados) -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.75rem;flex-shrink:0;">
+        <div style="background:#f1f5f9;border-radius:6px;padding:.5rem .7rem;border-left:3px solid #475569;"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:700;">Total</div><div id="ts-kpi-total" style="font-size:20px;font-weight:700;font-family:Georgia,serif;color:#334155;">0</div></div>
+        <div style="background:#eff6ff;border-radius:6px;padding:.5rem .7rem;border-left:3px solid #1d4ed8;"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#1e40af;font-weight:700;">Em Andamento</div><div id="ts-kpi-andamento" style="font-size:20px;font-weight:700;font-family:Georgia,serif;color:#1d4ed8;">0</div></div>
+        <div style="background:#f0fdf4;border-radius:6px;padding:.5rem .7rem;border-left:3px solid #16a34a;"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#166534;font-weight:700;">Concluídas</div><div id="ts-kpi-concluida" style="font-size:20px;font-weight:700;font-family:Georgia,serif;color:#16a34a;">0</div></div>
+        <div style="background:#ecfdf5;border-radius:6px;padding:.5rem .7rem;border-left:3px solid #22c55e;"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#15803d;font-weight:700;">No Prazo</div><div id="ts-kpi-noprazo" style="font-size:20px;font-weight:700;font-family:Georgia,serif;color:#22c55e;">0</div></div>
+        <div style="background:#fef2f2;border-radius:6px;padding:.5rem .7rem;border-left:3px solid #dc2626;"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#991b1b;font-weight:700;">Em Atraso</div><div id="ts-kpi-atraso" style="font-size:20px;font-weight:700;font-family:Georgia,serif;color:#dc2626;">0</div></div>
+      </div>
+
+      <!-- Toolbar: nova tarefa + filtros + exportação -->
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;margin-bottom:.6rem;flex-shrink:0;">
+        <button onclick="novaTarefaSemanal()" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Nova Tarefa</button>
+        <div style="width:1px;height:18px;background:var(--border);"></div>
+        <span style="font-size:9px;color:var(--ink3);font-weight:600;">Responsável:</span>
+        <select id="ts-f-responsavel" onchange="renderTarefasSemanais()" style="font-size:11px;padding:3px 6px;"><option value="">Todos</option></select>
+        <span style="font-size:9px;color:var(--ink3);font-weight:600;">Status:</span>
+        <select id="ts-f-status" onchange="renderTarefasSemanais()" style="font-size:11px;padding:3px 6px;">
+          <option value="">Todos</option><option value="EM ANDAMENTO">Em Andamento</option><option value="CONCLUIDA">Concluída</option>
+        </select>
+        <span style="font-size:9px;color:var(--ink3);font-weight:600;">Situação:</span>
+        <select id="ts-f-substatus" onchange="renderTarefasSemanais()" style="font-size:11px;padding:3px 6px;">
+          <option value="">Todas</option><option value="NO PRAZO">No Prazo</option><option value="ATRASO">Atraso</option>
+        </select>
+        <input type="text" id="ts-f-busca" placeholder="Buscar tarefa…" oninput="renderTarefasSemanais()" style="font-size:11px;padding:3px 6px;width:160px;">
+        <div style="margin-left:auto;display:flex;gap:6px;">
+          <button onclick="gerarRelatorioTarefas()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;">📄 PDF</button>
+          <button onclick="exportarTarefasExcel()" style="background:#15803d;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;">📊 Excel</button>
+        </div>
+      </div>
+
+      <!-- Form inline de nova/editar tarefa -->
+      <div id="ts-form-box" style="display:none;background:#f8fafc;border:1px solid var(--border2);border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem;flex-shrink:0;">
+        <input type="hidden" id="ts-form-id">
+        <div style="display:grid;grid-template-columns:1.1fr 1.7fr .85fr .85fr .95fr .85fr;gap:.5rem;align-items:end;">
+          <div>
+            <label class="field-label" style="font-size:9px;">Responsável</label>
+            <select id="ts-form-responsavel-select" class="field-input" style="font-size:12px;" onchange="_tsRespSelectChange()">
+              <option value="Jenifer">Jenifer</option>
+              <option value="Luana">Luana</option>
+              <option value="Dayara">Dayara</option>
+              <option value="__outro__">+ Outro (digitar)</option>
+            </select>
+            <input type="text" id="ts-form-responsavel" class="field-input" style="font-size:12px;margin-top:4px;display:none;" placeholder="Digite o nome">
+          </div>
+          <div><label class="field-label" style="font-size:9px;">Tarefa</label><input type="text" id="ts-form-tarefa" class="field-input" style="font-size:12px;" placeholder="Descrição da tarefa"></div>
+          <div><label class="field-label" style="font-size:9px;">Data Prevista</label><input type="date" id="ts-form-prevista" class="field-input" style="font-size:12px;"></div>
+          <div><label class="field-label" style="font-size:9px;">Data Realizada</label><input type="date" id="ts-form-realizada" class="field-input" style="font-size:12px;"></div>
+          <div>
+            <label class="field-label" style="font-size:9px;">Execução</label>
+            <select id="ts-form-recorrencia" class="field-input" style="font-size:12px;" title="Ao concluir uma tarefa recorrente, a próxima já é lançada automaticamente">
+              <option value="UNICA">Única</option>
+              <option value="DIARIAMENTE">Diariamente</option>
+              <option value="SEMANALMENTE">Semanalmente</option>
+              <option value="MENSALMENTE">Mensalmente</option>
+            </select>
+          </div>
+          <div><label class="field-label" style="font-size:9px;">Status</label><select id="ts-form-status" class="field-input" style="font-size:12px;" onchange="_tsFormStatusChange()"><option value="EM ANDAMENTO">Em Andamento</option><option value="CONCLUIDA">Concluída</option></select></div>
+        </div>
+        <div style="margin-top:.5rem;"><label class="field-label" style="font-size:9px;">Observação (opcional)</label><input type="text" id="ts-form-obs" class="field-input" style="font-size:12px;width:100%;" placeholder="Observação"></div>
+        <div style="margin-top:.6rem;display:flex;gap:6px;">
+          <button onclick="salvarTarefaSemanal()" style="background:var(--green);color:#fff;border:none;border-radius:4px;padding:6px 16px;font-size:11px;font-weight:700;cursor:pointer;">💾 Salvar</button>
+          <button onclick="fecharFormTarefa()" style="background:#e2e8f0;color:#334155;border:none;border-radius:4px;padding:6px 16px;font-size:11px;font-weight:700;cursor:pointer;">Cancelar</button>
+        </div>
+      </div>
+
+      <div id="ts-tabela-wrap" style="overflow:auto;flex:1;min-height:0;border:1px solid var(--border);border-radius:6px;"></div>
+
+    </div>
+  </div>
+</div>
+
 
 <!-- MODAL RELATÓRIO CRONOGRAMA -->
 <div class="cron-rel-modal" id="modal-rel-cron" onclick="fecharRelatorioCron(event)">
@@ -3165,7 +3255,8 @@ function hubEngNav(pageId, tabEl){
     revisoes:function(){if(typeof renderRevisoes==='function')renderRevisoes();},
     libfab:function(){if(typeof renderLibFab==='function')renderLibFab();},
     expedicao:function(){if(typeof renderExpedicao==='function')renderExpedicao();},
-    diario:function(){if(typeof renderDiario==='function')renderDiario();}
+    diario:function(){if(typeof renderDiario==='function')renderDiario();},
+    'controle-cliente':function(){if(typeof renderControleCliente==='function')renderControleCliente();}
   };
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   var pg=document.getElementById('page-'+pageId);
@@ -4310,6 +4401,27 @@ function _dhRegister(key, campo, valorAntigo, valorNovo){
   if(!_dtHist[k]) _dtHist[k] = [];
   _dtHist[k].push({ de: valorAntigo, para: valorNovo, ts: new Date().toISOString() });
   _dhSave();
+}
+
+// Igual a _dhRegister, mas grava direto no localStorage da sub-obra informada
+// (subobraId), sem depender de haver uma TAG aberta no momento. Usado pelas
+// edições em lote (múltiplas sub-obras alteradas de uma vez), que antes não
+// deixavam rastro no histórico de reprogramações (🕓) de cada etapa.
+function _dhRegisterFor(subobraId, key, campo, valorAntigo, valorNovo){
+  if(!subobraId || !valorAntigo || valorAntigo === valorNovo) return;
+  var storageKey = 'dtHist_'+subobraId;
+  var hist;
+  try{ hist = JSON.parse(localStorage.getItem(storageKey)||'{}'); } catch(e){ hist = {}; }
+  var k = _dhKey(key, campo);
+  if(!hist[k]) hist[k] = [];
+  hist[k].push({ de: valorAntigo, para: valorNovo, ts: new Date().toISOString() });
+  try{ localStorage.setItem(storageKey, JSON.stringify(hist)); } catch(e){}
+  // Se a TAG dessa sub-obra estiver aberta no momento (mesma sessão), atualiza
+  // também o estado em memória para refletir na hora, sem precisar reabrir.
+  if(_dtHistSubobraId === String(subobraId)){
+    if(!_dtHist[k]) _dtHist[k] = [];
+    _dtHist[k].push({ de: valorAntigo, para: valorNovo, ts: new Date().toISOString() });
+  }
 }
 
 function _dhGet(key, campo){
@@ -8481,6 +8593,1280 @@ async function _importarAvançoBatch(resultados){
 }
 
 
+// Normaliza texto de cabeçalho para comparação (minúsculas, sem acento, sem pontuação).
+// Compartilhada por todos os imports de planilha do cliente (Data Limite Fábrica,
+// Controle Cliente, etc.)
+function _ccNorm(h){
+  return String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+
+// Nomes de coluna reconhecidos automaticamente como identificador da linha
+// (TAG/Sub-obra) nas planilhas de clientes — cada cliente nomeia essa coluna
+// de um jeito diferente (TAG, TAG/SUB OBRA, TAG SIDERTEC, OBRA, etc.)
+var TAG_COL_ALIASES = [
+  'tag','tag sub obra','tag subobra','tag da subobra','tag sidertec',
+  'sub obra','subobra','obra sidertec','tag obra','obra','codigo','codigo tag','item','tag item'
+];
+
+// Acha a coluna que identifica a linha (TAG/Sub-obra) num cabeçalho de planilha
+// importada. Primeiro tenta por nomes conhecidos (TAG_COL_ALIASES); se não achar
+// nenhum, pede pro usuário escolher manualmente (evita falhar silenciosamente
+// quando o cliente usa um nome de coluna que ainda não conhecemos).
+function _resolverColunaTag(headerRow, contexto){
+  var normalizados = headerRow.map(_ccNorm);
+  var idx=-1;
+  // Respeita a ordem de prioridade da lista (ex.: "tag" sempre vence "obra"
+  // quando as duas colunas existem na mesma planilha), não a ordem das colunas.
+  for(var a=0;a<TAG_COL_ALIASES.length && idx<0;a++){
+    var pos = normalizados.indexOf(TAG_COL_ALIASES[a]);
+    if(pos>=0) idx=pos;
+  }
+  if(idx>=0) return idx;
+  var opcoes=[];
+  headerRow.forEach(function(h,i){ if(h!=null && String(h).trim()!=='') opcoes.push({idx:i, nome:String(h).trim()}); });
+  if(!opcoes.length) return -1;
+  var listaTxt = opcoes.map(function(o,i){ return (i+1)+'. '+o.nome; }).join('\n');
+  var escolha = prompt('Não encontrei automaticamente a coluna de TAG/Sub-obra'+(contexto?(' para '+contexto):'')+'.\n\nDigite o NÚMERO ou o NOME EXATO da coluna que identifica cada linha (precisa casar com o campo "Sub-obra" do Cronograma):\n\n'+listaTxt);
+  if(escolha==null) return -1;
+  escolha = escolha.trim();
+  var porNumero = parseInt(escolha,10);
+  if(!isNaN(porNumero) && String(porNumero)===escolha && porNumero>=1 && porNumero<=opcoes.length) return opcoes[porNumero-1].idx;
+  var porNome = opcoes.find(function(o){ return o.nome.toLowerCase()===escolha.toLowerCase(); });
+  return porNome ? porNome.idx : -1;
+}
+
+// ── IMPORTAR DATA LIMITE FÁBRICA (planilha do cliente, ex.: VALMET) ─────────
+// Lê a aba "GERAL" (ou a 1ª aba, se não achar) e usa a coluna
+// "PREV. LIBERAÇÃO PARA FÁBRICA" como fonte da "Data Limite Fábrica" de cada
+// TAG no cronograma — o vínculo pedido entre a data limite do modal e a
+// data de fabricação planejada pelo cliente na planilha. Casa as linhas pela
+// coluna de TAG/Sub-obra (identificada por nome conhecido ou escolhida pelo
+// usuário — ver _resolverColunaTag), usando o mesmo critério de match do
+// import de Avanço de Fabricação (campo "subobra", sem diferenciar
+// maiúsc./minúsc. e espaços).
+function importarDataLimiteFab(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0]; input.value='';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      if(typeof XLSX==='undefined'){
+        showToast('SheetJS não carregado','Aguarde o carregamento completo da página e tente novamente.','error');
+        return;
+      }
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array', cellDates:true});
+      var sheetName = wb.SheetNames.find(function(n){ return n.trim().toUpperCase()==='GERAL'; }) || wb.SheetNames[0];
+      var ws=wb.Sheets[sheetName];
+      var raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:false});
+      if(!raw.length){ showToast('Planilha vazia','Nenhum dado encontrado na aba "'+sheetName+'".','warn'); return; }
+
+      var headerRow = raw[0]||[];
+      var colData=-1;
+      headerRow.forEach(function(h,idx){
+        if(colData<0 && _ccNorm(h)==='prev liberacao para fabrica') colData=idx;
+      });
+      if(colData<0){
+        showToast('Coluna não encontrada','Não encontrei a coluna "PREV. LIBERAÇÃO PARA FÁBRICA" na aba "'+sheetName+'". Verifique se é a planilha certa.','error');
+        return;
+      }
+      var colTag = _resolverColunaTag(headerRow, 'a Data Limite Fábrica');
+      if(colTag<0){
+        showToast('Coluna de TAG não definida','Não foi possível identificar a coluna de TAG/Sub-obra. Importação cancelada.','error');
+        return;
+      }
+
+      var toISO=function(v){
+        if(v==null || v==='') return null;
+        if(v instanceof Date && !isNaN(v)){
+          var y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
+          return y+'-'+m+'-'+d;
+        }
+        if(typeof v==='number' && typeof XLSX!=='undefined' && XLSX.SSF && XLSX.SSF.parse_date_code){
+          var dc=XLSX.SSF.parse_date_code(v);
+          if(dc) return dc.y+'-'+String(dc.m).padStart(2,'0')+'-'+String(dc.d).padStart(2,'0');
+        }
+        var s=String(v).trim();
+        var mm=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if(mm) return mm[3]+'-'+mm[2].padStart(2,'0')+'-'+mm[1].padStart(2,'0');
+        var iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if(iso) return iso[0].slice(0,10);
+        return null;
+      };
+
+      var linhas=[];
+      for(var r=1;r<raw.length;r++){
+        var row=raw[r]; if(!row) continue;
+        var tag = row[colTag]!=null ? String(row[colTag]).trim() : '';
+        if(!tag) continue;
+        linhas.push({ tag:tag, dataISO: toISO(row[colData]) });
+      }
+      if(!linhas.length){ showToast('Sem dados','Nenhuma linha com TAG encontrada na aba "'+sheetName+'".','warn'); return; }
+
+      var mudancas=[], semData=[], naoEncontradas=[], semMudanca=0;
+      linhas.forEach(function(l){
+        var idx = allCronSubobras.findIndex(function(s){ return s.subobra && s.subobra.trim().toUpperCase()===l.tag.toUpperCase(); });
+        if(idx<0){ naoEncontradas.push(l.tag); return; }
+        if(!l.dataISO){ semData.push(l.tag); return; }
+        var sub=allCronSubobras[idx];
+        if((sub.data_limite_fab||null) === l.dataISO){ semMudanca++; return; }
+        mudancas.push({ sub:sub, dataAnterior: sub.data_limite_fab||null, dataNova: l.dataISO });
+      });
+
+      if(!mudancas.length){
+        var msgNada = semMudanca+' TAG(s) já estavam com a Data Limite Fábrica correta.';
+        if(naoEncontradas.length) msgNada += '\n\n⚠ '+naoEncontradas.length+' TAG(s) da planilha não encontradas no cronograma: '+naoEncontradas.slice(0,10).join(', ')+(naoEncontradas.length>10?'...':'');
+        if(semData.length) msgNada += '\n\n⚠ '+semData.length+' TAG(s) sem data preenchida na coluna de origem.';
+        showToast('Sem alterações','Nenhuma Data Limite Fábrica precisou ser atualizada.','warn');
+        if(naoEncontradas.length || semData.length) alert(msgNada);
+        return;
+      }
+
+      var preview = mudancas.slice(0,8).map(function(m){
+        var de = m.dataAnterior ? new Date(m.dataAnterior+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+        var para = new Date(m.dataNova+'T12:00:00').toLocaleDateString('pt-BR');
+        return '• '+(m.sub.subobra||m.sub.id)+': '+de+' → '+para;
+      }).join('\n');
+      var msg = 'Aba "'+sheetName+'" — coluna "PREV. LIBERAÇÃO PARA FÁBRICA" será usada como nova "Data Limite Fábrica".\n\n'
+        + mudancas.length+' TAG(s) terão a Data Limite Fábrica atualizada:\n'+preview
+        + (mudancas.length>8 ? '\n...e mais '+(mudancas.length-8) : '')
+        + (semMudanca ? '\n\n'+semMudanca+' TAG(s) já estavam atualizadas (sem alteração).' : '')
+        + (naoEncontradas.length ? '\n\n⚠ '+naoEncontradas.length+' TAG(s) da planilha não encontradas no cronograma (ignoradas).' : '')
+        + (semData.length ? '\n\n⚠ '+semData.length+' TAG(s) sem data na planilha (ignoradas).' : '')
+        + '\n\nEsta ação grava direto no banco de dados e não pode ser desfeita automaticamente. Confirmar?';
+      if(!confirm(msg)) return;
+
+      _importarDataLimiteFabBatch(mudancas);
+    } catch(err){
+      showToast('Erro na leitura','Não foi possível ler o arquivo: '+err.message,'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function _importarDataLimiteFabBatch(mudancas){
+  var ok=0, erros=[];
+  mudancas.forEach(function(m){
+    var sub=m.sub;
+    try{
+      // Mesma função usada pela edição manual do campo "Data Limite Fábrica"
+      // (grava no localStorage de cache E no Supabase — fonte da verdade).
+      salvarLimiteFabLocal(sub.id, m.dataNova);
+      var idx=allCronSubobras.findIndex(function(x){return String(x.id)===String(sub.id);});
+      if(idx>=0){
+        allCronSubobras[idx]=normalizarStatusLegado(Object.assign({},allCronSubobras[idx],{
+          data_limite_fab:m.dataNova, atualizado_em:new Date().toISOString()
+        }));
+      }
+      // Registra no histórico de reprogramações (🕓) da TAG, mesmo mecanismo
+      // usado pela edição em lote e pela edição individual.
+      _dhRegisterFor(sub.id, '__lim_fab__', 'prev', m.dataAnterior, m.dataNova);
+      ok++;
+    } catch(e){ erros.push((sub.subobra||sub.id)+': '+e.message); }
+  });
+  var msg = ok+' TAG(s) com Data Limite Fábrica atualizada a partir da planilha.';
+  if(erros.length) msg += '\n\nErros ('+erros.length+'):\n'+erros.slice(0,8).join('\n');
+  showToast(ok+' atualizada(s)', erros.length ? ok+' ok / '+erros.length+' com erro' : 'Data Limite Fábrica sincronizada com a planilha do cliente.', erros.length?'warn':'success');
+  if(erros.length) alert(msg);
+  renderCronograma();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONTROLE CLIENTE — importa a planilha do cliente (ex.: modelo VALMET,
+// aba "GERAL") e mantém uma cópia "viva" dentro do app: colunas de data e
+// status que têm equivalente no Cronograma passam a ser exibidas (e
+// exportadas) sempre com o valor ATUAL do Cronograma, casando cada linha
+// pela coluna TAG. As demais colunas ficam como vieram na importação.
+// ═══════════════════════════════════════════════════════════════════════
+var allControleClienteGrupos = [];
+var allControleClienteLinhas = [];
+window._ccGrupoAtivo = null;
+// (_ccNorm está definida mais acima, junto de _resolverColunaTag — reaproveitada aqui)
+
+// Cabeçalho normalizado → campo do Cronograma (allCronSubobras) que deve
+// alimentar aquela coluna automaticamente. Colunas fora deste mapa continuam
+// exibindo o valor importado da planilha (edição manual).
+var CC_AUTO_LINK = {
+  'prev entrega dos basicos'          : {campo:'prev_basico',      tipo:'data'},
+  'data real de entrega dos basicos'  : {campo:'real_basico',      tipo:'data'},
+  'prev liberacao para fabrica'       : {campo:'prev_lib_fab',     tipo:'data'},
+  'prev expedicao estrutura'          : {campo:'prev_expedicao',   tipo:'data'},
+  'status'                            : {campo:'status',           tipo:'status'}
+};
+
+function _ccToISO(v){
+  if(v==null || v==='') return null;
+  if(v instanceof Date && !isNaN(v)){
+    var y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+d;
+  }
+  if(typeof v==='number' && typeof XLSX!=='undefined' && XLSX.SSF && XLSX.SSF.parse_date_code){
+    var dc=XLSX.SSF.parse_date_code(v);
+    if(dc) return dc.y+'-'+String(dc.m).padStart(2,'0')+'-'+String(dc.d).padStart(2,'0');
+  }
+  var s=String(v).trim();
+  var mm=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(mm) return mm[3]+'-'+mm[2].padStart(2,'0')+'-'+mm[1].padStart(2,'0');
+  var iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso) return iso[0].slice(0,10);
+  return null;
+}
+
+// Valor "bruto" de uma célula pronto para guardar (datas viram ISO, o resto
+// fica como veio — string ou número).
+function _ccCellValor(v, ehDataProvavel){
+  if(v==null) return null;
+  if(v instanceof Date) return _ccToISO(v);
+  if(ehDataProvavel){ var iso=_ccToISO(v); if(iso) return iso; }
+  if(typeof v==='number') return v;
+  return String(v).trim();
+}
+
+async function carregarControleCliente(){
+  try{
+    var g = await sbClient.from('controle_cliente_grupos').select();
+    allControleClienteGrupos = g.error ? [] : (g.data||[]);
+    var l = await sbClient.from('controle_cliente').order('ordem',{ascending:true}).limit(5000).select();
+    allControleClienteLinhas = l.error ? [] : (l.data||[]);
+    if(!window._ccGrupoAtivo && allControleClienteGrupos.length){
+      window._ccGrupoAtivo = allControleClienteGrupos[0].id;
+    }
+  }catch(e){ allControleClienteGrupos=[]; allControleClienteLinhas=[]; }
+}
+
+function importarControleCliente(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0]; input.value='';
+  var nomeSugerido = file.name.replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ').trim().toUpperCase();
+  var nomeGrupo = prompt('Nome do cliente/grupo para esta planilha (ex.: VALMET):', nomeSugerido||'CLIENTE');
+  if(nomeGrupo==null) return;
+  nomeGrupo = nomeGrupo.trim();
+  if(!nomeGrupo){ showToast('Nome obrigatório','Informe um nome para o cliente/grupo.','error'); return; }
+
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      if(typeof XLSX==='undefined'){
+        showToast('SheetJS não carregado','Aguarde o carregamento completo da página e tente novamente.','error');
+        return;
+      }
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array', cellDates:true});
+      var sheetName = wb.SheetNames.find(function(n){ return n.trim().toUpperCase()==='GERAL'; }) || wb.SheetNames[0];
+      var ws=wb.Sheets[sheetName];
+      var raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:false});
+      if(!raw.length){ showToast('Planilha vazia','Nenhum dado encontrado na aba "'+sheetName+'".','warn'); return; }
+
+      var headerRow = (raw[0]||[]).map(function(h){ return h!=null?String(h).trim():''; });
+      var colTag = _resolverColunaTag(headerRow, 'o Controle Cliente');
+      if(colTag<0){
+        showToast('Coluna de TAG não definida','Não foi possível identificar a coluna de TAG/Sub-obra na aba "'+sheetName+'". Importação cancelada.','error');
+        return;
+      }
+      // Colunas válidas: com cabeçalho preenchido
+      var colunas = [];
+      headerRow.forEach(function(h,idx){ if(h) colunas.push({idx:idx, nome:h}); });
+
+      // Monta o mapa de vínculo (header original → campo do Cronograma)
+      var linkMap = {};
+      colunas.forEach(function(c){
+        var lk = CC_AUTO_LINK[_ccNorm(c.nome)];
+        if(lk) linkMap[c.nome] = lk;
+      });
+
+      var linhas=[];
+      for(var r=1;r<raw.length;r++){
+        var row=raw[r]; if(!row) continue;
+        var tag = row[colTag]!=null ? String(row[colTag]).trim() : '';
+        if(!tag) continue;
+        var valores={};
+        colunas.forEach(function(c){
+          valores[c.nome] = _ccCellValor(row[c.idx], !!linkMap[c.nome]);
+        });
+        linhas.push({ tag:tag, valores:valores });
+      }
+      if(!linhas.length){ showToast('Sem dados','Nenhuma linha com TAG encontrada na aba "'+sheetName+'".','warn'); return; }
+
+      var linkedList = Object.keys(linkMap).map(function(h){ return h+' → '+linkMap[h].campo; });
+      var msg = 'Aba "'+sheetName+'" — '+linhas.length+' linha(s) com TAG.\n\n'
+        + 'Colunas que serão mantidas SEMPRE atualizadas com o Cronograma:\n'
+        + (linkedList.length ? linkedList.map(function(s){return '• '+s;}).join('\n') : '(nenhuma coluna reconhecida — todas ficarão estáticas)')
+        + '\n\nAs demais colunas ficam como vieram na planilha (edição manual).\n\n'
+        + (allControleClienteGrupos.some(function(g){return g.nome.toUpperCase()===nomeGrupo.toUpperCase();})
+            ? '⚠ Já existe um grupo chamado "'+nomeGrupo+'" — os dados dele serão SUBSTITUÍDOS por este novo import.\n\n'
+            : '')
+        + 'Confirmar importação?';
+      if(!confirm(msg)) return;
+
+      _importarControleClienteSalvar(nomeGrupo, colunas.map(function(c){return c.nome;}), linkMap, linhas);
+    } catch(err){
+      showToast('Erro na leitura','Não foi possível ler o arquivo: '+err.message,'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function _importarControleClienteSalvar(nomeGrupo, colunasOrdem, linkMap, linhas){
+  showLoading('Importando planilha do cliente…');
+  try{
+    var grupoExistente = allControleClienteGrupos.find(function(g){ return g.nome.toUpperCase()===nomeGrupo.toUpperCase(); });
+    var grupoId = grupoExistente ? grupoExistente.id : _genId();
+
+    // Se já existe, remove as linhas antigas desse grupo antes de gravar as novas
+    if(grupoExistente){
+      var antigas = allControleClienteLinhas.filter(function(l){ return l.grupo_id===grupoId; });
+      for(var i=0;i<antigas.length;i++){
+        try{ await sbClient.from('controle_cliente').eq('id',antigas[i].id).delete().select(); }catch(e){}
+      }
+    }
+
+    var grupoPayload = {
+      id: grupoId, nome: nomeGrupo, colunas: colunasOrdem, link_map: linkMap,
+      atualizado_em: new Date().toISOString()
+    };
+    if(grupoExistente){
+      await sbClient.from('controle_cliente_grupos').eq('id',grupoId).update(grupoPayload).select();
+    } else {
+      grupoPayload.criado_em = new Date().toISOString();
+      await sbClient.from('controle_cliente_grupos').insert([grupoPayload]).select();
+    }
+
+    // Grava as linhas em lotes de 400 (mesmo limite usado nos outros imports em massa)
+    var registros = linhas.map(function(l, idx){
+      return { id:_genId(), grupo_id:grupoId, tag:l.tag, ordem:idx, valores:l.valores, criado_em:new Date().toISOString() };
+    });
+    for(var b=0;b<registros.length;b+=400){
+      await sbClient.from('controle_cliente').insert(registros.slice(b,b+400)).select();
+    }
+
+    await carregarControleCliente();
+    window._ccGrupoAtivo = grupoId;
+    hideLoading();
+    showToast('✓ Importado', linhas.length+' TAG(s) importadas para o grupo "'+nomeGrupo+'".','success');
+    if(typeof renderControleCliente==='function') renderControleCliente();
+  }catch(err){
+    hideLoading();
+    showToast('Erro ao importar', err.message, 'error');
+  }
+}
+
+// Resolve o valor "ao vivo" de uma linha para uma coluna: se a coluna está
+// linkada e a TAG é encontrada no Cronograma, usa o dado atual de lá; caso
+// contrário usa o valor originalmente importado da planilha. Também marca
+// "divergente" quando o valor que veio na planilha do cliente é diferente do
+// valor atual do Cronograma para aquela TAG (ex.: cliente acha que está em um
+// status/data, mas o Cronograma já mudou) — é o aviso pedido para status e
+// data de liberação para fábrica divergentes.
+function _ccValorAoVivo(linha, nomeColuna, linkMap){
+  var lk = linkMap[nomeColuna];
+  var bruto = linha.valores ? linha.valores[nomeColuna] : null;
+  if(!lk) return { valor: bruto, linkado:false, encontrado:null, divergente:false };
+  var sub = (allCronSubobras||[]).find(function(s){ return s.subobra && s.subobra.trim().toUpperCase()===String(linha.tag).trim().toUpperCase(); });
+  if(!sub) return { valor: bruto, bruto: bruto, linkado:true, encontrado:false, divergente:false };
+  var v = sub[lk.campo];
+  v = (v!=null && v!=='') ? v : null;
+  return { valor: v, bruto: bruto, linkado:true, encontrado:true, divergente: _ccDivergente(bruto, v, lk.tipo) };
+}
+
+// Compara o valor originalmente importado da planilha do cliente com o valor
+// atual do Cronograma para a mesma coluna/TAG. Datas são comparadas em ISO
+// (evitando falso positivo por formatação); texto/status é comparado
+// normalizado (sem acento, maiúsc./minúsc., espaços nas pontas).
+function _ccDivergente(brutoImportado, valorAtual, tipo){
+  if(brutoImportado==null || String(brutoImportado).trim()==='') return false; // planilha não trouxe valor — nada a comparar
+  if(valorAtual==null) return true; // planilha tinha um valor e o Cronograma está vazio — diverge
+  if(tipo==='data'){
+    var isoImp = _ccToISO(brutoImportado);
+    if(!isoImp) return false; // valor importado não é uma data reconhecível — não compara
+    var isoAtual = _ccToISO(valorAtual);
+    return isoImp !== isoAtual;
+  }
+  return _ccNorm(brutoImportado) !== _ccNorm(valorAtual);
+}
+
+// Analisa todas as colunas linkadas de uma linha e resume: tem STATUS
+// divergente? tem alguma DATA divergente? a TAG foi encontrada no Cronograma?
+function _ccAnalisarLinha(linha, colunas, linkMap){
+  var divStatus=false, divData=false, naoEncontrada=false;
+  colunas.forEach(function(c){
+    var lk = linkMap[c];
+    if(!lk) return;
+    var r = _ccValorAoVivo(linha, c, linkMap);
+    if(r.encontrado===false) naoEncontrada=true;
+    if(r.divergente){ if(lk.tipo==='status') divStatus=true; else if(lk.tipo==='data') divData=true; }
+  });
+  return { divStatus:divStatus, divData:divData, naoEncontrada:naoEncontrada };
+}
+
+function _ccFmtValor(valor, tipo){
+  if(valor==null || valor==='') return '—';
+  if(tipo==='data'){
+    var iso=_ccToISO(valor);
+    return iso ? _fmtDateBR(iso) : String(valor);
+  }
+  return String(valor);
+}
+
+function _ccTrocarGrupo(id){
+  window._ccGrupoAtivo = id;
+  renderControleCliente();
+}
+
+function renderControleCliente(){
+  var sel = document.getElementById('cc-grupo-select');
+  var cont = document.getElementById('cc-content');
+  if(!sel || !cont) return;
+
+  if(!allControleClienteGrupos.length){
+    sel.innerHTML = '<option value="">Nenhum grupo importado</option>';
+    cont.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:var(--ink3);background:#fff;border:1px dashed var(--border2);border-radius:var(--r);">Nenhuma planilha de cliente importada ainda.<br>Clique em "⬆ Importar" acima para começar.</div>';
+    return;
+  }
+
+  if(!window._ccGrupoAtivo || !allControleClienteGrupos.some(function(g){return g.id===window._ccGrupoAtivo;})){
+    window._ccGrupoAtivo = allControleClienteGrupos[0].id;
+  }
+  sel.innerHTML = allControleClienteGrupos.map(function(g){
+    return '<option value="'+g.id+'"'+(g.id===window._ccGrupoAtivo?' selected':'')+'>'+g.nome+' ('+allControleClienteLinhas.filter(function(l){return l.grupo_id===g.id;}).length+' TAGs)</option>';
+  }).join('');
+
+  var grupo = allControleClienteGrupos.find(function(g){ return g.id===window._ccGrupoAtivo; });
+  if(!grupo){ cont.innerHTML=''; return; }
+  var linkMap = grupo.link_map || {};
+  var colunas = grupo.colunas || [];
+  var busca = (document.getElementById('cc-busca')||{}).value||'';
+  busca = busca.trim().toUpperCase();
+
+  var linhas = allControleClienteLinhas.filter(function(l){ return l.grupo_id===grupo.id; })
+    .sort(function(a,b){ return (a.ordem||0)-(b.ordem||0); });
+  if(busca){
+    linhas = linhas.filter(function(l){
+      if(String(l.tag||'').toUpperCase().includes(busca)) return true;
+      return colunas.some(function(c){ return String((l.valores&&l.valores[c])||'').toUpperCase().includes(busca); });
+    });
+  }
+
+  // Analisa divergências (planilha do cliente × Cronograma atual) de cada linha
+  var analise = {};
+  linhas.forEach(function(l){ analise[l.id] = _ccAnalisarLinha(l, colunas, linkMap); });
+
+  var somenteDivergentes = (document.getElementById('cc-so-divergentes')||{}).checked;
+  if(somenteDivergentes){
+    linhas = linhas.filter(function(l){ var a=analise[l.id]; return a.divStatus || a.divData; });
+  }
+
+  if(!linhas.length){
+    cont.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--ink3);background:#fff;border:1px solid var(--border);border-radius:var(--r);">Nenhuma linha encontrada.</div>';
+    return;
+  }
+
+  var naoEncontradasSet = {}, qtdDivStatus=0, qtdDivData=0;
+  linhas.forEach(function(l){
+    var a = analise[l.id];
+    if(a.naoEncontrada) naoEncontradasSet[l.tag]=true;
+    if(a.divStatus) qtdDivStatus++;
+    if(a.divData) qtdDivData++;
+  });
+
+  var thead = '<tr>'+colunas.map(function(c){
+    var lk = linkMap[c];
+    return '<th style="padding:5px 8px;text-align:left;white-space:nowrap;color:'+(lk?'#1e3a8a':'#1e293b')+';background:'+(lk?'#eef2ff':'#f8fafc')+';border-bottom:2px solid var(--border2);font-size:10px;text-transform:none;">'+(lk?'🔗 ':'')+c+'</th>';
+  }).join('')+'</tr>';
+
+  var tbody = linhas.map(function(l){
+    return '<tr style="border-bottom:1px solid var(--border);">'+colunas.map(function(c){
+      var lk = linkMap[c];
+      var r = _ccValorAoVivo(l, c, linkMap);
+      var txt = _ccFmtValor(r.valor, lk?lk.tipo:null);
+      var estilo = 'padding:4px 8px;font-size:11px;white-space:nowrap;';
+      var titulo = '';
+      if(lk){
+        if(r.divergente){
+          estilo += 'background:#fef3c7;color:#92400e;font-weight:700;border:1px solid #f59e0b;';
+          txt = '⚠ '+txt;
+          titulo = 'DIVERGENTE — Planilha do cliente: "'+_ccFmtValor(r.bruto, lk.tipo)+'" · Cronograma atual: "'+_ccFmtValor(r.valor, lk.tipo)+'"';
+        } else if(r.encontrado){
+          estilo += 'background:#f5f7ff;color:#1e3a8a;font-weight:600;';
+          titulo = 'Atualizado automaticamente pelo Cronograma (sem divergência com a planilha)';
+        } else {
+          estilo += 'background:#fff7ed;color:#9a3412;';
+          titulo = 'TAG não encontrada no Cronograma — mostrando valor importado';
+        }
+      }
+      return '<td style="'+estilo+'" title="'+titulo+'">'+txt+'</td>';
+    }).join('')+'</tr>';
+  }).join('');
+
+  var qtdNaoEnc = Object.keys(naoEncontradasSet).length;
+  var avisos = [];
+  if(qtdDivStatus) avisos.push('⚠ <strong>'+qtdDivStatus+'</strong> TAG(s) com STATUS divergente do Cronograma');
+  if(qtdDivData) avisos.push('⚠ <strong>'+qtdDivData+'</strong> TAG(s) com data de liberação para fábrica divergente do Cronograma');
+  cont.innerHTML =
+    (avisos.length ? '<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:var(--r2);padding:.5rem .7rem;font-size:11px;margin-bottom:.4rem;font-weight:600;">'+avisos.join(' &nbsp;·&nbsp; ')+' — células destacadas em amarelo na tabela.</div>' : '')
+    + (qtdNaoEnc ? '<div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:var(--r2);padding:.4rem .7rem;font-size:10px;margin-bottom:.4rem;">⚠ '+qtdNaoEnc+' TAG(s) desta planilha não foram encontradas no Cronograma — para essas, as colunas 🔗 mostram o valor original importado.</div>' : '')
+    + '<div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r);">'
+    + '<table style="border-collapse:collapse;width:100%;font-family:var(--font-main);"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
+    + '</div>';
+}
+
+function exportarControleClienteExcel(){
+  if(!window._ccGrupoAtivo){ showToast('Nada para exportar','Importe uma planilha primeiro.','warn'); return; }
+  var grupo = allControleClienteGrupos.find(function(g){ return g.id===window._ccGrupoAtivo; });
+  if(!grupo){ return; }
+  var linkMap = grupo.link_map||{};
+  var colunas = grupo.colunas||[];
+  var linhas = allControleClienteLinhas.filter(function(l){ return l.grupo_id===grupo.id; })
+    .sort(function(a,b){ return (a.ordem||0)-(b.ordem||0); });
+
+  var rows = [colunas.concat(['DIVERGÊNCIA (vs. Cronograma)'])];
+  linhas.forEach(function(l){
+    var obsDiv = [];
+    var linha = colunas.map(function(c){
+      var lk = linkMap[c];
+      var r = _ccValorAoVivo(l, c, linkMap);
+      var val = r.valor==null ? '' : (lk && lk.tipo==='data' ? (_ccToISO(r.valor)?_fmtDateBR(_ccToISO(r.valor)):r.valor) : r.valor);
+      if(r.divergente){
+        obsDiv.push(c+': planilha dizia "'+_ccFmtValor(r.bruto, lk.tipo)+'"');
+        val = '⚠ '+val;
+      }
+      return val;
+    });
+    linha.push(obsDiv.length ? obsDiv.join(' | ') : '');
+    rows.push(linha);
+  });
+
+  if(typeof XLSX==='undefined'){ showToast('SheetJS não carregado','Aguarde o carregamento completo da página e tente novamente.','error'); return; }
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  var wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'GERAL');
+  XLSX.writeFile(wbOut, 'controle_cliente_'+grupo.nome.replace(/[^a-zA-Z0-9]+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+async function excluirControleClienteGrupo(){
+  if(!window._ccGrupoAtivo){ showToast('Nada para excluir','Nenhum grupo selecionado.','warn'); return; }
+  var grupo = allControleClienteGrupos.find(function(g){ return g.id===window._ccGrupoAtivo; });
+  if(!grupo) return;
+  if(!confirm('Excluir todo o grupo "'+grupo.nome+'" e suas TAGs importadas? Esta ação não pode ser desfeita.')) return;
+  showLoading('Excluindo…');
+  try{
+    var linhas = allControleClienteLinhas.filter(function(l){ return l.grupo_id===grupo.id; });
+    for(var i=0;i<linhas.length;i++){
+      try{ await sbClient.from('controle_cliente').eq('id',linhas[i].id).delete().select(); }catch(e){}
+    }
+    await sbClient.from('controle_cliente_grupos').eq('id',grupo.id).delete().select();
+    window._ccGrupoAtivo = null;
+    await carregarControleCliente();
+    hideLoading();
+    showToast('Excluído','Grupo "'+grupo.nome+'" removido.','warn');
+    renderControleCliente();
+  }catch(err){
+    hideLoading();
+    showToast('Erro ao excluir', err.message, 'error');
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// VERIFICAR DIVERGÊNCIAS — CSV SIMPLES (TAG · STATUS · DATA LIBERAÇÃO FÁBRICA)
+// Alternativa ao Controle Cliente (que importa a planilha inteira do jeito
+// que o cliente manda — nomes de coluna variam demais de planilha pra
+// planilha e às vezes nada casa). Aqui o usuário monta um CSV enxuto com só
+// essas 3 colunas (pode copiar de qualquer planilha) e o sistema compara
+// direto com o Cronograma, sem depender de reconhecer dezenas de nomes de
+// coluna diferentes. Não fica salvo — é um check pontual, sempre contra os
+// dados atuais do Cronograma.
+// ═══════════════════════════════════════════════════════════════════════
+var _divCsvResultado = [];
+
+function abrirModalDivergenciasCSV(){
+  document.getElementById('modal-divergencias-csv').classList.add('show');
+}
+function fecharModalDivergenciasCSV(){
+  document.getElementById('modal-divergencias-csv').classList.remove('show');
+}
+
+function baixarModeloDivergenciasCSV(){
+  var csv = '﻿' + ['TAG','STATUS','DATA LIBERACAO FABRICA'].join(';') + '\r\n'
+    + ['S176ARC','LIB. FABRICACAO','15/08/2026'].join(';') + '\r\n'
+    + ['S176AZ','EM HOLD','20/08/2026'].join(';') + '\r\n';
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='modelo_divergencias_tag_status_data.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Modelo baixado','Preencha TAG, STATUS e DATA LIBERAÇÃO FÁBRICA e importe de volta.','success');
+}
+
+// Parser simples de linha CSV (';' ou ',' separado, respeita aspas) — mesmo
+// critério usado no restante do app (ver importarCSV).
+function _divCsvParseLine(line, sep){
+  var result=[], cur='', inQ=false;
+  for(var i=0;i<line.length;i++){
+    if(line[i]==='"'){ inQ=!inQ; }
+    else if(line[i]===sep && !inQ){ result.push(cur.trim()); cur=''; }
+    else { cur+=line[i]; }
+  }
+  result.push(cur.trim());
+  return result.map(function(v){ return v.replace(/^"|"$/g,'').trim(); });
+}
+
+function importarDivergenciasCSV(input){
+  if(!input.files || !input.files[0]) return;
+  var file = input.files[0]; input.value='';
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var text = e.target.result;
+      if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
+      var lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(function(l){ return l.trim(); });
+      if(!lines.length){ showToast('CSV vazio','Nenhum dado encontrado.','error'); return; }
+      var sep = lines[0].indexOf(';')>=0 ? ';' : ',';
+      var headerRow = _divCsvParseLine(lines[0], sep);
+
+      var ALIASES_STATUS = ['status','status atual','status cliente','situacao','status planilha'];
+      var ALIASES_DATA = ['data liberacao fabrica','data liberacao para fabrica','data de liberacao para fabrica','prev liberacao para fabrica','data lib fabrica','liberacao fabrica','data liberacao','data de liberacao'];
+
+      var colTag = _resolverColunaTag(headerRow, 'a verificação de divergências');
+      if(colTag<0){ showToast('Coluna de TAG não definida','Importação cancelada.','error'); return; }
+      var colStatus=-1, colData=-1;
+      headerRow.forEach(function(h,i){
+        var n=_ccNorm(h);
+        if(colStatus<0 && ALIASES_STATUS.indexOf(n)>=0) colStatus=i;
+        if(colData<0 && ALIASES_DATA.indexOf(n)>=0) colData=i;
+      });
+      if(colStatus<0 && colData<0){
+        showToast('Colunas não encontradas','Não encontrei colunas de STATUS nem de DATA LIBERAÇÃO FÁBRICA no CSV. Use o modelo (⬇ Baixar Modelo CSV).','error');
+        return;
+      }
+
+      var linhas=[];
+      for(var r=1;r<lines.length;r++){
+        var vals = _divCsvParseLine(lines[r], sep);
+        var tag = vals[colTag]!=null ? String(vals[colTag]).trim() : '';
+        if(!tag) continue;
+        var dataTexto = colData>=0 ? (vals[colData]||'').trim() : '';
+        linhas.push({
+          tag: tag,
+          status: colStatus>=0 ? (vals[colStatus]||'').trim() : null,
+          data: dataTexto ? _ccToISO(dataTexto) : null,
+          dataTexto: dataTexto
+        });
+      }
+      if(!linhas.length){ showToast('Sem dados','Nenhuma linha com TAG encontrada no CSV.','warn'); return; }
+
+      _divCsvResultado = linhas.map(function(l){
+        var sub = (allCronSubobras||[]).find(function(s){ return s.subobra && s.subobra.trim().toUpperCase()===l.tag.toUpperCase(); });
+        var statusAtual = sub ? (sub.status||null) : null;
+        var dataAtual = sub ? (sub.prev_lib_fab||null) : null;
+        var divStatus = !!(sub && l.status && _ccNorm(l.status)!==_ccNorm(statusAtual||''));
+        var divData = !!(sub && l.data && l.data!==dataAtual);
+        return {
+          tag:l.tag, encontrado: !!sub,
+          statusPlanilha:l.status, statusCronograma:statusAtual,
+          dataPlanilha:l.data, dataPlanilhaTexto:l.dataTexto, dataCronograma:dataAtual,
+          divStatus:divStatus, divData:divData
+        };
+      });
+      renderDivergenciasCSV();
+      showToast('✓ Verificado', linhas.length+' TAG(s) comparadas com o Cronograma.','success');
+    }catch(err){
+      showToast('Erro na leitura', err.message, 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function renderDivergenciasCSV(){
+  var resumo = document.getElementById('divcsv-resumo');
+  var cont = document.getElementById('divcsv-content');
+  if(!cont) return;
+  if(!_divCsvResultado.length){
+    resumo.innerHTML = '';
+    cont.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--ink3);">Importe um CSV para ver o resultado.</div>';
+    return;
+  }
+  var qtdDivStatus = _divCsvResultado.filter(function(r){ return r.divStatus; }).length;
+  var qtdDivData = _divCsvResultado.filter(function(r){ return r.divData; }).length;
+  var qtdNaoEnc = _divCsvResultado.filter(function(r){ return !r.encontrado; }).length;
+  resumo.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    + '<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;padding:.4rem .7rem;font-size:11px;font-weight:700;">⚠ '+qtdDivStatus+' status divergente(s)</div>'
+    + '<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;padding:.4rem .7rem;font-size:11px;font-weight:700;">⚠ '+qtdDivData+' data(s) de liberação divergente(s)</div>'
+    + (qtdNaoEnc ? '<div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:4px;padding:.4rem .7rem;font-size:11px;font-weight:700;">'+qtdNaoEnc+' TAG(s) não encontradas no Cronograma</div>' : '')
+    + '</div>';
+
+  var linhasOrdenadas = _divCsvResultado.slice().sort(function(a,b){
+    var pa = !a.encontrado ? 0 : (a.divStatus||a.divData) ? 1 : 2;
+    var pb = !b.encontrado ? 0 : (b.divStatus||b.divData) ? 1 : 2;
+    if(pa!==pb) return pa-pb;
+    return a.tag.localeCompare(b.tag);
+  });
+
+  var thead = '<tr>'
+    +'<th style="padding:5px 8px;text-align:left;color:#1e293b;background:#f8fafc;">TAG</th>'
+    +'<th style="padding:5px 8px;text-align:left;color:#1e293b;background:#f8fafc;">Status (Planilha)</th>'
+    +'<th style="padding:5px 8px;text-align:left;color:#1e293b;background:#f8fafc;">Status (Cronograma)</th>'
+    +'<th style="padding:5px 8px;text-align:center;color:#1e293b;background:#f8fafc;">Data Lib. (Planilha)</th>'
+    +'<th style="padding:5px 8px;text-align:center;color:#1e293b;background:#f8fafc;">Data Lib. (Cronograma)</th>'
+    +'</tr>';
+
+  var tbody = linhasOrdenadas.map(function(r){
+    if(!r.encontrado){
+      return '<tr style="background:#fff7ed;border-bottom:1px solid var(--border);">'
+        +'<td style="padding:4px 8px;font-size:11px;font-weight:700;">'+r.tag+'</td>'
+        +'<td colspan="4" style="padding:4px 8px;font-size:11px;color:#9a3412;">⚠ TAG não encontrada no Cronograma</td>'
+        +'</tr>';
+    }
+    var estStatus = r.divStatus ? 'background:#fef3c7;color:#92400e;font-weight:700;' : '';
+    var estData = r.divData ? 'background:#fef3c7;color:#92400e;font-weight:700;' : '';
+    return '<tr style="border-bottom:1px solid var(--border);">'
+      +'<td style="padding:4px 8px;font-size:11px;font-weight:700;">'+r.tag+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;'+estStatus+'">'+(r.divStatus?'⚠ ':'')+(r.statusPlanilha||'—')+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;">'+(r.statusCronograma||'—')+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;text-align:center;'+estData+'">'+(r.divData?'⚠ ':'')+(r.dataPlanilha?_fmtDateBR(r.dataPlanilha):(r.dataPlanilhaTexto||'—'))+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;text-align:center;">'+(r.dataCronograma?_fmtDateBR(r.dataCronograma):'—')+'</td>'
+      +'</tr>';
+  }).join('');
+
+  cont.innerHTML = '<div style="overflow:auto;max-height:55vh;border:1px solid var(--border);border-radius:6px;">'
+    + '<table style="border-collapse:collapse;width:100%;font-family:var(--font-main);"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
+    + '</div>';
+}
+
+function exportarDivergenciasExcel(){
+  if(!_divCsvResultado.length){ showToast('Nada para exportar','Importe um CSV primeiro.','warn'); return; }
+  if(typeof XLSX==='undefined'){ showToast('SheetJS não carregado','Aguarde o carregamento completo da página e tente novamente.','error'); return; }
+  var rows=[['TAG','Encontrada no Cronograma','Status (Planilha)','Status (Cronograma)','Status Divergente','Data Lib. (Planilha)','Data Lib. (Cronograma)','Data Divergente']];
+  _divCsvResultado.forEach(function(r){
+    rows.push([
+      r.tag, r.encontrado?'Sim':'Não',
+      r.statusPlanilha||'', r.statusCronograma||'', r.divStatus?'SIM':'',
+      r.dataPlanilha?_fmtDateBR(r.dataPlanilha):(r.dataPlanilhaTexto||''), r.dataCronograma?_fmtDateBR(r.dataCronograma):'', r.divData?'SIM':''
+    ]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  var wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'Divergencias');
+  XLSX.writeFile(wbOut, 'divergencias_cronograma_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAREFAS SEMANAIS — SUPERVISÃO
+// Responsável + Tarefa + Data Prevista + Data Realizada, com contagem de
+// dias entre previsto/realizado, aviso de atraso e sub-status dinâmico
+// (NO PRAZO / ATRASO), filtros por responsável e status, e relatório em
+// PDF (impressão) e Excel.
+// ═══════════════════════════════════════════════════════════════════════
+var allTarefasSemanais = [];
+
+async function carregarTarefasSemanais(){
+  try{
+    var r = await sbClient.from('tarefas_semanais').order('data_prevista',{ascending:true}).limit(2000).select();
+    allTarefasSemanais = r.error ? [] : (r.data||[]);
+  }catch(e){ allTarefasSemanais=[]; }
+}
+
+function abrirModalTarefas(){
+  document.getElementById('modal-tarefas').classList.add('show');
+  fecharFormTarefa();
+  _tsPopularResponsaveis();
+  renderTarefasSemanais();
+}
+function fecharModalTarefas(){
+  document.getElementById('modal-tarefas').classList.remove('show');
+}
+
+// Nomes fixos da equipe de supervisão + lista de cores fixas pra cada um, e
+// cores de fallback (com hash determinístico) pra quem for incluído manualmente.
+var TS_RESPONSAVEIS_FIXOS = ['Jenifer','Luana','Dayara'];
+var TS_CORES_FIXAS = { 'JENIFER':'#7c3aed', 'LUANA':'#0d9488', 'DAYARA':'#ea580c' };
+var TS_CORES_FALLBACK = ['#1d4ed8','#be123c','#166534','#a16207','#0e7490','#9333ea','#c2410c'];
+function _tsCorResponsavel(nome){
+  if(!nome) return '#64748b';
+  var key = String(nome).trim().toUpperCase();
+  if(TS_CORES_FIXAS[key]) return TS_CORES_FIXAS[key];
+  var h=0; for(var i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+  return TS_CORES_FALLBACK[h % TS_CORES_FALLBACK.length];
+}
+
+function _tsPopularResponsaveis(){
+  var sel = document.getElementById('ts-f-responsavel');
+  if(!sel) return;
+  var atual = sel.value;
+  var nomes = TS_RESPONSAVEIS_FIXOS.slice();
+  allTarefasSemanais.forEach(function(t){ if(t.responsavel && nomes.indexOf(t.responsavel)<0) nomes.push(t.responsavel); });
+  sel.innerHTML = '<option value="">Todos</option>' + nomes.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
+  if(nomes.indexOf(atual)>=0) sel.value = atual;
+}
+
+// Alterna entre o select de responsáveis fixos e o campo de texto livre
+// ("+ Outro (digitar)") no formulário de nova/editar tarefa.
+function _tsRespSelectChange(){
+  var sel = document.getElementById('ts-form-responsavel-select');
+  var txt = document.getElementById('ts-form-responsavel');
+  if(!sel || !txt) return;
+  if(sel.value==='__outro__'){
+    txt.style.display='block'; txt.value=''; txt.focus();
+  } else {
+    txt.style.display='none'; txt.value=sel.value;
+  }
+}
+
+// Prepara o formulário (select + campo texto) para um responsável já definido
+// (usado ao editar uma tarefa existente) — se o nome não for um dos fixos,
+// cai automaticamente em "+ Outro" com o nome preenchido.
+function _tsSetResponsavelForm(nome){
+  var sel = document.getElementById('ts-form-responsavel-select');
+  var txt = document.getElementById('ts-form-responsavel');
+  if(!sel || !txt) return;
+  if(nome && TS_RESPONSAVEIS_FIXOS.indexOf(nome)>=0){
+    sel.value = nome; txt.style.display='none'; txt.value = nome;
+  } else {
+    sel.value = '__outro__'; txt.style.display='block'; txt.value = nome||'';
+  }
+}
+
+// Calcula dias e sub-status (NO PRAZO / ATRASO) de uma tarefa, de forma
+// sempre dinâmica a partir das datas — nunca fica "parado" no que foi salvo.
+function _tsCalc(t){
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var prev = t.data_prevista ? new Date(t.data_prevista+'T12:00:00') : null;
+  var real = t.data_realizada ? new Date(t.data_realizada+'T12:00:00') : null;
+  var dias = null, subStatus = 'NO PRAZO';
+  if((t.status||'')==='CONCLUIDA'){
+    if(prev && real){
+      dias = Math.round((real-prev)/86400000);
+      subStatus = dias>0 ? 'ATRASO' : 'NO PRAZO';
+    }
+  } else {
+    if(prev){
+      dias = Math.round((hoje-prev)/86400000);
+      subStatus = dias>0 ? 'ATRASO' : 'NO PRAZO';
+    }
+  }
+  return { dias: dias, subStatus: subStatus };
+}
+
+function _tsFiltrar(){
+  var fResp = (document.getElementById('ts-f-responsavel')||{}).value||'';
+  var fStatus = (document.getElementById('ts-f-status')||{}).value||'';
+  var fSub = (document.getElementById('ts-f-substatus')||{}).value||'';
+  var busca = ((document.getElementById('ts-f-busca')||{}).value||'').trim().toLowerCase();
+  return allTarefasSemanais.filter(function(t){
+    if(fResp && t.responsavel!==fResp) return false;
+    if(fStatus && (t.status||'')!==fStatus) return false;
+    if(busca && !((t.tarefa||'')+' '+(t.responsavel||'')+' '+(t.obs||'')).toLowerCase().includes(busca)) return false;
+    if(fSub){ var c=_tsCalc(t); if(c.subStatus!==fSub) return false; }
+    return true;
+  });
+}
+
+function renderTarefasSemanais(){
+  var wrap = document.getElementById('ts-tabela-wrap');
+  if(!wrap) return;
+  var lista = _tsFiltrar();
+
+  // KPIs — refletem o conjunto filtrado (dinâmico conforme os filtros aplicados)
+  var total = lista.length;
+  var qAndamento=0, qConcluida=0, qNoPrazo=0, qAtraso=0;
+  lista.forEach(function(t){
+    if((t.status||'')==='CONCLUIDA') qConcluida++; else qAndamento++;
+    var c=_tsCalc(t);
+    if(c.subStatus==='ATRASO') qAtraso++; else qNoPrazo++;
+  });
+  var setTxt=function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  setTxt('ts-kpi-total', total);
+  setTxt('ts-kpi-andamento', qAndamento);
+  setTxt('ts-kpi-concluida', qConcluida);
+  setTxt('ts-kpi-noprazo', qNoPrazo);
+  setTxt('ts-kpi-atraso', qAtraso);
+  var resumoEl = document.getElementById('ts-resumo-label');
+  if(resumoEl) resumoEl.textContent = total+' tarefa(s)'+(qAtraso?' · ⚠ '+qAtraso+' em atraso':'');
+
+  if(!lista.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--ink3);">Nenhuma tarefa encontrada.</div>';
+    return;
+  }
+
+  // Ordena: atrasadas primeiro, depois em andamento, depois concluídas — dentro de cada grupo, por data prevista
+  lista = lista.slice().sort(function(a,b){
+    var ca=_tsCalc(a), cb=_tsCalc(b);
+    var pa = (a.status!=='CONCLUIDA' && ca.subStatus==='ATRASO') ? 0 : (a.status!=='CONCLUIDA' ? 1 : 2);
+    var pb = (b.status!=='CONCLUIDA' && cb.subStatus==='ATRASO') ? 0 : (b.status!=='CONCLUIDA' ? 1 : 2);
+    if(pa!==pb) return pa-pb;
+    return (a.data_prevista||'').localeCompare(b.data_prevista||'');
+  });
+
+  var THS = 'padding:5px 8px;color:#1e293b;background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.04em;';
+  var thead = '<tr>'
+    +'<th style="'+THS+'text-align:left;white-space:nowrap;">Responsável</th>'
+    +'<th style="'+THS+'text-align:left;">Tarefa</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Execução</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Data Prevista</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Data Realizada</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Dias</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Status</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Situação</th>'
+    +'<th style="'+THS+'text-align:center;white-space:nowrap;">Ações</th>'
+    +'</tr>';
+
+  var tbody = lista.map(function(t){
+    var c = _tsCalc(t);
+    var atrasoTxt = '—';
+    if(c.dias!=null){
+      if(t.status==='CONCLUIDA'){
+        atrasoTxt = c.dias>0 ? ('+'+c.dias+'d') : (c.dias<0 ? (Math.abs(c.dias)+'d antes') : 'no dia');
+      } else {
+        atrasoTxt = c.dias>0 ? ('+'+c.dias+'d atraso') : (Math.abs(c.dias)+'d restante'+(Math.abs(c.dias)!==1?'s':''));
+      }
+    }
+    var stBadge = t.status==='CONCLUIDA'
+      ? '<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;">✔ CONCLUÍDA</span>'
+      : '<span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;">⏳ EM ANDAMENTO</span>';
+    var subBadge = c.subStatus==='ATRASO'
+      ? '<span style="background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;">⚠ ATRASO</span>'
+      : '<span style="background:#ecfdf5;color:#15803d;border-radius:3px;padding:1px 7px;font-size:9px;font-weight:700;">✓ NO PRAZO</span>';
+    var linhaBg = c.subStatus==='ATRASO' && t.status!=='CONCLUIDA' ? 'background:#fff7f7;' : '';
+    var rec = t.recorrencia||'UNICA';
+    var recBadge = rec==='UNICA'
+      ? '<span style="color:var(--ink3);font-size:9px;">única</span>'
+      : '<span style="background:#ede9fe;color:#5b21b6;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;white-space:nowrap;" title="'+(t.proxima_gerada?'Próxima ocorrência já lançada':'Ao concluir, a próxima ocorrência é lançada automaticamente')+'">🔁 '+(TS_RECORRENCIA_LABEL[rec]||rec)+'</span>';
+    return '<tr style="border-bottom:1px solid var(--border);'+linhaBg+'">'
+      +'<td style="padding:4px 8px;font-size:11px;font-weight:700;color:'+_tsCorResponsavel(t.responsavel)+';">'+(t.responsavel||'—')+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;">'+(t.tarefa||'—')+(t.obs?'<div style="font-size:9px;color:var(--ink3);margin-top:1px;">'+t.obs+'</div>':'')+'</td>'
+      +'<td style="padding:4px 8px;text-align:center;">'+recBadge+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;text-align:center;font-family:Courier New,monospace;">'+(t.data_prevista?_fmtDateBR(t.data_prevista):'—')+'</td>'
+      +'<td style="padding:4px 8px;font-size:11px;text-align:center;font-family:Courier New,monospace;">'+(t.data_realizada?_fmtDateBR(t.data_realizada):'—')+'</td>'
+      +'<td style="padding:4px 8px;font-size:10px;text-align:center;font-weight:700;color:'+(c.subStatus==='ATRASO'?'#dc2626':'#16a34a')+';">'+atrasoTxt+'</td>'
+      +'<td style="padding:4px 8px;text-align:center;">'+stBadge+'</td>'
+      +'<td style="padding:4px 8px;text-align:center;">'+subBadge+'</td>'
+      +'<td style="padding:4px 8px;text-align:center;white-space:nowrap;">'
+        +(t.status!=='CONCLUIDA'?'<button onclick="concluirTarefaSemanal(\''+t.id+'\')" title="Marcar como concluída hoje" style="background:none;border:none;cursor:pointer;font-size:13px;">✅</button>':'')
+        +'<button onclick="editarTarefaSemanal(\''+t.id+'\')" title="Editar" style="background:none;border:none;cursor:pointer;font-size:13px;">✏️</button>'
+        +'<button onclick="excluirTarefaSemanal(\''+t.id+'\')" title="Excluir" style="background:none;border:none;cursor:pointer;font-size:13px;">🗑️</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+
+  wrap.innerHTML = '<table style="border-collapse:collapse;width:100%;font-family:var(--font-main);"><thead style="background:#f8fafc;position:sticky;top:0;">'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+}
+
+function novaTarefaSemanal(){
+  document.getElementById('ts-form-id').value = '';
+  _tsSetResponsavelForm('Jenifer');
+  document.getElementById('ts-form-tarefa').value = '';
+  document.getElementById('ts-form-prevista').value = '';
+  document.getElementById('ts-form-realizada').value = '';
+  document.getElementById('ts-form-status').value = 'EM ANDAMENTO';
+  document.getElementById('ts-form-recorrencia').value = 'UNICA';
+  document.getElementById('ts-form-obs').value = '';
+  document.getElementById('ts-form-box').style.display = 'block';
+  document.getElementById('ts-form-tarefa').focus();
+}
+
+function editarTarefaSemanal(id){
+  var t = allTarefasSemanais.find(function(x){ return String(x.id)===String(id); });
+  if(!t) return;
+  document.getElementById('ts-form-id').value = t.id;
+  _tsSetResponsavelForm(t.responsavel||'');
+  document.getElementById('ts-form-tarefa').value = t.tarefa||'';
+  document.getElementById('ts-form-prevista').value = t.data_prevista||'';
+  document.getElementById('ts-form-realizada').value = t.data_realizada||'';
+  document.getElementById('ts-form-status').value = t.status||'EM ANDAMENTO';
+  document.getElementById('ts-form-recorrencia').value = t.recorrencia||'UNICA';
+  document.getElementById('ts-form-obs').value = t.obs||'';
+  document.getElementById('ts-form-box').style.display = 'block';
+}
+
+function fecharFormTarefa(){
+  var box = document.getElementById('ts-form-box');
+  if(box) box.style.display = 'none';
+}
+
+// Ao marcar como Concluída no form, sugere a data de hoje se ainda não tiver realizada
+function _tsFormStatusChange(){
+  var st = document.getElementById('ts-form-status').value;
+  var realEl = document.getElementById('ts-form-realizada');
+  if(st==='CONCLUIDA' && realEl && !realEl.value){
+    realEl.value = new Date().toISOString().slice(0,10);
+  }
+}
+
+// Calcula a próxima data de execução de uma tarefa recorrente a partir da data prevista atual
+function _tsProxData(dataISO, recorrencia){
+  if(!dataISO) return null;
+  var p = dataISO.split('-');
+  var d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  if(recorrencia==='DIARIAMENTE') d.setDate(d.getDate()+1);
+  else if(recorrencia==='SEMANALMENTE') d.setDate(d.getDate()+7);
+  else if(recorrencia==='MENSALMENTE') d.setMonth(d.getMonth()+1);
+  else return null;
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+
+var TS_RECORRENCIA_LABEL = { UNICA:'Única', DIARIAMENTE:'Diariamente', SEMANALMENTE:'Semanalmente', MENSALMENTE:'Mensalmente' };
+
+// Ao concluir uma tarefa com execução recorrente, já lança automaticamente a próxima
+// ocorrência (mesmo responsável/tarefa) com a data de execução calculada. Marca a tarefa
+// de origem com proxima_gerada:true para nunca gerar duplicidade em novos salvamentos.
+async function _tsGerarProximaOcorrencia(t){
+  if(!t || !t.recorrencia || t.recorrencia==='UNICA' || t.proxima_gerada) return;
+  var prox = _tsProxData(t.data_prevista, t.recorrencia);
+  if(!prox) return;
+  var payload = {
+    id: _genId(),
+    responsavel: t.responsavel, tarefa: t.tarefa,
+    data_prevista: prox, data_realizada: null,
+    status: 'EM ANDAMENTO', obs: t.obs||null,
+    recorrencia: t.recorrencia, gerada_automaticamente: true, origem_id: t.id,
+    criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString()
+  };
+  try{
+    await sbClient.from('tarefas_semanais').insert([payload]).select();
+    allTarefasSemanais.push(payload);
+    await sbClient.from('tarefas_semanais').eq('id',t.id).update({proxima_gerada:true}).select();
+    t.proxima_gerada = true;
+    showToast('🔁 Próxima tarefa lançada', (t.responsavel||'')+' — '+(t.tarefa||'')+' agendada para '+_fmtDateBR(prox)+' ('+(TS_RECORRENCIA_LABEL[t.recorrencia]||'').toLowerCase()+').', 'success');
+  }catch(err){
+    console.error('Erro ao gerar próxima ocorrência da tarefa recorrente', err);
+  }
+}
+
+async function salvarTarefaSemanal(){
+  var id = document.getElementById('ts-form-id').value;
+  var selResp = document.getElementById('ts-form-responsavel-select').value;
+  var responsavel = (selResp==='__outro__' ? document.getElementById('ts-form-responsavel').value : selResp).trim();
+  var tarefa = document.getElementById('ts-form-tarefa').value.trim();
+  var prevista = document.getElementById('ts-form-prevista').value||null;
+  var realizada = document.getElementById('ts-form-realizada').value||null;
+  var status = document.getElementById('ts-form-status').value||'EM ANDAMENTO';
+  var recorrencia = (document.getElementById('ts-form-recorrencia')||{}).value || 'UNICA';
+  var obs = document.getElementById('ts-form-obs').value.trim();
+
+  if(!responsavel){ showToast('Responsável obrigatório','Informe o responsável pela tarefa.','error'); return; }
+  if(!tarefa){ showToast('Tarefa obrigatória','Descreva a tarefa.','error'); return; }
+  if(!prevista){ showToast('Data prevista obrigatória','Informe a data prevista.','error'); return; }
+  if(status==='CONCLUIDA' && !realizada){ showToast('Data realizada obrigatória','Informe a data em que a tarefa foi concluída.','error'); return; }
+
+  var payload = { responsavel:responsavel, tarefa:tarefa, data_prevista:prevista, data_realizada:realizada||null, status:status, recorrencia:recorrencia, obs:obs||null, atualizado_em:new Date().toISOString() };
+  try{
+    var statusAnterior = null;
+    if(id){
+      var tarefaAnterior = allTarefasSemanais.find(function(x){ return String(x.id)===String(id); });
+      statusAnterior = tarefaAnterior ? tarefaAnterior.status : null;
+      await sbClient.from('tarefas_semanais').eq('id',id).update(payload).select();
+      var idx = allTarefasSemanais.findIndex(function(x){ return String(x.id)===String(id); });
+      if(idx>=0) allTarefasSemanais[idx] = Object.assign({}, allTarefasSemanais[idx], payload);
+    } else {
+      payload.id = _genId(); payload.criado_em = new Date().toISOString();
+      await sbClient.from('tarefas_semanais').insert([payload]).select();
+      allTarefasSemanais.push(payload);
+    }
+    fecharFormTarefa();
+    _tsPopularResponsaveis();
+    renderTarefasSemanais();
+    showToast('✓ Salvo','Tarefa salva com sucesso.','success');
+
+    // Recorrência: se a tarefa acabou de ser concluída (não estava concluída antes) e tem
+    // execução recorrente, o sistema já lança automaticamente a próxima tarefa/data.
+    if(status==='CONCLUIDA' && recorrencia!=='UNICA' && statusAnterior!=='CONCLUIDA'){
+      var tarefaSalva = allTarefasSemanais.find(function(x){ return String(x.id)===String(id||payload.id); });
+      if(tarefaSalva){ await _tsGerarProximaOcorrencia(tarefaSalva); renderTarefasSemanais(); }
+    }
+  }catch(err){
+    showToast('Erro ao salvar', err.message, 'error');
+  }
+}
+
+async function concluirTarefaSemanal(id){
+  var t = allTarefasSemanais.find(function(x){ return String(x.id)===String(id); });
+  if(!t) return;
+  var jaConcluida = t.status==='CONCLUIDA';
+  var hojeISO = new Date().toISOString().slice(0,10);
+  var payload = { status:'CONCLUIDA', data_realizada: t.data_realizada||hojeISO, atualizado_em:new Date().toISOString() };
+  try{
+    await sbClient.from('tarefas_semanais').eq('id',id).update(payload).select();
+    Object.assign(t, payload);
+    renderTarefasSemanais();
+    showToast('✓ Concluída','Tarefa marcada como concluída.','success');
+    if(!jaConcluida && t.recorrencia && t.recorrencia!=='UNICA'){
+      await _tsGerarProximaOcorrencia(t);
+      renderTarefasSemanais();
+    }
+  }catch(err){ showToast('Erro', err.message, 'error'); }
+}
+
+async function excluirTarefaSemanal(id){
+  var t = allTarefasSemanais.find(function(x){ return String(x.id)===String(id); });
+  if(!t) return;
+  if(!confirm('Excluir a tarefa "'+(t.tarefa||'')+'" de '+(t.responsavel||'')+'?')) return;
+  try{
+    await sbClient.from('tarefas_semanais').eq('id',id).delete().select();
+    allTarefasSemanais = allTarefasSemanais.filter(function(x){ return String(x.id)!==String(id); });
+    renderTarefasSemanais();
+    showToast('Excluída','Tarefa removida.','warn');
+  }catch(err){ showToast('Erro ao excluir', err.message, 'error'); }
+}
+
+function exportarTarefasExcel(){
+  var lista = _tsFiltrar();
+  if(!lista.length){ showToast('Nada para exportar','Nenhuma tarefa no filtro atual.','warn'); return; }
+  if(typeof XLSX==='undefined'){ showToast('SheetJS não carregado','Aguarde o carregamento completo da página e tente novamente.','error'); return; }
+  // Mesma ordenação do relatório em PDF: agrupado por Responsável (fixos primeiro) e por Data Prevista dentro de cada um
+  lista = lista.slice().sort(function(a,b){
+    var ra=a.responsavel||'', rb=b.responsavel||'';
+    var ia=TS_RESPONSAVEIS_FIXOS.indexOf(ra); if(ia<0) ia=99;
+    var ib=TS_RESPONSAVEIS_FIXOS.indexOf(rb); if(ib<0) ib=99;
+    if(ia!==ib) return ia-ib;
+    if(ra!==rb) return ra.localeCompare(rb,'pt-BR');
+    return (a.data_prevista||'').localeCompare(b.data_prevista||'');
+  });
+  var rows = [['Responsável','Tarefa','Execução','Data Prevista','Data Realizada','Dias','Status','Situação','Observação']];
+  lista.forEach(function(t){
+    var c=_tsCalc(t);
+    rows.push([
+      t.responsavel||'', t.tarefa||'',
+      TS_RECORRENCIA_LABEL[t.recorrencia||'UNICA']||'Única',
+      t.data_prevista?_fmtDateBR(t.data_prevista):'',
+      t.data_realizada?_fmtDateBR(t.data_realizada):'',
+      c.dias!=null?c.dias:'',
+      t.status==='CONCLUIDA'?'Concluída':'Em Andamento',
+      c.subStatus==='ATRASO'?'Atraso':'No Prazo',
+      t.obs||''
+    ]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  var wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'Tarefas Semanais');
+  XLSX.writeFile(wbOut, 'tarefas_semanais_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+function gerarRelatorioTarefas(){
+  var lista = _tsFiltrar();
+  if(!lista.length){ showToast('Nada para gerar','Nenhuma tarefa no filtro atual.','warn'); return; }
+
+  var qAndamento=0, qConcluida=0, qNoPrazo=0, qAtraso=0;
+  lista.forEach(function(t){
+    if(t.status==='CONCLUIDA') qConcluida++; else qAndamento++;
+    if(_tsCalc(t).subStatus==='ATRASO') qAtraso++; else qNoPrazo++;
+  });
+
+  var fResp = (document.getElementById('ts-f-responsavel')||{}).value||'';
+  var fStatus = (document.getElementById('ts-f-status')||{}).value||'';
+  var fSub = (document.getElementById('ts-f-substatus')||{}).value||'';
+  var filtroDesc=[];
+  if(fResp) filtroDesc.push('Responsável: '+fResp);
+  if(fStatus) filtroDesc.push('Status: '+(fStatus==='CONCLUIDA'?'Concluída':'Em Andamento'));
+  if(fSub) filtroDesc.push('Situação: '+(fSub==='ATRASO'?'Atraso':'No Prazo'));
+
+  var dataRel = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var horaRel = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  // Separa por Responsável (ordem: Jenifer/Luana/Dayara primeiro, depois os
+  // demais em ordem alfabética) e, dentro de cada um, ordena por Data Prevista.
+  var grupos = {};
+  lista.forEach(function(t){
+    var r = t.responsavel || '(Sem responsável)';
+    if(!grupos[r]) grupos[r] = [];
+    grupos[r].push(t);
+  });
+  var nomesResp = Object.keys(grupos).sort(function(a,b){
+    var ia = TS_RESPONSAVEIS_FIXOS.indexOf(a); if(ia<0) ia=99;
+    var ib = TS_RESPONSAVEIS_FIXOS.indexOf(b); if(ib<0) ib=99;
+    if(ia!==ib) return ia-ib;
+    return a.localeCompare(b,'pt-BR');
+  });
+  nomesResp.forEach(function(r){ grupos[r].sort(function(a,b){ return (a.data_prevista||'').localeCompare(b.data_prevista||''); }); });
+
+  function linhaTarefa(t){
+    var c=_tsCalc(t);
+    var atrasoTxt = '—';
+    if(c.dias!=null){
+      if(t.status==='CONCLUIDA') atrasoTxt = c.dias>0?('+'+c.dias+'d'):(c.dias<0?(Math.abs(c.dias)+'d antes'):'no dia');
+      else atrasoTxt = c.dias>0?('+'+c.dias+'d'):(Math.abs(c.dias)+'d rest.');
+    }
+    var corSit = c.subStatus==='ATRASO'?'#991b1b':'#166534';
+    var bgSit = c.subStatus==='ATRASO'?'#fee2e2':'#dcfce7';
+    return '<tr>'
+      +'<td style="border:1px solid #e2e8f0;padding:3px 6px;">'+(t.tarefa||'—')+(t.obs?'<div style="font-size:7px;color:#666;">'+t.obs+'</div>':'')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:3px 6px;text-align:center;font-family:Courier New,monospace;">'+(t.data_prevista?_fmtDateBR(t.data_prevista):'—')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:3px 6px;text-align:center;font-family:Courier New,monospace;">'+(t.data_realizada?_fmtDateBR(t.data_realizada):'—')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:3px 6px;text-align:center;">'+atrasoTxt+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:3px 6px;text-align:center;">'+(t.status==='CONCLUIDA'?'✔ Concluída':'⏳ Em Andamento')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:3px 6px;text-align:center;"><span style="background:'+bgSit+';color:'+corSit+';border-radius:3px;padding:1px 6px;font-weight:700;">'+(c.subStatus==='ATRASO'?'Atraso':'No Prazo')+'</span></td>'
+      +'</tr>';
+  }
+
+  var secoesHtml = nomesResp.map(function(nome){
+    var tarefasResp = grupos[nome];
+    var cor = _tsCorResponsavel(nome==='(Sem responsável)'?null:nome);
+    var qAtrasoResp = tarefasResp.filter(function(t){ return _tsCalc(t).subStatus==='ATRASO'; }).length;
+    return '<div style="margin-top:10px;">'
+      + '<div style="background:'+cor+';color:#fff;padding:5px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:3px 3px 0 0;">'
+        + nome + ' <span style="font-weight:400;opacity:.9;">('+tarefasResp.length+' tarefa'+(tarefasResp.length!==1?'s':'')+(qAtrasoResp?' · ⚠ '+qAtrasoResp+' em atraso':'')+')</span>'
+      + '</div>'
+      + '<table style="margin-top:0;"><thead><tr><th>Tarefa</th><th>Data Prevista</th><th>Data Realizada</th><th>Dias</th><th>Status</th><th>Situação</th></tr></thead><tbody>'
+      + tarefasResp.map(linhaTarefa).join('') + '</tbody></table>'
+      + '</div>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório Tarefas Semanais</title>';
+  html += '<style>';
+  html += '@page{size:A4 landscape;margin:12mm 10mm;}';
+  html += 'body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;margin:0;padding:0;}';
+  html += '.rel-header{display:grid;grid-template-columns:100px 1fr 140px;border:2px solid #000;margin-bottom:0;}';
+  html += '.rel-logo-cell{border-right:2px solid #000;padding:6px;display:flex;align-items:center;justify-content:center;background:#1A1714;}';
+  html += '.rel-logo-sq{width:36px;height:36px;background:#0d9488;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:14px;color:#fff;font-weight:700;}';
+  html += '.rel-title-cell{border-right:2px solid #000;padding:6px 10px;text-align:center;}';
+  html += '.rel-title-main{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:4px;}';
+  html += '.rel-title-sub{font-size:9px;color:#555;}';
+  html += '.rel-meta-cell{padding:6px;}';
+  html += '.rel-meta-row{display:flex;justify-content:space-between;font-size:8px;border-bottom:1px solid #eee;padding:2px 0;}';
+  html += '.rel-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0;}';
+  html += '.rel-kpi{border:1px solid #ccc;padding:5px 8px;text-align:center;}';
+  html += '.rel-kpi-label{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#555;}';
+  html += '.rel-kpi-val{font-size:16px;font-weight:700;font-family:Georgia,serif;}';
+  html += 'table{width:100%;border-collapse:collapse;margin-top:6px;}';
+  html += 'thead th{background:#1A1714;color:#fff;padding:4px 6px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}';
+  html += '.rel-footer{font-size:7px;color:#555;text-align:center;border-top:1px solid #ccc;padding-top:4px;margin-top:8px;}';
+  html += '@media print{.no-print{display:none;}body{padding:0;}}';
+  html += '</style></head><body>';
+  html += '<div class="no-print" style="background:#1A1714;padding:8px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+  html += '<span style="color:#fff;font-size:12px;font-weight:700;">📄 Relatório Tarefas Semanais</span>';
+  html += '<button onclick="window.print()" style="background:#0d9488;color:#fff;border:none;border-radius:4px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">🖨 Imprimir / PDF</button>';
+  html += '<button onclick="window.close()" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:5px 12px;font-size:11px;cursor:pointer;">✕ Fechar</button>';
+  html += '</div>';
+  html += '<div class="rel-header">';
+  html += '<div class="rel-logo-cell"><div class="rel-logo-sq">S</div></div>';
+  html += '<div class="rel-title-cell"><div class="rel-title-main">Sidertec — Tarefas Semanais (Supervisão)</div><div class="rel-title-sub">'+(filtroDesc.length?filtroDesc.join(' · '):'Todas as tarefas')+'</div></div>';
+  html += '<div class="rel-meta-cell">';
+  html += '<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Data</span><span>'+dataRel+'</span></div>';
+  html += '<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Hora</span><span>'+horaRel+'</span></div>';
+  html += '<div class="rel-meta-row"><span style="font-weight:700;text-transform:uppercase;">Total</span><span>'+lista.length+'</span></div>';
+  html += '</div></div>';
+  html += '<div class="rel-kpis">';
+  html += '<div class="rel-kpi"><div class="rel-kpi-label">Total</div><div class="rel-kpi-val">'+lista.length+'</div></div>';
+  html += '<div class="rel-kpi"><div class="rel-kpi-label">Em Andamento</div><div class="rel-kpi-val" style="color:#1d4ed8;">'+qAndamento+'</div></div>';
+  html += '<div class="rel-kpi"><div class="rel-kpi-label">Concluídas</div><div class="rel-kpi-val" style="color:#16a34a;">'+qConcluida+'</div></div>';
+  html += '<div class="rel-kpi"><div class="rel-kpi-label">No Prazo</div><div class="rel-kpi-val" style="color:#22c55e;">'+qNoPrazo+'</div></div>';
+  html += '<div class="rel-kpi"><div class="rel-kpi-label">Em Atraso</div><div class="rel-kpi-val" style="color:#dc2626;">'+qAtraso+'</div></div>';
+  html += '</div>';
+  html += secoesHtml;
+  html += '<div class="rel-footer">Sidertec — Tarefas Semanais · Gerado em '+dataRel+' às '+horaRel+'</div>';
+  html += '</body></html>';
+
+  var w = window.open('','_blank','width=1200,height=800');
+  if(w){ w.document.write(html); w.document.close(); }
+  else if(typeof showToast==='function') showToast('Bloqueado','Permita pop-ups para este site.','error');
+}
+
+
 function downloadTemplateAvancoFab(){
   // Coleta as TAGs visíveis na tela (respeitando filtros ativos)
   var subs = window._cronSubsFiltradas || allCronSubobras;
@@ -10807,8 +12193,14 @@ async function salvarAndamento(){
 
     // Build update object
     const updates = { atualizado_em: new Date().toISOString() };
-    if(!colunasNaoExistem.has(e.prev)) updates[e.prev] = prev || null;
-    if(!colunasNaoExistem.has(e.real)) updates[e.real] = real || null;
+    if(!colunasNaoExistem.has(e.prev)){
+      if(prev) _dhRegisterFor(editingCronId, e.key, 'prev', s && s[e.prev] || null, prev);
+      updates[e.prev] = prev || null;
+    }
+    if(!colunasNaoExistem.has(e.real)){
+      if(real) _dhRegisterFor(editingCronId, e.key, 'real', s && s[e.real] || null, real);
+      updates[e.real] = real || null;
+    }
     if(e.obs) updates[e.obs] = obs || null;
     if(e.grd && grd) updates[e.grd] = grd;
     if(novoStatus) updates.status = novoStatus;
@@ -11125,8 +12517,14 @@ async function aplicarLote(){
       }
       etapas.forEach(function(et){
         var eDef = et.def;
-        if(et.prev!=null) updates[eDef.prev] = et.prev;
-        if(et.real!=null) updates[eDef.real] = et.real;
+        if(et.prev!=null){
+          _dhRegisterFor(s.id, eDef.key, 'prev', s[eDef.prev]||null, et.prev);
+          updates[eDef.prev] = et.prev;
+        }
+        if(et.real!=null){
+          _dhRegisterFor(s.id, eDef.key, 'real', s[eDef.real]||null, et.real);
+          updates[eDef.real] = et.real;
+        }
         if(eDef.obs && et.obs) updates[eDef.obs] = et.obs;
         if(eDef.grd && et.grd) updates[eDef.grd] = et.grd;
       });
@@ -14009,6 +15407,9 @@ async function initCM(){
     if(typeof _lfOnDadosCarregados==='function') _lfOnDadosCarregados();
     showLoading('Carregando medições…');
     await carregarMedicoes();
+    showLoading('Carregando controle cliente…');
+    try{ await carregarControleCliente(); }catch(e){}
+    try{ await carregarTarefasSemanais(); }catch(e){}
     buildDashboardCM();
     hideLoading();
     showToast('✓ Conectado','Dados carregados do Firestore.','success');
@@ -14019,6 +15420,9 @@ async function initCM(){
     allLancamentos=allLancamentos||[];
     allCronSubobras=allCronSubobras||[];
     allMedicoes=allMedicoes||[];
+    allControleClienteGrupos=allControleClienteGrupos||[];
+    allControleClienteLinhas=allControleClienteLinhas||[];
+    allTarefasSemanais=allTarefasSemanais||[];
     buildDashboardCM();
     hideLoading();
   }
@@ -14324,6 +15728,64 @@ window.addEventListener('DOMContentLoaded', function(){
   </div>
   <div id="ex-abas" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.4rem;"></div>
   <div id="ex-content"></div>
+</div>
+<div class="page" id="page-controle-cliente" style="padding:.75rem 1.5rem;">
+  <div style="background:linear-gradient(135deg,#3730a3 0%,#4c1d95 100%);border-radius:var(--r);padding:.55rem 1rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.75rem;">
+    <div style="width:28px;height:28px;background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">🤝</div>
+    <div style="flex:1;"><h2 style="font-family:'Georgia',serif;font-size:14px;color:#fff;margin:0;line-height:1.2;">Controle Cliente</h2><p style="font-size:10px;color:rgba(255,255,255,.4);margin:0;">Planilha de controle do cliente, importada e mantida sempre atualizada com as datas/status do Cronograma</p></div>
+    <div style="margin-left:auto;display:flex;gap:6px;">
+      <label style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:3px;color:#fff;font-size:10px;padding:4px 10px;cursor:pointer;font-family:var(--font-main);font-weight:700;" title="Importar planilha do cliente (ex.: modelo VALMET)">
+        ⬆ Importar
+        <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarControleCliente(this)">
+      </label>
+      <button onclick="exportarControleClienteExcel()" title="Exportar planilha atualizada" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:3px;color:rgba(255,255,255,.9);font-size:10px;padding:4px 10px;cursor:pointer;font-family:var(--font-main);font-weight:700;">⬇ Exportar</button>
+      <button onclick="excluirControleClienteGrupo()" title="Excluir este grupo/cliente importado" style="background:rgba(220,38,38,.25);border:1px solid rgba(220,38,38,.4);border-radius:3px;color:#fecaca;font-size:10px;padding:4px 10px;cursor:pointer;font-family:var(--font-main);font-weight:700;">🗑 Excluir Grupo</button>
+      <div style="width:1px;height:20px;background:rgba(255,255,255,.2);"></div>
+      <button onclick="abrirModalDivergenciasCSV()" title="Verificar divergências a partir de um CSV simples (TAG, Status, Data Liberação Fábrica) — mais confiável quando a planilha do cliente tem nomes de coluna diferentes" style="background:#d97706;border:none;border-radius:3px;color:#fff;font-size:10px;padding:4px 10px;cursor:pointer;font-family:var(--font-main);font-weight:700;">🔍 Verificar Divergências (CSV)</button>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:.45rem .75rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+    <span style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600;">Cliente / Grupo:</span>
+    <select id="cc-grupo-select" onchange="_ccTrocarGrupo(this.value)" style="font-size:11px;padding:3px 8px;min-width:180px;"></select>
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <span style="font-size:9px;color:var(--ink3);font-weight:600;">Busca:</span>
+    <input type="text" id="cc-busca" placeholder="TAG, descrição…" oninput="renderControleCliente()" style="font-size:11px;padding:3px 6px;width:180px;">
+    <div style="width:1px;height:16px;background:var(--border);"></div>
+    <label style="display:flex;align-items:center;gap:4px;font-size:10px;cursor:pointer;font-weight:700;color:#92400e;"><input type="checkbox" id="cc-so-divergentes" onchange="renderControleCliente()" style="accent-color:#d97706;">⚠ Só divergentes</label>
+    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:9px;color:var(--ink3);">
+      <div>🔗 = coluna atualizada automaticamente pelo Cronograma (casando pela TAG)</div>
+      <div>⚠ = valor da planilha do cliente diverge do que está no Cronograma agora</div>
+    </div>
+  </div>
+  <div id="cc-content"></div>
+</div>
+
+<!-- ═══ MODAL VERIFICAR DIVERGÊNCIAS (CSV SIMPLES) ═══ -->
+<div class="cron-modal-overlay" id="modal-divergencias-csv" onclick="if(event.target===this)fecharModalDivergenciasCSV()">
+  <div class="cron-modal-box" style="width:1150px;max-width:97vw;max-height:92vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="cron-mhd">
+      <div style="flex:1;">
+        <div class="cron-mhd-title">🔍 Verificar Divergências — CSV Simples</div>
+        <div class="cron-mhd-sub">TAG · Status · Data de Liberação para Fábrica — comparado direto com o Cronograma</div>
+      </div>
+      <button onclick="fecharModalDivergenciasCSV()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div class="cron-mbody" style="padding:1rem 1.25rem;overflow-y:auto;flex:1;">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:.6rem .8rem;font-size:11px;color:#1e40af;margin-bottom:.75rem;">
+        Monte um CSV simples com 3 colunas — <strong>TAG</strong>, <strong>STATUS</strong> e <strong>DATA LIBERAÇÃO FÁBRICA</strong> — com o que o cliente informou (pode copiar só essas 3 colunas de qualquer planilha, não precisa ser a planilha inteira). Importe aqui e o sistema casa cada linha pela TAG e mostra exatamente o que diverge do Cronograma agora.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+        <button onclick="baixarModeloDivergenciasCSV()" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;">⬇ Baixar Modelo CSV</button>
+        <label style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;">
+          ⬆ Importar CSV
+          <input type="file" accept=".csv" style="display:none;" onchange="importarDivergenciasCSV(this)">
+        </label>
+        <button onclick="exportarDivergenciasExcel()" style="background:#15803d;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;">📊 Exportar Resultado</button>
+      </div>
+      <div id="divcsv-resumo" style="margin-bottom:.6rem;"></div>
+      <div id="divcsv-content"><div style="text-align:center;padding:2rem;color:var(--ink3);">Importe um CSV para ver o resultado.</div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ PÁGINA RELATÓRIO (para impressão) ═══ -->
