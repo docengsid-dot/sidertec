@@ -5399,96 +5399,68 @@ function _addDias(dateStr, dias){
   var y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), dy=String(d.getDate()).padStart(2,'0');
   return y+'-'+mo+'-'+dy;
 }
+// Lista, na ORDEM VISUAL exata da tabela de etapas do modal (etapa principal
+// e cada uma de suas sub-etapas, intercaladas), todas as chaves que têm
+// campo de Data Prevista. É essa ordem — e não "etapa principal pai" — que
+// define quem é a "etapa anterior" de cada uma para o cálculo por dias.
+function _flatEtapaOrderComPrev(){
+  var flat = [];
+  ETAPAS_CONFIG.forEach(function(etapa){
+    if(etapa.col_prev) flat.push(etapa.key);
+    (etapa.sub||[]).forEach(function(sub){
+      if(sub.col_prev) flat.push(sub.key);
+    });
+  });
+  return flat;
+}
+// Data "efetiva" de uma etapa, para servir de BASE ao cálculo da PRÓXIMA
+// etapa por dias. O CAMPO CALCULADO é sempre a Data Prevista (nunca a
+// Realizada, conforme pedido: o encadeamento por dias é só para Data
+// Prevista) — mas como REFERÊNCIA de partida, usa a Prevista da etapa
+// anterior e, se ela nunca foi preenchida (comum quando a etapa anterior já
+// foi CONCLUÍDA e só tem Data Realizada registrada), cai para a Realizada.
+// Sem esse fallback, qualquer etapa já concluída sem Prevista preenchida
+// travava o cálculo das etapas seguintes.
+function _prevEfetivaParaCadeia(key){
+  var st=_etapasState[key]||{};
+  if(st.prev) return st.prev;
+  if(st.real) return st.real;
+  return '';
+}
+// Recalcula a Data Prevista de cada etapa que tiver um "Prazo (dias)"
+// preenchido, sempre a partir da Data Prevista da etapa IMEDIATAMENTE
+// ANTERIOR na sequência visual (seja ela principal ou sub-etapa — ex.: 5
+// dias em "Pacote de Fabricação" contam a partir de "Retornou Aprovação",
+// a etapa visualmente anterior, e não da etapa "Modelo p/ Aprovação" como
+// um todo). Persiste via etapaSet (grava no histórico 🕓 normalmente) e já
+// atualiza o campo visível na tabela, sem precisar re-renderizar tudo.
 function _calcPrevistosFromDias(){
   var diasMap=_getEtapaDias();
-  if(!Object.keys(diasMap).some(function(k){ return (diasMap[k]||0)>0; })) return;
-  // Lê data base direto do DOM (mais confiável que _etapasState)
-  var elReal=document.getElementById('cm-real-basico');
-  var elPrev=document.getElementById('cm-prev-basico');
-  var elFab=document.getElementById('cm-data-limite-fab');
-  var realBasico=(elReal&&elReal.value)||(_etapasState.basico||{}).real||'';
-  var dataFab=(elFab&&elFab.value)||'';
-  var prevBasico=(elPrev&&elPrev.value)||(_etapasState.basico||{}).prev||'';
-  var basicoConcl=!!(realBasico);
-  var basicoEffDate=realBasico||dataFab||prevBasico;
-  if(!basicoEffDate) return;
-  var runDate=basicoEffDate;
-  ETAPAS_CONFIG.forEach(function(etapa){
-    var etapaEffDate;
-    if(etapa.key==='basico'){
-      if(basicoConcl){
-        etapaEffDate=basicoEffDate; // já concluído, não altera previsto
-      } else {
-        var d0=parseInt(diasMap.basico||0)||0;
-        if(d0>0&&etapa.col_prev){ runDate=_addDias(runDate,d0); etapaSet('basico','prev',runDate); }
-        etapaEffDate=runDate;
-      }
-    } else {
-      var diasMain=parseInt(diasMap[etapa.key]||0)||0;
-      if(diasMain>0&&etapa.col_prev){ runDate=_addDias(runDate,diasMain); etapaSet(etapa.key,'prev',runDate); }
-      etapaEffDate=(_etapasState[etapa.key]||{}).prev||runDate;
-    }
-    // Sub-etapas: cada uma relativa à data efetiva da etapa pai
-    if(etapaEffDate&&etapa.sub&&etapa.sub.length){
-      etapa.sub.forEach(function(sub){
-        if(!sub.col_prev) return;
-        var ds=parseInt(diasMap[sub.key]||0)||0;
-        if(ds>0) etapaSet(sub.key,'prev',_addDias(etapaEffDate,ds));
-      });
-    }
-  });
-}
-
-function _setDateInRow(key, dateVal){
-  if(!_etapasState[key]) _etapasState[key]={};
-  _etapasState[key].prev=dateVal;
-  var row=document.getElementById('etapa-row-'+key);
-  if(row){
-    var inp=row.querySelector('input[type="date"]');
-    if(inp) inp.value=dateVal;
+  var ordem=_flatEtapaOrderComPrev();
+  for(var i=1;i<ordem.length;i++){
+    var key=ordem[i];
+    var dias=parseInt(diasMap[key]||0)||0;
+    if(dias<=0) continue;
+    var dataAnterior=_prevEfetivaParaCadeia(ordem[i-1]);
+    if(!dataAnterior) continue;
+    var novaData=_addDias(dataAnterior,dias);
+    if(!novaData) continue;
+    etapaSet(key,'prev',novaData);
+    var inp=document.getElementById('dtin-'+key+'-prev');
+    if(inp) inp.value=_formatarDataBR(novaData);
   }
 }
+// Mantido por compatibilidade com qualquer chamada existente — agora
+// delega para _calcPrevistosFromDias, que já cuida de persistir e refletir
+// na tela.
 function _applyDiasToDOM(){
-  var diasMap=_getEtapaDias();
-  if(!Object.keys(diasMap).some(function(k){ return (diasMap[k]||0)>0; })) return;
-  var elReal=document.getElementById('cm-real-basico');
-  var elFab=document.getElementById('cm-data-limite-fab');
-  var elPrev=document.getElementById('cm-prev-basico');
-  var baseDate=(elReal&&elReal.value)||(_etapasState.basico||{}).real||
-               (elFab&&elFab.value)||
-               (elPrev&&elPrev.value)||(_etapasState.basico||{}).prev||'';
-  if(!baseDate) return;
-  var basicoConcl=!!(elReal&&elReal.value)||!!((_etapasState.basico||{}).real);
-  var runDate=baseDate;
-  ETAPAS_CONFIG.forEach(function(etapa){
-    var etapaEffDate;
-    if(etapa.key==='basico'){
-      if(basicoConcl){
-        etapaEffDate=baseDate;
-      } else {
-        var d0=parseInt(diasMap.basico||0)||0;
-        if(d0>0&&etapa.col_prev){ runDate=_addDias(runDate,d0); _setDateInRow('basico',runDate); }
-        etapaEffDate=runDate;
-      }
-    } else {
-      var dm=parseInt(diasMap[etapa.key]||0)||0;
-      if(dm>0&&etapa.col_prev){ runDate=_addDias(runDate,dm); _setDateInRow(etapa.key,runDate); }
-      etapaEffDate=(_etapasState[etapa.key]||{}).prev||runDate;
-    }
-    if(etapaEffDate&&etapa.sub&&etapa.sub.length){
-      etapa.sub.forEach(function(sub){
-        if(!sub.col_prev) return;
-        var ds=parseInt(diasMap[sub.key]||0)||0;
-        if(ds>0) _setDateInRow(sub.key,_addDias(etapaEffDate,ds));
-      });
-    }
-  });
+  _calcPrevistosFromDias();
 }
 function _onDiasInput(el){
   var key=el.dataset.key;
   var val=parseInt(el.value)||0;
   _setEtapaDias(key,val);
-  _applyDiasToDOM();
+  _calcPrevistosFromDias();
 }
 
 function _telhaToggleNA(cronId){
@@ -12326,6 +12298,25 @@ function _loteSubsSelecionadas(){
   return subs;
 }
 
+// Retorna a etapa (definição em ETAPAS_DEF) imediatamente anterior a "e" na
+// ORDEM VISUAL REAL do modal individual (_flatEtapaOrderComPrev, que respeita
+// principal+sub-etapas intercaladas) — e não a ordem interna de ETAPAS_DEF,
+// que é uma lista achatada à parte e não bate 100% com a ordem visual (ex.:
+// "rec_modelo" aparece antes de "envio_modelo" em ETAPAS_DEF, mas é sub-etapa
+// dele). Usado para o campo "Dias após etapa anterior" do modal em lote —
+// cada TAG calcula sua própria Data Prevista a partir da data que ELA MESMA
+// já tem na etapa anterior (por isso é feito por TAG, dentro de aplicarLote()).
+function _loteEtapaAnterior(e){
+  var ordem = _flatEtapaOrderComPrev();
+  var idx = ordem.indexOf(e.key);
+  if(idx<=0) return null;
+  var prevKey = ordem[idx-1];
+  for(var i=0;i<ETAPAS_DEF.length;i++){
+    if(ETAPAS_DEF[i].key===prevKey) return ETAPAS_DEF[i];
+  }
+  return null;
+}
+
 function abrirModalLote(){
   if(!_selectedIds.size){ showToast('Nenhuma selecionada','Marque ao menos uma TAG na tabela do cronograma.','warn'); return; }
   var subs = _loteSubsSelecionadas();
@@ -12369,8 +12360,22 @@ function abrirModalLote(){
   var etapasList = ETAPAS_DEF.filter(function(e){ return !e.isFabPct; });
   document.getElementById('lote-etapas-list').innerHTML = etapasList.map(function(e){
     var idx = ETAPAS_DEF.indexOf(e)+1;
+    var etapaAnterior = _loteEtapaAnterior(e);
     var grdField = (e.key==='envio_modelo')
       ? '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--accent);font-weight:600;">GRD</label><input type="text" class="field-input" id="lote-et-grd-'+e.key+'" placeholder="Ex: GRD-0042" style="font-size:12px;padding:3px 6px;"></div>'
+      : '';
+    // "Dias após etapa anterior" — alternativa à Data Prevista fixa: calcula,
+    // TAG por TAG, a Prevista da PRÓPRIA TAG a partir da Prevista que ela já
+    // tem na etapa anterior + N dias (cada TAG pode ter uma data-base
+    // diferente). Só é usado se o campo "Data Prevista" acima ficar em branco.
+    var diasField = etapaAnterior
+      ? '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--ink3);">Dias após "'+etapaAnterior.label+'" <span style="color:var(--ink3);font-weight:400;">(alternativa à Data Prevista acima — calcula por TAG)</span></label>'
+        + '<div style="display:flex;align-items:center;gap:6px;">'
+        + '<input type="number" min="0" max="999" class="field-input" id="lote-et-dias-'+e.key+'" oninput="_loteRefreshAllPreviews()" placeholder="Ex: 5" style="font-size:12px;padding:3px 6px;width:90px;">'
+        + '<button type="button" onclick="_loteUsarMesmaData(\''+e.key+'\')" title="Usa a mesma data de &quot;'+etapaAnterior.label+'&quot;, sem somar dias (equivale a 0)" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--ink2);cursor:pointer;white-space:nowrap;">📋 Mesma data de "'+etapaAnterior.label+'"</button>'
+        + '</div>'
+        + '<div id="lote-et-dias-preview-'+e.key+'" style="font-size:9px;color:var(--ink3);margin-top:.25rem;line-height:1.5;"></div>'
+        + '</div>'
       : '';
     return '<div class="lote-etapa-row" style="border:1px solid var(--border);border-radius:4px;margin-bottom:4px;overflow:hidden;background:#fff;">'
       + '<label style="display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--ink2);">'
@@ -12379,9 +12384,10 @@ function abrirModalLote(){
       + '</label>'
       + '<div id="lote-et-fields-'+e.key+'" style="display:none;padding:.5rem .6rem .6rem;border-top:1px solid var(--border);background:var(--bg);">'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">'
-      + '<div><label style="font-size:9px;color:var(--ink3);">Data Prevista</label><input type="date" class="field-input" id="lote-et-prev-'+e.key+'" style="font-size:12px;padding:3px 6px;"></div>'
-      + '<div><label style="font-size:9px;color:var(--ink3);">Data Realizada</label><input type="date" class="field-input" id="lote-et-real-'+e.key+'" style="font-size:12px;padding:3px 6px;"></div>'
+      + '<div><label style="font-size:9px;color:var(--ink3);">Data Prevista</label><input type="date" class="field-input" id="lote-et-prev-'+e.key+'" oninput="_loteRefreshAllPreviews()" style="font-size:12px;padding:3px 6px;"></div>'
+      + '<div><label style="font-size:9px;color:var(--ink3);">Data Realizada</label><input type="date" class="field-input" id="lote-et-real-'+e.key+'" oninput="_loteRefreshAllPreviews()" style="font-size:12px;padding:3px 6px;"></div>'
       + '</div>'
+      + diasField
       + grdField
       + '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--ink3);">Observação / Conclusão</label><input type="text" class="field-input" id="lote-et-obs-'+e.key+'" placeholder="Ex: Enviado ao cliente em lote…" style="font-size:12px;padding:3px 6px;"></div>'
       + '</div>'
@@ -12406,6 +12412,95 @@ function onLoteEtapaRowToggle(key){
   var chk = document.getElementById('lote-et-chk-'+key).checked;
   var box = document.getElementById('lote-et-fields-'+key);
   if(box) box.style.display = chk ? 'block' : 'none';
+  // Marcar/desmarcar uma etapa muda a base disponível para QUALQUER etapa
+  // seguinte que dependa dela via "Dias após..." — recalcula tudo.
+  _loteRefreshAllPreviews();
+}
+
+// Atalho "usar a mesma data da etapa anterior" — equivale a preencher
+// "Dias após etapa anterior" com 0. Existe porque nem sempre o usuário quer
+// somar dias: às vezes só quer repetir, TAG por TAG, a mesma data que a
+// etapa anterior já tem (ex.: copiar a Prevista de "Lib. Fab." para
+// "Documentos" sem deslocar nada).
+function _loteUsarMesmaData(key){
+  var el = document.getElementById('lote-et-dias-'+key);
+  if(!el) return;
+  el.value = '0';
+  _loteRefreshAllPreviews();
+}
+
+// Recalcula a prévia de "Dias após etapa anterior" de TODAS as etapas do
+// lote — chamado sempre que qualquer campo que possa servir de base para
+// esse cálculo muda (Data Prevista, Data Realizada, o próprio campo de
+// dias, ou marcar/desmarcar uma etapa), já que uma mudança na etapa N pode
+// afetar o resultado calculado da etapa N+1, N+2, etc.
+function _loteRefreshAllPreviews(){
+  ETAPAS_DEF.filter(function(e){ return !e.isFabPct; }).forEach(function(e){
+    if(document.getElementById('lote-et-dias-preview-'+e.key)) _loteEtapaDiasPreview(e.key);
+  });
+}
+
+// Data-base "efetiva" de uma etapa PARA UMA TAG, considerando o que está
+// sendo digitado NESTE MESMO formulário do lote AGORA (ainda não salvo) —
+// não só o que já está gravado no banco (s[...]). Isso é essencial porque é
+// muito comum reprogramar a etapa anterior E encadear a próxima por dias na
+// MESMA operação de lote (ex.: "Pcte. Fab. → 15/08" + "Insp. Interna → 7
+// dias após Pcte. Fab." no mesmo clique). Se a etapa anterior também estiver
+// usando "Dias após..." em vez de uma data fixa, calcula recursivamente.
+// Usada tanto pela prévia ao vivo quanto por aplicarLote(), para garantir
+// que as duas mostrem exatamente o mesmo resultado.
+function _loteBaseDataEtapaAnterior(etapaAnteriorDef, s){
+  if(!etapaAnteriorDef) return null;
+  var chkAnt = document.getElementById('lote-et-chk-'+etapaAnteriorDef.key);
+  if(chkAnt && chkAnt.checked){
+    var prevEl = document.getElementById('lote-et-prev-'+etapaAnteriorDef.key);
+    if(prevEl && prevEl.value) return prevEl.value;
+    var realEl = document.getElementById('lote-et-real-'+etapaAnteriorDef.key);
+    if(realEl && realEl.value) return realEl.value;
+    var diasElAnt = document.getElementById('lote-et-dias-'+etapaAnteriorDef.key);
+    var diasAnt = (diasElAnt && diasElAnt.value!=='') ? parseInt(diasElAnt.value) : null;
+    if(diasAnt!=null && !isNaN(diasAnt) && diasAnt>=0){
+      var etapaAntAnt = _loteEtapaAnterior(etapaAnteriorDef);
+      var baseAnt = _loteBaseDataEtapaAnterior(etapaAntAnt, s);
+      if(baseAnt){
+        var calcAnt = _addDias(baseAnt, diasAnt);
+        if(calcAnt) return calcAnt;
+      }
+    }
+  }
+  // Etapa anterior não está sendo alterada neste lote (ou está marcada mas
+  // ainda sem nada preenchido) — usa o que já está salvo no banco para essa TAG.
+  return s[etapaAnteriorDef.prev] || s[etapaAnteriorDef.real] || null;
+}
+
+// Mostra, ao vivo (enquanto o usuário digita o número de dias), o que o
+// cálculo "Dias após etapa anterior" vai gravar em cada TAG selecionada —
+// sem isso, só era possível saber se funcionou depois de aplicar em lote e
+// checar cada TAG manualmente.
+function _loteEtapaDiasPreview(key){
+  var out = document.getElementById('lote-et-dias-preview-'+key);
+  if(!out) return;
+  var diasEl = document.getElementById('lote-et-dias-'+key);
+  // "" (campo vazio) = recurso não usado; "0" é um valor válido (usa a mesma
+  // data da etapa anterior, sem somar nada) — por isso não pode ser tratado
+  // como "vazio" igual a antes.
+  var dias = (diasEl && diasEl.value!=='') ? parseInt(diasEl.value) : null;
+  if(dias==null || isNaN(dias) || dias<0){ out.innerHTML=''; return; }
+  var eDef = ETAPAS_DEF.find(function(d){ return d.key===key; });
+  var etapaAnteriorDef = eDef ? _loteEtapaAnterior(eDef) : null;
+  if(!eDef || !etapaAnteriorDef){ out.innerHTML=''; return; }
+  var subs = _loteSubsSelecionadas();
+  if(!subs.length){ out.innerHTML=''; return; }
+  var linhas = subs.map(function(s){
+    var baseData = _loteBaseDataEtapaAnterior(etapaAnteriorDef, s);
+    var tagLabel = s.subobra||s.id;
+    if(!baseData) return '<span style="color:#b91c1c;">'+tagLabel+': sem "'+etapaAnteriorDef.label+'" registrada — não será calculada</span>';
+    var calc = _addDias(baseData, dias);
+    if(!calc) return '<span style="color:#b91c1c;">'+tagLabel+': data-base inválida ("'+baseData+'")</span>';
+    return '<span style="color:#166534;">'+tagLabel+': → '+new Date(calc+'T12:00:00').toLocaleDateString('pt-BR')+'</span>';
+  });
+  var maxShow=6;
+  out.innerHTML = 'Prévia do cálculo:<br>' + linhas.slice(0,maxShow).join('<br>') + (linhas.length>maxShow ? '<br>… e mais '+(linhas.length-maxShow)+' TAG(s)' : '');
 }
 function onLotePesoDetToggle(){
   var chk = document.getElementById('lote-chk-peso-det').checked;
@@ -12439,12 +12534,18 @@ function _loteEtapasSelecionadas(){
     var realEl = document.getElementById('lote-et-real-'+e.key);
     var obsEl  = document.getElementById('lote-et-obs-'+e.key);
     var grdEl  = document.getElementById('lote-et-grd-'+e.key);
+    var diasEl = document.getElementById('lote-et-dias-'+e.key);
+    // "" = não usado; "0" = valor válido ("mesma data da etapa anterior").
+    // Guardamos null quando não usado, para não confundir com o "0" digitado.
+    var diasVal = (diasEl && diasEl.value!=='') ? parseInt(diasEl.value) : null;
+    if(diasVal!=null && (isNaN(diasVal) || diasVal<0)) diasVal = null;
     out.push({
       def: e,
       prev: prevEl && prevEl.value ? prevEl.value : null,
       real: realEl && realEl.value ? realEl.value : null,
       obs:  obsEl ? obsEl.value.trim() : '',
-      grd:  grdEl ? grdEl.value.trim() : ''
+      grd:  grdEl ? grdEl.value.trim() : '',
+      diasAposAnterior: diasVal
     });
   });
   return out;
@@ -12518,6 +12619,12 @@ async function aplicarLote(){
     etapas.forEach(function(et){
       var partes=[];
       if(et.prev) partes.push('Prev: '+new Date(et.prev+'T12:00:00').toLocaleDateString('pt-BR'));
+      else if(et.diasAposAnterior!=null){
+        var _eAnt = _loteEtapaAnterior(et.def);
+        partes.push(et.diasAposAnterior===0
+          ? 'Prev: mesma data de "'+(_eAnt?_eAnt.label:'etapa anterior')+'" (calculado por TAG)'
+          : 'Prev: '+et.diasAposAnterior+' dia'+(et.diasAposAnterior!==1?'s':'')+' após "'+(_eAnt?_eAnt.label:'etapa anterior')+'" (calculado por TAG)');
+      }
       if(et.real) partes.push('Real: '+new Date(et.real+'T12:00:00').toLocaleDateString('pt-BR'));
       if(et.grd) partes.push('GRD: '+et.grd);
       if(et.obs) partes.push('Obs: '+et.obs);
@@ -12533,6 +12640,7 @@ async function aplicarLote(){
   prog.style.display='block';
 
   var okCount=0, errCount=0;
+  var _loteSemBase=[]; // TAGs onde "Dias após etapa anterior" não achou data-base p/ calcular
   for(var i=0;i<subs.length;i++){
     var s = subs[i];
     prog.textContent = 'Aplicando ' + (i+1) + '/' + subs.length + '… (' + (s.subobra||s.id) + ')';
@@ -12548,9 +12656,29 @@ async function aplicarLote(){
       }
       etapas.forEach(function(et){
         var eDef = et.def;
-        if(et.prev!=null){
-          _dhRegisterFor(s.id, eDef.key, 'prev', s[eDef.prev]||null, et.prev);
-          updates[eDef.prev] = et.prev;
+        var novaPrev = et.prev;
+        // "Dias após etapa anterior" — só entra em ação se a Data Prevista fixa
+        // do lote ficou em branco. Cada TAG usa a SUA PRÓPRIA Data Prevista já
+        // registrada na etapa anterior (s[etapaAnteriorDef.prev]) como base —
+        // por isso é calculado aqui, dentro do loop por TAG, e não uma vez só.
+        if(novaPrev==null && et.diasAposAnterior!=null){
+          var etapaAnteriorDef = _loteEtapaAnterior(eDef);
+          // Usa a MESMA função da prévia ao vivo (_loteBaseDataEtapaAnterior),
+          // que prioriza o que está sendo digitado agora neste formulário do
+          // lote para a etapa anterior (mesmo ainda não salvo — ex.: "Pcte.
+          // Fab. → 15/08" no mesmo clique) e só cai para o valor já salvo no
+          // banco (s[...]) se a etapa anterior não estiver sendo alterada.
+          var baseData = _loteBaseDataEtapaAnterior(etapaAnteriorDef, s);
+          if(baseData){
+            var _calc = _addDias(baseData, et.diasAposAnterior);
+            if(_calc) novaPrev = _calc;
+          } else {
+            _loteSemBase.push((s.subobra||s.id)+' — '+eDef.label);
+          }
+        }
+        if(novaPrev!=null){
+          _dhRegisterFor(s.id, eDef.key, 'prev', s[eDef.prev]||null, novaPrev);
+          updates[eDef.prev] = novaPrev;
         }
         if(et.real!=null){
           _dhRegisterFor(s.id, eDef.key, 'real', s[eDef.real]||null, et.real);
@@ -12589,7 +12717,7 @@ async function aplicarLote(){
           var eDef = et.def;
           var partes=[];
           if(et.real) partes.push(eDef.label+' realizado em '+new Date(et.real+'T12:00:00').toLocaleDateString('pt-BR'));
-          else if(et.prev) partes.push('Previsão de '+eDef.label+' atualizada');
+          else if(et.prev || et.diasAposAnterior!=null) partes.push('Previsão de '+eDef.label+' atualizada');
           if(et.obs) partes.push(et.obs);
           if(et.grd) partes.push('GRD: '+et.grd);
           if(partes.length) obsHist.push(partes.join(' — '));
@@ -12645,6 +12773,17 @@ async function aplicarLote(){
     showToast('✓ Alteração em lote concluída', okCount + ' TAG' + (okCount!==1?'s':'') + ' atualizada' + (okCount!==1?'s':'') + ' com sucesso.', 'success');
   } else {
     showToast('Concluído com erros', okCount + ' atualizada(s), ' + errCount + ' com erro. Verifique o console.', 'warn');
+  }
+  // Avisa quando "Dias após etapa anterior" não conseguiu calcular a data de
+  // alguma TAG por falta de data-base (etapa anterior sem Prevista nem
+  // Realizada preenchida naquela TAG específica) — sem isso, a data
+  // simplesmente não era preenchida e ficava parecendo bug/silêncio.
+  if(_loteSemBase.length){
+    showToast('⚠ Algumas datas não puderam ser calculadas',
+      _loteSemBase.length+' etapa(s) não têm Data Prevista/Realizada na etapa anterior para basear o cálculo por dias: '+
+      _loteSemBase.slice(0,6).join(' · ')+(_loteSemBase.length>6?'...':'')+
+      '. Preencha a etapa anterior dessas TAGs ou informe a Data Prevista fixa diretamente.',
+      'warn');
   }
 }
 
