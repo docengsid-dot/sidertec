@@ -6075,6 +6075,20 @@ function renderCronograma(){
   const doc11F = document.getElementById('cf-doc11')?.value||''; // Filtro Etapa 11 Documentos
   const telhaF = document.getElementById('cf-telha')?.value||''; // Filtro Projeto de Telha
 
+  // Pré-computa, para cada termo de busca, se ele bate EXATAMENTE com o código de
+  // alguma TAG existente. Quando bate, a busca por esse termo fica restrita à TAG
+  // exata — evita que buscar "S176D" (e confirmar com Enter) também traga
+  // "S176DA", "S176DB", "S176DC" (variações/sub-itens com o mesmo prefixo). Se
+  // não existir TAG com esse nome exato, mantém a busca parcial (contém), para
+  // continuar permitindo achar "PF257" dentro de "11-4600-PF-PF257".
+  const _termoBuscaExato = {};
+  _todosTags.forEach(t=>{
+    const tl = t.toLowerCase();
+    if(!(tl in _termoBuscaExato)){
+      _termoBuscaExato[tl] = allCronSubobras.some(s => (s.subobra||'').toLowerCase() === tl);
+    }
+  });
+
   let subs = allCronSubobras.filter(s=>{
     if(obraF   && s.obra!==obraF) return false;
     // Filtro multi-status
@@ -6102,12 +6116,14 @@ function renderCronograma(){
         s.data_limite_fab,
       ].map(v => (v||'').toLowerCase()).join(' ');
       const tagAtual = (s.subobra||'').toLowerCase();
-      // A partir de agora, a busca por TAG é PARCIAL (contém) — buscar "PF257"
-      // encontra "11-4600-PF-PF257", por exemplo. Antes exigia o texto EXATO
-      // da TAG completa, o que obrigava digitar tudo (11-4600-PF-PF257) para
-      // achar qualquer coisa.
+      // A busca por TAG é PARCIAL (contém) — buscar "PF257" encontra
+      // "11-4600-PF-PF257", por exemplo. EXCEÇÃO: se o termo digitado bate com o
+      // código exato de uma TAG (ex.: "S176D"), a busca fica restrita a essa TAG
+      // exata, sem trazer também "S176DA"/"S176DB"/"S176DC" (variações que só
+      // compartilham o mesmo prefixo).
       const matched = _todosTags.some(t => {
         const tl = t.toLowerCase();
+        if(_termoBuscaExato[tl]) return tagAtual === tl;
         return tagAtual.includes(tl) || searchFieldsLivres.includes(tl);
       });
       if(!matched) return false;
@@ -22166,6 +22182,8 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="hd-right">
     <div class="sync-status"><div class="sync-dot syncing" id="sync-dot"></div><span id="sync-label">Conectando…</span></div>
     <button class="hbtn" onclick="_ct_recarregarTudo()">↺ Atualizar</button>
+    <button class="hbtn" onclick="recuperarDadosAntigosSupabase()" title="Tenta importar, uma última vez, os dados que ficaram presos no Supabase antigo (só funciona se o acesso a ele for restabelecido)" style="background:#7c3aed;">📥 Recuperar Dados Antigos</button>
+    <button class="hbtn" onclick="importarBackupEmbutido()" title="Importa os dados do backup do Supabase baixado em 11/08/2026 (já embutido nesta versão do arquivo) — funciona mesmo com o Supabase antigo offline" style="background:#0d9488;">📦 Importar Backup 11/08</button>
   </div>
 </header>
 
@@ -23770,8 +23788,16 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){var ov=document.getElementById('ct-modal-overlay');if(ov&&ov.classList.contains('show'))fecharContratos();}
 });
 // ═══════════════════════════════════════════════════════════
-// SUPABASE — Gestão Contratual + Diário (mesmo projeto)
+// SUPABASE (LEGADO) — Gestão Contratual + DCTS + Terceiros
 // ═══════════════════════════════════════════════════════════
+// Este projeto Supabase ("sidertec-diario") estourou a cota de uso (saída/
+// egress) da organização e ficou com "Serviços restritos", bloqueando toda
+// leitura/gravação — por isso o modal Contratos parou de mostrar qualquer
+// dado. As constantes abaixo ficam só para a função de recuperação de dados
+// antigos (recuperarDadosAntigosSupabase, mais abaixo). Todo o restante do
+// módulo (sbFetch/sbPost/sbPatch/sbDelete e _tcSbFetch/_tcSbUpsert/
+// _tcSbDelete) foi migrado para o MESMO Firestore já usado pelo resto do
+// app (via sbClient), que não depende desse projeto e não tem esse limite.
 const _SB_URL_CT  = 'https://ueeknpnyahlgvolvnuwk.supabase.co';
 const _SB_KEY_CT  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlZWtucG55YWhsZ3ZvbHZudXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyMjAsImV4cCI6MjA5NTUyNzIyMH0.ReeTx_uSQXsfq2oh24bVOwlO5HFs9riCeiapXsgb6to';
 const _SB_H_CT    = { 'Content-Type':'application/json', 'apikey':_SB_KEY_CT, 'Authorization':'Bearer '+_SB_KEY_CT, 'Prefer':'return=representation' };
@@ -23864,28 +23890,32 @@ function _ct_showPage(id, el){
 // ═══════════════════════════════════════════════════════════
 // CRUD SUPABASE — contratos_projetos + contratos_eventos
 // ═══════════════════════════════════════════════════════════
+// MIGRADO: antes chamava fetch() direto no Supabase (_sbUrlCt/_SB_H_CT), que
+// ficou inacessível com o projeto "sidertec-diario" em "Serviços restritos"
+// (cota de saída/egress excedida). Agora delega para o sbClient (mesmo
+// Firestore usado no Cronograma/Tarefas/Controle Cliente), mantendo
+// exatamente as mesmas assinaturas e formatos de retorno (arrays) — por
+// isso nenhuma outra função do módulo Contratos/DCTS precisou mudar.
 async function sbFetch(table){
-  const res = await fetch(_sbUrlCt(table+'?select=*&order=criado_em.desc&limit=5000'), { headers:_SB_H_CT });
-  if(!res.ok) throw new Error('Erro ao carregar '+table+': '+res.status);
-  return res.json();
+  const {data,error} = await sbClient.from(table).order('criado_em',{ascending:false}).limit(5000).select();
+  if(error) throw new Error(error.message||('Erro ao carregar '+table));
+  return data||[];
 }
 async function sbPost(table, body){
   const record = { ...body, id: body.id||genUUID(), criado_em: body.criado_em||new Date().toISOString(), atualizado_em: new Date().toISOString() };
-  const res = await fetch(_sbUrlCt(table), { method:'POST', headers:_SB_H_CT, body:JSON.stringify(record) });
-  if(!res.ok){ const e=await res.json(); throw new Error(e.message||'Erro ao salvar'); }
-  const data = await res.json();
-  return Array.isArray(data)?data:[data];
+  const {data,error} = await sbClient.from(table).insert([record]).select();
+  if(error) throw new Error(error.message||'Erro ao salvar');
+  return data||[record];
 }
 async function sbPatch(table, id, body){
-  const payload = { ...body, atualizado_em: new Date().toISOString() };
-  const res = await fetch(_sbUrlCt(table+'?id=eq.'+id), { method:'PATCH', headers:_SB_H_CT, body:JSON.stringify(payload) });
-  if(!res.ok){ const e=await res.json(); throw new Error(e.message||'Erro ao atualizar'); }
-  const data = await res.json();
-  return Array.isArray(data)?data:[data];
+  const payload = { ...body };
+  const {data,error} = await sbClient.from(table).eq('id',id).update(payload).select();
+  if(error) throw new Error(error.message||'Erro ao atualizar');
+  return data||[];
 }
 async function sbDelete(table, id){
-  const res = await fetch(_sbUrlCt(table+'?id=eq.'+id), { method:'DELETE', headers:_SB_H_CT });
-  if(!res.ok) throw new Error('Erro ao excluir: '+res.status);
+  const {error} = await sbClient.from(table).eq('id',id).delete().select();
+  if(error) throw new Error(error.message||'Erro ao excluir');
   return true;
 }
 
@@ -26266,20 +26296,124 @@ async function tcLoadAll(){
     tcEmpresas=emps; tcContratos=cts; tcBoletins=bms; tcPagamentos=pgs;
   }catch(e){ console.warn('[tcLoadAll]',e.message); tcEmpresas=[];tcContratos=[];tcBoletins=[];tcPagamentos=[]; }
 }
+// MIGRADO (mesmo motivo de sbFetch/sbPost acima): usa sbClient/Firestore em
+// vez de fetch() direto no Supabase "sidertec-diario" (fora do ar por cota).
 async function _tcSbFetch(table){
-  const res=await fetch(_sbUrlCt(table+'?order=criado_em.desc&limit=5000'),{headers:_SB_H_CT});
-  if(!res.ok) throw new Error('Erro ao carregar '+table);
-  return res.json();
+  const {data,error} = await sbClient.from(table).order('criado_em',{ascending:false}).limit(5000).select();
+  if(error) throw new Error(error.message||('Erro ao carregar '+table));
+  return data||[];
 }
 async function _tcSbUpsert(table,obj){
-  const res=await fetch(_sbUrlCt(table),{method:'POST',headers:{..._SB_H_CT,'Prefer':'return=representation,resolution=merge-duplicates'},body:JSON.stringify(obj)});
-  if(!res.ok){const e=await res.json().catch(()=>{});throw new Error((e&&e.message)||'Erro ao salvar em '+table);}
-  return res.json();
+  const {data,error} = await sbClient.from(table).insert([obj]).select();
+  if(error) throw new Error(error.message||('Erro ao salvar em '+table));
+  return data||[obj];
 }
 async function _tcSbDelete(table,id){
-  const res=await fetch(_sbUrlCt(table+'?id=eq.'+id),{method:'DELETE',headers:_SB_H_CT});
-  if(!res.ok) throw new Error('Erro ao excluir de '+table);
+  const {error} = await sbClient.from(table).eq('id',id).delete().select();
+  if(error) throw new Error(error.message||('Erro ao excluir de '+table));
   return true;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RECUPERAÇÃO DE DADOS ANTIGOS (SUPABASE → FIRESTORE)
+// ═══════════════════════════════════════════════════════════
+// Botão manual ("📥 Recuperar Dados Antigos" no cabeçalho do modal Contratos).
+// Tenta ler diretamente do Supabase antigo (projeto "sidertec-diario", que
+// ficou com "Serviços restritos" por cota de saída/egress excedida) e grava
+// no Firestore tudo o que ainda não existir por lá. Só funciona enquanto o
+// Supabase antigo estiver acessível no momento do clique (ex.: cota
+// resetada, ou fatura resolvida mesmo que temporariamente) — se a leitura
+// falhar, mostra isso claramente em vez de travar o app. Pode ser executado
+// mais de uma vez com segurança: registros já migrados (mesmo "id") são
+// detectados e pulados, então não duplica nada.
+const _TABELAS_RECUPERAR_SUPABASE = [
+  'contratos_projetos','contratos_eventos','dcts_encerramento',
+  'tc_empresas','tc_contratos','tc_boletins','tc_pagamentos'
+];
+async function _sbFetchAntigoDireto(table){
+  const res = await fetch(_sbUrlCt(table+'?select=*&order=criado_em.desc&limit=5000'), { headers:_SB_H_CT });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+async function recuperarDadosAntigosSupabase(){
+  if(!confirm('Isso tenta ler os dados que ainda estiverem no Supabase antigo (projeto "sidertec-diario") e trazer para cá tudo o que ainda não foi migrado.\n\nSó funciona se o acesso ao Supabase antigo estiver liberado no momento (ex.: cota resetada ou fatura resolvida). Continuar?')) return;
+  if(typeof _ct_showLoading==='function') _ct_showLoading('Verificando acesso ao Supabase antigo…');
+  const resumo = [];
+  let algumErro = false;
+  for(const table of _TABELAS_RECUPERAR_SUPABASE){
+    if(typeof _ct_showLoading==='function') _ct_showLoading('Lendo "'+table+'" do Supabase antigo…');
+    try{
+      const linhasAntigas = await _sbFetchAntigoDireto(table);
+      if(!linhasAntigas.length){ resumo.push(table+': 0 registros encontrados'); continue; }
+      if(typeof _ct_showLoading==='function') _ct_showLoading('Migrando "'+table+'" ('+linhasAntigas.length+' registros)…');
+      let novos=0, jaExistiam=0, erros=0;
+      for(const row of linhasAntigas){
+        try{
+          const chk = await sbClient.from(table).eq('id',row.id).select();
+          if(chk.data && chk.data.length){ jaExistiam++; continue; }
+          const ins = await sbClient.from(table).insert([row]).select();
+          if(ins.error) throw ins.error;
+          novos++;
+        }catch(eRow){ erros++; }
+      }
+      resumo.push(table+': '+novos+' recuperado(s), '+jaExistiam+' já existia(m)'+(erros?', '+erros+' com erro':''));
+    }catch(e){
+      algumErro = true;
+      resumo.push(table+': ❌ não foi possível ler do Supabase antigo ('+e.message+')');
+    }
+  }
+  if(typeof _ct_hideLoading==='function') _ct_hideLoading();
+  // Recarrega os dados na tela com o que acabou de entrar
+  try{ if(typeof _ct_carregarTudo==='function') await _ct_carregarTudo(); }catch(e){}
+  try{ if(typeof dctsLoad==='function') await dctsLoad(); }catch(e){}
+  try{ if(typeof tcLoadAll==='function') await tcLoadAll(); }catch(e){}
+  const msg = resumo.join('\n');
+  if(algumErro){
+    alert('Recuperação concluída com pendências:\n\n'+msg+'\n\nSe apareceu erro de leitura, o Supabase antigo ainda está bloqueado — será preciso resolver a cota/fatura por lá (ou exportar manualmente pelo painel do Supabase) antes de tentar de novo.');
+  } else {
+    alert('Recuperação concluída:\n\n'+msg);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// IMPORTAÇÃO DO BACKUP BAIXADO EM 11/08/2026 (SUPABASE PAUSADO)
+// ═══════════════════════════════════════════════════════════
+// Dados reais extraídos do backup do banco (db_cluster11082026094024.backup)
+// baixado direto do painel do Supabase enquanto o projeto "sidertec-diario"
+// estava pausado por cota — não depende de nenhum acesso de rede ao
+// Supabase. Cobre contratos_projetos, contratos_eventos e
+// dcts_encerramento (as tabelas tc_empresas/tc_contratos/tc_boletins/
+// tc_pagamentos vieram vazias nesse backup — a aba Contratação de
+// Terceiros nunca chegou a ter dado salvo). Idempotente: registros cujo
+// "id" já existir no Firestore são pulados, então pode rodar mais de uma
+// vez sem duplicar nada.
+const _BACKUP_11_08_2026 = {"contratos_eventos":[{"id":"41147465-35d5-4b16-ae20-9aa468963365","projeto_id":"s179-engeko-fiocruz","numero_evento":"E.3","descricao":"ENTREGAS PARCIAIS- 65%","valor":8257520,"valor_faturado":0,"valor_recibo":0,"data_vencimento":"2026-08-30","status":"pendente","obs":null,"criado_em":"2026-06-09T17:53:22.976Z","atualizado_em":"2026-06-09T17:53:22.976Z"},{"id":"0f4025f1-cb7d-4c26-b05b-21192da74605","projeto_id":"s179-engeko-fiocruz","numero_evento":"E.1","descricao":"SINAL CONTRATUAL -20%","valor":2540776,"valor_faturado":0,"valor_recibo":0,"data_vencimento":"2026-06-10","status":"pendente","obs":null,"criado_em":"2026-06-09T17:51:12.36Z","atualizado_em":"2026-06-09T17:58:20.056Z"},{"id":"78dcb0e6-4e2f-4b0a-8040-e9a0038bc10e","projeto_id":"s179-engeko-fiocruz","numero_evento":"E.2","descricao":"ENTREGA DE DESENHOS","valor":1905582,"valor_faturado":0,"valor_recibo":0,"data_vencimento":"2026-06-30","status":"pendente","obs":null,"criado_em":"2026-06-09T17:52:24.5Z","atualizado_em":"2026-06-09T17:58:25.263Z"},{"id":"bd8247b1-5889-4cb1-8d8c-95da648a91f2","projeto_id":"5b54bfca-564d-4cf1-8ee0-97acb39bde27","numero_evento":"E.2","descricao":"ENTREGAS PARCIAIS- 70%","valor":623137,"valor_faturado":0,"valor_recibo":0,"data_vencimento":"2026-07-30","status":"pendente","obs":null,"criado_em":"2026-06-09T17:49:23.993Z","atualizado_em":"2026-06-09T18:00:22.638Z"},{"id":"e58593ea-fa69-4479-a65d-8ab695c172bd","projeto_id":"691972b6-4eeb-4b3f-b9bd-6a93654fe1e3","numero_evento":"E.2","descricao":"INICIO DE FABRICAÇÃO 33,92%","valor":3000000,"valor_faturado":3000000,"valor_recibo":0,"data_vencimento":"2026-05-30","status":"recebido","obs":null,"criado_em":"2026-06-09T18:10:55.307Z","atualizado_em":"2026-07-31T19:33:13.472Z"},{"id":"44b8c1d9-c9aa-4b5e-ba5f-cd1a27e56082","projeto_id":"691972b6-4eeb-4b3f-b9bd-6a93654fe1e3","numero_evento":"E.3","descricao":"ENTREGAS PARCIAIS- 52,17%","valor":9137912.64,"valor_faturado":0,"valor_recibo":0,"data_vencimento":null,"status":"faturado","obs":null,"criado_em":"2026-06-09T18:12:02.279Z","atualizado_em":"2026-07-31T19:33:41.524Z"},{"id":"b9300de0-8322-4b3d-805e-41f7cb296119","projeto_id":"5b54bfca-564d-4cf1-8ee0-97acb39bde27","numero_evento":"E.1","descricao":"ASSINATURA CONTRATO-25%","valor":222549.17,"valor_faturado":0,"valor_recibo":0,"data_vencimento":"2026-06-20","status":"faturado","obs":"C/ NF DE SERVIÇO","criado_em":"2026-06-09T17:47:38.205Z","atualizado_em":"2026-07-31T20:14:02.944Z"}],"contratos_projetos":[{"id":"691972b6-4eeb-4b3f-b9bd-6a93654fe1e3","codigo":"S178","nome":"RIO VERDE- VALMET PATIO DE MADEIRAS","cliente":"RIO VERDE","numero_contrato":"-","valor_contrato":13367916.06,"valor_fornecimento":9680151.64,"valor_montagem":3687764.42,"data_inicio":"2026-05-01","data_termino":"2026-08-30","status":"ativo","obs":null,"escopo_desc":null,"escopo_fornecimento":true,"escopo_montagem":true,"peso_forn_contratado":447000,"peso_forn_faturado":0,"peso_mont_contratado":0,"peso_mont_faturado":0,"peso_contratado":447000,"peso_faturado":0,"doc_abertura_recebido":true,"abertura_obra":true,"entrega_engenharia":true,"entrega_suprimentos":true,"entrega_fiscal":true,"entrega_planejamento":true,"entrega_qualidade":true,"criado_em":"2026-06-09T18:08:34.463Z","atualizado_em":"2026-07-06T19:21:30.468Z","escopo_fora":"","garantia_possui":"sim","garantia_obs":"emitidas","gerente_contrato":"ROBERTA","gestor_financeiro":"LUANA - JENIFER","gestor_geral":"LUANA - JENIFER","reuniao_prevista":"2026-05-01","reuniao_realizada":"2026-05-01","reuniao_status":"realizada","reuniao_obs":"","cidade_obra":"INOCÊNCIA","estado_obra":"MS","tipo_faturamento":"peso_balanca","obs_faturamento":"","art_data":"2026-06-01","art_numero":"1132026006836","pit_data":null,"pit_numero":"","garantias":[],"emissao_art":"true","escopo_forn_desc":null,"escopo_mont_desc":null,"emissao_pit":false,"peso_basico":474482.89,"peso_detalhado":533634.52,"aditivos":[],"peso_expedido":0,"valor_faturado_fornecimento":3000000,"valor_faturado_montagem":0,"valor_recebido_fornecimento":3000000,"valor_recebido_montagem":0,"desconto_nf_fornecimento":0,"desconto_nf_montagem":0,"ocorrencias_financeiras":[{"data":"2026-07-06","texto":"FAZER O LEVANTAMENTO DO ADITIVO A SER SOLICITADI"}],"art_assinatura":null,"emissao_databook":false,"databook_data":null,"databook_aprovacao":null},{"id":"97cd40c0-0325-4f62-b640-ffb7f7918d52","codigo":"S176","nome":"RIO VERDE - NOURYUN","cliente":"RIO VERDE","numero_contrato":"-","valor_contrato":25224408.19,"valor_fornecimento":20211807.66,"valor_montagem":5012600.53,"data_inicio":"2026-01-07","data_termino":"2026-10-30","status":"ativo","obs":null,"escopo_desc":null,"escopo_fornecimento":true,"escopo_montagem":true,"peso_forn_contratado":1136750,"peso_forn_faturado":118.0264,"peso_mont_contratado":0,"peso_mont_faturado":0,"peso_contratado":1136750,"peso_faturado":118.0264,"doc_abertura_recebido":true,"abertura_obra":true,"entrega_engenharia":true,"entrega_suprimentos":true,"entrega_fiscal":true,"entrega_planejamento":true,"entrega_qualidade":true,"criado_em":"2026-07-02T18:35:09.585Z","atualizado_em":"2026-07-14T16:07:43.736Z","escopo_fora":"","garantia_possui":"sim","garantia_obs":"","gerente_contrato":"ROBERTA GARCIA","gestor_financeiro":"LUANA CANAVEZ","gestor_geral":"LUANA CANAVEZ","reuniao_prevista":null,"reuniao_realizada":null,"reuniao_status":"","reuniao_obs":"","cidade_obra":"INOCÊNCIA","estado_obra":"MS","tipo_faturamento":"peso_balanca","obs_faturamento":"","art_data":null,"art_numero":"","pit_data":null,"pit_numero":"","garantias":[],"emissao_art":"true","escopo_forn_desc":null,"escopo_mont_desc":null,"emissao_pit":true,"peso_basico":922092.91,"peso_detalhado":774921.66,"aditivos":[{"num":"2°TAC_PINTURA CALHAS, ESCADAS E GC","peso":0,"valor":0},{"num":"3°TAC_INSPETOR N1 PINTURA","peso":0,"valor":0},{"num":"4°TAC_PLEITO PROJETO ABAIXO 3 TON E DE 3 A 5 TON","peso":0,"tipo":"fornecimento","valor":4032278.41}],"peso_expedido":0,"valor_faturado_fornecimento":4238965.31,"valor_faturado_montagem":0,"valor_recebido_fornecimento":6013490.33,"valor_recebido_montagem":0,"desconto_nf_fornecimento":0,"desconto_nf_montagem":0,"ocorrencias_financeiras":[],"art_assinatura":null,"emissao_databook":false,"databook_data":null,"databook_aprovacao":null},{"id":"5b54bfca-564d-4cf1-8ee0-97acb39bde27","codigo":"S180","nome":"ENGEKO - 216 - PAM - BUTANTAN","cliente":"ENGEKO","numero_contrato":null,"valor_contrato":890196.7,"valor_fornecimento":890196.7,"valor_montagem":0,"data_inicio":"2026-06-01","data_termino":null,"status":"ativo","obs":null,"escopo_desc":null,"escopo_fornecimento":true,"escopo_montagem":false,"peso_forn_contratado":38000,"peso_forn_faturado":0,"peso_mont_contratado":0,"peso_mont_faturado":0,"peso_contratado":38000,"peso_faturado":0,"doc_abertura_recebido":true,"abertura_obra":true,"entrega_engenharia":true,"entrega_suprimentos":true,"entrega_fiscal":true,"entrega_planejamento":true,"entrega_qualidade":true,"criado_em":"2026-06-09T17:38:45.164Z","atualizado_em":"2026-07-05T15:15:03.267Z","escopo_fora":"","garantia_possui":"nao","garantia_obs":"PROJETO DTALHADO PELO CLIENTE","gerente_contrato":"ROBERTA","gestor_financeiro":"LUANA","gestor_geral":"LUANA","reuniao_prevista":"2026-06-01","reuniao_realizada":"2026-06-01","reuniao_status":"realizada","reuniao_obs":"","cidade_obra":"SÃO PAULO","estado_obra":"SP","tipo_faturamento":"por_projeto","obs_faturamento":"","art_data":null,"art_numero":"","pit_data":null,"pit_numero":"","garantias":[],"emissao_art":"true","escopo_forn_desc":null,"escopo_mont_desc":null,"emissao_pit":false,"peso_basico":37928,"peso_detalhado":20079.27,"aditivos":[],"peso_expedido":0,"valor_faturado_fornecimento":0,"valor_faturado_montagem":0,"valor_recebido_fornecimento":0,"valor_recebido_montagem":0,"desconto_nf_fornecimento":0,"desconto_nf_montagem":0,"ocorrencias_financeiras":[],"art_assinatura":null,"emissao_databook":false,"databook_data":null,"databook_aprovacao":null},{"id":"s179-engeko-fiocruz","codigo":"S179","nome":"ENGEKO - FIOCRUZ - BIOMANGUINHOS","cliente":"ENGEKO","numero_contrato":"A EMITIR","valor_contrato":12703880,"valor_fornecimento":12703880,"valor_montagem":0,"data_inicio":null,"data_termino":null,"status":"ativo","obs":"Roberta informa que o contrato recebido é padrão diferente do que estamos acostumados. Em análise pelo adv. Preço unitário. Peso de projeto detalhado e aprovado - peso adicional será aditivo. Contrato e pedido de compra - faturamento será aprovado com emissão do pedido de compra. | FORA DO ESCOPO: COBERTURA - TELHAS ACESSÓRIOS FECHAMENTO PRÉ MONTAGEM; GRADES / DEGRAUS / GC / PERFIL TUBULAR. | GERENTE: ROBERTA GARCIA | FINANCEIRO: MELISSA AMARAL | GERAL: LUANA CANAVEZ | REUNIÃO PREVISTA: 27/05/2026 — Roberta vai enviar email para o cliente dar start no fornecimento. | GARANTIA: Confirmar.","escopo_desc":"DETALHAMENTO / PARAFUSOS, PORCAS ARRUELAS / PIT / DB / PINTURA","escopo_fornecimento":true,"escopo_montagem":false,"peso_forn_contratado":779000,"peso_forn_faturado":0,"peso_mont_contratado":0,"peso_mont_faturado":0,"peso_contratado":779000,"peso_faturado":0,"doc_abertura_recebido":true,"abertura_obra":true,"entrega_engenharia":true,"entrega_suprimentos":true,"entrega_fiscal":true,"entrega_planejamento":true,"entrega_qualidade":true,"criado_em":"2026-06-09T16:29:06.191Z","atualizado_em":"2026-07-05T15:38:45.102Z","escopo_fora":"","garantia_possui":"","garantia_obs":"","gerente_contrato":"","gestor_financeiro":"","gestor_geral":"","reuniao_prevista":null,"reuniao_realizada":null,"reuniao_status":"","reuniao_obs":"","cidade_obra":"","estado_obra":"","tipo_faturamento":"","obs_faturamento":"","art_data":null,"art_numero":"","pit_data":null,"pit_numero":"","garantias":[],"emissao_art":"true","escopo_forn_desc":null,"escopo_mont_desc":null,"emissao_pit":false,"peso_basico":769000,"peso_detalhado":0,"aditivos":[],"peso_expedido":0,"valor_faturado_fornecimento":0,"valor_faturado_montagem":0,"valor_recebido_fornecimento":0,"valor_recebido_montagem":0,"desconto_nf_fornecimento":0,"desconto_nf_montagem":0,"ocorrencias_financeiras":[],"art_assinatura":null,"emissao_databook":false,"databook_data":null,"databook_aprovacao":null}],"dcts_encerramento":[{"id":"c43791a6-2693-4cdb-b3a6-a6669afcbfe0","projeto_nome":"S145- CONSTRUCAP GERDAU","cliente":"CONSTRUCAP","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T16:53:12.728Z","atualizado_em":"2026-07-14T18:09:03.111Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"744e770e-b063-4f2b-b660-fba9e23bbad6","projeto_nome":"S155- METSO","cliente":"METSO","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":"cliente se nega a assinar ART e Documentos de final de obra ","criado_em":"2026-06-09T16:58:13.167Z","atualizado_em":"2026-07-14T18:09:16.416Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":false,"status_manual":"ag_signatario"},{"id":"33c6d9a4-7ca4-4e9e-8bab-a8f7d409745e","projeto_nome":"S168- PENTANOVA","cliente":"PENTANOVA ","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":null,"sol_sig_real":"2026-03-24","sol_sig_obs":null,"atestado_data":"2026-06-19","atestado_prev":null,"atestado_real":null,"atestado_obs":"Solicitamos ao Fernando a emissão ","aceite_data":"2026-06-19","aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":"2026-06-19","envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:16:14.305Z","atualizado_em":"2026-07-14T18:45:37.065Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":false,"status_manual":"ag_assinatura"},{"id":"d09b6b1c-925d-43f5-8c08-1925d2b5437b","projeto_nome":"S159-CTC","cliente":"CTC- INFRA ","responsavel":"DANILO ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":"Danilo ","criado_em":"2026-06-09T17:12:07.907Z","atualizado_em":"2026-07-14T18:12:11.088Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"6d088485-0538-4968-93a8-1c6c1927c8b6","projeto_nome":"S152-CTC","cliente":"CTC-INFRA ","responsavel":"DANILO ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":"Danilo ","criado_em":"2026-06-09T16:57:27.637Z","atualizado_em":"2026-07-14T18:12:18.287Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"509d5821-8941-4a20-8919-d790fb63f64e","projeto_nome":"S151- VALE SILICATO","cliente":"VALE S/A","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":"VALE NÃO ASSINDA DOCUMENTOS ","criado_em":"2026-06-09T16:55:26.157Z","atualizado_em":"2026-07-14T18:13:31.597Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"concluido"},{"id":"6cbc9070-70e8-4be2-a1dc-91ea3d9a7fb1","projeto_nome":"S164-HPB","cliente":"HPB","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:13:25.533Z","atualizado_em":"2026-07-14T18:14:24.317Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"01662e92-6e33-4de6-8e59-ffbfb85f7363","projeto_nome":"S166- VOITH","cliente":"VOITH ","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:14:19.412Z","atualizado_em":"2026-07-14T18:14:45.329Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":false,"status_manual":"ag_signatario"},{"id":"0ed8eadf-eee0-4bd5-b016-c00c6b663e21","projeto_nome":"S160- TRIBUNA","cliente":"TRIBUNA ","responsavel":"DANILO ","sol_sig_data":"2026-07-14","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":"SOLICITEI NOVAMENTE EM 14/07 VISTO O ADITIVO ","atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":"ATÉ FINALIZAR PENDENCIAS NÃO VÃO ASSINAR NADA, FERNANDO CIENTE.","criado_em":"2026-06-09T17:12:56.18Z","atualizado_em":"2026-07-14T18:15:14.534Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"d3064a71-5787-459f-9e80-60d9b8b2c678","projeto_nome":"S175- VOITH","cliente":"VOITH","responsavel":"ROBERTA","sol_sig_data":"2026-04-30","sol_sig_prev":"2026-05-10","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:20:03.977Z","atualizado_em":"2026-07-14T18:22:57.352Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":false,"status_manual":"ag_signatario"},{"id":"cb397c5e-b845-4425-b415-4fab32b1b9a7","projeto_nome":"S173-ELETROLIGAS","cliente":"ELETROLIGAS","responsavel":"ROBERTA ","sol_sig_data":"2026-04-30","sol_sig_prev":"2026-05-10","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:19:35.038Z","atualizado_em":"2026-07-14T18:23:24.612Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"dc5958e9-eb7f-4463-89dc-793a75e7ad5e","projeto_nome":"S172- MONTCALM","cliente":"MONTCALM","responsavel":"ROBERTA ","sol_sig_data":"2026-04-30","sol_sig_prev":"2026-05-10","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:19:13.18Z","atualizado_em":"2026-07-14T18:23:35.908Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"178bfa64-65b6-48e8-a2cb-f401fab79430","projeto_nome":"S171- GALVANI","cliente":"GALVANI ","responsavel":"ROBERTA ","sol_sig_data":"2026-04-30","sol_sig_prev":"2026-05-10","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:18:48.966Z","atualizado_em":"2026-07-14T18:23:59.109Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"816b7a68-e947-4c82-8463-b8a5d1eb689e","projeto_nome":"S156- PENTANOVA","cliente":"PENTANOVA ","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":"2026-04-10","sol_sig_obs":null,"atestado_data":"2026-04-10","atestado_prev":null,"atestado_real":"2026-04-10","atestado_obs":null,"aceite_data":"2026-04-10","aceite_prev":null,"aceite_real":"2026-04-10","aceite_obs":null,"quest_data":"2026-04-10","quest_prev":null,"quest_real":"2026-04-10","quest_obs":null,"envio_data":"2026-04-15","envio_prev":null,"envio_real":"2026-04-15","envio_obs":null,"retorno_data":"2026-05-21","retorno_resp":"BRUNO ","retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:03:36.592Z","atualizado_em":"2026-07-14T18:24:10.603Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"concluido"},{"id":"0c81da99-2070-42a3-bed4-117a36bc3bbe","projeto_nome":"S157-ANDRITZ","cliente":"ANDRITZ ","responsavel":"ROBERTA ","sol_sig_data":"2025-10-20","sol_sig_prev":"2025-10-27","sol_sig_real":"2025-11-28","sol_sig_obs":null,"atestado_data":"2025-11-28","atestado_prev":null,"atestado_real":"2025-11-28","atestado_obs":null,"aceite_data":"2025-11-28","aceite_prev":null,"aceite_real":"2025-11-28","aceite_obs":null,"quest_data":"2025-11-28","quest_prev":"2025-11-28","quest_real":"2025-11-28","quest_obs":null,"envio_data":"2025-11-28","envio_prev":"2025-11-28","envio_real":"2025-11-28","envio_obs":null,"retorno_data":"2025-11-28","retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:06:18.612Z","atualizado_em":"2026-07-14T18:24:14.373Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"concluido"},{"id":"4c84824e-d4fd-4b59-abc0-b7fb0c83cbfc","projeto_nome":"S150- TOYO SETAL","cliente":"TOYO SETAL ","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":"2026-07-27","sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":"2026-07-27","atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":"2026-07-27","aceite_obs":null,"quest_data":"2026-07-31","quest_prev":null,"quest_real":"2026-07-31","quest_obs":null,"envio_data":"2026-07-27","envio_prev":null,"envio_real":"2026-07-28","envio_obs":null,"retorno_data":"2026-07-30","retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T16:54:26.959Z","atualizado_em":"2026-07-31T19:32:07.835Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":false,"status_manual":"concluido"},{"id":"5b70a0ee-69a7-401a-a103-5d546c180912","projeto_nome":"S158- RODOANEL","cliente":"RODOANEL ","responsavel":"DANILO ","sol_sig_data":"2025-10-20","sol_sig_prev":null,"sol_sig_real":"2025-10-20","sol_sig_obs":null,"atestado_data":"2025-10-20","atestado_prev":null,"atestado_real":"2025-10-20","atestado_obs":null,"aceite_data":"2025-10-20","aceite_prev":null,"aceite_real":"2025-10-20","aceite_obs":null,"quest_data":"2025-10-20","quest_prev":null,"quest_real":"2025-10-20","quest_obs":null,"envio_data":"2025-10-20","envio_prev":"2025-10-20","envio_real":"2025-10-20","envio_obs":null,"retorno_data":"2025-10-20","retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:08:09.443Z","atualizado_em":"2026-07-14T18:24:18.213Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":true,"status_manual":"concluido"},{"id":"8d8ec8f2-96c0-4a79-8712-ff37f31fad97","projeto_nome":"S180- ENGEKO - 216 - PAM","cliente":"ENGEKO ","responsavel":null,"sol_sig_data":null,"sol_sig_prev":null,"sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-07-14T18:31:51.685Z","atualizado_em":"2026-08-04T12:53:29.105Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":false,"status_manual":"obra_andamento"},{"id":"c1458a4e-624d-401b-9712-f6566cb1bab7","projeto_nome":"S179- ENGEKO - FIOCRUZ","cliente":"ENGEKO ","responsavel":null,"sol_sig_data":null,"sol_sig_prev":null,"sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-07-14T18:31:09.29Z","atualizado_em":"2026-08-04T12:53:30.68Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":false,"status_manual":"obra_andamento"},{"id":"1d590440-7397-44a5-988e-ed1140a985c2","projeto_nome":"S178- RIO VERDE VALMET","cliente":"RIO VERDE","responsavel":null,"sol_sig_data":null,"sol_sig_prev":null,"sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-07-14T18:28:52.248Z","atualizado_em":"2026-08-04T12:53:32.413Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":false,"status_manual":"obra_andamento"},{"id":"28982d22-0838-4271-b33b-0788f856f3fd","projeto_nome":"S176- RIO VERDE NOU","cliente":"RIO VERDE","responsavel":null,"sol_sig_data":null,"sol_sig_prev":null,"sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-07-14T18:28:29.084Z","atualizado_em":"2026-08-04T12:53:34.048Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[],"art_emitida":true,"art_assinada":false,"status_manual":"obra_andamento"},{"id":"b4fbf9bd-10f1-403f-8798-cadb0cba1d4b","projeto_nome":"S167- KLABIN","cliente":"KLABIN ","responsavel":"ROBERTA ","sol_sig_data":"2026-03-24","sol_sig_prev":"2026-03-31","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:15:17.054Z","atualizado_em":"2026-08-04T12:53:44.984Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"},{"id":"f3459ece-51ac-4e6b-8656-908c6c6c1ab1","projeto_nome":"S177- APPOGI","cliente":"APPOGI ","responsavel":"ROBERTA ","sol_sig_data":"2026-07-14","sol_sig_prev":"2026-05-10","sol_sig_real":null,"sol_sig_obs":null,"atestado_data":null,"atestado_prev":null,"atestado_real":null,"atestado_obs":null,"aceite_data":null,"aceite_prev":null,"aceite_real":null,"aceite_obs":null,"quest_data":null,"quest_prev":null,"quest_real":null,"quest_obs":null,"envio_data":null,"envio_prev":null,"envio_real":null,"envio_obs":null,"retorno_data":null,"retorno_resp":null,"retorno_obs":null,"obs_geral":null,"criado_em":"2026-06-09T17:20:27.798Z","atualizado_em":"2026-07-14T17:58:10.512Z","retorno_envio":null,"retorno_prev":null,"cobrancas":[{"obs":"","data":"2026-07-14"}],"art_emitida":true,"art_assinada":true,"status_manual":"ag_signatario"}]};
+
+async function importarBackupEmbutido(){
+  if(!confirm('Isso importa os dados do backup do Supabase baixado em 11/08/2026 (contratos, eventos de pagamento e DCTS) para o banco atual (Firestore).\n\nRegistros que já existirem (mesmo "id") são pulados — pode rodar mais de uma vez sem duplicar. Continuar?')) return;
+  if(typeof _ct_showLoading==='function') _ct_showLoading('Importando backup de 11/08/2026…');
+  const resumo = [];
+  for(const table of Object.keys(_BACKUP_11_08_2026)){
+    const linhas = _BACKUP_11_08_2026[table] || [];
+    if(!linhas.length){ resumo.push(table+': 0 registros no backup'); continue; }
+    if(typeof _ct_showLoading==='function') _ct_showLoading('Importando "'+table+'" ('+linhas.length+' registros)…');
+    let novos=0, jaExistiam=0, erros=0;
+    for(const row of linhas){
+      try{
+        const chk = await sbClient.from(table).eq('id',row.id).select();
+        if(chk.data && chk.data.length){ jaExistiam++; continue; }
+        const ins = await sbClient.from(table).insert([row]).select();
+        if(ins.error) throw ins.error;
+        novos++;
+      }catch(eRow){ erros++; }
+    }
+    resumo.push(table+': '+novos+' importado(s), '+jaExistiam+' já existia(m)'+(erros?', '+erros+' com erro':''));
+  }
+  if(typeof _ct_hideLoading==='function') _ct_hideLoading();
+  try{ if(typeof _ct_carregarTudo==='function') await _ct_carregarTudo(); }catch(e){}
+  try{ if(typeof dctsLoad==='function') await dctsLoad(); }catch(e){}
+  try{ if(typeof tcLoadAll==='function') await tcLoadAll(); }catch(e){}
+  alert('Importação do backup concluída:\n\n'+resumo.join('\n'));
 }
 
 function tcGenId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
@@ -28425,15 +28559,11 @@ async function dctsAtualizarStatusManualInline(id, valor){
   try{
     const patchRes = await sbPatch(DCTS_TABLE, id, {status_manual:d.status_manual});
     if(!patchRes || !patchRes.length){
-      let existeDeVerdade = false;
-      try{
-        const chk = await fetch(_sbUrlCt(DCTS_TABLE+'?id=eq.'+id+'&select=id'), {headers:_SB_H_CT});
-        if(chk.ok){ const rows = await chk.json(); existeDeVerdade = Array.isArray(rows) && rows.length>0; }
-      }catch(eChk){ console.warn('[dctsAtualizarStatusManualInline] Falha ao verificar existência:', eChk); }
-      if(!existeDeVerdade){
-        const payloadCompleto = {...d, status_manual:d.status_manual};
-        await sbPost(DCTS_TABLE, payloadCompleto);
-      }
+      // No Firestore (sbClient), array vazio já é a confirmação definitiva de
+      // que o documento não existe (sem a ambiguidade de RLS que existia no
+      // Supabase) — recria direto via INSERT, sem round-trip extra.
+      const payloadCompleto = {...d, status_manual:d.status_manual};
+      await sbPost(DCTS_TABLE, payloadCompleto);
     }
   }catch(err){
     d.status_manual = antes;
@@ -28461,17 +28591,11 @@ async function dctsToggleArtInline(id){
   try{
     const patchRes = await sbPatch(DCTS_TABLE, id, {art_emitida:novoEmitida, art_assinada:novoAssinada});
     if(!patchRes || !patchRes.length){
-      // Confirma de verdade antes de recriar — array vazio pode só significar
-      // que uma política de segurança (RLS) escondeu a linha, não que ela
-      // não exista (tentar inserir sem confirmar arrisca duplicar o id e
-      // travar o salvamento).
-      let existeDeVerdade = false;
-      try{
-        const chk = await fetch(_sbUrlCt(DCTS_TABLE+'?id=eq.'+id+'&select=id'), {headers:_SB_H_CT});
-        if(chk.ok){ const rows = await chk.json(); existeDeVerdade = Array.isArray(rows) && rows.length>0; }
-      }catch(eChk){ console.warn('[dctsToggleArtInline] Falha ao verificar existência do registro:', eChk); }
-      if(!existeDeVerdade){
-        console.warn('[dctsToggleArtInline] Confirmado: registro não existe no banco — recriando via INSERT:', id);
+      // No Firestore (sbClient), array vazio já é a confirmação definitiva de
+      // que o documento não existe — recria direto via INSERT, sem round-trip
+      // extra (diferente do Supabase, aqui não há ambiguidade de RLS).
+      {
+        console.warn('[dctsToggleArtInline] Registro não existe no banco — recriando via INSERT:', id);
         const payloadCompleto = {...d, art_emitida:novoEmitida, art_assinada:novoAssinada};
         const res = await sbPost(DCTS_TABLE, payloadCompleto);
         const novo = res[0]||payloadCompleto;
@@ -28480,7 +28604,6 @@ async function dctsToggleArtInline(id){
         dctsRender();
         _ct_showToast('Registro recriado', 'Esse DCTS não existia mais no banco — foi salvo como novo registro.', 'warn');
       }
-      // Se existeDeVerdade===true, o update funcionou — só não veio representação de volta; nada a fazer.
     }
   }catch(e){
     console.error('[dctsToggleArtInline] Falha ao salvar ART:', e);
@@ -28699,22 +28822,11 @@ async function dctsSalvar(){
     if(dctsEditingId){
       const patchRes = await sbPatch(DCTS_TABLE, dctsEditingId, d);
       if(!patchRes || !patchRes.length){
-        // Array vazio pode significar (a) o registro não existe de verdade, OU
-        // (b) o update funcionou mas uma política de segurança (RLS) escondeu
-        // a linha retornada. Confirma com uma consulta direta antes de decidir
-        // — recriar sem confirmar arriscava tentar inserir um id duplicado e
-        // travar o salvamento (foi exatamente isso que piorou na tentativa anterior).
-        let existeDeVerdade = false;
-        try{
-          const chk = await fetch(_sbUrlCt(DCTS_TABLE+'?id=eq.'+dctsEditingId+'&select=id'), {headers:_SB_H_CT});
-          if(chk.ok){ const rows = await chk.json(); existeDeVerdade = Array.isArray(rows) && rows.length>0; }
-        }catch(eChk){ console.warn('[dctsSalvar] Falha ao verificar existência do registro:', eChk); }
-        if(existeDeVerdade){
-          // O update de fato funcionou — só não veio representação de volta.
-          const i = _ct_allDcts.findIndex(x=>x.id===dctsEditingId);
-          if(i>=0) _ct_allDcts[i]={..._ct_allDcts[i],...d}; else _ct_allDcts.push(d);
-        } else {
-          console.warn('[dctsSalvar] Confirmado: registro não existe no banco — recriando via INSERT:', dctsEditingId);
+        // No Firestore (sbClient), array vazio já é a confirmação definitiva
+        // de que o documento não existe (sem a ambiguidade de RLS do
+        // Supabase) — recria direto via INSERT, sem round-trip extra.
+        {
+          console.warn('[dctsSalvar] Registro não existe no banco — recriando via INSERT:', dctsEditingId);
           const res = await sbPost(DCTS_TABLE, d);
           const novo = res[0]||d;
           const i0 = _ct_allDcts.findIndex(x=>x.id===dctsEditingId);
