@@ -2526,6 +2526,19 @@ ALTER TABLE medicao_terceiros
 
       <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
 
+      <!-- Equipe -->
+      <div class="field-group" style="margin-bottom:.9rem;">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="lote-chk-equipe" onchange="document.getElementById('lote-equipe').disabled=!this.checked;" style="accent-color:var(--blue);width:13px;height:13px;">
+          Alterar Equipe para todas as TAGs selecionadas
+        </label>
+        <select class="field-input" id="lote-equipe" disabled="" style="font-size:16px;">
+          <option value="">— Selecione —</option>
+        </select>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.9rem 0;"></div>
+
       <!-- Observação geral -->
       <div class="field-group" style="margin-bottom:.9rem;">
         <label class="field-label" style="display:flex;align-items:center;gap:6px;">
@@ -12338,6 +12351,16 @@ function abrirModalLote(){
   }).join('');
   selStatus.value=''; selStatus.disabled=true;
 
+  // Reset equipe — lista sempre atualizada (EQUIPES_MASTER + equipes
+  // personalizadas já cadastradas em qualquer TAG/lançamento).
+  document.getElementById('lote-chk-equipe').checked = false;
+  var selEquipe = document.getElementById('lote-equipe');
+  var todasEquipesLote = (typeof getAllEquipesRegistradas==='function') ? getAllEquipesRegistradas() : EQUIPES_MASTER.slice().sort();
+  selEquipe.innerHTML = '<option value="">— Selecione —</option>' + todasEquipesLote.map(function(eq){
+    return '<option value="'+eq+'">'+eq+'</option>';
+  }).join('');
+  selEquipe.value=''; selEquipe.disabled=true;
+
   // Reset observação geral
   document.getElementById('lote-chk-obs-geral').checked = false;
   var obsGeralEl = document.getElementById('lote-obs-geral');
@@ -12559,6 +12582,10 @@ async function aplicarLote(){
   var novoStatus = alterarStatus ? (document.getElementById('lote-status').value||'') : '';
   if(alterarStatus && !novoStatus){ showToast('Selecione o status','Escolha o novo status ou desmarque a opção.','error'); return; }
 
+  var alterarEquipe = document.getElementById('lote-chk-equipe').checked;
+  var novaEquipe = alterarEquipe ? (document.getElementById('lote-equipe').value||'') : '';
+  if(alterarEquipe && !novaEquipe){ showToast('Selecione a equipe','Escolha a nova equipe ou desmarque a opção.','error'); return; }
+
   var alterarObsGeral = document.getElementById('lote-chk-obs-geral').checked;
   var obsGeral = alterarObsGeral ? (document.getElementById('lote-obs-geral').value||'').trim() : '';
   if(alterarObsGeral && !obsGeral){ showToast('Digite a observação','Escreva a observação ou desmarque a opção.','error'); return; }
@@ -12573,8 +12600,8 @@ async function aplicarLote(){
   var valorTelha = alterarTelha ? (document.getElementById('lote-telha').value||'') : '';
   if(alterarTelha && !valorTelha){ showToast('Selecione uma opção','Escolha "Tem" ou "Não tem" Projeto de Telha, ou desmarque a opção.','error'); return; }
 
-  if(!alterarStatus && !etapas.length && !alterarObsGeral && !alterarPesoDet && !alterarTelha){
-    showToast('Nada para aplicar','Marque "Alterar Status", "Observação", "Peso Detalhado", "Projeto de Telha" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
+  if(!alterarStatus && !alterarEquipe && !etapas.length && !alterarObsGeral && !alterarPesoDet && !alterarTelha){
+    showToast('Nada para aplicar','Marque "Alterar Status", "Alterar Equipe", "Observação", "Peso Detalhado", "Projeto de Telha" e/ou ao menos uma Etapa antes de aplicar.','warn'); return;
   }
 
   // Validação: GRD obrigatória se marcar Data Realizada do envio do modelo —
@@ -12603,6 +12630,9 @@ async function aplicarLote(){
   resumoLinhas.push(subs.map(function(s){ return '  • '+(s.subobra||s.id)+' ('+(s.obra||'—')+')'; }).join('\n'));
   if(alterarStatus){
     resumoLinhas.push('\nStatus → ' + novoStatus);
+  }
+  if(alterarEquipe){
+    resumoLinhas.push('\nEquipe → ' + novaEquipe);
   }
   if(alterarObsGeral){
     resumoLinhas.push('\nObservação (todas as TAGs) → ' + obsGeral);
@@ -12649,6 +12679,7 @@ async function aplicarLote(){
       var statusAnterior = s.status;
       var updates = { atualizado_em: new Date().toISOString() };
       if(alterarStatus) updates.status = novoStatus;
+      if(alterarEquipe) updates.equipe = novaEquipe;
       if(alterarPesoDet && pesoDetMap[s.id]!==undefined) updates.peso_detalhado = pesoDetMap[s.id];
       if(alterarTelha){
         updates.telha_na = (valorTelha==='nao');
@@ -12710,6 +12741,7 @@ async function aplicarLote(){
       try{
         var obsHist = [];
         if(alterarStatus) obsHist.push('Status alterado em lote para ' + novoStatus);
+        if(alterarEquipe) obsHist.push('Equipe alterada em lote para ' + novaEquipe);
         if(alterarObsGeral) obsHist.push(obsGeral);
         if(alterarPesoDet && pesoDetMap[s.id]!==undefined) obsHist.push('Peso Detalhado atualizado em lote para '+pesoDetMap[s.id].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg');
         if(alterarTelha) obsHist.push('Projeto de Telha atualizado em lote: ' + (valorTelha==='tem' ? 'Tem Projeto de Telha' : 'Não tem (N/A)'));
