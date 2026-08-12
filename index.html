@@ -10202,6 +10202,25 @@ function exportarPDFSelecionados(){
   var subs = allCronSubobras.filter(function(s){ return _selectedIds.has(s.id); });
   if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra encontrada.','warn'); return; }
 
+  // Pergunta como organizar o relatório: mantém a ordem atual da tabela, ou
+  // agrupa as TAGs por Status (com um cabeçalho de grupo colorido para cada
+  // status, na mesma ordem usada nos filtros/badges do cronograma).
+  var agruparPorStatus = confirm(
+    'Organizar o relatório agrupado por Status?\n\n'+
+    'OK = Agrupar por Status (com um cabeçalho para cada status)\n'+
+    'Cancelar = Manter a ordem atual da tabela'
+  );
+  if(agruparPorStatus){
+    var _statusOrderMap = {};
+    (typeof STATUS_ORDER!=='undefined' ? STATUS_ORDER : []).forEach(function(st,i){ _statusOrderMap[st]=i; });
+    subs = subs.slice().sort(function(a,b){
+      var oa = _statusOrderMap.hasOwnProperty(a.status) ? _statusOrderMap[a.status] : 999;
+      var ob = _statusOrderMap.hasOwnProperty(b.status) ? _statusOrderMap[b.status] : 999;
+      if(oa!==ob) return oa-ob;
+      return (a.subobra||'').localeCompare(b.subobra||'');
+    });
+  }
+
   var fmtD = function(d){
     return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
   };
@@ -10225,8 +10244,17 @@ function exportarPDFSelecionados(){
     'real_inspecao_interna','real_lib_fab','real_diagramas'
   ];
 
+  var _totalCols = 6 + ETAPAS_LABELS.length; // Sub-obra, Descrição, Equipe, Status, Peso Bás., Lim. Fab. + etapas
+  var _statusAnterior = null;
   var rows = subs.map(function(s){
     var cfg = (typeof STATUS_CFG_CRON !== 'undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569',bg:'#f1f5f9',icon:'•'};
+    var grupoHeader = '';
+    if(agruparPorStatus && s.status !== _statusAnterior){
+      _statusAnterior = s.status;
+      var _qtdGrupo = subs.filter(function(x){ return x.status===s.status; }).length;
+      grupoHeader = '<tr><td colspan="'+_totalCols+'" style="background:'+cfg.bg+';color:'+cfg.color+';font-weight:800;font-size:10px;padding:6px 8px;border:1px solid #333;">'+
+        (cfg.icon?cfg.icon+' ':'')+(s.status||'— Sem status —')+' — '+_qtdGrupo+' TAG'+(_qtdGrupo!==1?'s':'')+'</td></tr>';
+    }
     var etapaCells = ETAPAS_PREV.map(function(p,i){
       var real = s[ETAPAS_REAL[i]];
       var prev = s[p];
@@ -10234,7 +10262,7 @@ function exportarPDFSelecionados(){
       if(prev) return '<td style="padding:3px 5px;font-size:7px;color:#94a3b8;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(prev)+'</td>';
       return '<td style="padding:3px 5px;font-size:7px;color:#cbd5e1;border:1px solid #e2e8f0;">—</td>';
     }).join('');
-    return '<tr style="border-bottom:1px solid #e2e8f0;">'+
+    return grupoHeader+'<tr style="border-bottom:1px solid #e2e8f0;">'+
       '<td style="padding:3px 6px;font-family:Courier New,monospace;font-size:8px;font-weight:700;color:'+cfg.color+';border:1px solid #e2e8f0;white-space:nowrap;">'+(s.subobra||'—')+'</td>'+
       '<td style="padding:3px 6px;font-size:8px;border:1px solid #e2e8f0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(s.descricao||'')+'</td>'+
       '<td style="padding:3px 6px;font-size:8px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.equipe||'—')+'</td>'+
@@ -10266,7 +10294,7 @@ function exportarPDFSelecionados(){
     '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'+
     '</style></head><body>'+
     '<div class="header">'+
-    '<div><div class="logo">SIDERTEC</div><div style="font-size:16px;font-weight:700;margin-top:2px;">Cronograma de Sub-obras — Itens Selecionados</div></div>'+
+    '<div><div class="logo">SIDERTEC</div><div style="font-size:16px;font-weight:700;margin-top:2px;">Cronograma de Sub-obras — Itens Selecionados'+(agruparPorStatus?' (agrupado por Status)':'')+'</div></div>'+
     '<div class="meta">'+
     '<div><strong>'+subs.length+'</strong> sub-obras</div>'+
     '<div>Gerado em '+hoje+'</div>'+
