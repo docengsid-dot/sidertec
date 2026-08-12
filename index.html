@@ -8,12 +8,9 @@
 <meta http-equiv="Expires" content="0">
 <title>Sidertec — Cronograma &amp; Medição 2026</title>
 <style>
-/* Aptos Narrow — fonte principal do sistema */
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
-/* Aptos Narrow é a fonte preferencial (disponível no Windows com Office 2021+).
-   Fallbacks condensados: Barlow Condensed (Google Fonts), Arial Narrow, Arial. */
+/* Arial — fonte principal do sistema (a pedido do usuário) */
 :root{
-  --font-main: 'Aptos Narrow', 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+  --font-main: Arial, Helvetica, 'Arial Narrow', sans-serif;
   --bg:#F5F3EE;--bg2:#EDEAE2;--bg3:#E3DFD5;
   --ink:#1A1714;--ink2:#4A4540;--ink3:#8A847A;
   --accent:#C4501A;--accent2:#E8763A;--accent3:#F5C89A;
@@ -1345,6 +1342,7 @@ input.dt-input-br.data-invalida { border-color:#dc2626 !important; background:#f
     </label>
     <div class="cdoc-cmd-sep-v"></div>
     <button class="cdoc-cmdbtn" onclick="abrirRelatorioCron()" title="Relatório" style="background:#7c3aed;">📊</button>
+    <button class="cdoc-cmdbtn" onclick="abrirRelatorioPesoEtapa()" title="Relatório de Peso por Etapa — selecione uma obra e veja o peso (kg) em cada etapa do fluxo" style="background:#0369a1;">📈</button>
     <button class="cdoc-cmdbtn" onclick="_cronLimparDuplicatas()" title="Limpar sub-obras duplicadas no banco (mesma Obra+TAG salva mais de uma vez)" style="background:#be123c;">🧹</button>
   </div>
 
@@ -2756,6 +2754,28 @@ ALTER TABLE medicao_terceiros
     </div>
   </div>
 </div>
+
+<!-- Relatório de Peso por Etapa (por Obra) -->
+<div class="cron-rel-modal" id="modal-rel-peso-etapa" onclick="fecharRelatorioPesoEtapa(event)">
+  <div class="cron-rel-box" onclick="event.stopPropagation()" style="width:560px;">
+    <div class="cron-rel-hd">
+      <div style="flex:1;font-family:'Georgia',serif,serif;font-size:17px;color:#fff;">📈 Relatório de Peso por Etapa</div>
+      <button onclick="fecharRelatorioPesoEtapa()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div style="padding:1.25rem;">
+      <div class="field-group" style="margin-bottom:1rem;">
+        <label class="field-label">Obra</label>
+        <select class="field-input" id="rpe-obra" onchange="_rpeCalcular()" style="font-size:16px;"><option value="">— Selecione uma obra —</option></select>
+      </div>
+      <div id="rpe-resultado"></div>
+    </div>
+    <div class="cron-mfooter">
+      <button class="btn btn-secondary" onclick="fecharRelatorioPesoEtapa()">Fechar</button>
+      <button class="btn btn-primary" id="rpe-btn-imprimir" onclick="imprimirRelatorioPesoEtapa()" style="background:var(--blue);" disabled>🖨 Imprimir / PDF</button>
+    </div>
+  </div>
+</div>
+
 <div id="global-tip"></div>
 <div class="toast success" id="toast"><div class="toast-title" id="toast-title">✓ Conectado</div><div class="toast-body" id="toast-body">Dados carregados da nuvem.</div></div>
 <!-- ═══ FIREBASE SDK (substitui Supabase no app principal — Contratos/Diário continuam no Supabase) ═══ -->
@@ -4384,6 +4404,17 @@ const ETAPAS_CONFIG = [
     extra:'montagem'
   },
 ];
+
+// ── Etapa 11 — "Diagrama de Montagem" ───────────────────────────────────
+// A UI/relatórios se referem a esta etapa como "Etapa 11 — Diagramas de
+// Montagem", que corresponde à sub-etapa 'diagrama_mont' (campos
+// prev_diagrama_mont/real_diagrama_mont) dentro do bloco principal
+// 'diagramas' (rótulo "Documentos", campos prev_diagramas/real_diagramas).
+// Como o campo específico da sub-etapa é o que realmente é preenchido no
+// dia a dia, usamos ele com prioridade, caindo para o campo do bloco
+// principal apenas em registros antigos que só tenham esse preenchido.
+function _e11Real(s){ return s.real_diagrama_mont || s.real_diagramas || ''; }
+function _e11Prev(s){ return s.prev_diagrama_mont || s.prev_diagramas || ''; }
 
 // Estado em memória
 let _etapasState = {};
@@ -6057,7 +6088,7 @@ function renderCronograma(){
   };
 
   const limiteFabF = document.getElementById('cf-limite-fab')?.value||'';
-  const doc11F = document.getElementById('cf-doc11')?.value||''; // Filtro Etapa 11 Documentos
+  const doc11F = document.getElementById('cf-doc11')?.value||''; // Filtro Etapa 11 — Diagrama de Montagem (ver _e11Real/_e11Prev)
   const telhaF = document.getElementById('cf-telha')?.value||''; // Filtro Projeto de Telha
 
   // Pré-computa, para cada termo de busca, se ele bate EXATAMENTE com o código de
@@ -6128,11 +6159,11 @@ function renderCronograma(){
         if(limiteFabF==='ok'       && diff2 <= 30)           return false;
       }
     }
-    // Filtro Etapa 11 — Documentos (informativo): concluido / pendente / atrasado
+    // Filtro Etapa 11 — Diagrama de Montagem (informativo): concluido / pendente / atrasado
     if(doc11F){
       const hoje11 = new Date(); hoje11.setHours(0,0,0,0);
-      const realDiag = s.real_diagramas;
-      const prevDiag = s.prev_diagramas;
+      const realDiag = _e11Real(s);
+      const prevDiag = _e11Prev(s);
       if(doc11F === 'concluido'){
         if(!realDiag) return false; // não concluído
       } else if(doc11F === 'pendente'){
@@ -11019,6 +11050,208 @@ function abrirRelatorioCron(){
 function fecharRelatorioCron(e){
   if(!e||e.target.id==='modal-rel-cron') document.getElementById('modal-rel-cron').classList.remove('show');
 }
+
+// ── RELATÓRIO DE PESO POR ETAPA (por Obra) ────────────────────────────
+// Resumo rápido, por Obra: quanto peso (kg) está parado em cada etapa do
+// fluxo principal — usa os mesmos 6 status do dia a dia do cronograma
+// (STATUS_ORDER), então bate exatamente com o que aparece na coluna
+// "Status" da tabela. Qualquer outro status (Em Cotação Eng., Aguardando
+// Documentos, Hold, ou status antigo/personalizado) cai em "Outros", para
+// que a soma dos grupos sempre feche com o peso total da obra.
+const RPE_BUCKETS = [
+  {status:'AG. PROJ. BÁSICO',       label:'Ag. Liberação de Básico',         cor:'#1e40af', bg:'#dbeafe', icon:'📥'},
+  {status:'AG. MODELO PARA APROV.', label:'Ag. Modelo para Aprovação',       cor:'#0f766e', bg:'#ccfbf1', icon:'📐'},
+  {status:'MODELO EM APROV.',       label:'Modelo em Aprovação',             cor:'#c2410c', bg:'#ffedd5', icon:'📨'},
+  {status:'EMISSÃO PCTE FAB.',      label:'Emissão de Pacote de Fabricação', cor:'#7c3aed', bg:'#ede9fe', icon:'📦'},
+  {status:'INSP. INTERNA',          label:'Em Inspeção Interna',             cor:'#0e7490', bg:'#cffafe', icon:'🔍'},
+  {status:'LIB. FABRICAÇÃO',        label:'Liberado para Fabricação',        cor:'#166534', bg:'#bbf7d0', icon:'🔩'},
+];
+
+function abrirRelatorioPesoEtapa(){
+  var obras = [...new Set((allCronSubobras||[]).map(function(s){return s.obra;}))].filter(Boolean).sort();
+  var sel = document.getElementById('rpe-obra');
+  sel.innerHTML = '<option value="">— Selecione uma obra —</option>' + obras.map(function(o){return '<option>'+o+'</option>';}).join('');
+  // Pré-seleciona a obra já filtrada na tela do cronograma, se houver uma.
+  var cfObra = document.getElementById('cf-obra');
+  if(cfObra && cfObra.value && obras.indexOf(cfObra.value)!==-1) sel.value = cfObra.value;
+  document.getElementById('rpe-resultado').innerHTML = '';
+  document.getElementById('rpe-btn-imprimir').disabled = true;
+  document.getElementById('modal-rel-peso-etapa').classList.add('show');
+  if(sel.value) _rpeCalcular();
+}
+function fecharRelatorioPesoEtapa(e){
+  if(!e||e.target.id==='modal-rel-peso-etapa') document.getElementById('modal-rel-peso-etapa').classList.remove('show');
+}
+
+// Peso "efetivo" de uma TAG para o bucket de status indicado. Para "Liberado
+// para Fabricação" a ordem de prioridade é: Peso PCP (mais confiável, é o
+// que o PCP realmente vai fabricar) → Peso Detalhado (se ainda não tiver
+// PCP) → Peso Básico (só se não tiver nenhum dos dois). Para as demais
+// etapas (ainda em projeto/aprovação), Detalhado/PCP normalmente nem
+// existem ainda, então seguimos usando o Básico.
+function _rpePesoParaBucket(s, statusBucket){
+  if(statusBucket==='LIB. FABRICAÇÃO'){
+    var pcp = Number(s.peso_pcp)||0;
+    if(pcp>0) return pcp;
+    var det = Number(s.peso_detalhado)||0;
+    if(det>0) return det;
+  }
+  return Number(s.peso_previsto)||0;
+}
+
+// Sanitiza um valor de peso de avanço de fabricação (Processo Fabril /
+// Expedição) contra dados corrompidos vindos de importação de planilha —
+// alguns registros antigos ficaram com números absurdamente grandes
+// (muito acima do peso da própria TAG), o que inflava o relatório para a
+// casa dos trilhões de kg. Um valor de avanço não deveria superar em
+// muitas vezes o próprio peso de referência da TAG (PCP/Detalhado/Básico);
+// se isso acontecer, tratamos como dado inconsistente e não somamos.
+function _rpePesoFabrilValido(s, valor){
+  if(!(valor>0)) return 0;
+  var base = Number(s.peso_pcp)||Number(s.peso_detalhado)||Number(s.peso_previsto)||0;
+  if(base>0 && valor > base*5) return 0;
+  if(!base && valor>1000000) return 0; // sem nenhuma referência de peso e valor absurdo
+  return valor;
+}
+
+// Monta os grupos (bucket + qtd de TAGs + peso total) para a obra selecionada.
+// Retorna null se nenhuma obra estiver selecionada.
+function _rpeAgrupar(){
+  var obra = document.getElementById('rpe-obra').value;
+  if(!obra) return null;
+  var subs = (allCronSubobras||[]).filter(function(s){ return s.obra===obra; });
+  var legado = (typeof STATUS_LEGADO_MAP!=='undefined') ? STATUS_LEGADO_MAP : {};
+  var grupos = RPE_BUCKETS.map(function(b){ return Object.assign({}, b, {qtd:0, peso:0}); });
+  var outros = {label:'Outros status', cor:'#475569', bg:'#f1f5f9', icon:'•', qtd:0, peso:0};
+  subs.forEach(function(s){
+    var st = legado[s.status] || s.status || '';
+    var bucket = grupos.find(function(g){ return g.status===st; });
+    var peso = _rpePesoParaBucket(s, st);
+    if(bucket){ bucket.qtd++; bucket.peso+=peso; }
+    else { outros.qtd++; outros.peso+=peso; }
+  });
+  var totalQtd = subs.length;
+  var totalPeso = grupos.reduce(function(acc,g){ return acc+g.peso; },0) + outros.peso;
+
+  // ── Avanço em Fabricação ── Processo Fabril (peso já executado/produzido
+  // no chão de fábrica, via planilha de Avanço) e Expedição (peso já
+  // expedido) — medidos em TODAS as TAGs da obra, independente do status
+  // atual (o status pode continuar "LIB. FABRICAÇÃO" enquanto a fabricação
+  // já avançou por dentro). Base de referência para o % é o peso do bucket
+  // "Liberado para Fabricação" (o Peso Detalhado do que já foi liberado).
+  var libBucket = grupos.find(function(g){ return g.status==='LIB. FABRICAÇÃO'; });
+  var pesoBaseFabril = libBucket ? libBucket.peso : 0;
+  var qtdProcessoFabril=0, pesoProcessoFabril=0, qtdExpedicao=0, pesoExpedicao=0, qtdIgnoradas=0;
+  subs.forEach(function(s){
+    var pExec = _rpePesoFabrilValido(s, Number(s.peso_executado)||0);
+    if(pExec>0){ qtdProcessoFabril++; pesoProcessoFabril+=pExec; }
+    else if(Number(s.peso_executado)>0) qtdIgnoradas++;
+    var pExp = _rpePesoFabrilValido(s, Number(s.peso_expedicao)||0);
+    if(pExp>0){ qtdExpedicao++; pesoExpedicao+=pExp; }
+    else if(Number(s.peso_expedicao)>0) qtdIgnoradas++;
+  });
+  var fabril = [
+    {label:'Processo Fabril', cor:'#b45309', bg:'#fef3c7', icon:'🏭', qtd:qtdProcessoFabril, peso:pesoProcessoFabril},
+    {label:'Expedição',       cor:'#0369a1', bg:'#e0f2fe', icon:'🚚', qtd:qtdExpedicao,       peso:pesoExpedicao}
+  ];
+
+  return {obra:obra, grupos:grupos, outros:outros, totalQtd:totalQtd, totalPeso:totalPeso, fabril:fabril, pesoBaseFabril:pesoBaseFabril, qtdIgnoradas:qtdIgnoradas};
+}
+
+function _rpeFmtKg(v){
+  return (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg';
+}
+
+function _rpeCardHtml(g, pct){
+  return '<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:6px;background:'+g.bg+';margin-bottom:.4rem;">'
+    + '<div style="font-size:16px;">'+g.icon+'</div>'
+    + '<div style="flex:1;">'
+    + '<div style="font-size:12px;font-weight:700;color:'+g.cor+';">'+g.label+'</div>'
+    + '<div style="font-size:9px;color:'+g.cor+';opacity:.75;">'+g.qtd+' TAG'+(g.qtd!==1?'s':'')+'</div>'
+    + '</div>'
+    + '<div style="text-align:right;">'
+    + '<div style="font-size:13px;font-weight:800;color:'+g.cor+';font-family:\'Courier New\',monospace;">'+_rpeFmtKg(g.peso)+'</div>'
+    + '<div style="font-size:8px;color:'+g.cor+';opacity:.75;">'+(pct==null?'—':pct.toFixed(1)+'%')+'</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function _rpeCalcular(){
+  var dados = _rpeAgrupar();
+  var out = document.getElementById('rpe-resultado');
+  var btnImprimir = document.getElementById('rpe-btn-imprimir');
+  if(!dados){ out.innerHTML=''; btnImprimir.disabled=true; return; }
+  btnImprimir.disabled = false;
+  var linhas = dados.grupos.concat(dados.outros.qtd>0 ? [dados.outros] : []);
+  out.innerHTML = '<div style="font-size:11px;color:var(--ink3);margin-bottom:.6rem;">'+dados.totalQtd+' TAG'+(dados.totalQtd!==1?'s':'')+' na obra <strong>'+dados.obra+'</strong></div>'
+    + linhas.map(function(g){
+        var pct = dados.totalPeso>0 ? (g.peso/dados.totalPeso*100) : 0;
+        return _rpeCardHtml(g, pct);
+      }).join('')
+    + '<div style="display:flex;justify-content:space-between;padding:.55rem .6rem;margin-top:.3rem;border-top:2px solid var(--border2);font-size:12px;font-weight:800;">'
+    + '<span>Total</span><span style="font-family:\'Courier New\',monospace;">'+_rpeFmtKg(dados.totalPeso)+'</span>'
+    + '</div>'
+    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin:.9rem 0 .5rem;padding-top:.7rem;border-top:1px dashed var(--border2);">Avanço em Fabricação</div>'
+    + dados.fabril.map(function(g){
+        var pct = dados.pesoBaseFabril>0 ? (g.peso/dados.pesoBaseFabril*100) : null;
+        return _rpeCardHtml(g, pct);
+      }).join('')
+    + '<div style="font-size:8px;color:var(--ink3);">% em relação ao peso já Liberado para Fabricação ('+_rpeFmtKg(dados.pesoBaseFabril)+')</div>'
+    + (dados.qtdIgnoradas>0 ? '<div style="font-size:9px;color:#b91c1c;margin-top:.4rem;">⚠ '+dados.qtdIgnoradas+' registro(s) com peso de avanço muito acima do peso da própria TAG foram desconsiderados por parecerem dado incorreto/importação com erro.</div>' : '');
+}
+
+function imprimirRelatorioPesoEtapa(){
+  var dados = _rpeAgrupar();
+  if(!dados){ showToast('Selecione uma obra','Escolha uma obra para gerar o relatório.','warn'); return; }
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  var linhas = dados.grupos.concat(dados.outros.qtd>0 ? [dados.outros] : []);
+  var rowFn = function(g, pct){
+    return '<tr>'
+      + '<td style="padding:8px 10px;border:1px solid #ddd;"><span style="color:'+g.cor+';font-weight:700;">'+g.icon+' '+g.label+'</span></td>'
+      + '<td style="padding:8px 10px;border:1px solid #ddd;text-align:center;">'+g.qtd+'</td>'
+      + '<td style="padding:8px 10px;border:1px solid #ddd;text-align:right;font-family:Courier New,monospace;font-weight:700;">'+_rpeFmtKg(g.peso)+'</td>'
+      + '<td style="padding:8px 10px;border:1px solid #ddd;text-align:right;">'+(pct==null?'—':pct.toFixed(1)+'%')+'</td>'
+      + '</tr>';
+  };
+  var rows = linhas.map(function(g){
+    var pct = dados.totalPeso>0 ? (g.peso/dados.totalPeso*100) : 0;
+    return rowFn(g, pct);
+  }).join('');
+  var rowsFabril = dados.fabril.map(function(g){
+    var pct = dados.pesoBaseFabril>0 ? (g.peso/dados.pesoBaseFabril*100) : null;
+    return rowFn(g, pct);
+  }).join('');
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Peso por Etapa — '+dados.obra+'</title>'
+    + '<style>'
+    + '@page{size:A4 portrait;margin:15mm;}'
+    + 'body{font-family:Arial,sans-serif;color:#1e293b;margin:0;}'
+    + '.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #c4801a;}'
+    + '.logo{font-size:20px;font-weight:900;color:#c4801a;letter-spacing:.05em;}'
+    + '.meta{font-size:10px;color:#64748b;text-align:right;}'
+    + 'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}'
+    + 'thead th{background:#1A1714;color:#fff;padding:8px 10px;text-align:left;border:1px solid #333;}'
+    + 'tfoot td{padding:9px 10px;border:1px solid #333;font-weight:800;background:#f1f5f9;}'
+    + '.secao{margin-top:18px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;border-top:1px dashed #cbd5e1;padding-top:10px;}'
+    + '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
+    + '</style></head><body>'
+    + '<div class="header"><div><div class="logo">SIDERTEC</div><div style="font-size:16px;font-weight:700;margin-top:2px;">Relatório de Peso por Etapa — '+dados.obra+'</div></div>'
+    + '<div class="meta"><div><strong>'+dados.totalQtd+'</strong> sub-obras</div><div>Gerado em '+hoje+'</div></div></div>'
+    + '<table><thead><tr><th>Etapa</th><th style="text-align:center;">TAGs</th><th style="text-align:right;">Peso (kg)</th><th style="text-align:right;">%</th></tr></thead>'
+    + '<tbody>'+rows+'</tbody>'
+    + '<tfoot><tr><td>Total</td><td style="text-align:center;">'+dados.totalQtd+'</td><td style="text-align:right;font-family:Courier New,monospace;">'+_rpeFmtKg(dados.totalPeso)+'</td><td style="text-align:right;">100%</td></tr></tfoot>'
+    + '</table>'
+    + '<div class="secao">Avanço em Fabricação</div>'
+    + '<table><thead><tr><th>Etapa</th><th style="text-align:center;">TAGs</th><th style="text-align:right;">Peso (kg)</th><th style="text-align:right;">% do Liberado p/ Fab.</th></tr></thead>'
+    + '<tbody>'+rowsFabril+'</tbody></table>'
+    + '<div style="font-size:9px;color:#64748b;margin-top:4px;">% em relação ao peso já Liberado para Fabricação ('+_rpeFmtKg(dados.pesoBaseFabril)+')</div>'
+    + (dados.qtdIgnoradas>0 ? '<div style="font-size:9px;color:#b91c1c;margin-top:4px;">⚠ '+dados.qtdIgnoradas+' registro(s) com peso de avanço muito acima do peso da própria TAG foram desconsiderados por parecerem dado incorreto/importação com erro.</div>' : '')
+    + '</body></html>';
+  var win = window.open('','_blank','width=900,height=900,scrollbars=yes');
+  if(!win){ showToast('Pop-up bloqueado','Permita pop-ups para gerar o PDF.','warn'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = function(){ win.focus(); setTimeout(function(){ win.print(); },400); };
+}
 function _buildAtrasadosHtml(subs){
   var hoje_dt = new Date(); hoje_dt.setHours(0,0,0,0);
   var fmtDtLocal = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'; };
@@ -11163,8 +11396,8 @@ function _buildE11Html(subs, doc11F, hoje11e, fmtDt11, hoje) {
 
   // Categorize each sub
   var rows = subs.map(function(s) {
-    var realDiag = s.real_diagramas;
-    var prevDiag = s.prev_diagramas;
+    var realDiag = _e11Real(s);
+    var prevDiag = _e11Prev(s);
     var cfg = (typeof STATUS_CFG_CRON !== 'undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569', bg:'#f1f5f9', icon:'•'};
     var situacao, sitBg, sitColor, diasAtraso = '';
 
@@ -11200,8 +11433,8 @@ function _buildE11Html(subs, doc11F, hoje11e, fmtDt11, hoje) {
     + '</tr>';
   }).join('');
 
-  var concl  = subs.filter(function(s){ return !!s.real_diagramas; }).length;
-  var atras  = subs.filter(function(s){ return !s.real_diagramas && s.prev_diagramas && new Date(s.prev_diagramas+'T12:00:00') < hoje11e; }).length;
+  var concl  = subs.filter(function(s){ return !!_e11Real(s); }).length;
+  var atras  = subs.filter(function(s){ return !_e11Real(s) && _e11Prev(s) && new Date(_e11Prev(s)+'T12:00:00') < hoje11e; }).length;
   var pend   = subs.length - concl - atras;
   var totPeso = subs.reduce(function(a,s){ return a+(Number(s.peso_previsto)||0); }, 0);
 
@@ -11246,24 +11479,34 @@ function gerarRelatorioE11(){
   const statusFs=(typeof _rcronStatusSelecionados!=='undefined')?_rcronStatusSelecionados:[];
   const hoje   = new Date().toLocaleDateString('pt-BR');
   const hojeD  = new Date(); hojeD.setHours(0,0,0,0);
+  const doc11Checked = document.querySelector('input[name="rcron-doc11"]:checked');
+  const doc11Raw = doc11Checked ? doc11Checked.value : 'nao_incluir';
+  const doc11F = (doc11Raw === 'nao_incluir') ? '' : doc11Raw; // neste relatório dedicado, "não incluir" equivale a "Todas"
 
-  // Filtra sub-obras com os mesmos filtros do cronograma
+  // Filtra sub-obras com os mesmos filtros do cronograma + situação da Etapa 11 selecionada
   let subs = allCronSubobras.filter(s=>{
     if(obraF && s.obra!==obraF) return false;
     if(tagF  && !(s.subobra||'').toLowerCase().includes(tagF)) return false;
     if(engF  && s.equipe!==engF) return false;
     if(statusFs.length>0&&!statusFs.includes(s.status)) return false;
+    if(doc11F){
+      const realDiag=_e11Real(s), prevDiag=_e11Prev(s);
+      if(doc11F==='concluido'&&!realDiag) return false;
+      else if(doc11F==='pendente'){if(realDiag) return false; if(prevDiag&&new Date(prevDiag+'T12:00:00')<hojeD) return false;}
+      else if(doc11F==='atrasado'){if(realDiag) return false; if(!prevDiag) return false; if(new Date(prevDiag+'T12:00:00')>=hojeD) return false;}
+      else if(doc11F==='pendente_e_atrasado'){if(realDiag) return false;}
+    }
     return true;
   });
 
-  if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra encontrada com os filtros.','warn'); return; }
+  if(!subs.length){ showToast('Sem dados','Nenhuma sub-obra encontrada com os filtros selecionados.','warn'); return; }
 
   const fmtDt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
   const fmtPeso = v => v ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kg' : '—';
 
   // Classifica cada sub-obra para E11
   function classE11(s){
-    const real = s.real_diagramas, prev = s.prev_diagramas;
+    const real = _e11Real(s), prev = _e11Prev(s);
     if(real) return {sit:'concluido', label:'✅ Concluído', bg:'#dcfce7', color:'#166534', dias:0, data:real};
     if(prev){
       const dp = new Date(prev+'T12:00:00');
@@ -11306,13 +11549,13 @@ function gerarRelatorioE11(){
         <td style="padding:4px 6px;font-size:8px;color:#555;">${s.equipe?s.equipe.split('(')[0].trim():'—'}</td>
         <td style="padding:4px 6px;"><span style="background:${cfg.bg};color:${cfg.color};border-radius:3px;padding:1px 5px;font-size:7.5px;font-weight:700;">${cfg.icon} ${s.status}</span></td>
         <td style="padding:4px 6px;font-size:8px;max-width:200px;word-wrap:break-word;">${s.descricao||'—'}</td>
-        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;">${fmtDt(s.prev_diagramas)}</td>
-        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;color:#166534;">${fmtDt(s.real_diagramas)}</td>
+        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;">${fmtDt(_e11Prev(s))}</td>
+        <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;color:#166534;">${fmtDt(_e11Real(s))}</td>
         <td style="padding:4px 6px;text-align:center;">${diasBadge}</td>
         <td style="padding:4px 6px;text-align:right;font-family:'Courier New';font-size:8px;">${fmtPeso(s.peso_previsto)}</td>
       </tr>`;
     }).join('');
-    return `<div style="margin-bottom:12px;page-break-inside:avoid;">
+    return `<div style="margin-bottom:12px;">
       <div style="background:${headerBg};color:${headerColor};padding:7px 12px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:11px;font-weight:800;letter-spacing:.04em;">${titulo}</span>
         <span style="font-size:9px;opacity:.9;">${items.length} sub-obra(s) &nbsp;·&nbsp; ${pesoGrp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} kg</span>
@@ -11339,16 +11582,27 @@ function gerarRelatorioE11(){
     </div>`;
   }
 
+  const DOC11_LABEL_MAP = {
+    concluido: 'Concluídas',
+    pendente: 'Pendentes (no prazo)',
+    atrasado: 'Em Atraso',
+    pendente_e_atrasado: 'Pendentes + Em Atraso'
+  };
   const filtrosTexto = [
     obraF?'Obra: '+obraF:'',
     engF?'Eng.: '+engF:'',
     statusFs.length?'Status: '+statusFs.join(', '):'',
+    doc11F?'Etapa 11: '+(DOC11_LABEL_MAP[doc11F]||doc11F):'',
   ].filter(Boolean).join(' · ')||'Todas as sub-obras';
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       body{font-family:'Times New Roman',serif;margin:0;padding:12px;color:#000;}
       @media print{.no-print{display:none;}}
+      table{page-break-inside:auto;}
+      tr{page-break-inside:avoid;page-break-after:auto;}
+      thead{display:table-header-group;}
+      tfoot{display:table-footer-group;}
     </style>
   </head><body>
     <!-- Cabeçalho -->
@@ -11365,7 +11619,7 @@ function gerarRelatorioE11(){
           <div style="font-size:9px;color:#444;margin-top:.15rem;">SIDERTEC ESTRUTURAS METÁLICAS</div>
           <div style="font-size:8px;color:#666;margin-top:.1rem;">${filtrosTexto}</div>
         </td>
-        <td style="padding:.4rem;min-width:130px;font-size:7.5px;">
+        <td style="width:150px;padding:.4rem;font-size:7.5px;">
           <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;">DATA:</span><span>${hoje}</span></div>
           <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;">TOTAL:</span><span>${subs.length} sub-obras</span></div>
           <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;"><span style="font-weight:700;color:#991b1b;">🔴 Atrasadas:</span><span style="font-weight:700;color:#991b1b;">${totAtr}</span></div>
@@ -11430,7 +11684,7 @@ function gerarRelatorioCron(){
     if(prevAF && s.prev_lib_fab && s.prev_lib_fab > prevAF) return false;
     if(doc11F){
       var hoje11=new Date(); hoje11.setHours(0,0,0,0);
-      var realDiag=s.real_diagramas, prevDiag=s.prev_diagramas;
+      var realDiag=_e11Real(s), prevDiag=_e11Prev(s);
       if(doc11F==='concluido'&&!realDiag) return false;
       else if(doc11F==='pendente'){if(realDiag) return false; if(prevDiag&&new Date(prevDiag+'T12:00:00')<hoje11) return false;}
       else if(doc11F==='atrasado'){if(realDiag) return false; if(!prevDiag) return false; if(new Date(prevDiag+'T12:00:00')>=hoje11) return false;}
@@ -11561,7 +11815,7 @@ function gerarRelatorioCron(){
       const gBas=grupo.reduce((a,s)=>a+(Number(s.peso_previsto)||0),0);
       const gDet=grupo.reduce((a,s)=>a+(Number(s.peso_detalhado)||0),0);
       // Cabeçalho de grupo com cor do status
-      bodyHtml += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;page-break-inside:avoid;">
+      bodyHtml += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
         <thead>
           <tr>
             <td colspan="17" style="background:${cfg.bg};color:${cfg.color};padding:7px 10px;font-size:10px;font-weight:800;letter-spacing:.04em;border-radius:4px 4px 0 0;">
@@ -11613,7 +11867,10 @@ function gerarRelatorioCron(){
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       body{font-family:'Times New Roman',serif;margin:0;padding:12px;color:#000;font-size:8.5px;}
-      table{border-collapse:collapse;}
+      table{border-collapse:collapse;page-break-inside:auto;}
+      tr{page-break-inside:avoid;page-break-after:auto;}
+      thead{display:table-header-group;}
+      tfoot{display:table-footer-group;}
       @media print{body{padding:4px;} .no-print{display:none;}}
     </style>
   </head><body>
@@ -12294,12 +12551,22 @@ async function salvarAndamento(){
       _lsSet('cronograma_subobras', _rsAnd);
     }
 
-    // Refresh modal fields
+    // Refresh modal fields — inclui a tabela "ETAPAS DETALHADAS" (svEtapas
+    // recarrega o _etapasState a partir do registro já atualizado e
+    // re-renderiza o grid). Sem isso, só o resumo em badges (renderEtapasResumo)
+    // era atualizado; a tabela detalhada por baixo do popup "Registrar
+    // Andamento" continuava mostrando os dados antigos até fechar e reabrir a TAG.
     const sAtual = allCronSubobras[idx];
     if(sAtual){
       const sv=(id,val)=>{const el=document.getElementById(id);if(el&&val!=null)el.value=val;};
       sv('cm-status', sAtual.status);
       renderEtapasResumo(sAtual);
+      if(typeof svEtapas==='function') svEtapas(sAtual);
+      if(typeof _atualizarBadgeEtapas==='function') _atualizarBadgeEtapas();
+      // svEtapas() reconstrói o HTML do grid do zero — os botões 🕓 de
+      // histórico precisam ser re-vinculados/atualizados (contagem e destaque
+      // de "tem histórico"), senão voltam ao estado "sem histórico" até reabrir a TAG.
+      if(typeof _updateAllHistBtns==='function') setTimeout(_updateAllHistBtns, 50);
     }
 
     fecharAndamento();
