@@ -2702,6 +2702,14 @@ ALTER TABLE medicao_terceiros
           <option value="">Todas</option><option value="NO PRAZO">No Prazo</option><option value="ATRASO">Atraso</option>
         </select>
         <input type="text" id="ts-f-busca" placeholder="Buscar tarefa…" oninput="renderTarefasSemanais()" style="font-size:11px;padding:3px 6px;width:160px;">
+        <div style="width:1px;height:18px;background:var(--border);"></div>
+        <span style="font-size:9px;color:var(--ink3);font-weight:600;">Período (Data Prevista):</span>
+        <button class="btn btn-secondary" id="ts-btn-hoje" onclick="_tsPeriodoHoje()" title="Ver tarefas previstas para hoje" style="font-size:10px;padding:4px 9px;">📅 Hoje</button>
+        <button class="btn btn-secondary" id="ts-btn-semana" onclick="_tsPeriodoSemana()" title="Ver tarefas previstas para esta semana (seg. a sex.)" style="font-size:10px;padding:4px 9px;">🗓 Semana</button>
+        <input type="date" id="ts-periodo-de" onchange="_tsPeriodoManual()" style="font-size:11px;padding:3px 6px;" title="Período de">
+        <span style="font-size:9px;color:var(--ink3);">até</span>
+        <input type="date" id="ts-periodo-ate" onchange="_tsPeriodoManual()" style="font-size:11px;padding:3px 6px;" title="Período até">
+        <button class="btn btn-secondary" onclick="_tsLimparPeriodo()" title="Limpar filtro de período" style="font-size:10px;padding:4px 9px;">✕ Período</button>
         <div style="margin-left:auto;display:flex;gap:6px;">
           <button onclick="gerarRelatorioTarefas()" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;">📄 PDF</button>
           <button onclick="exportarTarefasExcel()" style="background:#15803d;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;">📊 Excel</button>
@@ -10181,12 +10189,69 @@ function _tsFiltrar(){
   var fStatus = (document.getElementById('ts-f-status')||{}).value||'';
   var fSub = (document.getElementById('ts-f-substatus')||{}).value||'';
   var busca = ((document.getElementById('ts-f-busca')||{}).value||'').trim().toLowerCase();
+  var periodoDe = (document.getElementById('ts-periodo-de')||{}).value||'';
+  var periodoAte = (document.getElementById('ts-periodo-ate')||{}).value||'';
   return allTarefasSemanais.filter(function(t){
     if(fResp && t.responsavel!==fResp) return false;
     if(fStatus && (t.status||'')!==fStatus) return false;
     if(busca && !((t.tarefa||'')+' '+(t.responsavel||'')+' '+(t.obs||'')).toLowerCase().includes(busca)) return false;
     if(fSub){ var c=_tsCalc(t); if(c.subStatus!==fSub) return false; }
+    if(periodoDe || periodoAte){
+      // Filtra pela Data Prevista da tarefa — sem essa data cadastrada não dá pra saber se ela
+      // cai no período informado, então a tarefa fica de fora do filtro.
+      var dp = t.data_prevista;
+      if(!dp) return false;
+      if(periodoDe && dp<periodoDe) return false;
+      if(periodoAte && dp>periodoAte) return false;
+    }
     return true;
+  });
+}
+// ── Filtro de Período (Data Prevista) — atalhos Hoje/Semana + período manual, mesmo padrão já
+// usado no Planejamento (_planPeriodoHoje/_planPeriodoSemana/_planPeriodoManual).
+var _tsPeriodoModo = null; // null | 'hoje' | 'semana' | 'manual'
+function _tsPeriodoHoje(){
+  var hoje = new Date().toISOString().slice(0,10);
+  document.getElementById('ts-periodo-de').value = hoje;
+  document.getElementById('ts-periodo-ate').value = hoje;
+  _tsPeriodoModo = 'hoje';
+  _tsAtualizarBotoesPeriodo();
+  renderTarefasSemanais();
+}
+function _tsPeriodoSemana(){
+  var hoje = new Date();
+  var diaSemana = hoje.getDay(); // 0=domingo ... 6=sábado
+  var segunda = new Date(hoje); segunda.setDate(hoje.getDate() - ((diaSemana+6)%7));
+  var sexta = new Date(segunda); sexta.setDate(segunda.getDate()+4);
+  document.getElementById('ts-periodo-de').value = segunda.toISOString().slice(0,10);
+  document.getElementById('ts-periodo-ate').value = sexta.toISOString().slice(0,10);
+  _tsPeriodoModo = 'semana';
+  _tsAtualizarBotoesPeriodo();
+  renderTarefasSemanais();
+}
+function _tsLimparPeriodo(){
+  document.getElementById('ts-periodo-de').value = '';
+  document.getElementById('ts-periodo-ate').value = '';
+  _tsPeriodoModo = null;
+  _tsAtualizarBotoesPeriodo();
+  renderTarefasSemanais();
+}
+function _tsPeriodoManual(){
+  // Usuário editou as datas diretamente (não usou nenhum atalho) — marca como período manual,
+  // permitindo "estipular" qualquer intervalo (ex.: só "De" preenchido = a partir de tal data).
+  var de = document.getElementById('ts-periodo-de').value;
+  var ate = document.getElementById('ts-periodo-ate').value;
+  _tsPeriodoModo = (de || ate) ? 'manual' : null;
+  _tsAtualizarBotoesPeriodo();
+  renderTarefasSemanais();
+}
+function _tsAtualizarBotoesPeriodo(){
+  var mapa = {hoje:'ts-btn-hoje', semana:'ts-btn-semana'};
+  Object.keys(mapa).forEach(function(modo){
+    var btn = document.getElementById(mapa[modo]);
+    if(!btn) return;
+    if(_tsPeriodoModo===modo){ btn.style.background='#0f172a'; btn.style.color='#fff'; btn.style.borderColor='#0f172a'; }
+    else { btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; }
   });
 }
 
@@ -13583,11 +13648,22 @@ function importarPlanejamentoExcel(input){
       semanaCols.sort(function(a,b){ return a.col-b.col; });
       var semanasIso = semanaCols.map(function(s){ return s.data.toISOString().slice(0,10); });
 
-      // A planilha tem seu próprio seletor "TOTALIZADO PARA" (célula F1) indicando qual etapa
-      // deve ser usada como padrão nos totalizadores — como o PESO TOTAL varia por etapa (não é
-      // constante entre as etapas de uma mesma TAG), usamos essa mesma etapa como filtro padrão
-      // ao abrir o Planejamento, evitando somar pesos de etapas diferentes.
-      var etapaPadrao = (typeof weekRow[5]==='string' && weekRow[5].trim()) ? weekRow[5].trim() : null;
+      // A planilha tem seu próprio seletor "TOTALIZADO PARA" indicando qual etapa deve ser usada
+      // como padrão nos totalizadores — como o PESO TOTAL varia por etapa (não é constante entre
+      // as etapas de uma mesma TAG), usamos essa mesma etapa como filtro padrão ao abrir o
+      // Planejamento, evitando somar pesos de etapas diferentes.
+      // O rótulo "TOTALIZADO PARA" fica em uma célula e o NOME da etapa (ex.: "3-MONTAGEM E
+      // SOLDA") fica na célula logo ao lado — por isso procuramos o rótulo e pegamos o valor da
+      // célula seguinte, em vez de depender de uma coluna fixa (mais robusto a mudanças de layout).
+      var etapaPadrao = null;
+      for(var _wCol=0; _wCol<weekRow.length; _wCol++){
+        var _wCel = weekRow[_wCol];
+        if(typeof _wCel==='string' && _confNorm(_wCel).trim().indexOf('totalizado para')===0){
+          var _wVal = weekRow[_wCol+1];
+          if(typeof _wVal==='string' && _wVal.trim()) etapaPadrao = _wVal.trim();
+          break;
+        }
+      }
 
       var linhas = [];
       for(var r=3;r<aoa.length;r++){
