@@ -1538,6 +1538,50 @@ ALTER TABLE medicao_terceiros
       </div>
     </div>
   </div>
+
+  <!-- ALERTA GLOBAL: Limite Fábrica x Limite Cliente -->
+  <div id="cron-alerta-cliente-fab" style="display:none;margin-bottom:.3rem;">
+    <div id="cron-alerta-cliente-fab-pill" onclick="cronAlertaClienteFabToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#c4b5fd,#ddd6fe);border:1.5px solid #7c3aed;border-radius:20px;padding:.2rem .75rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os itens em alerta">
+      <span style="font-size:13px;">🚨</span>
+      <span id="cron-alerta-cliente-fab-pill-txt" style="font-size:11px;font-weight:700;color:#5b21b6;white-space:nowrap;"></span>
+      <span id="cron-alerta-cliente-fab-pill-chevron" style="font-size:10px;color:#5b21b6;transition:transform .2s;">▼</span>
+    </div>
+    <div id="cron-alerta-cliente-fab-painel" style="display:none;margin-top:.3rem;background:linear-gradient(90deg,#f5f3ff,#ede9fe);border:2px solid #7c3aed;border-radius:var(--r2);padding:.35rem .75rem;">
+      <div style="display:flex;align-items:flex-start;gap:.5rem;">
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:#5b21b6;margin-bottom:.25rem;">ALERTA LIMITE DE FÁBRICA X LIMITE DE CLIENTE</div>
+          <div id="cron-alerta-cliente-fab-lista" style="font-size:10px;color:#6d28d9;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;flex-shrink:0;">
+          <button onclick="exportarAlertaClienteFabPDF()" style="background:#fff;border:1px solid #7c3aed;border-radius:3px;color:#5b21b6;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);font-weight:700;white-space:nowrap;">🖨 PDF</button>
+          <button onclick="exportarAlertaClienteFabExcel()" style="background:#fff;border:1px solid #7c3aed;border-radius:3px;color:#5b21b6;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);font-weight:700;white-space:nowrap;">📊 Excel</button>
+          <button onclick="cronAlertaClienteFabToggle()" style="background:none;border:1px solid #7c3aed;border-radius:3px;color:#7c3aed;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);">▲ Recolher</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERTA GLOBAL: Previsão de Liberação x Limite Cliente -->
+  <div id="cron-alerta-prevlib-cliente" style="display:none;margin-bottom:.3rem;">
+    <div id="cron-alerta-prevlib-cliente-pill" onclick="cronAlertaPrevlibClienteToggle()" style="display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,#fcd34d,#fde68a);border:1.5px solid #d97706;border-radius:20px;padding:.2rem .75rem;cursor:pointer;user-select:none;transition:all .15s;" title="Clique para ver os itens em alerta">
+      <span style="font-size:13px;">🚨</span>
+      <span id="cron-alerta-prevlib-cliente-pill-txt" style="font-size:11px;font-weight:700;color:#92400e;white-space:nowrap;"></span>
+      <span id="cron-alerta-prevlib-cliente-pill-chevron" style="font-size:10px;color:#92400e;transition:transform .2s;">▼</span>
+    </div>
+    <div id="cron-alerta-prevlib-cliente-painel" style="display:none;margin-top:.3rem;background:linear-gradient(90deg,#fffbeb,#fef3c7);border:2px solid #d97706;border-radius:var(--r2);padding:.35rem .75rem;">
+      <div style="display:flex;align-items:flex-start;gap:.5rem;">
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:.25rem;">ALERTA PREVISÃO DE LIBERAÇÃO X LIMITE CLIENTE</div>
+          <div id="cron-alerta-prevlib-cliente-lista" style="font-size:10px;color:#b45309;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;flex-shrink:0;">
+          <button onclick="exportarAlertaPrevlibClientePDF()" style="background:#fff;border:1px solid #d97706;border-radius:3px;color:#92400e;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);font-weight:700;white-space:nowrap;">🖨 PDF</button>
+          <button onclick="exportarAlertaPrevlibClienteExcel()" style="background:#fff;border:1px solid #d97706;border-radius:3px;color:#92400e;font-size:10px;padding:2px 8px;cursor:pointer;font-family:var(--font-main);font-weight:700;white-space:nowrap;">📊 Excel</button>
+          <button onclick="cronAlertaPrevlibClienteToggle()" style="background:none;border:1px solid #d97706;border-radius:3px;color:#d97706;font-size:10px;padding:1px 6px;cursor:pointer;font-family:var(--font-main);">▲ Recolher</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- Filtros + botão novo -->
   <div id="cron-fullscreen-anchor" style="display:none;"></div>
   <div class="filters" style="position:sticky;top:100px;z-index:100;border-bottom:2px solid var(--border2);padding:.3rem .6rem;gap:.35rem;font-size:11px;">
@@ -2238,8 +2282,8 @@ ALTER TABLE medicao_terceiros
         </div>
       </div>
 
-      <!-- Status atual + Data Limite Fábrica -->
-      <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end;margin-bottom:.75rem;">
+      <!-- Status atual + Data Limite Fábrica + Limite Cliente -->
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:.75rem;align-items:end;margin-bottom:.75rem;">
         <div>
           <label class="field-label">Status Atual *</label>
           <select class="field-input" id="cm-status" style="max-width:420px;">
@@ -2279,6 +2323,11 @@ ALTER TABLE medicao_terceiros
             </div>
           </div>
           <div id="cm-dias-limite-fab" style="font-size:16px;color:rgba(255,255,255,.8);margin-top:.25rem;font-weight:600;"></div>
+        </div>
+        <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2c5480 100%);border-radius:var(--r);padding:.6rem 1rem;min-width:200px;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.7);margin-bottom:.3rem;">📋 Limite do Cliente</div>
+          <div id="cm-limite-cliente-valor" style="font-size:13px;color:#fff;font-weight:700;">—</div>
+          <div id="cm-limite-cliente-nota" style="font-size:11px;color:rgba(255,255,255,.85);margin-top:.25rem;font-weight:600;"></div>
         </div>
       </div>
 
@@ -6638,6 +6687,8 @@ function renderCronograma(){
   // Atualizar banner de filtros ativos
   if(typeof atualizarBannerFiltros === 'function') atualizarBannerFiltros();
   if(typeof atualizarAlerteLimiteFab === "function") atualizarAlerteLimiteFab();
+  if(typeof atualizarAlertaLimiteClienteFab === "function") atualizarAlertaLimiteClienteFab().catch(function(){});
+  if(typeof atualizarAlertaPrevlibCliente === "function") atualizarAlertaPrevlibCliente().catch(function(){});
 
   // Obs.: a Tela Cheia deixou de abrir automaticamente ao filtrar — agora é 100% manual,
   // via o botão "⛶ Tela Cheia" na barra de filtros. Isso evita qualquer risco de o usuário
@@ -7608,6 +7659,7 @@ async function abrirCronModal(id){
   // Reset radio buttons
   ['rev-eng-nao','rev-cli-nao','rev-fat-nao'].forEach(id=>{const r=document.getElementById(id);if(r)r.checked=true;});
   document.getElementById('cm-peso-comparativo').textContent='—';
+  (function(){ var _v=document.getElementById('cm-limite-cliente-valor'); if(_v) _v.textContent='—'; var _n=document.getElementById('cm-limite-cliente-nota'); if(_n) _n.textContent=''; })();
   // Reset anexos
   _anexos = {basico:[], revisao:[], obs:[]};
   ['basico','revisao','obs'].forEach(k=>{const el=document.getElementById('anexo-'+k+'-list');if(el)el.innerHTML='';});
@@ -7649,6 +7701,7 @@ async function abrirCronModal(id){
     var _elfab = document.getElementById('cm-data-limite-fab');
     if(_elfab) _elfab._prevHistValue = s.data_limite_fab || '';
     atualizarDiasLimiteFab();
+    if(typeof atualizarLimiteClienteModal==='function') atualizarLimiteClienteModal(s).catch(function(){});
     sv('cm-prev-basico',s.prev_basico); sv('cm-real-basico',s.real_basico); sv('cm-obs-basico',s.obs_basico);
     sv('cm-prev-envio-detail',s.prev_envio_detail); sv('cm-real-envio-detail',s.real_envio_detail); sv('cm-obs-envio-detail',s.obs_envio_detail);
     sv('cm-prev-materia-prima',s.prev_materia_prima); sv('cm-real-materia-prima',s.real_materia_prima); sv('cm-obs-materia-prima',s.obs_materia_prima);
@@ -17881,6 +17934,346 @@ function exportarAlertaPrazoPDF(){
     '</tr></thead><tbody>'+rows+'</tbody></table>'+
     '<div class="footer">'+
     '<span>Itens onde a Data Limite Fábrica é anterior à Data Planejada para Fabricação (Lib. Fab.)</span>'+
+    '<span>Sidertec Engenharia — gerado pelo sistema de cronograma</span>'+
+    '</div>'+
+    '</body></html>';
+
+  var win = window.open('','_blank','width=1300,height=850,scrollbars=yes');
+  if(!win){ showToast('Pop-up bloqueado','Permita pop-ups para gerar o PDF.','warn'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = function(){ win.focus(); setTimeout(function(){ win.print(); },400); };
+  showToast('PDF pronto!',conflitos.length+' obra(s) em alerta — use Ctrl+P ou Salvar como PDF.','success');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LIMITE DO CLIENTE (vindo do Planejamento) — link com Cronograma
+// ════════════════════════════════════════════════════════════════════════
+
+// Retorna a data (ISO) do "Limite Cliente" da(s) linha(s) de Planejamento que
+// correspondem a esta sub-obra do Cronograma (mesma TAG/obra), ou null se não
+// houver Planejamento carregado ou nenhuma linha correspondente com o campo
+// preenchido. allPlanejamento precisa já estar carregado (carregarPlanejamento()).
+function _limiteClienteDaSubobra(s){
+  if(!allPlanejamento || !allPlanejamento.length) return null;
+  if(typeof _planAcharLinhasDaTag !== 'function') return null;
+  var linhas = _planAcharLinhasDaTag(s);
+  if(!linhas.length) return null;
+  var comLimite = linhas.find(function(l){ return l.limite_cliente; });
+  return comLimite ? comLimite.limite_cliente : null;
+}
+
+// Popula o box "📋 Limite do Cliente" no modal da sub-obra, ao lado da Data
+// Limite — Liberação p/ Fábrica. Carrega o Planejamento sob demanda se ainda
+// não estiver em memória.
+async function atualizarLimiteClienteModal(s){
+  var valEl = document.getElementById('cm-limite-cliente-valor');
+  var notaEl = document.getElementById('cm-limite-cliente-nota');
+  if(!valEl) return;
+  if(!s){ valEl.textContent='—'; if(notaEl) notaEl.textContent=''; return; }
+  valEl.textContent = '⏳ Carregando...';
+  if(notaEl) notaEl.textContent = '';
+  if(!allPlanejamento || !allPlanejamento.length){
+    await carregarPlanejamento();
+  }
+  // O usuário pode ter fechado/trocado de modal enquanto o Planejamento carregava
+  if(!editingCronId || String(editingCronId)!==String(s.id)) return;
+  var limCliente = _limiteClienteDaSubobra(s);
+  if(!limCliente){ valEl.textContent='—'; if(notaEl) notaEl.textContent=''; return; }
+  var dCli = new Date(limCliente+'T12:00:00');
+  valEl.textContent = dCli.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  if(!notaEl) return;
+  var notas = [];
+  if(s.data_limite_fab){
+    var dFab = new Date(s.data_limite_fab+'T12:00:00');
+    var diffFab = Math.round((dFab-dCli)/86400000);
+    if(diffFab>0) notas.push('⚠ Lim. Fábrica '+diffFab+'d após o cliente');
+  }
+  var prevLibFabModal = (typeof _etapasState!=='undefined' && _etapasState['lib_fab'] && _etapasState['lib_fab'].prev) || null;
+  if(prevLibFabModal){
+    var dPrevModal = new Date(prevLibFabModal+'T12:00:00');
+    var diffPrev = Math.round((dPrevModal-dCli)/86400000);
+    if(diffPrev>0) notas.push('⚠ Prev. Liberação '+diffPrev+'d após o cliente');
+  }
+  notaEl.innerHTML = notas.length ? notas.join('<br>') : '<span style="color:#86efac;">✓ Dentro do limite do cliente</span>';
+}
+
+// ── ALERTA: Limite Fábrica X Limite Cliente (o limite do cliente deve prevalecer) ──
+function cronAlertaClienteFabToggle(){
+  var painel = document.getElementById('cron-alerta-cliente-fab-painel');
+  var chevron = document.getElementById('cron-alerta-cliente-fab-pill-chevron');
+  if(!painel) return;
+  var aberto = painel.style.display !== 'none';
+  painel.style.display = aberto ? 'none' : 'block';
+  if(chevron) chevron.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+async function atualizarAlertaLimiteClienteFab(){
+  var banner  = document.getElementById("cron-alerta-cliente-fab");
+  var lista   = document.getElementById("cron-alerta-cliente-fab-lista");
+  var pillTxt = document.getElementById("cron-alerta-cliente-fab-pill-txt");
+  if(!banner || !lista) return;
+  if(!allPlanejamento || !allPlanejamento.length){
+    await carregarPlanejamento();
+  }
+  if(!allPlanejamento || !allPlanejamento.length){ banner.style.display="none"; window._cronAlertaClienteFabConflitos=[]; return; }
+  var conflitos = [];
+  (allCronSubobras||[]).forEach(function(s){
+    if((s.status||'')==='FORA DE ESCOPO') return;
+    if(!s.data_limite_fab) return;
+    if(s.real_lib_fab) return;
+    var limCliente = _limiteClienteDaSubobra(s);
+    if(!limCliente) return;
+    var limFab = new Date(s.data_limite_fab+"T12:00:00");
+    var limCli = new Date(limCliente+"T12:00:00");
+    if(limFab > limCli) conflitos.push(Object.assign({}, s, {_limite_cliente: limCliente}));
+  });
+  if(!conflitos.length){ banner.style.display="none"; window._cronAlertaClienteFabConflitos=[]; return; }
+  window._cronAlertaClienteFabConflitos = conflitos;
+  banner.style.display="block";
+  if(pillTxt) pillTxt.textContent = conflitos.length + ' obra' + (conflitos.length>1?'s':'') + ' — Limite Fábrica x Cliente';
+  lista.innerHTML = conflitos.map(function(s){
+    var limFab = new Date(s.data_limite_fab+"T12:00:00");
+    var limCli = new Date(s._limite_cliente+"T12:00:00");
+    var dias = Math.round((limFab-limCli)/86400000);
+    var fmtFab = limFab.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+    var fmtCli = limCli.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#c4b5fd;color:#5b21b6;border-radius:3px;padding:1px 7px;font-weight:700;margin:.15rem .2rem .15rem 0;cursor:pointer;" onclick="abrirCronModal(\'' + s.id + '\')" title="Clique para abrir e atualizar datas">'
+      + (s.subobra||'—') + ' (' + s.obra + ')'
+      + ' — Lim. Fábrica: ' + fmtFab + ' · Lim. Cliente: ' + fmtCli + ' (' + dias + 'd além do limite do cliente)'
+      + ' ↗</span>';
+  }).join("");
+}
+
+function exportarAlertaClienteFabExcel(){
+  var conflitos = window._cronAlertaClienteFabConflitos || [];
+  if(!conflitos.length){ showToast('Nada para exportar','Não há obras em alerta de Limite Fábrica x Cliente no momento.','warn'); return; }
+
+  var fmtD = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : ''; };
+  var cols = ['obra','subobra','descricao','equipe','status','data_limite_fab','limite_cliente','dias_alem'];
+  var header = ['Obra','TAG / Sub-obra','Descrição','Equipe','Status','Data Limite Fábrica','Limite Cliente','Dias Além do Limite Cliente'];
+
+  var rows = conflitos.map(function(s){
+    var limFab = new Date(s.data_limite_fab+'T12:00:00');
+    var limCli = new Date(s._limite_cliente+'T12:00:00');
+    var dias = Math.round((limFab-limCli)/86400000);
+    var linha = {
+      obra: s.obra||'', subobra: s.subobra||'', descricao: s.descricao||'', equipe: s.equipe||'',
+      status: s.status||'', data_limite_fab: fmtD(s.data_limite_fab), limite_cliente: fmtD(s._limite_cliente),
+      dias_alem: dias
+    };
+    return cols.map(function(c){
+      var v = linha[c]!=null ? String(linha[c]) : '';
+      return v.includes(';') ? '"'+v+'"' : v;
+    }).join(';');
+  });
+
+  var csv = '﻿'+header.join(';')+'\n'+rows.join('\n');
+  var blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='alerta_limite_fabrica_x_cliente_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Excel exportado!',conflitos.length+' obra(s) em alerta exportadas.','success');
+}
+
+function exportarAlertaClienteFabPDF(){
+  var conflitos = window._cronAlertaClienteFabConflitos || [];
+  if(!conflitos.length){ showToast('Nada para exportar','Não há obras em alerta de Limite Fábrica x Cliente no momento.','warn'); return; }
+
+  var fmtD = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'; };
+  var hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  var rows = conflitos.map(function(s){
+    var cfg = (typeof STATUS_CFG_CRON !== 'undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569',bg:'#f1f5f9',icon:'•'};
+    var limFab = new Date(s.data_limite_fab+'T12:00:00');
+    var limCli = new Date(s._limite_cliente+'T12:00:00');
+    var dias = Math.round((limFab-limCli)/86400000);
+    return '<tr style="border-bottom:1px solid #e2e8f0;">'+
+      '<td style="padding:4px 7px;font-family:Courier New,monospace;font-size:9px;font-weight:700;color:#5b21b6;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.subobra||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.obra||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;max-width:200px;">'+(s.descricao||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.equipe||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:8px;text-align:center;border:1px solid #e2e8f0;"><span style="background:'+cfg.bg+';color:'+cfg.color+';border-radius:3px;padding:1px 5px;white-space:nowrap;">'+(s.status||'—')+'</span></td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(s.data_limite_fab)+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(s._limite_cliente)+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;font-weight:700;color:#5b21b6;border:1px solid #e2e8f0;white-space:nowrap;">'+dias+'d</td>'+
+      '</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<title>Alerta Limite Fábrica x Cliente — Sidertec</title>'+
+    '<style>'+
+    '@page{size:A4 landscape;margin:12mm;}'+
+    'body{font-family:Arial,sans-serif;font-size:9px;color:#1e293b;margin:0;}'+
+    '.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #7c3aed;}'+
+    '.logo{font-size:18px;font-weight:900;color:#c4501a;letter-spacing:.05em;}'+
+    '.titulo{font-size:16px;font-weight:700;margin-top:2px;color:#5b21b6;}'+
+    '.meta{font-size:8px;color:#64748b;text-align:right;}'+
+    'table{width:100%;border-collapse:collapse;font-size:9px;}'+
+    'thead tr{background:#5b21b6;}'+
+    'thead th{color:#fff;text-align:left;padding:6px 7px;white-space:nowrap;border:1px solid #4c1d95;font-size:9px;}'+
+    'tbody tr:nth-child(even){background:#f5f3ff;}'+
+    '.footer{margin-top:10px;font-size:7px;color:#94a3b8;display:flex;justify-content:space-between;}'+
+    '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+    '<div><div class="logo">SIDERTEC</div><div class="titulo">🚨 Alerta Limite de Fábrica x Limite de Cliente</div></div>'+
+    '<div class="meta">'+
+    '<div><strong>'+conflitos.length+'</strong> obra(s) em alerta</div>'+
+    '<div>Gerado em '+hoje+'</div>'+
+    '</div>'+
+    '</div>'+
+    '<table><thead><tr>'+
+    '<th>TAG / Sub-obra</th><th>Obra</th><th>Descrição</th><th>Equipe</th><th>Status</th>'+
+    '<th style="text-align:center;">Lim. Fábrica</th><th style="text-align:center;">Lim. Cliente</th><th style="text-align:center;">Dias Além do Limite</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="footer">'+
+    '<span>Itens onde a Data Limite Fábrica é posterior ao Limite do Cliente (o limite do cliente deve prevalecer)</span>'+
+    '<span>Sidertec Engenharia — gerado pelo sistema de cronograma</span>'+
+    '</div>'+
+    '</body></html>';
+
+  var win = window.open('','_blank','width=1300,height=850,scrollbars=yes');
+  if(!win){ showToast('Pop-up bloqueado','Permita pop-ups para gerar o PDF.','warn'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = function(){ win.focus(); setTimeout(function(){ win.print(); },400); };
+  showToast('PDF pronto!',conflitos.length+' obra(s) em alerta — use Ctrl+P ou Salvar como PDF.','success');
+}
+
+// ── ALERTA: Previsão de Liberação X Limite Cliente (o limite do cliente deve prevalecer) ──
+function cronAlertaPrevlibClienteToggle(){
+  var painel = document.getElementById('cron-alerta-prevlib-cliente-painel');
+  var chevron = document.getElementById('cron-alerta-prevlib-cliente-pill-chevron');
+  if(!painel) return;
+  var aberto = painel.style.display !== 'none';
+  painel.style.display = aberto ? 'none' : 'block';
+  if(chevron) chevron.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+async function atualizarAlertaPrevlibCliente(){
+  var banner  = document.getElementById("cron-alerta-prevlib-cliente");
+  var lista   = document.getElementById("cron-alerta-prevlib-cliente-lista");
+  var pillTxt = document.getElementById("cron-alerta-prevlib-cliente-pill-txt");
+  if(!banner || !lista) return;
+  if(!allPlanejamento || !allPlanejamento.length){
+    await carregarPlanejamento();
+  }
+  if(!allPlanejamento || !allPlanejamento.length){ banner.style.display="none"; window._cronAlertaPrevlibClienteConflitos=[]; return; }
+  var conflitos = [];
+  (allCronSubobras||[]).forEach(function(s){
+    if((s.status||'')==='FORA DE ESCOPO') return;
+    if(!s.prev_lib_fab) return;
+    if(s.real_lib_fab) return;
+    var limCliente = _limiteClienteDaSubobra(s);
+    if(!limCliente) return;
+    var prev = new Date(s.prev_lib_fab+"T12:00:00");
+    var limCli = new Date(limCliente+"T12:00:00");
+    if(prev > limCli) conflitos.push(Object.assign({}, s, {_limite_cliente: limCliente}));
+  });
+  if(!conflitos.length){ banner.style.display="none"; window._cronAlertaPrevlibClienteConflitos=[]; return; }
+  window._cronAlertaPrevlibClienteConflitos = conflitos;
+  banner.style.display="block";
+  if(pillTxt) pillTxt.textContent = conflitos.length + ' obra' + (conflitos.length>1?'s':'') + ' — Previsão Liberação x Cliente';
+  lista.innerHTML = conflitos.map(function(s){
+    var prev = new Date(s.prev_lib_fab+"T12:00:00");
+    var limCli = new Date(s._limite_cliente+"T12:00:00");
+    var dias = Math.round((prev-limCli)/86400000);
+    var fmtPrev = prev.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+    var fmtCli = limCli.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fcd34d;color:#92400e;border-radius:3px;padding:1px 7px;font-weight:700;margin:.15rem .2rem .15rem 0;cursor:pointer;" onclick="abrirCronModal(\'' + s.id + '\')" title="Clique para abrir e atualizar datas">'
+      + (s.subobra||'—') + ' (' + s.obra + ')'
+      + ' — Prev. Liberação: ' + fmtPrev + ' · Lim. Cliente: ' + fmtCli + ' (' + dias + 'd além do limite do cliente)'
+      + ' ↗</span>';
+  }).join("");
+}
+
+function exportarAlertaPrevlibClienteExcel(){
+  var conflitos = window._cronAlertaPrevlibClienteConflitos || [];
+  if(!conflitos.length){ showToast('Nada para exportar','Não há obras em alerta de Previsão de Liberação x Cliente no momento.','warn'); return; }
+
+  var fmtD = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : ''; };
+  var cols = ['obra','subobra','descricao','equipe','status','prev_lib_fab','limite_cliente','dias_alem'];
+  var header = ['Obra','TAG / Sub-obra','Descrição','Equipe','Status','Prev. Liberação Fábrica','Limite Cliente','Dias Além do Limite Cliente'];
+
+  var rows = conflitos.map(function(s){
+    var prev = new Date(s.prev_lib_fab+'T12:00:00');
+    var limCli = new Date(s._limite_cliente+'T12:00:00');
+    var dias = Math.round((prev-limCli)/86400000);
+    var linha = {
+      obra: s.obra||'', subobra: s.subobra||'', descricao: s.descricao||'', equipe: s.equipe||'',
+      status: s.status||'', prev_lib_fab: fmtD(s.prev_lib_fab), limite_cliente: fmtD(s._limite_cliente),
+      dias_alem: dias
+    };
+    return cols.map(function(c){
+      var v = linha[c]!=null ? String(linha[c]) : '';
+      return v.includes(';') ? '"'+v+'"' : v;
+    }).join(';');
+  });
+
+  var csv = '﻿'+header.join(';')+'\n'+rows.join('\n');
+  var blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='alerta_previsao_liberacao_x_cliente_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Excel exportado!',conflitos.length+' obra(s) em alerta exportadas.','success');
+}
+
+function exportarAlertaPrevlibClientePDF(){
+  var conflitos = window._cronAlertaPrevlibClienteConflitos || [];
+  if(!conflitos.length){ showToast('Nada para exportar','Não há obras em alerta de Previsão de Liberação x Cliente no momento.','warn'); return; }
+
+  var fmtD = function(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'; };
+  var hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  var rows = conflitos.map(function(s){
+    var cfg = (typeof STATUS_CFG_CRON !== 'undefined' && STATUS_CFG_CRON[s.status]) || {color:'#475569',bg:'#f1f5f9',icon:'•'};
+    var prev = new Date(s.prev_lib_fab+'T12:00:00');
+    var limCli = new Date(s._limite_cliente+'T12:00:00');
+    var dias = Math.round((prev-limCli)/86400000);
+    return '<tr style="border-bottom:1px solid #e2e8f0;">'+
+      '<td style="padding:4px 7px;font-family:Courier New,monospace;font-size:9px;font-weight:700;color:#92400e;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.subobra||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.obra||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;max-width:200px;">'+(s.descricao||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;border:1px solid #e2e8f0;white-space:nowrap;">'+(s.equipe||'—')+'</td>'+
+      '<td style="padding:4px 7px;font-size:8px;text-align:center;border:1px solid #e2e8f0;"><span style="background:'+cfg.bg+';color:'+cfg.color+';border-radius:3px;padding:1px 5px;white-space:nowrap;">'+(s.status||'—')+'</span></td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(s.prev_lib_fab)+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;border:1px solid #e2e8f0;white-space:nowrap;">'+fmtD(s._limite_cliente)+'</td>'+
+      '<td style="padding:4px 7px;font-size:9px;text-align:center;font-weight:700;color:#92400e;border:1px solid #e2e8f0;white-space:nowrap;">'+dias+'d</td>'+
+      '</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<title>Alerta Previsão de Liberação x Cliente — Sidertec</title>'+
+    '<style>'+
+    '@page{size:A4 landscape;margin:12mm;}'+
+    'body{font-family:Arial,sans-serif;font-size:9px;color:#1e293b;margin:0;}'+
+    '.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #d97706;}'+
+    '.logo{font-size:18px;font-weight:900;color:#c4501a;letter-spacing:.05em;}'+
+    '.titulo{font-size:16px;font-weight:700;margin-top:2px;color:#92400e;}'+
+    '.meta{font-size:8px;color:#64748b;text-align:right;}'+
+    'table{width:100%;border-collapse:collapse;font-size:9px;}'+
+    'thead tr{background:#92400e;}'+
+    'thead th{color:#fff;text-align:left;padding:6px 7px;white-space:nowrap;border:1px solid #78350f;font-size:9px;}'+
+    'tbody tr:nth-child(even){background:#fffbeb;}'+
+    '.footer{margin-top:10px;font-size:7px;color:#94a3b8;display:flex;justify-content:space-between;}'+
+    '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+    '<div><div class="logo">SIDERTEC</div><div class="titulo">🚨 Alerta Previsão de Liberação x Limite de Cliente</div></div>'+
+    '<div class="meta">'+
+    '<div><strong>'+conflitos.length+'</strong> obra(s) em alerta</div>'+
+    '<div>Gerado em '+hoje+'</div>'+
+    '</div>'+
+    '</div>'+
+    '<table><thead><tr>'+
+    '<th>TAG / Sub-obra</th><th>Obra</th><th>Descrição</th><th>Equipe</th><th>Status</th>'+
+    '<th style="text-align:center;">Prev. Liberação</th><th style="text-align:center;">Lim. Cliente</th><th style="text-align:center;">Dias Além do Limite</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="footer">'+
+    '<span>Itens onde a Previsão de Liberação para Fábrica é posterior ao Limite do Cliente (o limite do cliente deve prevalecer)</span>'+
     '<span>Sidertec Engenharia — gerado pelo sistema de cronograma</span>'+
     '</div>'+
     '</body></html>';
