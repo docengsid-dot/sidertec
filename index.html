@@ -3039,6 +3039,96 @@ ALTER TABLE medicao_terceiros
   </div>
 </div>
 
+<!-- Relatório de Planejamento — filtros próprios do relatório (independentes da tela), no mesmo
+     padrão do "📊 Relatório Cronograma" (modal-rel-cron): Excel/PDF por Obra, TAG, Etapa,
+     Situação, Período, Falta M.P., Status Expedição, com botão de relatório rápido dedicado e
+     opção de usar só as linhas marcadas (☑) na tabela. -->
+<div class="cron-rel-modal" id="modal-plan-relatorio" onclick="fecharRelatorioPlanejamento(event)">
+  <div class="cron-rel-box" onclick="event.stopPropagation()" style="width:760px;max-width:97vw;">
+    <div class="cron-rel-hd">
+      <div style="flex:1;font-family:'Georgia',serif,serif;font-size:17px;color:#fff;">📊 Relatório Planejamento</div>
+      <button onclick="fecharRelatorioPlanejamento()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div style="padding:1.25rem;max-height:70vh;overflow:auto;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:1rem;">
+        <div class="field-group">
+          <label class="field-label">Obra</label>
+          <select class="field-input" id="rplan-obra" style="font-size:16px;" onchange="_planRelatorioAtualizarPreview()"><option value="">Todas</option></select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">TAG (busca)</label>
+          <input type="text" class="field-input" id="rplan-tag" placeholder="Ex: PF001" style="font-size:16px;" oninput="_planRelatorioAtualizarPreview()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Etapa</label>
+          <select class="field-input" id="rplan-etapa" style="font-size:16px;" onchange="_planRelatorioAtualizarPreview()">
+            <option value="">Todas</option>
+            <option value="1-PROJETO">1 — Projeto</option>
+            <option value="2-PREPARAÇÃO">2 — Preparação</option>
+            <option value="3-MONTAGEM E SOLDA">3 — Montagem e Solda</option>
+            <option value="4-PINTURA">4 — Pintura</option>
+            <option value="5-EXPEDIÇÃO">5 — Expedição</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Situação</label>
+          <select class="field-input" id="rplan-situacao" style="font-size:16px;" onchange="_planRelatorioAtualizarPreview()">
+            <option value="">Todas</option>
+            <option value="atrasado">🔴 Atrasado</option>
+            <option value="concluido">✅ Concluído</option>
+            <option value="andamento">🕓 Em andamento / no prazo</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Período De</label>
+          <input type="date" class="field-input" id="rplan-periodo-de" style="font-size:16px;" onchange="_planRelatorioAtualizarPreview()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Período Até</label>
+          <input type="date" class="field-input" id="rplan-periodo-ate" style="font-size:16px;" onchange="_planRelatorioAtualizarPreview()">
+        </div>
+        <div class="field-group" style="grid-column:1/-1;">
+          <label class="field-label">📦 Falta de Matéria-Prima</label>
+          <div style="display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;padding:.4rem 0;">
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-falta-mp" value="" checked onchange="_planRelatorioAtualizarPreview()"> 📋 Todas</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-falta-mp" value="sim" onchange="_planRelatorioAtualizarPreview()"> 📦 Só Falta M.P.</label>
+          </div>
+        </div>
+        <div class="field-group" style="grid-column:1/-1;">
+          <label class="field-label">🚚 Status Expedição</label>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;padding:.4rem 0;">
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-status-exp" value="" checked onchange="_planRelatorioAtualizarPreview()"> 🚫 Não incluir</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-status-exp" value="todas" onchange="_planRelatorioAtualizarPreview()"> 📋 Todas (etapa Expedição)</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-status-exp" value="concluida" onchange="_planRelatorioAtualizarPreview()"> ✅ Concluída</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-status-exp" value="parcial" onchange="_planRelatorioAtualizarPreview()"> 🟡 Parcial</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-status-exp" value="atraso" onchange="_planRelatorioAtualizarPreview()"> 🔴 Em Atraso</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:13px;cursor:pointer;"><input type="radio" name="rplan-status-exp" value="parcial_atraso" onchange="_planRelatorioAtualizarPreview()"> ⚠ Parcial + Em Atraso</label>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border-radius:var(--r2);padding:.65rem;font-size:13px;color:var(--ink3);margin-bottom:.8rem;">
+        O relatório incluirá: Obra, TAG, Etapa, Situação, Peso Total/Executado, % Concluído, Saldo, Início/Término, Falta M.P., Limite Cliente, Status Expedição e TAG APP. Com os filtros acima: <b id="plan-relatorio-count-preview">0</b> linha(s) encontrada(s).
+      </div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2);cursor:pointer;">
+        <input type="checkbox" id="rplan-usar-selecao" style="width:15px;height:15px;accent-color:var(--blue);" onchange="_planRelatorioAtualizarPreview()">
+        <span>Ignorar os filtros acima e usar só as <b id="plan-relatorio-count-selecao">0</b> linha(s) marcadas (☑) na tabela</span>
+      </label>
+    </div>
+    <div style="padding:.85rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2);cursor:pointer;">
+        <input type="checkbox" id="rplan-agrupar" style="width:15px;height:15px;accent-color:var(--blue);">
+        <span>Agrupar por Obra</span>
+      </label>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="fecharRelatorioPlanejamento()">Cancelar</button>
+        <button class="btn" onclick="gerarRelatorioPlanFaltaMp()" style="background:#c2410c;color:#fff;border:none;border-radius:var(--r2);padding:6px 14px;font-size:13px;cursor:pointer;">📦 Relatório Falta MP</button>
+        <button class="btn btn-secondary" onclick="exportarPlanRelatorioExcel()">📊 Exportar Excel</button>
+        <button class="btn btn-primary" onclick="exportarPlanRelatorioPDF()" style="background:var(--blue);">📄 Gerar e Imprimir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Planejamento (importado da planilha de cronograma semanal — peso por semana/TAG/etapa) -->
 <div class="page" id="page-planejamento" style="padding:.4rem 1rem;">
   <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:var(--r2);padding:.3rem .65rem;margin-bottom:.35rem;display:flex;align-items:center;gap:.6rem;">
@@ -3102,6 +3192,15 @@ ALTER TABLE medicao_terceiros
         <option value="sim">📦 Só Falta M.P.</option>
       </select>
     </div>
+    <div class="field-group" style="min-width:150px;margin-bottom:0;gap:.1rem;">
+      <label class="field-label" style="font-size:9px;">Status Expedição</label>
+      <select class="field-input" style="font-size:11px;padding:4px 6px;" id="plan-status-expedicao" onchange="renderPlanejamento()" title="Filtra a etapa de Expedição de cada TAG pela situação: 100% concluída, expedida parcialmente (com saldo), ou em atraso (prazo do cliente vencido e ainda não concluída)">
+        <option value="">— Todas —</option>
+        <option value="concluida">✅ 100% Concluída</option>
+        <option value="parcial">🟡 Expedida Parcialmente</option>
+        <option value="atraso">🔴 Em Atraso</option>
+      </select>
+    </div>
     <label class="btn btn-primary" style="background:#0f172a;cursor:pointer;font-size:10px;padding:5px 10px;">
       📥 Importar (.xlsx)
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importarPlanejamentoExcel(this)">
@@ -3110,10 +3209,17 @@ ALTER TABLE medicao_terceiros
     <button class="btn btn-secondary" onclick="_planAbrirColunas(event)" title="Escolher quais colunas da planilha aparecem na tabela (colunas G a X)" style="font-size:10px;padding:5px 9px;">🧩 Colunas</button>
     <button class="btn btn-secondary" onclick="_planLimparFiltrosColuna()" title="Remove todos os filtros aplicados clicando na ▾ de cada coluna da tabela" style="font-size:10px;padding:5px 9px;">✕ Filtros de Coluna</button>
     <button class="btn btn-secondary" onclick="abrirAuditoriaTags()" title="Verifica TAGs do Cronograma sem correspondência no Planejamento, TAGs do Planejamento sem correspondência no Cronograma, e casos ambíguos (mais de uma TAG batendo)" style="font-size:10px;padding:5px 9px;background:#fef3c7;border-color:#d97706;color:#92400e;">🔍 Auditoria de TAGs</button>
+    <button class="btn btn-secondary" onclick="abrirRelatorioPlanejamento()" title="Emitir relatório em Excel ou PDF usando os filtros ativos (Falta M.P., Situação, Período, Etapa, Status Expedição) ou apenas as linhas marcadas na tabela" style="font-size:10px;padding:5px 9px;background:#e0f2fe;border-color:#0284c7;color:#075985;">📊 Relatório</button>
+    <button class="btn btn-secondary" id="plan-btn-relatorio-selecao" onclick="_planLimparSelecao()" title="Clique para limpar a seleção de linhas" style="display:none;font-size:10px;padding:5px 9px;background:#dbeafe;border-color:#2563eb;color:#1e3a8a;">☑ <span id="plan-selecionados-count">0</span> selecionada(s) — limpar</button>
     <div id="plan-info" style="flex-basis:100%;font-size:9.5px;color:var(--ink3);"></div>
   </div>
   <div id="plan-resumo" style="display:flex;gap:.5rem;padding:.2rem 0;flex-wrap:wrap;"></div>
-  <div id="plan-tabela-wrap" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 230px);border:1px solid var(--border);border-radius:6px;">
+  <!-- Barra de rolagem horizontal "espelho", ANTES do cabeçalho da tabela — permite rolar para
+       os lados sem precisar descer até o fim da planilha para alcançar a barra nativa embaixo. -->
+  <div id="plan-scroll-topo" style="overflow-x:auto;overflow-y:hidden;height:14px;border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;background:#f1f5f9;">
+    <div id="plan-scroll-topo-inner" style="height:1px;"></div>
+  </div>
+  <div id="plan-tabela-wrap" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 230px);border:1px solid var(--border);border-radius:0 0 6px 6px;">
     <div style="color:var(--ink3);font-size:13px;padding:2rem;text-align:center;">Importe a planilha de cronograma semanal (.xlsx, aba "CRONOGRAMA") para começar.</div>
   </div>
   <div style="padding:.4rem 0;">
@@ -12800,6 +12906,7 @@ var PLAN_COLS = [
   {key:'data_restricao', label:'Data Restrição', w:88, align:'center', tipo:'data', get:function(l){return l.data_restricao;}},
   {key:'duracao_adotada', label:'Dur. Adotada', w:80, align:'center', tipo:'num0', padrao:false, get:function(l){return l.duracao_adotada;}},
   {key:'limite_cliente', label:'Limite Cliente', w:90, align:'center', tipo:'data', get:function(l){return l.limite_cliente;}},
+  {key:'tag_app', label:'TAG APP', w:110, align:'center', tipo:'texto', padrao:false, get:function(l){return l.tag_app;}},
   {key:'chk_pcp_critico', label:'Chk PCP/Crítico', w:120, align:'left', tipo:'texto', padrao:false, get:function(l){return l.chk_pcp_critico;}},
   {key:'pct_extra', label:'% (Adot.)', w:65, align:'center', tipo:'pct', padrao:false, get:function(l){return l.pct_extra;}}
 ];
@@ -12818,6 +12925,254 @@ function _planFmtValorCol(col, v){
   if(col.tipo==='pct') return (v*100).toFixed(1)+'%';
   if(col.tipo==='data') return _planFmtData(v);
   return String(v);
+}
+
+// ── Seleção de linhas (checkbox) — Planejamento ────────────────────────────
+// Conjunto próprio (separado do `_selectedIds` do Cronograma) para permitir "sinalizar" linhas
+// específicas da tabela de Planejamento e depois gerar um relatório (Excel/PDF) só com elas.
+var _planSelectedIds = new Set();
+// Garante que toda linha tenha um identificador estável (`_pid`) para a sessão, mesmo linhas
+// carregadas de importações anteriores a este recurso (sem o campo ainda gravado).
+function _planGarantirPids(){
+  (allPlanejamento||[]).forEach(function(l, idx){ if(l._pid==null) l._pid = 'r'+idx; });
+}
+function _planToggleLinha(e, pid){
+  if(e.target.checked) _planSelectedIds.add(pid); else _planSelectedIds.delete(pid);
+  _planAtualizarContadorSelecao();
+}
+function _planToggleTodasVisiveis(e){
+  var checked = e.target.checked;
+  var wrap = document.getElementById('plan-tabela-wrap');
+  if(!wrap) return;
+  wrap.querySelectorAll('.plan-row-chk').forEach(function(cb){
+    cb.checked = checked;
+    if(checked) _planSelectedIds.add(cb.dataset.pid); else _planSelectedIds.delete(cb.dataset.pid);
+  });
+  _planAtualizarContadorSelecao();
+}
+function _planAtualizarContadorSelecao(){
+  var el = document.getElementById('plan-selecionados-count');
+  if(el) el.textContent = _planSelectedIds.size;
+  var btn = document.getElementById('plan-btn-relatorio-selecao');
+  if(btn) btn.style.display = _planSelectedIds.size>0 ? 'inline-flex' : 'none';
+}
+function _planLimparSelecao(){
+  _planSelectedIds.clear();
+  renderPlanejamento();
+}
+
+// ── 📊 RELATÓRIO — Planejamento (Excel/PDF) ────────────────────────────────
+// Modal com filtros PRÓPRIOS (independentes da tela — mesmo padrão do "📊 Relatório
+// Cronograma"/modal-rel-cron): Obra, TAG, Etapa, Situação, Período, Falta M.P. e Status
+// Expedição, mais a opção de ignorar tudo isso e usar só as linhas marcadas (☑) na tabela.
+var PLAN_RELATORIO_COLS = [
+  {label:'Obra', get:function(l){ return l.obra||''; }},
+  {label:'TAG', get:function(l){ return l.tag||''; }},
+  {label:'Etapa', get:function(l){ return l.etapa||''; }},
+  {label:'Situação', get:function(l){ return l.status_prazo||''; }},
+  {label:'Peso Total (kg)', get:function(l){ return l.peso_total!=null ? _planFmtNum(l.peso_total) : ''; }},
+  {label:'Peso Executado (kg)', get:function(l){ return l.peso_exec!=null ? _planFmtNum(l.peso_exec) : ''; }},
+  {label:'% Concluído', get:function(l){ return l.peso_total>0 ? ((l.peso_exec||0)/l.peso_total*100).toFixed(1)+'%' : ''; }},
+  {label:'Saldo (kg)', get:function(l){ return l.saldo!=null ? _planFmtNum(l.saldo) : ''; }},
+  {label:'Início', get:function(l){ return _planFmtData(l.inicio); }},
+  {label:'Término', get:function(l){ return _planFmtData(l.termino); }},
+  {label:'Falta M.P.', get:function(l){ return l.falta_mp||''; }},
+  {label:'Limite Cliente', get:function(l){ return _planFmtData(l.limite_cliente); }},
+  {label:'Status Expedição', get:function(l){
+    var st = _planStatusExpedicao(l);
+    return st==='concluida' ? '100% Concluída' : st==='parcial' ? 'Expedida Parcialmente' : st==='atraso' ? 'Em Atraso' : '';
+  }},
+  {label:'TAG APP', get:function(l){ return l.tag_app||''; }}
+];
+// Popula o select de Obra do modal de relatório com as obras existentes no Planejamento.
+function _rplanPopularObra(){
+  var sel = document.getElementById('rplan-obra');
+  if(!sel) return;
+  var atual = sel.value;
+  var obras = [];
+  (allPlanejamento||[]).forEach(function(l){ if(l.obra && obras.indexOf(l.obra)===-1) obras.push(l.obra); });
+  obras.sort();
+  sel.innerHTML = '<option value="">Todas</option>' + obras.map(function(o){ return '<option value="'+String(o).replace(/"/g,'&quot;')+'">'+o+'</option>'; }).join('');
+  if(atual && obras.indexOf(atual)!==-1) sel.value = atual;
+}
+// Calcula as linhas do relatório a partir dos filtros PRÓPRIOS do modal (não os da tela).
+// `overrides` permite forçar um campo específico (usado pelo botão de relatório rápido
+// "📦 Relatório Falta MP", que sempre filtra Falta M.P.="sim" e ignora a opção de seleção).
+function _planRelatorioLinhasFiltradas(overrides){
+  overrides = overrides || {};
+  var chkSelecao = document.getElementById('rplan-usar-selecao');
+  var usarSelecao = !overrides.forcarFiltros && chkSelecao && chkSelecao.checked;
+  if(usarSelecao){
+    return (allPlanejamento||[]).filter(function(l){ return _planSelectedIds.has(l._pid); });
+  }
+  var obraF = (document.getElementById('rplan-obra')||{}).value || '';
+  var tagF = _confNorm(((document.getElementById('rplan-tag')||{}).value||'').trim());
+  var etapaF = (document.getElementById('rplan-etapa')||{}).value || '';
+  var situacaoF = (document.getElementById('rplan-situacao')||{}).value || '';
+  var periodoDe = (document.getElementById('rplan-periodo-de')||{}).value || '';
+  var periodoAte = (document.getElementById('rplan-periodo-ate')||{}).value || '';
+  var faltaMpEl = document.querySelector('input[name="rplan-falta-mp"]:checked');
+  var faltaMpF = overrides.faltaMp!=null ? overrides.faltaMp : (faltaMpEl ? faltaMpEl.value : '');
+  var statusExpEl = document.querySelector('input[name="rplan-status-exp"]:checked');
+  var statusExpF = overrides.statusExp!=null ? overrides.statusExp : (statusExpEl ? statusExpEl.value : '');
+
+  return (allPlanejamento||[]).filter(function(l){
+    if(obraF && l.obra!==obraF) return false;
+    if(tagF && _confNorm(l.tag||'').indexOf(tagF)===-1) return false;
+    if(etapaF && l.etapa!==etapaF) return false;
+    if(situacaoF && _planSituacao(l)!==situacaoF) return false;
+    if(faltaMpF==='sim' && !(l.falta_mp && String(l.falta_mp).trim())) return false;
+    if(periodoDe || periodoAte){
+      var ini=l.inicio, fim=l.termino;
+      if(!ini && !fim) return false;
+      if(periodoAte && ini && ini>periodoAte) return false;
+      if(periodoDe && fim && fim<periodoDe) return false;
+    }
+    if(statusExpF){
+      var st = _planStatusExpedicao(l);
+      if(statusExpF==='todas'){ if(_confNorm(l.etapa||'').indexOf('expedi')===-1) return false; }
+      else if(statusExpF==='parcial_atraso'){ if(st!=='parcial' && st!=='atraso') return false; }
+      else if(st!==statusExpF){ return false; }
+    }
+    return true;
+  });
+}
+function _planRelatorioResumoFiltrosTexto(overrides){
+  overrides = overrides || {};
+  var partes = [];
+  var obraF = (document.getElementById('rplan-obra')||{}).value;
+  var tagF = ((document.getElementById('rplan-tag')||{}).value||'').trim();
+  var etapaF = (document.getElementById('rplan-etapa')||{}).value;
+  var situacaoF = (document.getElementById('rplan-situacao')||{}).value;
+  var periodoDe = (document.getElementById('rplan-periodo-de')||{}).value;
+  var periodoAte = (document.getElementById('rplan-periodo-ate')||{}).value;
+  var faltaMpEl = document.querySelector('input[name="rplan-falta-mp"]:checked');
+  var faltaMpF = overrides.faltaMp!=null ? overrides.faltaMp : (faltaMpEl ? faltaMpEl.value : '');
+  var statusExpEl = document.querySelector('input[name="rplan-status-exp"]:checked');
+  var statusExpF = overrides.statusExp!=null ? overrides.statusExp : (statusExpEl ? statusExpEl.value : '');
+  if(obraF) partes.push('Obra: '+obraF);
+  if(tagF) partes.push('TAG contém "'+tagF+'"');
+  if(etapaF) partes.push('Etapa: '+etapaF);
+  if(situacaoF) partes.push('Situação: '+({atrasado:'🔴 Atrasado',concluido:'✅ Concluído',andamento:'🕓 Em andamento'}[situacaoF]||situacaoF));
+  if(periodoDe || periodoAte) partes.push('Período: '+(periodoDe?_planFmtData(periodoDe):'—')+' a '+(periodoAte?_planFmtData(periodoAte):'—'));
+  if(faltaMpF==='sim') partes.push('📦 Só com Falta de M.P.');
+  if(statusExpF) partes.push('Status Expedição: '+({todas:'📋 Todas (Expedição)',concluida:'✅ Concluída',parcial:'🟡 Parcial',atraso:'🔴 Em Atraso',parcial_atraso:'⚠ Parcial + Em Atraso'}[statusExpF]||statusExpF));
+  return partes.length ? partes.join(' · ') : 'Nenhum filtro ativo (todas as linhas do Planejamento).';
+}
+function _planRelatorioAtualizarPreview(){
+  var chkSelecao = document.getElementById('rplan-usar-selecao');
+  var el = document.getElementById('plan-relatorio-count-preview');
+  if(el) el.textContent = _planRelatorioLinhasFiltradas().length;
+  var camposFiltro = document.querySelectorAll('#modal-plan-relatorio .field-group input, #modal-plan-relatorio .field-group select, #modal-plan-relatorio input[name="rplan-falta-mp"], #modal-plan-relatorio input[name="rplan-status-exp"]');
+  var usando = chkSelecao && chkSelecao.checked;
+  camposFiltro.forEach(function(el){ el.disabled = !!usando; });
+}
+function abrirRelatorioPlanejamento(){
+  if(!allPlanejamento || !allPlanejamento.length){ showToast('Sem dados','Importe a planilha de Planejamento primeiro.','warn'); return; }
+  var modal = document.getElementById('modal-plan-relatorio');
+  if(modal) modal.classList.add('show');
+  _rplanPopularObra();
+  var elCS = document.getElementById('plan-relatorio-count-selecao');
+  if(elCS) elCS.textContent = _planSelectedIds.size;
+  var chkSel = document.getElementById('rplan-usar-selecao');
+  if(chkSel){ chkSel.disabled = _planSelectedIds.size===0; if(!_planSelectedIds.size) chkSel.checked=false; }
+  _planRelatorioAtualizarPreview();
+}
+function fecharRelatorioPlanejamento(e){
+  if(!e || e.target.id==='modal-plan-relatorio'){
+    var modal = document.getElementById('modal-plan-relatorio');
+    if(modal) modal.classList.remove('show');
+  }
+}
+function _planRelatorioLinhasOrdenadas(linhas, agrupar){
+  if(!agrupar) return linhas;
+  return linhas.slice().sort(function(a,b){
+    var oa = a.obra||'', ob = b.obra||'';
+    if(oa!==ob) return oa.localeCompare(ob,undefined,{numeric:true});
+    return (a.tag||'').localeCompare(b.tag||'',undefined,{numeric:true});
+  });
+}
+function exportarPlanRelatorioExcel(){
+  var linhas = _planRelatorioLinhasFiltradas();
+  if(!linhas.length){ showToast('Nada para exportar','Nenhuma linha encontrada com os filtros selecionados.','warn'); return; }
+  var agrupar = !!(document.getElementById('rplan-agrupar')&&document.getElementById('rplan-agrupar').checked);
+  linhas = _planRelatorioLinhasOrdenadas(linhas, agrupar);
+  var aoa = [PLAN_RELATORIO_COLS.map(function(c){ return c.label; })];
+  linhas.forEach(function(l){ aoa.push(PLAN_RELATORIO_COLS.map(function(c){ return c.get(l); })); });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'Planejamento');
+  XLSX.writeFile(wbOut, 'relatorio_planejamento_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('Excel exportado!', linhas.length+' linha(s) exportada(s).', 'success');
+}
+// Motor comum de impressão — usado tanto pelo botão principal "Gerar e Imprimir" quanto pelo
+// relatório rápido dedicado "📦 Relatório Falta MP" (que só muda o título e o override de filtro).
+function _planRelatorioImprimir(linhas, tituloRelatorio, filtrosTexto){
+  if(!linhas.length){ showToast('Nada para exportar','Nenhuma linha encontrada com os filtros selecionados.','warn'); return; }
+  var agrupar = !!(document.getElementById('rplan-agrupar')&&document.getElementById('rplan-agrupar').checked);
+  linhas = _planRelatorioLinhasOrdenadas(linhas, agrupar);
+  var hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var headerHtml = '<tr>'+PLAN_RELATORIO_COLS.map(function(c){ return '<th>'+c.label+'</th>'; }).join('')+'</tr>';
+  var _obraAnterior = null;
+  var rowsHtml = linhas.map(function(l){
+    var grupoHeader = '';
+    if(agrupar && l.obra !== _obraAnterior){
+      _obraAnterior = l.obra;
+      var qtdGrupo = linhas.filter(function(x){ return x.obra===l.obra; }).length;
+      grupoHeader = '<tr><td colspan="'+PLAN_RELATORIO_COLS.length+'" style="background:#e0f2fe;color:#075985;font-weight:800;font-size:9px;padding:5px 6px;border:1px solid #7dd3fc;">📁 '+(l.obra||'— Sem obra —')+' — '+qtdGrupo+' linha(s)</td></tr>';
+    }
+    var linhaHtml = '<tr>'+PLAN_RELATORIO_COLS.map(function(c){
+      var v = c.get(l);
+      return '<td>'+(v!=null && v!=='' ? String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '—')+'</td>';
+    }).join('')+'</tr>';
+    return grupoHeader + linhaHtml;
+  }).join('');
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<title>'+tituloRelatorio+' — Sidertec</title>'+
+    '<style>'+
+    '@page{size:A4 landscape;margin:12mm;}'+
+    'body{font-family:Arial,sans-serif;font-size:9px;color:#1e293b;margin:0;}'+
+    '.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid #0284c7;}'+
+    '.logo{font-size:18px;font-weight:900;color:#c4501a;letter-spacing:.05em;}'+
+    '.titulo{font-size:16px;font-weight:700;margin-top:2px;color:#075985;}'+
+    '.meta{font-size:8px;color:#64748b;text-align:right;}'+
+    '.filtros{font-size:9px;color:#334155;margin-bottom:10px;}'+
+    'table{width:100%;border-collapse:collapse;font-size:8px;}'+
+    'thead tr{background:#075985;}'+
+    'thead th{color:#fff;text-align:left;padding:5px 6px;white-space:nowrap;border:1px solid #0c4a6e;font-size:8px;}'+
+    'tbody td{padding:3px 6px;border:1px solid #e2e8f0;white-space:nowrap;}'+
+    'tbody tr:nth-child(even){background:#f0f9ff;}'+
+    '.footer{margin-top:10px;font-size:7px;color:#94a3b8;display:flex;justify-content:space-between;}'+
+    '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+    '<div><div class="logo">SIDERTEC</div><div class="titulo">📊 '+tituloRelatorio+'</div></div>'+
+    '<div class="meta"><div><strong>'+linhas.length+'</strong> linha(s)</div><div>Gerado em '+hoje+'</div></div>'+
+    '</div>'+
+    '<div class="filtros"><strong>Filtros aplicados:</strong> '+filtrosTexto+'</div>'+
+    '<table><thead>'+headerHtml+'</thead><tbody>'+rowsHtml+'</tbody></table>'+
+    '<div class="footer">'+
+    '<span>Relatório gerado a partir dos mecanismos de filtro do Planejamento (Falta M.P., Situação, Período, Etapa, Status Expedição) ou de linhas marcadas manualmente</span>'+
+    '<span>Sidertec Engenharia — gerado pelo sistema de planejamento</span>'+
+    '</div>'+
+    '</body></html>';
+  var win = window.open('','_blank','width=1300,height=850,scrollbars=yes');
+  if(!win){ showToast('Pop-up bloqueado','Permita pop-ups para gerar o PDF.','warn'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = function(){ win.focus(); setTimeout(function(){ win.print(); },400); };
+  showToast('PDF pronto!',linhas.length+' linha(s) — use Ctrl+P ou Salvar como PDF.','success');
+}
+function exportarPlanRelatorioPDF(){
+  var linhas = _planRelatorioLinhasFiltradas();
+  _planRelatorioImprimir(linhas, 'Relatório de Planejamento', _planRelatorioResumoFiltrosTexto());
+}
+// Relatório rápido dedicado — mesmo padrão do "📋 Relatório Etapa 11" do Cronograma: usa os
+// demais filtros do modal (Obra/TAG/Etapa/Situação/Período), mas força Falta M.P.="sim" e
+// ignora a opção "usar seleção" (é sempre pelos filtros, com Falta M.P. fixo).
+function gerarRelatorioPlanFaltaMp(){
+  var linhas = _planRelatorioLinhasFiltradas({faltaMp:'sim', forcarFiltros:true});
+  _planRelatorioImprimir(linhas, 'Relatório de Falta de Matéria-Prima', _planRelatorioResumoFiltrosTexto({faltaMp:'sim'}));
 }
 
 async function carregarPlanejamento(){
@@ -12848,6 +13203,24 @@ function _planSituacao(l){
   if(l.status_prazo==='ATRASADO') return 'atrasado';
   if(l.status_prazo==='CONCLUÍDO') return 'concluido';
   return 'andamento';
+}
+// Classifica a situação da ETAPA DE EXPEDIÇÃO de uma linha do Planejamento (só se aplica a
+// linhas cuja etapa seja "5-EXPEDIÇÃO" — outras etapas retornam null e ficam de fora quando o
+// filtro "Status Expedição" está ativo):
+//  'concluida' — processo 100% concluído (peso executado >= peso total).
+//  'atraso'    — a Data Limite Cliente já passou E ainda não concluiu (tenha ou não começado
+//                a expedir — as duas situações contam como atraso da mesma forma).
+//  'parcial'   — já expediu uma parte (peso executado > 0) mas ainda tem saldo, e o prazo
+//                (Limite Cliente) ainda não passou (ou não está cadastrado).
+//  null        — ainda não começou a expedir e o prazo não passou (nada a sinalizar).
+function _planStatusExpedicao(l){
+  if(_confNorm(l.etapa||'').indexOf('expedi')===-1) return null;
+  var total = l.peso_total||0, exec = l.peso_exec||0;
+  if(total>0 && exec>=total) return 'concluida';
+  var hoje = new Date().toISOString().slice(0,10);
+  if(l.limite_cliente && l.limite_cliente<hoje) return 'atraso';
+  if(exec>0) return 'parcial';
+  return null;
 }
 // ── Filtro de Período: botões rápidos (Hoje/Amanhã/Esta semana) + período manual.
 // Guarda qual modo está ativo para destacar visualmente o botão/entrada em uso, já que
@@ -13174,6 +13547,11 @@ function importarPlanejamentoExcel(input){
       var colDataRestricao = findCol(['DATA RESTRIÇÃO','DATA RESTRICAO']);
       var colDuracaoAdotada = findCol(['DURAÇÃO ADOTADA','DURACAO ADOTADA']);
       var colLimiteCliente  = findCol(['LIMITE CLIENTE']);
+      // TAG APP: coluna curada manualmente pelo usuário na planilha de Planejamento para
+      // eliminar de vez o problema de TAGs com prefixo/sufixo diferentes entre Cronograma e
+      // Planejamento — o valor dessa coluna deve ser IDÊNTICO ao TAG (subobra) do Cronograma,
+      // servindo como chave de link exata com prioridade máxima sobre o matching fuzzy.
+      var colTagApp = findCol(['TAG APP']);
       var colChkPcp = findCol(['CHK PCP/ CRÍTICO','CHK PCP/CRÍTICO','CHK PCP CRÍTICO','CHK PCP/ CRITICO','CHK PCP CRITICO']);
       var colPctExtra = findCol(['%']);
       // Data do Excel: 1899-12-30 é a data "zero" do Excel — quando a célula está vazia mas
@@ -13221,6 +13599,7 @@ function importarPlanejamentoExcel(input){
           return (typeof v==='number') ? Math.round(v*100)/100 : 0;
         });
         linhas.push({
+          _pid: 'r'+r,
           obra: String(obra||'').trim(),
           tag: String(tag||'').trim(),
           etapa: String(etapa||'').trim(),
@@ -13244,6 +13623,7 @@ function importarPlanejamentoExcel(input){
           data_restricao: _planDataOuNull(row[colDataRestricao]),
           duracao_adotada: (typeof row[colDuracaoAdotada]==='number') ? row[colDuracaoAdotada] : null,
           limite_cliente: _planDataOuNull(row[colLimiteCliente]),
+          tag_app: (colTagApp>=0 && row[colTagApp]!=null && String(row[colTagApp]).trim()!=='') ? String(row[colTagApp]).trim() : null,
           chk_pcp_critico: _planTextoOuData(row[colChkPcp]),
           pct_extra: (typeof row[colPctExtra]==='number') ? row[colPctExtra] : null,
           semanas: semanasVals
@@ -13339,8 +13719,10 @@ function renderPlanejamento(){
   if(!allPlanejamento || !allPlanejamento.length){
     wrap.innerHTML = '<div style="color:var(--ink3);font-size:13px;padding:2rem;text-align:center;">Importe a planilha de cronograma semanal (.xlsx, aba "CRONOGRAMA") para começar.</div>';
     resumoEl.innerHTML=''; rodapeEl.textContent='';
+    _planSincronizarScrollTopo();
     return;
   }
+  _planGarantirPids();
 
   var obraF = document.getElementById('plan-obra').value;
   var etapaF = document.getElementById('plan-etapa').value;
@@ -13350,6 +13732,7 @@ function renderPlanejamento(){
   var situacaoF = document.getElementById('plan-situacao').value;
   var ligacaoF = document.getElementById('plan-ligacao').value;
   var faltaMpF = document.getElementById('plan-falta-mp').value;
+  var statusExpF = document.getElementById('plan-status-expedicao').value;
 
   // Predicado comum de filtro — recebe uma etapa "override" opcional, usada para calcular os
   // cartões de peso mesmo quando o filtro de Etapa da tela está em "Todas" (ver mais abaixo).
@@ -13361,6 +13744,7 @@ function renderPlanejamento(){
     if(situacaoF && _planSituacao(l)!==situacaoF) return false;
     if(ligacaoF && (l.ligacao_tipo||'')!==ligacaoF) return false;
     if(faltaMpF==='sim' && !(l.falta_mp && String(l.falta_mp).trim())) return false;
+    if(statusExpF && _planStatusExpedicao(l)!==statusExpF) return false;
     if(periodoDe || periodoAte){
       // "O que deve acontecer no período": mantém a linha se a janela [Início, Término] da
       // etapa cruzar com o período informado. Sem nenhuma das duas datas cadastradas, não dá
@@ -13403,9 +13787,14 @@ function renderPlanejamento(){
   filtradoPeso.forEach(function(l){ somaTotal+=l.peso_total||0; somaExec+=l.peso_exec||0; somaSaldo+=l.saldo||0; });
   var pctGeral = somaTotal>0 ? (somaExec/somaTotal*100) : 0;
   var totalAtrasados=0, totalFaltaMp=0;
+  var totalExpConcluida=0, totalExpParcial=0, totalExpAtraso=0;
   filtrado.forEach(function(l){
     if(l.status_prazo==='ATRASADO') totalAtrasados++;
     if(l.falta_mp && String(l.falta_mp).trim()) totalFaltaMp++;
+    var statusExp = _planStatusExpedicao(l);
+    if(statusExp==='concluida') totalExpConcluida++;
+    else if(statusExp==='parcial') totalExpParcial++;
+    else if(statusExp==='atraso') totalExpAtraso++;
   });
 
   function card(label,val,cor){
@@ -13423,12 +13812,16 @@ function renderPlanejamento(){
     + card('Saldo', _planFmtNum(somaSaldo)+' kg', '#991b1b')
     + card('🔴 Atrasados', totalAtrasados, totalAtrasados>0?'#dc2626':'#166534')
     + card('📦 Falta M.P.', totalFaltaMp, totalFaltaMp>0?'#c2410c':'#166534')
+    + card('✅ Expedição Concluída', totalExpConcluida, '#166534')
+    + card('🟡 Expedição Parcial', totalExpParcial, totalExpParcial>0?'#b45309':'#166534')
+    + card('🔴 Expedição em Atraso', totalExpAtraso, totalExpAtraso>0?'#dc2626':'#166534')
     + card('Registros', filtrado.length, '#0f172a')
     + avisoEtapaPeso;
 
   if(!filtrado.length){
     wrap.innerHTML = '<div style="color:var(--ink3);font-size:13px;padding:2rem;text-align:center;">Nenhum registro encontrado para os filtros selecionados.</div>';
     rodapeEl.textContent = '';
+    _planSincronizarScrollTopo();
     return;
   }
 
@@ -13436,7 +13829,8 @@ function renderPlanejamento(){
   var truncado = filtrado.length > LIMITE_LINHAS;
   var visiveis = truncado ? filtrado.slice(0, LIMITE_LINHAS) : filtrado;
 
-  var wObra=55, wTag=130, wEtapa=155, wSit=46, wSemana=76;
+  var wChk=26, wObra=55, wTag=130, wEtapa=155, wSit=46, wSemana=76;
+  var _todasVisiveisSelecionadas = visiveis.length>0 && visiveis.every(function(l){ return _planSelectedIds.has(l._pid); });
   var _visColMap = _planColVisGet();
   var colsVis = PLAN_COLS.filter(function(c){ return _visColMap[c.key]!==false; });
 
@@ -13457,6 +13851,7 @@ function renderPlanejamento(){
   }
 
   var stickyHeadHtml = '<div style="position:sticky;left:0;z-index:3;display:flex;background:#e2e8f0;">'
+    + '<div style="'+thBase(wChk)+'text-align:center;padding:5px 0;" title="Selecionar todas as linhas visíveis (para gerar relatório só com elas)"><input type="checkbox" '+(_todasVisiveisSelecionadas?'checked':'')+' onchange="_planToggleTodasVisiveis(event)"></div>'
     + '<div '+thClick('obra')+'style="'+thBase(wObra)+'cursor:pointer;user-select:none;">Obra'+setaOrd('obra')+filtroIcone('obra')+'</div>'
     + '<div '+thClick('tag')+'style="'+thBase(wTag)+'cursor:pointer;user-select:none;">TAG'+setaOrd('tag')+filtroIcone('tag')+'</div>'
     + '<div '+thClick('etapa')+'style="'+thBase(wEtapa)+'cursor:pointer;user-select:none;">Etapa'+setaOrd('etapa')+filtroIcone('etapa')+'</div>'
@@ -13475,6 +13870,7 @@ function renderPlanejamento(){
     return soma;
   });
   var stickyTotaisHtml = '<div style="position:sticky;left:0;z-index:2;display:flex;background:#f1f5f9;">'
+    + '<div style="flex-shrink:0;width:'+wChk+'px;border:1px solid #e2e8f0;"></div>'
     + '<div style="flex-shrink:0;width:'+wObra+'px;border:1px solid #e2e8f0;"></div>'
     + '<div style="flex-shrink:0;width:'+wTag+'px;border:1px solid #e2e8f0;padding:4px;font-size:10px;font-weight:700;color:#0f172a;">TOTAL (filtro)</div>'
     + '<div style="flex-shrink:0;width:'+wEtapa+'px;border:1px solid #e2e8f0;"></div>'
@@ -13490,7 +13886,9 @@ function renderPlanejamento(){
     var atrasado = l.status_prazo==='ATRASADO';
     var bgLinha = atrasado ? '#fef2f2' : '#fff';
     var sitBadge = atrasado ? '🔴' : (l.status_prazo==='CONCLUÍDO' ? '✅' : '🕓');
-    var stickyCols = '<div style="position:sticky;left:0;z-index:1;display:flex;background:'+bgLinha+';">'
+    var _chk = _planSelectedIds.has(l._pid);
+    var stickyCols = '<div style="position:sticky;left:0;z-index:1;display:flex;background:'+(_chk?'#eff6ff':bgLinha)+';">'
+      + '<div style="flex-shrink:0;width:'+wChk+'px;padding:4px 0;border:1px solid #e2e8f0;text-align:center;"><input type="checkbox" class="plan-row-chk" data-pid="'+l._pid+'" '+(_chk?'checked':'')+' onchange="_planToggleLinha(event,\''+l._pid+'\')"></div>'
       + '<div style="flex-shrink:0;width:'+wObra+'px;padding:4px;font-size:10px;border:1px solid #e2e8f0;font-weight:700;color:#475569;">'+(l.obra||'')+'</div>'
       + '<div style="flex-shrink:0;width:'+wTag+'px;padding:4px;font-size:10px;border:1px solid #e2e8f0;font-family:\'Courier New\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+String(l.tag||'').replace(/"/g,'&quot;')+'">'+(l.tag||'')+'</div>'
       + '<div style="flex-shrink:0;width:'+wEtapa+'px;padding:4px;font-size:9.5px;border:1px solid #e2e8f0;">'+(l.etapa||'')+'</div>'
@@ -13520,7 +13918,44 @@ function renderPlanejamento(){
 
   rodapeEl.textContent = filtrado.length+' registro(s)'
     + (truncado ? (' — exibindo os primeiros '+LIMITE_LINHAS+'; refine os filtros (Obra/Etapa/TAG) para ver os demais') : '')
-    + ' — '+_planFmtNum(somaTotal)+' kg total · '+_planFmtNum(somaExec)+' kg executado ('+pctGeral.toFixed(1)+'%)';
+    + ' — '+_planFmtNum(somaTotal)+' kg total · '+_planFmtNum(somaExec)+' kg executado ('+pctGeral.toFixed(1)+'%)'
+    + (_planSelectedIds.size ? ' — '+_planSelectedIds.size+' linha(s) selecionada(s) p/ relatório' : '');
+
+  // Cache do resultado do filtro atual — usado pela 📊 Relatório para exportar exatamente o
+  // que está sendo exibido na tela (mesmos filtros: Obra/Etapa/TAG/Período/Situação/Ligação/
+  // Falta M.P./Status Expedição/filtros de coluna), sem duplicar toda a lógica de passaFiltros.
+  window._planFiltradoAtual = filtrado;
+  _planAtualizarContadorSelecao();
+  _planSincronizarScrollTopo();
+}
+// Barra de rolagem horizontal "espelho" acima do cabeçalho da tabela de Planejamento — evita
+// ter que descer até o fim da planilha para alcançar a barra de rolagem nativa. A largura do
+// "trilho" fictício dentro dela é ajustada para bater com a largura real do conteúdo
+// (wrap.scrollWidth) toda vez que a tabela é redesenhada (colunas visíveis, filtros etc. mudam
+// essa largura). Os listeners de sincronização de posição são conectados só uma vez (a div do
+// wrap não é recriada entre renders, só o innerHTML dela muda).
+var _planScrollTopoWired = false;
+function _planSincronizarScrollTopo(){
+  var topo = document.getElementById('plan-scroll-topo');
+  var inner = document.getElementById('plan-scroll-topo-inner');
+  var wrap = document.getElementById('plan-tabela-wrap');
+  if(!topo || !inner || !wrap) return;
+  inner.style.width = Math.max(wrap.scrollWidth, wrap.clientWidth) + 'px';
+  if(_planScrollTopoWired) return;
+  _planScrollTopoWired = true;
+  var sincronizando = false;
+  topo.addEventListener('scroll', function(){
+    if(sincronizando) return;
+    sincronizando = true;
+    wrap.scrollLeft = topo.scrollLeft;
+    sincronizando = false;
+  });
+  wrap.addEventListener('scroll', function(){
+    if(sincronizando) return;
+    sincronizando = true;
+    topo.scrollLeft = wrap.scrollLeft;
+    sincronizando = false;
+  });
 }
 
 // ── Puxar Planejamento → Etapa 6 (Fabricação) do modal Cronograma ──────────
@@ -13560,47 +13995,33 @@ function _planObraCasa(obraCron, obraPlan){
   }
   return comecaComCodigo(a,b) || comecaComCodigo(b,a);
 }
-// Fallback "por partes" endurecido (revisão após relato de TAGs com prefixo/sufixo
-// diferentes causando divergência nos dados linkados): os tokens da TAG do Planejamento
-// (separados por "-") precisam aparecer NA ORDEM dentro da TAG do Cronograma — não apenas
-// "em qualquer lugar" como antes — o que reduz falso-positivo por token solto, mas ainda
-// tolera separadores/prefixos diferentes e até prefixo duplicado (ex.: Cronograma
-// "11-4100-PF-PF001" x Planejamento TAG "4100-PF001": "4100" é achado, depois "PF001" é
-// achado logo em seguida dentro de "PF-PF001"). Tokens de 1 caractere são ignorados por
-// serem genéricos demais (alto risco de casar em qualquer TAG por coincidência).
-function _planTagTokensNaOrdem(subobraNorm, tagPlan){
-  var partes = String(tagPlan||'').split('-').map(_confNorm).filter(function(p){ return p.length>1; });
-  if(!partes.length) return false;
-  var pos = 0;
-  for(var i=0;i<partes.length;i++){
-    var idx = subobraNorm.indexOf(partes[i], pos);
-    if(idx===-1) return false;
-    pos = idx + partes[i].length;
-  }
-  return true;
-}
+// IMPORTANTE — decisão de 14/08: o antigo fallback "por partes" (tokens da TAG do
+// Planejamento batendo dentro da TAG do Cronograma) foi REMOVIDO por gerar falsos positivos —
+// ex.: a TAG do Cronograma "S176CAB" batia por coincidência com as TAGs curtas "AB" e "CA" do
+// Planejamento (tokens de 2 caracteres aparecendo como substring). O link automático agora
+// exige TAG IDÊNTICA (obra+tag do Planejamento === subobra do Cronograma) ou a coluna TAG APP
+// preenchida — nunca mais um "chute" por partes. TAGs que não batem de forma exata ficam de
+// fora (não linkadas) e aparecem como "sem match" na 🔍 Auditoria de TAGs, para o usuário
+// corrigir o texto do TAG na planilha ou preencher a TAG APP naquela linha.
 function _planAcharLinhasDaTag(s){
   if(!s || !s.subobra) return [];
   var subobraNorm = _confNorm(s.subobra||'');
+  // Prioridade máxima: TAG APP — coluna curada manualmente na planilha de Planejamento para
+  // ser IDÊNTICA à TAG do Cronograma (subobra). Se alguma linha do Planejamento tiver TAG APP
+  // preenchida e ela bater exatamente com a subobra, essa(s) linha(s) tem prioridade absoluta.
+  var porTagApp = (allPlanejamento||[]).filter(function(l){ return l.tag_app && _confNorm(l.tag_app)===subobraNorm; });
+  if(porTagApp.length) return porTagApp;
+  // Único outro critério aceito: TAG idêntica (obra+tag == subobra). Sem fallback fuzzy.
   var candidatos = (allPlanejamento||[]).filter(function(l){ return _planObraCasa(s.obra, l.obra); });
-  var exato = candidatos.filter(function(l){ return _confNorm((l.obra||'')+(l.tag||''))===subobraNorm; });
-  if(exato.length) return exato;
-  var porPartes = candidatos.filter(function(l){ return _planTagTokensNaOrdem(subobraNorm, l.tag); });
-  // Ambiguidade: se o casamento "por partes" bateu em mais de uma TAG distinta do
-  // Planejamento, não escolhe nenhuma automaticamente — linkar a TAG errada é pior do que
-  // não linkar (evita repetir o tipo de corrupção de dado já visto no painel de Obras).
-  // Esses casos ficam visíveis na 🔍 Auditoria de TAGs para revisão manual.
-  var tagsDistintas = {};
-  porPartes.forEach(function(l){ tagsDistintas[_confNorm(l.tag||'')] = true; });
-  if(Object.keys(tagsDistintas).length > 1) return [];
-  return porPartes;
+  return candidatos.filter(function(l){ return _confNorm((l.obra||'')+(l.tag||''))===subobraNorm; });
 }
 
 // ── 🔍 AUDITORIA DE TAGS — Cronograma × Planejamento ───────────────────────
-// Varredura completa comparando as TAGs das duas planilhas e reportando 3 tipos de
-// divergência: sub-obras do Cronograma sem nenhuma linha correspondente no Planejamento,
-// casos ambíguos (mais de uma TAG do Planejamento batendo com a mesma sub-obra), e TAGs
-// do Planejamento que nunca são usadas/reivindicadas por nenhuma sub-obra do Cronograma.
+// Varredura completa comparando as TAGs das duas planilhas e reportando: sub-obras do
+// Cronograma sem nenhuma linha correspondente EXATA no Planejamento (nem por TAG idêntica,
+// nem por TAG APP), e TAGs do Planejamento que nunca são usadas/reivindicadas por nenhuma
+// sub-obra do Cronograma. Não existe mais categoria de "match ambíguo/por partes": o link só
+// acontece com TAG idêntica ou TAG APP — o resto é "sem match" (revisão manual do texto do TAG).
 function _planAuditoriaComputar(){
   var subs = allCronSubobras || [];
   var linhas = allPlanejamento || [];
@@ -13612,33 +14033,29 @@ function _planAuditoriaComputar(){
   });
   var planTagsClaimed = {};
   var semMatchCron = [];
-  var ambiguos = [];
+  var ambiguos = []; // mantido por compatibilidade com a UI/export; não é mais alimentado (sem fuzzy matching)
+  var viaTagApp = [];
   subs.forEach(function(s){
     if(!s.subobra) return;
+    var subobraNorm = _confNorm(s.subobra||'');
+    // Prioridade máxima: TAG APP — se resolveu por aqui, nem entra nas demais contagens.
+    var porTagApp = linhas.filter(function(l){ return l.tag_app && _confNorm(l.tag_app)===subobraNorm; });
+    if(porTagApp.length){
+      viaTagApp.push(s);
+      porTagApp.forEach(function(l){ var k=_confNorm(l.obra||'')+'|'+_confNorm(l.tag||''); planTagsClaimed[k]=true; });
+      return;
+    }
     var candidatosObra = linhas.filter(function(l){ return _planObraCasa(s.obra, l.obra); });
     if(!candidatosObra.length) return; // obra ainda nem foi importada no Planejamento — não é problema de TAG
-    var subobraNorm = _confNorm(s.subobra||'');
     var exato = candidatosObra.filter(function(l){ return _confNorm((l.obra||'')+(l.tag||''))===subobraNorm; });
-    var resolvido = [], tipo;
     if(exato.length){
-      resolvido = exato; tipo='exato';
+      exato.forEach(function(l){ var k=_confNorm(l.obra||'')+'|'+_confNorm(l.tag||''); planTagsClaimed[k]=true; });
     } else {
-      var porPartes = candidatosObra.filter(function(l){ return _planTagTokensNaOrdem(subobraNorm, l.tag); });
-      var tagsDistintas = {};
-      porPartes.forEach(function(l){ tagsDistintas[_confNorm(l.tag||'')] = true; });
-      var nTags = Object.keys(tagsDistintas).length;
-      if(nTags===0){ tipo='sem_match'; }
-      else if(nTags===1){ resolvido=porPartes; tipo='partes'; }
-      else {
-        tipo='ambiguo';
-        ambiguos.push({subobra:s, tags: porPartes.map(function(l){return (l.obra||'')+' / '+(l.tag||'');}).filter(function(v,i,a){return a.indexOf(v)===i;})});
-      }
+      semMatchCron.push(s);
     }
-    if(tipo==='sem_match') semMatchCron.push(s);
-    resolvido.forEach(function(l){ var k=_confNorm(l.obra||'')+'|'+_confNorm(l.tag||''); planTagsClaimed[k]=true; });
   });
   var semMatchPlan = Object.keys(planTagsMap).filter(function(k){ return !planTagsClaimed[k]; }).map(function(k){ return planTagsMap[k]; });
-  return {semMatchCron:semMatchCron, ambiguos:ambiguos, semMatchPlan:semMatchPlan};
+  return {semMatchCron:semMatchCron, ambiguos:ambiguos, semMatchPlan:semMatchPlan, viaTagApp:viaTagApp};
 }
 
 async function abrirAuditoriaTags(){
@@ -13668,7 +14085,7 @@ function _planAuditoriaExecutar(){
   }
   var r = _planAuditoriaComputar();
   window._planAuditoriaResultado = r;
-  if(resumo) resumo.textContent = r.semMatchCron.length+' sub-obra(s) sem match · '+r.ambiguos.length+' ambíguo(s) · '+r.semMatchPlan.length+' TAG(s) do Planejamento sem uso';
+  if(resumo) resumo.textContent = r.viaTagApp.length+' resolvida(s) via TAG APP · '+r.semMatchCron.length+' sub-obra(s) sem match · '+r.ambiguos.length+' ambíguo(s) · '+r.semMatchPlan.length+' TAG(s) do Planejamento sem uso';
 
   function secao(titulo, cor, itens, renderItem){
     return '<div style="margin-bottom:1rem;">'
@@ -13678,7 +14095,12 @@ function _planAuditoriaExecutar(){
   }
 
   body.innerHTML =
-    secao('🔴 Sub-obras do Cronograma sem correspondência no Planejamento', '#991b1b', r.semMatchCron, function(s){
+    secao('🟢 Resolvidas via TAG APP (link exato manual)', '#166534', r.viaTagApp, function(s){
+      return '<div style="font-size:11px;padding:3px 8px;background:#f0fdf4;border-radius:3px;cursor:pointer;" onclick="abrirCronModal(\''+s.id+'\')" title="Abrir sub-obra">'
+        + '<b>'+(s.subobra||'—')+'</b> ('+(s.obra||'—')+') — '+(s.descricao||'')
+      +'</div>';
+    })
+    + secao('🔴 Sub-obras do Cronograma sem correspondência no Planejamento', '#991b1b', r.semMatchCron, function(s){
       return '<div style="font-size:11px;padding:3px 8px;background:#fef2f2;border-radius:3px;cursor:pointer;" onclick="abrirCronModal(\''+s.id+'\')" title="Abrir sub-obra">'
         + '<b>'+(s.subobra||'—')+'</b> ('+(s.obra||'—')+') — '+(s.descricao||'')
       +'</div>';
@@ -13696,9 +14118,10 @@ function _planAuditoriaExecutar(){
 }
 function _planAuditoriaExportarExcel(){
   var r = window._planAuditoriaResultado;
-  if(!r || (!r.semMatchCron.length && !r.ambiguos.length && !r.semMatchPlan.length)){ showToast('Nada para exportar','Rode a auditoria primeiro — não há divergências para exportar.','warn'); return; }
+  if(!r || (!r.semMatchCron.length && !r.ambiguos.length && !r.semMatchPlan.length && !(r.viaTagApp&&r.viaTagApp.length))){ showToast('Nada para exportar','Rode a auditoria primeiro — não há divergências para exportar.','warn'); return; }
   var linhas = [];
   linhas.push(['Categoria','Obra','TAG/Sub-obra','Descrição / Detalhe']);
+  (r.viaTagApp||[]).forEach(function(s){ linhas.push(['Resolvida via TAG APP', s.obra||'', s.subobra||'', s.descricao||'']); });
   r.semMatchCron.forEach(function(s){ linhas.push(['Sub-obra sem match no Planejamento', s.obra||'', s.subobra||'', s.descricao||'']); });
   r.ambiguos.forEach(function(a){ linhas.push(['Ambíguo (2+ TAGs batendo)', a.subobra.obra||'', a.subobra.subobra||'', 'Bateu em: '+a.tags.join(' | ')]); });
   r.semMatchPlan.forEach(function(p){ linhas.push(['TAG do Planejamento sem uso', p.obra||'', p.tag||'', p.linhas+' linha(s) na planilha']); });
