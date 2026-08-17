@@ -5697,10 +5697,24 @@ function _etapaSetDataBR(el,key,campo){
 function etapaSet(key,campo,valor){
   if(!_etapasState[key]) _etapasState[key]={};
 
-  // Registrar histórico quando campo for data (prev ou real)
-  if((campo==='prev' || campo==='real') && valor){
-    var anterior = _etapasState[key][campo] || null;
-    _dhRegister(key, campo, anterior, valor);
+  // Registrar histórico quando campo for data (prev ou real) — inclusive quando a data foi
+  // apagada e depois preenchida de novo com outro valor. Antes, ao apagar a data o valor
+  // anterior era perdido (o campo virava vazio) e, na hora de digitar a nova data, não havia
+  // mais nada para comparar — a reprogramação não entrava no histórico. Agora guardamos à
+  // parte o último valor real conhecido (mesmo depois de apagado) e, se não houver nada em
+  // memória (ex.: página foi recarregada nesse meio-tempo), caímos para o último "para" já
+  // registrado no histórico como referência do valor anterior.
+  if(campo==='prev' || campo==='real'){
+    var _ultimoKey = '_ultimoValor_'+campo;
+    var anterior = _etapasState[key][campo] || _etapasState[key][_ultimoKey] || null;
+    if(!anterior){
+      var _histExistente = _dhGet(key, campo);
+      if(_histExistente.length) anterior = _histExistente[_histExistente.length-1].para || null;
+    }
+    if(valor){
+      _dhRegister(key, campo, anterior, valor);
+      _etapasState[key][_ultimoKey] = valor;
+    }
   }
 
   _etapasState[key][campo] = valor;
@@ -20761,6 +20775,12 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
+      <!-- Observação Geral — campo livre, sem vínculo com nenhuma seção específica acima -->
+      <div class="field-group" style="margin-bottom:0;">
+        <label class="field-label">🗒 Observação Geral</label>
+        <textarea class="field-input" id="rev-m-obs-geral" rows="2" placeholder="Qualquer informação de caráter geral sobre esta revisão…" style="resize:vertical;font-family:var(--font-main);"></textarea>
+      </div>
+
     </div><!-- fim cron-mbody -->
     <div class="cron-mfooter">
       <div style="font-size:10px;color:var(--ink3);">* Campos obrigatórios</div>
@@ -21385,7 +21405,7 @@ var _editingRevId = null;
 function abrirModalNovaRevisao(){
   _editingRevId=null;
   document.getElementById('modal-rev-title').textContent='Nova Revisão';
-  ['rev-m-cliente','rev-m-descr','rev-m-tag','rev-m-motivo','rev-m-obs','rev-m-descr-lib'].forEach(function(id){
+  ['rev-m-cliente','rev-m-descr','rev-m-tag','rev-m-motivo','rev-m-obs','rev-m-obs-geral','rev-m-descr-lib'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
   ['rev-m-data-rp','rev-m-data-eng','rev-m-data-lib'].forEach(function(id){
@@ -21431,6 +21451,7 @@ function editarRevisao(id){
   var elVc=document.getElementById('rev-m-valor-cobrar');
   if(elVc) elVc.value=r.valor_cobrar||'';
   document.getElementById('rev-m-obs').value=r.obs||'';
+  document.getElementById('rev-m-obs-geral').value=r.obs_geral||'';
   document.getElementById('modal-revisao').classList.add('show');
   revPopularClientes(); revPopularEngs();
 }
@@ -21516,6 +21537,7 @@ function salvarRevisao(){
     faturado: document.getElementById('rev-m-faturado').value,
     valor_cobrar: parseFloat(document.getElementById('rev-m-valor-cobrar')?.value)||0,
     obs: document.getElementById('rev-m-obs').value.trim(),
+    obs_geral: document.getElementById('rev-m-obs-geral').value.trim(),
   };
 
   if(_editingRevId){
