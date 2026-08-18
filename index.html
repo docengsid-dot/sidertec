@@ -5734,6 +5734,7 @@ function etapaSet(key,campo,valor){
   if(key==="lib_fab" && campo==="prev") atualizarDiasLimiteFab();
 
   // Auto-marcar concluído quando data real é preenchida
+  var _statusAvancadoPara = null;
   if(campo === 'real' && valor){
     if(!_etapasState[key].concluido){
       _etapasState[key].concluido = true;
@@ -5743,7 +5744,18 @@ function etapaSet(key,campo,valor){
         var sel = document.getElementById('cm-status');
         if(sel){
           var ia = STATUS_ORDER.indexOf(sel.value), ip = STATUS_ORDER.indexOf(mapa.proximo);
-          if(ia < ip){ sel.value = mapa.proximo; }
+          if(ia < ip){
+            sel.value = mapa.proximo;
+            // Guardado para ser gravado JUNTO com a data logo abaixo — sem isso, o
+            // avanço de status só existia visualmente no <select> desta tela aberta:
+            // se o usuário não clicasse em "Salvar" manualmente antes de fechar o
+            // modal (comum, já que todo o resto se salva sozinho ao digitar), o
+            // status voltava ao valor antigo na próxima vez que a TAG era aberta.
+            _statusAvancadoPara = mapa.proximo;
+            sel.style.boxShadow = '0 0 0 3px #22c55e';
+            setTimeout(function(){ sel.style.boxShadow=''; }, 1500);
+            if(typeof showToast==='function') showToast('Status atualizado', 'Avançou para "'+mapa.proximo+'"', 'success');
+          }
         }
       }
       setTimeout(renderEtapasDinamicas, 50);
@@ -5764,6 +5776,8 @@ function etapaSet(key,campo,valor){
       if(col){
         var upd = {atualizado_em:new Date().toISOString()};
         upd[col] = valor || null;
+        // Grava o novo status na MESMA chamada, se esta data tiver acabado de avançá-lo.
+        if(_statusAvancadoPara) upd.status = _statusAvancadoPara;
         // Atualiza array em memória
         var i = allCronSubobras.findIndex(function(x){return x.id===editingCronId;});
         if(i>=0) allCronSubobras[i] = normalizarStatusLegado(Object.assign({},allCronSubobras[i],upd));
@@ -5810,8 +5824,28 @@ function etapaSetResultado(key,val){
     // Marca concluído automaticamente quando seleciona APR ou APR c/com
     if(eDef.col_conc){
       var conc = novo==='APR' || novo==='APR c/com';
+      var _jaConcluido = _etapasState[key].concluido;
       upd[eDef.col_conc] = conc || null;
       _etapasState[key].concluido = conc;
+      // Avança o status (igual ao preenchimento da Data Realizada em etapaSet), só na
+      // transição de "não concluído" → "concluído" — sem isso, marcar APR aqui nunca
+      // avançava o status sozinho, só a data preenchida diretamente fazia isso.
+      if(conc && !_jaConcluido){
+        var mapa = ETAPA_STATUS_MAP[key];
+        if(mapa && mapa.proximo){
+          var sel = document.getElementById('cm-status');
+          if(sel){
+            var ia = STATUS_ORDER.indexOf(sel.value), ip = STATUS_ORDER.indexOf(mapa.proximo);
+            if(ia < ip){
+              sel.value = mapa.proximo;
+              upd.status = mapa.proximo;
+              sel.style.boxShadow = '0 0 0 3px #22c55e';
+              setTimeout(function(){ sel.style.boxShadow=''; }, 1500);
+              if(typeof showToast==='function') showToast('Status atualizado', 'Avançou para "'+mapa.proximo+'"', 'success');
+            }
+          }
+        }
+      }
     }
     var i = allCronSubobras.findIndex(function(x){ return x.id===editingCronId; });
     if(i>=0) allCronSubobras[i] = normalizarStatusLegado(Object.assign({}, allCronSubobras[i], upd));
@@ -15718,12 +15752,14 @@ function abrirModalLote(){
     var grdField = (e.key==='envio_modelo')
       ? '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--accent);font-weight:600;">GRD</label><input type="text" class="field-input" id="lote-et-grd-'+e.key+'" placeholder="Ex: GRD-0042" style="font-size:12px;padding:3px 6px;"></div>'
       : '';
-    // "Dias após etapa anterior" — alternativa à Data Prevista fixa: calcula,
-    // TAG por TAG, a Prevista da PRÓPRIA TAG a partir da Prevista que ela já
-    // tem na etapa anterior + N dias (cada TAG pode ter uma data-base
-    // diferente). Só é usado se o campo "Data Prevista" acima ficar em branco.
+    // "Dias após etapa anterior" — alternativa às datas fixas acima: calcula,
+    // TAG por TAG, a data da PRÓPRIA TAG a partir da data que ela já tem na
+    // etapa anterior + N dias (cada TAG pode ter uma data-base diferente).
+    // Se preenchido, alimenta automaticamente qualquer um dos dois campos
+    // acima (Prevista e/ou Realizada) que tenha ficado em branco — os que
+    // já tiverem uma data digitada continuam com o valor fixo digitado.
     var diasField = etapaAnterior
-      ? '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--ink3);">Dias após "'+etapaAnterior.label+'" <span style="color:var(--ink3);font-weight:400;">(alternativa à Data Prevista acima — calcula por TAG)</span></label>'
+      ? '<div style="margin-top:.35rem;"><label style="font-size:9px;color:var(--ink3);">Dias após "'+etapaAnterior.label+'" <span style="color:var(--ink3);font-weight:400;">(preenche Prevista e/ou Realizada acima, o(s) que ficar(em) em branco — calcula por TAG)</span></label>'
         + '<div style="display:flex;align-items:center;gap:6px;">'
         + '<input type="number" min="0" max="999" class="field-input" id="lote-et-dias-'+e.key+'" oninput="_loteRefreshAllPreviews()" placeholder="Ex: 5" style="font-size:12px;padding:3px 6px;width:90px;">'
         + '<button type="button" onclick="_loteUsarMesmaData(\''+e.key+'\')" title="Usa a mesma data de &quot;'+etapaAnterior.label+'&quot;, sem somar dias (equivale a 0)" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--ink2);cursor:pointer;white-space:nowrap;">📋 Mesma data de "'+etapaAnterior.label+'"</button>'
@@ -15980,13 +16016,17 @@ async function aplicarLote(){
     etapas.forEach(function(et){
       var partes=[];
       if(et.prev) partes.push('Prev: '+new Date(et.prev+'T12:00:00').toLocaleDateString('pt-BR'));
-      else if(et.diasAposAnterior!=null){
-        var _eAnt = _loteEtapaAnterior(et.def);
-        partes.push(et.diasAposAnterior===0
-          ? 'Prev: mesma data de "'+(_eAnt?_eAnt.label:'etapa anterior')+'" (calculado por TAG)'
-          : 'Prev: '+et.diasAposAnterior+' dia'+(et.diasAposAnterior!==1?'s':'')+' após "'+(_eAnt?_eAnt.label:'etapa anterior')+'" (calculado por TAG)');
-      }
       if(et.real) partes.push('Real: '+new Date(et.real+'T12:00:00').toLocaleDateString('pt-BR'));
+      if(et.diasAposAnterior!=null && (et.prev==null || et.real==null)){
+        var _eAnt = _loteEtapaAnterior(et.def);
+        var _campos = [];
+        if(et.prev==null) _campos.push('Prev');
+        if(et.real==null) _campos.push('Real');
+        partes.push((et.diasAposAnterior===0
+          ? _campos.join('/')+': mesma data de "'+(_eAnt?_eAnt.label:'etapa anterior')+'"'
+          : _campos.join('/')+': '+et.diasAposAnterior+' dia'+(et.diasAposAnterior!==1?'s':'')+' após "'+(_eAnt?_eAnt.label:'etapa anterior')+'"')
+          +' (calculado por TAG)');
+      }
       if(et.grd) partes.push('GRD: '+et.grd);
       if(et.obs) partes.push('Obs: '+et.obs);
       resumoLinhas.push('  • '+et.def.label+(partes.length?' — '+partes.join(' · '):' (sem data/observação preenchida)'));
@@ -16019,11 +16059,16 @@ async function aplicarLote(){
       etapas.forEach(function(et){
         var eDef = et.def;
         var novaPrev = et.prev;
-        // "Dias após etapa anterior" — só entra em ação se a Data Prevista fixa
-        // do lote ficou em branco. Cada TAG usa a SUA PRÓPRIA Data Prevista já
-        // registrada na etapa anterior (s[etapaAnteriorDef.prev]) como base —
-        // por isso é calculado aqui, dentro do loop por TAG, e não uma vez só.
-        if(novaPrev==null && et.diasAposAnterior!=null){
+        var novaReal = et.real;
+        // "Dias após etapa anterior" — só entra em ação nos campos que ficaram em
+        // branco (Data Prevista e/ou Data Realizada). Cada TAG usa a SUA PRÓPRIA
+        // data já registrada na etapa anterior (s[etapaAnteriorDef.prev/.real])
+        // como base — por isso é calculado aqui, dentro do loop por TAG, e não uma
+        // vez só. Antes isso só alimentava a Data Prevista; se o usuário deixasse
+        // a Data Realizada em branco também, ela ficava sem preencher (parecia
+        // "não funcionar" quando o objetivo era, por exemplo, marcar "Documentos"
+        // como realizado na mesma data da Lib. Fab. de cada TAG).
+        if((novaPrev==null || novaReal==null) && et.diasAposAnterior!=null){
           var etapaAnteriorDef = _loteEtapaAnterior(eDef);
           // Usa a MESMA função da prévia ao vivo (_loteBaseDataEtapaAnterior),
           // que prioriza o que está sendo digitado agora neste formulário do
@@ -16033,7 +16078,10 @@ async function aplicarLote(){
           var baseData = _loteBaseDataEtapaAnterior(etapaAnteriorDef, s);
           if(baseData){
             var _calc = _addDias(baseData, et.diasAposAnterior);
-            if(_calc) novaPrev = _calc;
+            if(_calc){
+              if(novaPrev==null) novaPrev = _calc;
+              if(novaReal==null) novaReal = _calc;
+            }
           } else {
             _loteSemBase.push((s.subobra||s.id)+' — '+eDef.label);
           }
@@ -16042,9 +16090,9 @@ async function aplicarLote(){
           _dhRegisterFor(s.id, eDef.key, 'prev', s[eDef.prev]||null, novaPrev);
           updates[eDef.prev] = novaPrev;
         }
-        if(et.real!=null){
-          _dhRegisterFor(s.id, eDef.key, 'real', s[eDef.real]||null, et.real);
-          updates[eDef.real] = et.real;
+        if(novaReal!=null){
+          _dhRegisterFor(s.id, eDef.key, 'real', s[eDef.real]||null, novaReal);
+          updates[eDef.real] = novaReal;
         }
         if(eDef.obs && et.obs) updates[eDef.obs] = et.obs;
         if(eDef.grd && et.grd) updates[eDef.grd] = et.grd;
