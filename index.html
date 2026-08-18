@@ -4336,10 +4336,13 @@ function buildLancamentoForm(){
   [...new Set(allLancamentos.map(l=>l.obra))].sort().forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;sel.appendChild(op);});
   const esel=document.getElementById('campo-equipe');
   esel.innerHTML='<option value="">— Selecione —</option>';
-  // Populate from EQUIPES_MASTER + any custom equipes already in bank
-  const equipesSalvas = [...new Set(allLancamentos.map(l=>l.equipe))];
-  const todasEquipes = [...new Set([...EQUIPES_MASTER, ...equipesSalvas])].sort();
-  todasEquipes.forEach(e=>{const op=document.createElement('option');op.value=e;op.textContent=e;esel.appendChild(op);});
+  // Populate from the central list (EQUIPES_MASTER + equipes personalizadas
+  // - excluídas); o rótulo exibido não inclui o responsável entre
+  // parênteses (isso é só informação de cadastro).
+  const todasEquipes = (typeof getAllEquipesRegistradas==='function')
+    ? getAllEquipesRegistradas()
+    : [...new Set([...EQUIPES_MASTER, ...allLancamentos.map(l=>l.equipe)])].filter(Boolean).sort();
+  todasEquipes.forEach(e=>{const op=document.createElement('option');op.value=e;op.textContent=(typeof _nomeEquipeExibicao==='function')?_nomeEquipeExibicao(e):e;esel.appendChild(op);});
   const today=new Date();
   document.getElementById('campo-data').value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   ['campo-data','campo-obra','campo-equipe','campo-peso'].forEach(id=>{
@@ -7846,13 +7849,18 @@ async function abrirCronModal(id){
   // Populate obra and equipe selects from existing data
   const cmObra = document.getElementById('cm-obra');
   const cmEq   = document.getElementById('cm-equipe');
-  // Include extras from sessionStorage
+  // Usa a lista central (EQUIPES_MASTER + equipes personalizadas do
+  // localStorage - excluídas), em vez de reconstruir aqui a partir de
+  // sessionStorage — que ficou desatualizado depois que "Nova Equipe"
+  // passou a gravar em localStorage. Assim, equipes recém-cadastradas ou
+  // ainda não usadas em nenhuma TAG também aparecem aqui.
   const extraObras = JSON.parse(sessionStorage.getItem('sidertec_extra_obras')||'[]');
-  const extraEqs   = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
   const obras  = [...new Set([...allLancamentos.map(l=>l.obra),...allCronSubobras.map(s=>s.obra),...extraObras])].filter(Boolean).sort();
-  const equipes= [...new Set([...allLancamentos.map(l=>l.equipe),...allCronSubobras.map(s=>s.equipe).filter(Boolean),...extraEqs])].filter(Boolean).sort();
+  const equipes = (typeof getAllEquipesRegistradas==='function')
+    ? getAllEquipesRegistradas()
+    : [...new Set([...allLancamentos.map(l=>l.equipe),...allCronSubobras.map(s=>s.equipe).filter(Boolean)])].filter(Boolean).sort();
   cmObra.innerHTML = '<option value="">— Selecione —</option>'+obras.map(o=>`<option>${o}</option>`).join('');
-  cmEq.innerHTML   = '<option value="">— Selecione —</option>'+equipes.map(e=>`<option>${e}</option>`).join('');
+  cmEq.innerHTML   = '<option value="">— Selecione —</option>'+equipes.map(e=>`<option value="${e}">${(typeof _nomeEquipeExibicao==='function')?_nomeEquipeExibicao(e):e}</option>`).join('');
 
   // Reset fields
   const ids = ['cm-obra','cm-subobra','cm-descricao','cm-area','cm-escopo','cm-equipe','cm-prior-det','cm-peso','cm-num-proj-basico','cm-peso-detalhado','cm-peso-pcp','cm-data-limite-fab',
@@ -7903,7 +7911,12 @@ async function abrirCronModal(id){
     sv('cm-obra',s.obra); sv('cm-subobra',s.subobra); sv('cm-descricao',s.descricao);
     sv('cm-area',s.area);
     sv('cm-escopo',s.escopo_fornecimento);
-    sv('cm-equipe',s.equipe); (function(){ var _el=document.getElementById('cm-peso'); if(_el) _el.value=_fmtPesoInput(s.peso_previsto); })();
+    // Normaliza para o nome-base: options do cm-equipe não trazem mais
+    // "(responsável)" embutido, então registros antigos que ainda tenham
+    // isso salvo em s.equipe precisam ser comparados pelo nome-base para
+    // o select mostrar a equipe corretamente selecionada.
+    sv('cm-equipe', (typeof _nomeEquipeExibicao==='function') ? _nomeEquipeExibicao(s.equipe) : s.equipe);
+    (function(){ var _el=document.getElementById('cm-peso'); if(_el) _el.value=_fmtPesoInput(s.peso_previsto); })();
     // Garante que o status atual existe no select antes de setar
     (function(){
       var sel = document.getElementById('cm-status');
@@ -15187,19 +15200,13 @@ function fecharNovaEquipeGlobal(e){
   }
 }
 
-// Abre o mesmo formulário, mas em modo "editar": separa o nome da equipe e
-// o responsável (que ficam concatenados como "NOME (RESPONSÁVEL)") em cada
-// campo, para o usuário poder alterar qualquer um dos dois — antes o editar
-// só chamava um prompt() com o texto inteiro, então o campo "Responsável"
-// nunca aparecia separado para edição.
-function editarEquipeGlobal(nomeCompleto){
-  var nomePart = nomeCompleto, respPart = '';
-  var m = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(nomeCompleto);
-  if(m){ nomePart = m[1].trim(); respPart = m[2].trim(); }
-
-  _equipeEditando = nomeCompleto;
-  document.getElementById('neq-nome').value = nomePart;
-  document.getElementById('neq-resp').value = respPart;
+// Abre o mesmo formulário, mas em modo "editar": preenche o nome (já como
+// nome-base, sem parênteses) e busca o responsável no mapa separado — o
+// responsável nunca fica embutido no nome a partir daqui.
+function editarEquipeGlobal(nomeBase){
+  _equipeEditando = nomeBase;
+  document.getElementById('neq-nome').value = nomeBase;
+  document.getElementById('neq-resp').value = _equipeResponsaveis[nomeBase] || '';
 
   var sub = document.getElementById('neq-modal-sub');
   var btn = document.getElementById('neq-btn-salvar');
@@ -15215,37 +15222,58 @@ function salvarNovaEquipeGlobal(){
   const resp = document.getElementById('neq-resp').value.trim().toUpperCase();
   if(!nome){ showToast('Campo obrigatório','Informe o nome da equipe.','error'); return; }
 
-  const equipeCompleta = resp ? nome + ' (' + resp + ')' : nome;
-
   // ── Modo editar (veio do ✏️ na lista) ──────────────────────────────
+  // Ao salvar uma edição, o modal permanece aberto (só volta ao modo
+  // "cadastrar nova") para o usuário poder editar/excluir outras equipes
+  // em seguida, sem precisar reabrir o formulário a cada alteração.
+  // IMPORTANTE: o responsável é só metadado — trocá-lo (ou apagá-lo) NUNCA
+  // exige confirmação nem atualização em cascata nas TAGs/lançamentos, já
+  // que ele não faz parte da identidade da equipe. Só uma mudança de NOME
+  // de fato aciona o fluxo de renomear-com-cascata.
   if(_equipeEditando){
-    if(equipeCompleta === _equipeEditando){
-      fecharNovaEquipeGlobal();
-      return;
-    }
-    var outras = getAllEquipesRegistradas().filter(function(e){ return e!==_equipeEditando; });
-    if(outras.includes(equipeCompleta)){
-      showToast('Já existe','Já existe uma equipe com esse nome.','warn'); return;
-    }
     var nomeAntigoEditando = _equipeEditando;
-    _aplicarRenomeacaoEquipe(nomeAntigoEditando, equipeCompleta).then(function(){
-      fecharNovaEquipeGlobal();
-    });
+    var nomeMudou = (nome !== nomeAntigoEditando);
+
+    var salvarResponsavelEProsseguir = function(){
+      if(resp) _equipeResponsaveis[nome] = resp; else delete _equipeResponsaveis[nome];
+      _salvarEquipeResponsaveis();
+      _resetModoEquipeParaCadastro();
+      document.getElementById('neq-nome').value = '';
+      document.getElementById('neq-resp').value = '';
+      setTimeout(()=>document.getElementById('neq-nome').focus(), 100);
+      if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
+    };
+
+    if(nomeMudou){
+      var outras = getAllEquipesRegistradas().filter(function(e){ return e!==nomeAntigoEditando; });
+      if(outras.includes(nome)){
+        showToast('Já existe','Já existe uma equipe com esse nome.','warn'); return;
+      }
+      _aplicarRenomeacaoEquipe(nomeAntigoEditando, nome).then(function(sucesso){
+        if(sucesso===false) return; // usuário cancelou a confirmação — mantém o formulário como está
+        salvarResponsavelEProsseguir();
+      });
+    } else {
+      salvarResponsavelEProsseguir();
+      showToast(resp ? '✓ Responsável atualizado' : 'Responsável removido', nome + (resp ? ' — '+resp : ' ficou sem responsável cadastrado.'), 'success');
+    }
     return;
   }
 
   // ── Modo cadastrar nova ─────────────────────────────────────────────
-  if(getAllEquipesRegistradas().includes(equipeCompleta)){
+  if(getAllEquipesRegistradas().includes(nome)){
     showToast('Equipe já existe','Esta equipe já está cadastrada.','warn'); return;
   }
 
-  // Store de forma durável (localStorage)
-  _customEquipes.push(equipeCompleta);
+  // Store de forma durável (localStorage) — só o nome-base; responsável
+  // (se houver) vai para o mapa separado, sem afetar a identidade.
+  _customEquipes.push(nome);
   _salvarCustomEquipes();
-  var _idxExcl = _equipesExcluidas.indexOf(equipeCompleta);
+  if(resp){ _equipeResponsaveis[nome] = resp; _salvarEquipeResponsaveis(); }
+  var _idxExcl = _equipesExcluidas.indexOf(nome);
   if(_idxExcl>=0){ _equipesExcluidas.splice(_idxExcl,1); _salvarEquipesExcluidas(); }
 
-  atualizarTodosSelectsEquipe(equipeCompleta);
+  atualizarTodosSelectsEquipe(nome);
   if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
 
   // If cron modal is open, also refresh it directly
@@ -15253,20 +15281,20 @@ function salvarNovaEquipeGlobal(){
   if(cronModal2 && cronModal2.classList.contains('show')){
     const cmEq = document.getElementById('cm-equipe');
     if(cmEq){
-      if(![...cmEq.options].some(o=>o.value===equipeCompleta)){
+      if(![...cmEq.options].some(o=>o.value===nome)){
         const op = document.createElement('option');
-        op.value = equipeCompleta; op.textContent = equipeCompleta;
+        op.value = nome; op.textContent = nome;
         cmEq.appendChild(op);
       }
-      cmEq.value = equipeCompleta;
+      cmEq.value = nome;
     }
   }
   fecharNovaEquipeGlobal();
-  showToast('✓ Equipe cadastrada', equipeCompleta + ' adicionada.', 'success');
+  showToast('✓ Equipe cadastrada', nome + ' adicionada.', 'success');
 }
 
 function atualizarTodosSelectsEquipe(novaEq){
-  ['campo-equipe','cm-equipe'].forEach(id=>{
+  ['campo-equipe','cm-equipe','lote-equipe'].forEach(id=>{
     const sel = document.getElementById(id);
     if(!sel) return;
     if([...sel.options].some(o=>o.value===novaEq)) return;
@@ -15298,13 +15326,77 @@ var _equipesExcluidas = (function(){
 function _salvarCustomEquipes(){ localStorage.setItem('sidertec_custom_equipes', JSON.stringify(_customEquipes)); }
 function _salvarEquipesExcluidas(){ localStorage.setItem('sidertec_equipes_excluidas', JSON.stringify(_equipesExcluidas)); }
 
+// O nome de uma equipe pode carregar o responsável entre parênteses (formato
+// antigo, ex.: "DETHALICA (THAIS)"). O responsável é só uma informação de
+// cadastro — não faz parte da IDENTIDADE da equipe, então não deve exigir
+// nenhuma atualização em cascata quando muda, e não deve aparecer nos
+// <select> onde escolhemos a equipe de uma TAG/lançamento (nem no valor
+// salvo, nem no rótulo visível). Esta função extrai só o nome-base.
+function _nomeEquipeExibicao(equipeTexto){
+  if(!equipeTexto) return equipeTexto;
+  var m = /^(.*?)\s*\([^)]*\)\s*$/.exec(equipeTexto);
+  return m ? m[1].trim() : equipeTexto;
+}
+function _extrairResponsavelDeTexto(equipeTexto){
+  var m = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(equipeTexto||'');
+  return m ? m[2].trim() : '';
+}
+
+// Mapa nome-base → responsável (metadado puro, guardado à parte da
+// identidade da equipe). Não entra em nenhuma comparação/gravação de
+// equipe nas TAGs/lançamentos — só é lido para exibição no modal de
+// gerenciamento.
+var _equipeResponsaveis = (function(){
+  try{ return JSON.parse(localStorage.getItem('sidertec_equipe_responsaveis')||'{}'); }catch(e){ return {}; }
+})();
+function _salvarEquipeResponsaveis(){ localStorage.setItem('sidertec_equipe_responsaveis', JSON.stringify(_equipeResponsaveis)); }
+
+// Normaliza um texto de equipe (que pode vir no formato antigo "NOME (RESP)")
+// para o nome-base, migrando o responsável embutido para o mapa acima na
+// primeira vez que essa equipe é vista (se ainda não houver um responsável
+// registrado para ela).
+function _normalizarEquipe(equipeTexto){
+  var base = _nomeEquipeExibicao(equipeTexto);
+  var resp = _extrairResponsavelDeTexto(equipeTexto);
+  if(resp && base && !_equipeResponsaveis[base]){ _equipeResponsaveis[base] = resp; _salvarEquipeResponsaveis(); }
+  return base;
+}
+
+// Migração única: limpa entradas antigas de _customEquipes/_equipesExcluidas
+// que ainda tragam "(RESPONSÁVEL)" embutido no nome, extraindo o responsável
+// para o mapa separado e mantendo só o nome-base nas listas.
+(function _migrarEquipesAntigas(){
+  var mudouCustom = false, vistos = [], novaListaCustom = [];
+  _customEquipes.forEach(function(eq){
+    var base = _normalizarEquipe(eq);
+    if(base !== eq) mudouCustom = true;
+    if(base && vistos.indexOf(base)<0){ vistos.push(base); novaListaCustom.push(base); }
+  });
+  _customEquipes = novaListaCustom;
+  if(mudouCustom) _salvarCustomEquipes();
+
+  var mudouExcl = false, vistosExcl = [], novaListaExcl = [];
+  _equipesExcluidas.forEach(function(eq){
+    var base = _nomeEquipeExibicao(eq);
+    if(base !== eq) mudouExcl = true;
+    if(base && vistosExcl.indexOf(base)<0){ vistosExcl.push(base); novaListaExcl.push(base); }
+  });
+  _equipesExcluidas = novaListaExcl;
+  if(mudouExcl) _salvarEquipesExcluidas();
+})();
+
 // Executa a troca de nome em si: atualiza os registros já existentes no
 // Cronograma e nos Lançamentos (Firestore) e a lista de equipes cadastradas.
 // Usada tanto pelo formulário de edição (modo "editar" do modal) quanto,
 // se necessário, por um fluxo simples via prompt().
+// Renomeia de fato o NOME da equipe (não o responsável — isso é tratado à
+// parte, sem cascade, em salvarNovaEquipeGlobal). Atualiza os registros já
+// existentes no Cronograma e nos Lançamentos cujo nome-base bate com o
+// antigo (isso cobre tanto registros já limpos quanto os que ainda tragam
+// "(RESPONSÁVEL)" embutido do formato legado).
 async function _aplicarRenomeacaoEquipe(nomeAntigo, nomeNovo){
-  var afetadasCron = (allCronSubobras||[]).filter(function(s){ return s.equipe===nomeAntigo; });
-  var afetadasLanc = (allLancamentos||[]).filter(function(l){ return l.equipe===nomeAntigo; });
+  var afetadasCron = (allCronSubobras||[]).filter(function(s){ return _nomeEquipeExibicao(s.equipe)===nomeAntigo; });
+  var afetadasLanc = (allLancamentos||[]).filter(function(l){ return _nomeEquipeExibicao(l.equipe)===nomeAntigo; });
   var total = afetadasCron.length + afetadasLanc.length;
   if(total && !confirm('Renomear "'+nomeAntigo+'" para "'+nomeNovo+'"?\n\nIsso vai atualizar '+afetadasCron.length+' sub-obra(s) do Cronograma e '+afetadasLanc.length+' lançamento(s) que já usam esse nome.')) return false;
 
@@ -15324,13 +15416,20 @@ async function _aplicarRenomeacaoEquipe(nomeAntigo, nomeNovo){
 
   var idxCustom = _customEquipes.indexOf(nomeAntigo);
   if(idxCustom>=0) _customEquipes.splice(idxCustom,1);
-  if(!EQUIPES_MASTER.includes(nomeNovo) && !_customEquipes.includes(nomeNovo)) _customEquipes.push(nomeNovo);
+  if(!EQUIPES_MASTER.map(_nomeEquipeExibicao).includes(nomeNovo) && !_customEquipes.includes(nomeNovo)) _customEquipes.push(nomeNovo);
   if(!_equipesExcluidas.includes(nomeAntigo)) _equipesExcluidas.push(nomeAntigo);
   _salvarCustomEquipes(); _salvarEquipesExcluidas();
 
+  // Migra o responsável (se houver) do nome antigo para o novo.
+  if(_equipeResponsaveis[nomeAntigo] && !_equipeResponsaveis[nomeNovo]){
+    _equipeResponsaveis[nomeNovo] = _equipeResponsaveis[nomeAntigo];
+  }
+  delete _equipeResponsaveis[nomeAntigo];
+  _salvarEquipeResponsaveis();
+
   ['cm-equipe','campo-equipe','lote-equipe'].forEach(function(id){
     var sel = document.getElementById(id);
-    if(sel && sel.value===nomeAntigo) sel.value = nomeNovo;
+    if(sel && _nomeEquipeExibicao(sel.value)===nomeAntigo) sel.value = nomeNovo;
   });
 
   if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
@@ -15352,8 +15451,8 @@ function renomearEquipeGlobal(nomeAntigo){
 }
 
 function excluirEquipeGlobal(nome){
-  var afetadasCron = (allCronSubobras||[]).filter(function(s){ return s.equipe===nome; }).length;
-  var afetadasLanc = (allLancamentos||[]).filter(function(l){ return l.equipe===nome; }).length;
+  var afetadasCron = (allCronSubobras||[]).filter(function(s){ return _nomeEquipeExibicao(s.equipe)===nome; }).length;
+  var afetadasLanc = (allLancamentos||[]).filter(function(l){ return _nomeEquipeExibicao(l.equipe)===nome; }).length;
   var aviso = 'Excluir a equipe "'+nome+'" da lista de seleção?';
   if(afetadasCron || afetadasLanc){
     aviso += '\n\n'+afetadasCron+' sub-obra(s) e '+afetadasLanc+' lançamento(s) já usam esse nome e vão MANTER o valor atual — a equipe só deixa de aparecer para novas seleções.';
@@ -15372,12 +15471,18 @@ function excluirEquipeGlobal(nome){
 function _renderEquipesGerenciarLista(){
   var area = document.getElementById('gerenciar-equipes-lista');
   if(!area) return;
-  var todas = getAllEquipesRegistradas();
+  var todas = getAllEquipesRegistradas(); // já vem só com nomes-base, sem "(responsável)"
   if(!todas.length){ area.innerHTML='<div style="font-size:11px;color:var(--ink3);padding:.5rem 0;">Nenhuma equipe cadastrada.</div>'; return; }
   area.innerHTML = todas.map(function(nome){
     var nomeEsc = nome.replace(/'/g,"\\'");
+    // O responsável agora fica só no mapa _equipeResponsaveis (metadado
+    // puro) — aqui mostramos em cinza, separado do nome, sem afetar a
+    // identidade da equipe usada nos selects/registros.
+    var resp = _equipeResponsaveis[nome] || '';
     return '<div class="ms-item" style="justify-content:space-between;">'
-      + '<span style="font-size:12px;color:var(--ink2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nome+'</span>'
+      + '<span style="font-size:12px;color:var(--ink2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nome
+        + (resp ? ' <span style="color:var(--ink3);font-weight:400;">— resp.: '+resp+'</span>' : '')
+        + '</span>'
       + '<button onclick="editarEquipeGlobal(\''+nomeEsc+'\')" title="Editar/renomear" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:15px;padding:0 4px;opacity:.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">✏️</button>'
       + '<button onclick="excluirEquipeGlobal(\''+nomeEsc+'\')" title="Excluir" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:15px;padding:0 4px;opacity:.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">🗑</button>'
       + '</div>';
@@ -15412,12 +15517,16 @@ function getAllObrasRegistradas(){
   return [...obras].filter(Boolean).sort();
 }
 
+// Retorna só os NOMES-BASE das equipes (sem "(responsável)" embutido) — o
+// responsável é metadado à parte (ver _equipeResponsaveis) e nunca faz parte
+// da identidade usada nos selects/registros.
 function getAllEquipesRegistradas(){
+  const normalizar = (typeof _normalizarEquipe==='function') ? _normalizarEquipe : (x=>x);
   const eqs = new Set([
-    ...EQUIPES_MASTER,
-    ...(typeof _customEquipes!=='undefined' ? _customEquipes : []),
-    ...allLancamentos.map(l=>l.equipe),
-    ...allCronSubobras.map(s=>s.equipe).filter(Boolean)
+    ...EQUIPES_MASTER.map(normalizar),
+    ...(typeof _customEquipes!=='undefined' ? _customEquipes.map(normalizar) : []),
+    ...allLancamentos.map(l=>normalizar(l.equipe)),
+    ...allCronSubobras.map(s=>normalizar(s.equipe)).filter(Boolean)
   ]);
   const excluidas = (typeof _equipesExcluidas!=='undefined') ? _equipesExcluidas : [];
   return [...eqs].filter(Boolean).filter(function(nome){ return !excluidas.includes(nome); }).sort();
@@ -15892,7 +16001,8 @@ function abrirModalLote(){
   var selEquipe = document.getElementById('lote-equipe');
   var todasEquipesLote = (typeof getAllEquipesRegistradas==='function') ? getAllEquipesRegistradas() : EQUIPES_MASTER.slice().sort();
   selEquipe.innerHTML = '<option value="">— Selecione —</option>' + todasEquipesLote.map(function(eq){
-    return '<option value="'+eq+'">'+eq+'</option>';
+    var rotulo = (typeof _nomeEquipeExibicao==='function') ? _nomeEquipeExibicao(eq) : eq;
+    return '<option value="'+eq+'">'+rotulo+'</option>';
   }).join('');
   selEquipe.value=''; selEquipe.disabled=true;
 
