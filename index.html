@@ -15048,6 +15048,10 @@ function getAllObrasRegistradas(){
   return [...obras].filter(Boolean).sort();
 }
 
+// NOTA: esta definição é sobrescrita pela versão mais completa mais abaixo
+// no arquivo (que também considera equipes personalizadas/excluídas via
+// localStorage). Mantida aqui só para não quebrar nada que rode antes dela
+// ser redefinida.
 function getAllEquipesRegistradas(){
   const eqs = new Set([
     ...EQUIPES_MASTER,
@@ -15159,6 +15163,7 @@ function abrirNovaEquipeGlobal(from){
   document.getElementById('neq-resp').value = '';
   document.getElementById('modal-nova-equipe-global').classList.add('show');
   setTimeout(()=>document.getElementById('neq-nome').focus(), 100);
+  if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
 }
 
 function fecharNovaEquipeGlobal(e){
@@ -15177,12 +15182,14 @@ function salvarNovaEquipeGlobal(){
     showToast('Equipe já existe','Esta equipe já está cadastrada.','warn'); return;
   }
 
-  // Store in sessionStorage
-  const extraEqs = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
-  extraEqs.push(equipeCompleta);
-  sessionStorage.setItem('sidertec_extra_equipes', JSON.stringify(extraEqs));
+  // Store de forma durável (localStorage)
+  _customEquipes.push(equipeCompleta);
+  _salvarCustomEquipes();
+  var _idxExcl = _equipesExcluidas.indexOf(equipeCompleta);
+  if(_idxExcl>=0){ _equipesExcluidas.splice(_idxExcl,1); _salvarEquipesExcluidas(); }
 
   atualizarTodosSelectsEquipe(equipeCompleta);
+  if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
 
   // If cron modal is open, also refresh it directly
   const cronModal2 = document.getElementById('cron-modal');
@@ -15214,6 +15221,103 @@ function atualizarTodosSelectsEquipe(novaEq){
   });
 }
 
+// ── GERENCIAR EQUIPES (editar nome / excluir) ─────────────────────────
+// Antes as equipes extras ficavam só em sessionStorage (perdidas ao fechar
+// o navegador). Migramos para localStorage (durável) na primeira leitura,
+// e adicionamos uma lista de nomes "excluídos" (soft-delete: some das
+// listas de seleção, mas não apaga o valor já gravado em registros antigos).
+var _customEquipes = (function(){
+  try{
+    var salvo = localStorage.getItem('sidertec_custom_equipes');
+    if(salvo!=null) return JSON.parse(salvo);
+    var antigo = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
+    if(antigo.length) localStorage.setItem('sidertec_custom_equipes', JSON.stringify(antigo));
+    return antigo;
+  }catch(e){ return []; }
+})();
+var _equipesExcluidas = (function(){
+  try{ return JSON.parse(localStorage.getItem('sidertec_equipes_excluidas')||'[]'); }catch(e){ return []; }
+})();
+function _salvarCustomEquipes(){ localStorage.setItem('sidertec_custom_equipes', JSON.stringify(_customEquipes)); }
+function _salvarEquipesExcluidas(){ localStorage.setItem('sidertec_equipes_excluidas', JSON.stringify(_equipesExcluidas)); }
+
+function renomearEquipeGlobal(nomeAntigo){
+  var nomeNovo = prompt('Novo nome para a equipe:', nomeAntigo);
+  if(nomeNovo===null) return;
+  nomeNovo = nomeNovo.trim();
+  if(!nomeNovo || nomeNovo===nomeAntigo) return;
+  if(getAllEquipesRegistradas().includes(nomeNovo)){ showToast('Já existe','Já existe uma equipe com esse nome.','warn'); return; }
+
+  var afetadasCron = (allCronSubobras||[]).filter(function(s){ return s.equipe===nomeAntigo; });
+  var afetadasLanc = (allLancamentos||[]).filter(function(l){ return l.equipe===nomeAntigo; });
+  var total = afetadasCron.length + afetadasLanc.length;
+  if(total && !confirm('Renomear "'+nomeAntigo+'" para "'+nomeNovo+'"?\n\nIsso vai atualizar '+afetadasCron.length+' sub-obra(s) do Cronograma e '+afetadasLanc.length+' lançamento(s) que já usam esse nome.')) return;
+
+  (async function(){
+    if(typeof showLoading==='function') showLoading('Renomeando equipe…');
+    try{
+      for(var i=0;i<afetadasCron.length;i++){
+        var s = afetadasCron[i]; s.equipe = nomeNovo;
+        try{ await sbClient.from('cronograma_subobras').update({equipe:nomeNovo, atualizado_em:new Date().toISOString()}).eq('id', s.id).select(); }
+        catch(e){ console.warn('[renomearEquipeGlobal] cronograma', s.id, e.message); }
+      }
+      for(var j=0;j<afetadasLanc.length;j++){
+        var l = afetadasLanc[j]; l.equipe = nomeNovo;
+        try{ await sbClient.from('liberacoes').update({equipe:nomeNovo}).eq('id', l.id).select(); }
+        catch(e){ console.warn('[renomearEquipeGlobal] liberacoes', l.id, e.message); }
+      }
+    } finally { if(typeof hideLoading==='function') hideLoading(); }
+
+    var idxCustom = _customEquipes.indexOf(nomeAntigo);
+    if(idxCustom>=0) _customEquipes.splice(idxCustom,1);
+    if(!EQUIPES_MASTER.includes(nomeNovo) && !_customEquipes.includes(nomeNovo)) _customEquipes.push(nomeNovo);
+    if(!_equipesExcluidas.includes(nomeAntigo)) _equipesExcluidas.push(nomeAntigo);
+    _salvarCustomEquipes(); _salvarEquipesExcluidas();
+
+    ['cm-equipe','campo-equipe','lote-equipe'].forEach(function(id){
+      var sel = document.getElementById(id);
+      if(sel && sel.value===nomeAntigo) sel.value = nomeNovo;
+    });
+
+    if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
+    if(typeof renderCronograma==='function') renderCronograma();
+    showToast('✓ Equipe renomeada', '"'+nomeAntigo+'" agora é "'+nomeNovo+'".', 'success');
+  })();
+}
+
+function excluirEquipeGlobal(nome){
+  var afetadasCron = (allCronSubobras||[]).filter(function(s){ return s.equipe===nome; }).length;
+  var afetadasLanc = (allLancamentos||[]).filter(function(l){ return l.equipe===nome; }).length;
+  var aviso = 'Excluir a equipe "'+nome+'" da lista de seleção?';
+  if(afetadasCron || afetadasLanc){
+    aviso += '\n\n'+afetadasCron+' sub-obra(s) e '+afetadasLanc+' lançamento(s) já usam esse nome e vão MANTER o valor atual — a equipe só deixa de aparecer para novas seleções.';
+  }
+  if(!confirm(aviso)) return;
+
+  var idxCustom = _customEquipes.indexOf(nome);
+  if(idxCustom>=0) _customEquipes.splice(idxCustom,1);
+  if(!_equipesExcluidas.includes(nome)) _equipesExcluidas.push(nome);
+  _salvarCustomEquipes(); _salvarEquipesExcluidas();
+
+  if(typeof _renderEquipesGerenciarLista==='function') _renderEquipesGerenciarLista();
+  showToast('Equipe removida', '"'+nome+'" não aparece mais para novas seleções.', 'warn');
+}
+
+function _renderEquipesGerenciarLista(){
+  var area = document.getElementById('gerenciar-equipes-lista');
+  if(!area) return;
+  var todas = getAllEquipesRegistradas();
+  if(!todas.length){ area.innerHTML='<div style="font-size:11px;color:var(--ink3);padding:.5rem 0;">Nenhuma equipe cadastrada.</div>'; return; }
+  area.innerHTML = todas.map(function(nome){
+    var nomeEsc = nome.replace(/'/g,"\\'");
+    return '<div class="ms-item" style="justify-content:space-between;">'
+      + '<span style="font-size:12px;color:var(--ink2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nome+'</span>'
+      + '<button onclick="renomearEquipeGlobal(\''+nomeEsc+'\')" title="Editar/renomear" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:15px;padding:0 4px;opacity:.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">✏️</button>'
+      + '<button onclick="excluirEquipeGlobal(\''+nomeEsc+'\')" title="Excluir" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:15px;padding:0 4px;opacity:.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">🗑</button>'
+      + '</div>';
+  }).join('');
+}
+
 // ── CARREGAR EXTRAS DO SESSIONSTORAGE ─────────────────────────────────
 function carregarExtrasNosSelects(){
   // Extra obras
@@ -15221,7 +15325,7 @@ function carregarExtrasNosSelects(){
   extraObras.forEach(o => atualizarTodosSelectsObra(o));
 
   // Extra equipes
-  const extraEqs = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
+  const extraEqs = getAllEquipesRegistradas();
   extraEqs.forEach(e => atualizarTodosSelectsEquipe(e));
 }
 
@@ -15243,14 +15347,14 @@ function getAllObrasRegistradas(){
 }
 
 function getAllEquipesRegistradas(){
-  const extras = JSON.parse(sessionStorage.getItem('sidertec_extra_equipes')||'[]');
   const eqs = new Set([
     ...EQUIPES_MASTER,
+    ...(typeof _customEquipes!=='undefined' ? _customEquipes : []),
     ...allLancamentos.map(l=>l.equipe),
-    ...allCronSubobras.map(s=>s.equipe).filter(Boolean),
-    ...extras
+    ...allCronSubobras.map(s=>s.equipe).filter(Boolean)
   ]);
-  return [...eqs].filter(Boolean).sort();
+  const excluidas = (typeof _equipesExcluidas!=='undefined') ? _equipesExcluidas : [];
+  return [...eqs].filter(Boolean).filter(function(nome){ return !excluidas.includes(nome); }).sort();
 }
 
 // ═══ ETAPAS TOGGLE + RESUMO + ANDAMENTO ═════════════════════════════
@@ -19984,15 +20088,19 @@ window.addEventListener('DOMContentLoaded', function(){
 <!-- ═══ MODAL NOVA EQUIPE GLOBAL ═══ -->
 <div class="modal-overlay" id="modal-nova-equipe-global" onclick="fecharNovaEquipeGlobal(event)" style="z-index:800;">
   <div class="modal-box" style="width:420px;">
-    <div class="modal-title" style="font-family:'Georgia',serif,serif;">👥 Nova Equipe Projetista</div>
-    <div class="modal-sub">Adicione uma nova equipe ao sistema.</div>
+    <div class="modal-title" style="font-family:'Georgia',serif,serif;">👥 Equipes Projetistas</div>
+    <div class="modal-sub">Adicione, edite ou exclua equipes do sistema.</div>
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:.65rem;margin-bottom:.85rem;">
       <div class="field-group"><label class="field-label">Nome da Equipe *</label><input type="text" class="field-input" id="neq-nome" placeholder="Ex: TCH ENGENHARIA"></div>
       <div class="field-group"><label class="field-label">Responsável</label><input type="text" class="field-input" id="neq-resp" placeholder="Ex: JOÃO"></div>
     </div>
-    <div class="modal-btns">
+    <div class="modal-btns" style="margin-bottom:.9rem;">
       <button class="btn btn-secondary" onclick="fecharNovaEquipeGlobal()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovaEquipeGlobal()">✓ Cadastrar Equipe</button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:.65rem;">
+      <label class="field-label" style="display:block;margin-bottom:.4rem;">Equipes cadastradas</label>
+      <div id="gerenciar-equipes-lista" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
     </div>
   </div>
 </div>
