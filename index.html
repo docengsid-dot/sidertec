@@ -18924,8 +18924,12 @@ function cronAlertaToggle(){
   if(chevron) chevron.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
-// ALERTA 2: LIMITE FÁBRICA (Cronograma) X PREVISÃO DE LIBERAÇÃO (Cronograma) — usa a
-// Liberação para Fábrica REALIZADA quando preenchida, senão a PREVISTA (etapa 4).
+// ALERTA 2: LIMITE FÁBRICA (Cronograma) X PREVISÃO DE LIBERAÇÃO (Cronograma) —
+// acompanha só TAGs ainda EM ANDAMENTO (aguardando a Liberação para Fábrica).
+// Assim que real_lib_fab é preenchido, o processo que este alerta monitora está
+// encerrado — a TAG sai do alerta mesmo que a liberação tenha saído atrasada em
+// relação ao limite, porque o alerta serve para chamar atenção enquanto ainda dá
+// para agir, não para registrar atrasos já ocorridos e resolvidos.
 function atualizarAlerteLimiteFab(){
   var banner  = document.getElementById("cron-alerta-limite-fab");
   var lista   = document.getElementById("cron-alerta-limite-fab-lista");
@@ -18935,7 +18939,8 @@ function atualizarAlerteLimiteFab(){
   (allCronSubobras||[]).forEach(function(s){
     if((s.status||'')==='FORA DE ESCOPO') return;
     if(!s.data_limite_fab) return;
-    var libFabData = _etapa4LibFabData(s);
+    if(s.real_lib_fab) return; // já liberado para fábrica — processo encerrado, some do alerta
+    var libFabData = s.prev_lib_fab;
     if(!libFabData) return;
     var lim  = new Date(s.data_limite_fab+"T12:00:00");
     var prev = new Date(libFabData+"T12:00:00");
