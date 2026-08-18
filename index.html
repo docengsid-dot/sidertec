@@ -4864,11 +4864,14 @@ const ETAPAS_CONFIG = [
     sub:[]
   },
   {
-    key:'diagramas', num:'5️⃣', label:'Documentos',
+    // "DF+DM" = Desenhos de Fabricação + Diagrama de Montagem: essas duas
+    // sub-etapas foram removidas daqui (ficam só na data/observação da
+    // própria etapa 5, no cabeçalho) — o rótulo deixa isso explícito.
+    // "Projeto de Telha" continua como sub-etapa própria por ter lógica
+    // extra (N/A, etc.) que não faz sentido misturar no cabeçalho.
+    key:'diagramas', num:'5️⃣', label:'Documentos- DF+DM',
     col_prev:'prev_diagramas', col_real:'real_diagramas', col_obs:'obs_diagramas', col_conc:'conc_diagramas', col_regs:'regs_diagramas',
     sub:[
-      {key:'resumo_mp_doc',   label:'Desenhos de Fabricação', col_prev:'prev_desenhos_fab',  col_real:'real_desenhos_fab',  col_obs:'obs_desenhos_fab',  col_conc:'conc_desenhos_fab',  opcional:true},
-      {key:'diagrama_mont',   label:'Diagrama de Montagem',   col_prev:'prev_diagrama_mont', col_real:'real_diagrama_mont', col_obs:'obs_diagrama_mont', col_conc:'conc_diagrama_mont'},
       {key:'proj_telha', label:'Projeto de Telha', col_prev:'prev_proj_telha', col_real:'real_proj_telha', col_obs:'obs_proj_telha', col_conc:'conc_proj_telha', extra:'telha', opcional:true},
     ]
   },
@@ -8212,17 +8215,15 @@ async function salvarCronSubobra(){
     payload.real_inspecao_interna = _v('inspecao_interna','real');
     payload.obs_inspecao_interna  = _v('inspecao_interna','obs');
   }
-  // Sub-etapas de Documentos — colunas próprias (não conflitam com fluxo principal)
-  if(_opt.has('prev_desenhos_fab')){
-    payload.prev_desenhos_fab = _v('resumo_mp_doc','prev') || null;
-    payload.real_desenhos_fab = _v('resumo_mp_doc','real') || null;
-    payload.obs_desenhos_fab  = _v('resumo_mp_doc','obs')  || null;
-  }
-  if(_opt.has('prev_diagrama_mont')){
-    payload.prev_diagrama_mont = _v('diagrama_mont','prev') || null;
-    payload.real_diagrama_mont = _v('diagrama_mont','real') || null;
-    payload.obs_diagrama_mont  = _v('diagrama_mont','obs')  || null;
-  }
+  // "Desenhos de Fabricação" e "Diagrama de Montagem" deixaram de ser
+  // sub-etapas próprias no modal (etapa 5 virou "Documentos- DF+DM", usando
+  // só a data/observação do cabeçalho da etapa). Por isso NÃO gravamos mais
+  // prev/real/obs_desenhos_fab e prev/real/obs_diagrama_mont a partir daqui
+  // — como essas linhas não existem mais no modal, _v() não teria de onde
+  // ler e acabaria zerando (null) qualquer valor já salvo antes dessa
+  // mudança. Os valores antigos, se existirem, permanecem intactos no banco
+  // (e o cálculo da Medição continua funcionando via fallback para
+  // prev_diagramas/real_diagramas — ver _e11Prev/_e11Real).
 
   // Etapa 6 Fabricação — pesos e datas de expedição
   if(_opt.has('peso_executado')){
@@ -17176,8 +17177,10 @@ function _medPct(entry){
 // Valor de uma TAG na medição — no modo "Projeto de Telha" usa o valor manual
 // informado diretamente; caso contrário, usa a fórmula padrão (R$/kg × peso × %).
 function _medValorTag(entry, vkg, pesoRef, pct){
-  if(entry && entry.telha) return Number(entry.valor_manual)||0;
-  return (vkg>0 && pesoRef>0 && pct>0) ? vkg*pesoRef*(pct/100) : 0;
+  var desconto = Number(entry&&entry.desconto_tag)||0;
+  if(entry && entry.telha) return Math.max(0, (Number(entry.valor_manual)||0) - desconto);
+  var bruto = (vkg>0 && pesoRef>0 && pct>0) ? vkg*pesoRef*(pct/100) : 0;
+  return Math.max(0, bruto - desconto);
 }
 
 function _buildMedHistoricoPctMap(){
@@ -17259,11 +17262,16 @@ function _buildMedHistoricoDetalhes(tagSid){
           // BM. Agora sempre aplica pct/100 sobre o peso de referência.
           var pesoRefEfetivo = Number(item.peso_med)>0 ? Number(item.peso_med) : pesoRef;
           var pesoParaValor = pesoRefEfetivo*(pct/100);
-          var valorMed = pesoParaValor*(Number(med.valor_kg)||0);
+          var valorMedBruto = pesoParaValor*(Number(med.valor_kg)||0);
+          // Desconto por TAG aplicado nesta BM específica (se houver) reduz
+          // o valor histórico exibido, para refletir o valor líquido
+          // efetivamente medido naquele BM.
+          var descontoTagBm = Number(item.desconto_tag)||0;
+          var valorMed = Math.max(0, valorMedBruto - descontoTagBm);
           // "peso" = peso de referência TOTAL (não reduzido pelo %) — só o
           // valor (R$) reflete a fração medida. Ver explicação detalhada em
           // _buildMedEtapaHistorico().
-          list.push({bm:med.bm||med.num_ps||('Med#'+med.id), pct:pct, peso:pesoRefEfetivo, valor:valorMed});
+          list.push({bm:med.bm||med.num_ps||('Med#'+med.id), pct:pct, peso:pesoRefEfetivo, valor:valorMed, desconto:descontoTagBm});
         }
       });
     }catch(e){}
@@ -23135,7 +23143,7 @@ function renderMedTags(){
     // ── Badges extras ──
     var _histDetTip = (_histPct>0 && typeof _buildMedHistoricoDetalhes==='function')
       ? _buildMedHistoricoDetalhes(String(s.id)).map(function(x){
-          return x.bm+': '+x.pct+'%'+(x.peso>0?' ('+x.peso.toLocaleString('pt-BR',{maximumFractionDigits:0})+'kg'+(x.valor>0?' / R$ '+x.valor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+')':'');
+          return x.bm+': '+x.pct+'%'+(x.peso>0?' ('+x.peso.toLocaleString('pt-BR',{maximumFractionDigits:0})+'kg'+(x.valor>0?' / R$ '+x.valor.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+(x.desconto>0?' [desc. R$ '+x.desconto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+']':'')+')':'');
         }).join(' | ')
       : '';
     var extraBadges = ''
@@ -23231,7 +23239,7 @@ function renderMedTags(){
           +' onclick="event.stopPropagation()"'
           +' style="width:80px;font-size:17px;padding:6px 8px;border:2px solid #d97706;border-radius:5px;background:#fff;color:#b45309;font-family:monospace;font-weight:700;">'
           +'<span style="font-size:14px;color:#92400e;font-weight:700;">%</span>'
-          +'<span style="background:#dbeafe;color:#1e40af;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:800;white-space:nowrap;">= '+pctTotal+'% do peso total</span>'
+          +'<span id="med-pcttotal-label-'+s.id+'" style="background:#dbeafe;color:#1e40af;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:800;white-space:nowrap;">= '+pctTotal+'% do peso total</span>'
           +'<span style="font-size:13px;color:#475569;font-weight:700;white-space:nowrap;">⚖ Peso medido:</span>'
           +'<input type="number" min="0" step="0.01" placeholder="'+(pesoRef>0?pesoRef.toLocaleString('pt-BR',{maximumFractionDigits:2})+' (auto)':'0,00')+'"'
           +' value="'+(pesoMedAtual||'')+'"'
@@ -23241,9 +23249,25 @@ function renderMedTags(){
           +' style="width:120px;font-size:16px;padding:6px 8px;border:2px solid '+(pesoMedAtual>0?'#d97706':'#cbd5e1')+';border-radius:5px;'
           +'background:'+(pesoMedAtual>0?'#fffbeb':'#fff')+';font-family:monospace;">'
           +(pesoMedAtual>0?'<button onclick="event.stopPropagation();medTagSetPesoMed(\''+s.id+'\',\'\');_medAtualizaValorLive(\''+s.id+'\','+(etPct||0)+','+(vkg||0)+','+((pesoD>0?pesoD:pesoB)||0)+')" style="background:#fee2e2;border:none;border-radius:3px;padding:4px 9px;font-size:13px;cursor:pointer;color:#991b1b;font-weight:700;">✕</button>':'')
-          +'<span id="med-valor-live-'+s.id+'" title="Valor desta medição = Peso medido × R$/kg × % sendo medido agora" style="background:#dcfce7;color:#166534;border-radius:6px;padding:7px 14px;font-size:16px;font-weight:800;font-family:monospace;white-space:nowrap;">'
-            +((pesoRef>0 && vkg>0 && pctTotal>0)?'= R$ '+(pesoRef*vkg*(pctTotal/100)).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pctTotal+'%)':'')
+          +'<span id="med-valor-live-'+s.id+'" title="Valor desta medição = Peso medido × R$/kg × % sendo medido agora, menos o desconto desta TAG (se houver)" style="background:#dcfce7;color:#166534;border-radius:6px;padding:7px 14px;font-size:16px;font-weight:800;font-family:monospace;white-space:nowrap;">'
+            +((pesoRef>0 && vkg>0 && pctTotal>0)?'= R$ '+Math.max(0,pesoRef*vkg*(pctTotal/100)-(Number(entry&&entry.desconto_tag)||0)).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pctTotal+'%)':'')
           +'</span>'
+        +'</div>'
+        // ── Desconto específico desta TAG (opcional) — reduz só o valor desta
+        // TAG nesta medição; o motivo serve para registrar, por exemplo, que
+        // parte do valor já foi medida num BM anterior.
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:#fef2f2;border-top:1.5px solid #fecaca;border-radius:0 0 6px 6px;">'
+          +'<span style="font-size:12px;color:#991b1b;font-weight:700;white-space:nowrap;">🏷 Desconto nesta TAG (R$):</span>'
+          +'<input type="number" min="0" step="0.01" placeholder="0,00" value="'+(entry&&entry.desconto_tag?entry.desconto_tag:'')+'"'
+          +' id="med-tag-desconto-'+s.id+'"'
+          +' oninput="event.stopPropagation();medTagSetDescontoTag(\''+s.id+'\',this.value);_medAtualizaValorLive(\''+s.id+'\','+(etPct||0)+','+(vkg||0)+','+((pesoD>0?pesoD:pesoB)||0)+')"'
+          +' onclick="event.stopPropagation()"'
+          +' style="width:100px;font-size:14px;padding:5px 7px;border:2px solid #fca5a5;border-radius:5px;color:#991b1b;font-family:monospace;background:#fff;">'
+          +'<input type="text" placeholder="Motivo (ex.: já medido no BM 12)" value="'+_esc((entry&&entry.obs_desconto_tag)||'')+'"'
+          +' id="med-tag-desconto-obs-'+s.id+'"'
+          +' oninput="event.stopPropagation();medTagSetObsDescontoTag(\''+s.id+'\',this.value)"'
+          +' onclick="event.stopPropagation()"'
+          +' style="flex:1;min-width:200px;font-size:12px;padding:5px 8px;border:1px solid #fecaca;border-radius:5px;background:#fff;color:#7f1d3a;">'
         +'</div></div>';
 
       var correcaoInput = _st==='correcao'
@@ -23573,6 +23597,28 @@ function medTagSetPesoMed(id, val){
   clearTimeout(window._pesoMedTimer);
   window._pesoMedTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
 }
+
+// Desconto (R$) específico desta TAG nesta medição — reduz só o valor dela,
+// sem afetar as demais TAGs nem o desconto geral do topo do modal.
+function medTagSetDescontoTag(id, val){
+  const sid = String(id);
+  const prev = _medTagsMap.get(sid);
+  if(!prev) return;
+  const n = parseFloat(String(val).replace(',','.'));
+  prev.desconto_tag = (!val || isNaN(n) || n<=0) ? null : n;
+  _medTagsMap.set(sid, prev);
+  clearTimeout(window._descontoTagTimer);
+  window._descontoTagTimer = setTimeout(()=>{ atualizarResumoMedTags(); recalcularMedicao(); }, 300);
+}
+// Motivo do desconto desta TAG (ex.: "já medido parcialmente no BM 12").
+function medTagSetObsDescontoTag(id, val){
+  const sid = String(id);
+  const prev = _medTagsMap.get(sid);
+  if(!prev) return;
+  prev.obs_desconto_tag = (val||'').trim() || null;
+  _medTagsMap.set(sid, prev);
+}
+
 // Mostra, ao lado do campo "Peso medido", o valor em R$ desta medição —
 // ANTES de aceitar/confirmar, sem esperar o re-render completo (que só
 // ocorre depois de um pequeno delay). CORRIGIDO: antes multiplicava peso ×
@@ -23582,18 +23628,44 @@ function medTagSetPesoMed(id, val){
 // já é o valor real desta medição parcial (ex.: 40% do peso → 40% do valor).
 function _medAtualizaValorLive(id, etPct, vkg, pesoRefAuto){
   var el = document.getElementById('med-valor-live-'+id);
+  var pctLabelEl = document.getElementById('med-pcttotal-label-'+id);
   var pesoEl = document.getElementById('med-peso-input-'+id);
   var pctManEl = document.getElementById('med-pctman-input-'+id);
+  var descEl = document.getElementById('med-tag-desconto-'+id);
+  // CORRIGIDO: o parâmetro "etPct" recebido é um valor literal "congelado"
+  // no momento em que o painel da TAG foi renderizado (embutido no HTML do
+  // oninput). Se o usuário marca/desmarca as etapas DEPOIS de o painel já
+  // estar aberto e só então digita em "% concluído"/"Peso medido"/"Desconto",
+  // esse literal antigo (às vezes 0, se nenhuma etapa estava marcada quando o
+  // painel abriu) sobrescrevia o cálculo, fazendo "= 0% do peso total"
+  // aparecer mesmo com etapas marcadas. Agora sempre recalcula a % das
+  // etapas a partir do estado ATUAL dos checkboxes no DOM; o parâmetro só é
+  // usado como fallback caso os checkboxes não existam (ex.: TAG em modo
+  // Projeto de Telha, que não usa este painel).
+  var etPctLive = 0, achouChk = false;
+  MED_ETAPAS.forEach(function(e){
+    var chk = document.getElementById('med-etapa-chk-'+id+'-'+e.key);
+    if(chk){ achouChk = true; if(chk.checked) etPctLive += e.pct; }
+  });
+  var etPctEfetivo = achouChk ? etPctLive : (etPct||0);
   var pesoDigitado = parseFloat((pesoEl&&pesoEl.value||'').toString().replace(',','.')) || 0;
   // Se o campo "Peso medido" está vazio, usa o mesmo peso automático (Detalhado
   // ou Básico) que o placeholder mostra — mesma regra usada no primeiro render.
   var peso = pesoDigitado>0 ? pesoDigitado : (pesoRefAuto||0);
   var pctManRaw = pctManEl ? pctManEl.value : '';
   var pctMan = (pctManRaw===''||pctManRaw==null) ? 100 : (parseFloat(pctManRaw.toString().replace(',','.'))||0);
-  var pctTotal = Math.round((etPct||0)*pctMan)/100;
+  var pctTotal = Math.round((etPctEfetivo||0)*pctMan)/100;
+  // CORRIGIDO: este rótulo (antes sem id) ficava travado no valor do último
+  // render completo — por isso aparecia "= 0% do peso total" mesmo depois de
+  // preencher "% concluído"/"Peso medido". Agora atualiza junto com o valor.
+  if(pctLabelEl) pctLabelEl.textContent = '= '+pctTotal+'% do peso total';
+  var desconto = descEl ? (parseFloat((descEl.value||'').toString().replace(',','.'))||0) : 0;
   if(el){
-    el.textContent = (peso>0 && vkg>0 && pctTotal>0)
-      ? '= R$ '+(peso*vkg*(pctTotal/100)).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pctTotal+'% do peso)'
+    var valorBruto = (peso>0 && vkg>0 && pctTotal>0) ? peso*vkg*(pctTotal/100) : 0;
+    var valorLiquido = Math.max(0, valorBruto - desconto);
+    el.innerHTML = (valorBruto>0)
+      ? ('= R$ '+valorLiquido.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pctTotal+'% do peso)'
+         + (desconto>0 ? '<div style="font-size:10px;font-weight:600;color:#991b1b;">Bruto R$ '+valorBruto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' − desconto R$ '+desconto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>' : ''))
       : '';
   }
   // Atualiza também a coluna "Medindo agora" de cada etapa MARCADA, com o
@@ -23668,32 +23740,37 @@ function atualizarResumoMedTags(){
     const pesoB  = Number(s.peso_previsto)||0;
     const pmVal  = entry.peso_med ? Number(entry.peso_med) : 0;
     const pesoRef = pmVal>0 ? pmVal : (pesoD>0?pesoD:pesoB);
-    const val    = vkg>0&&pesoRef>0 ? vkg*pesoRef*(pct/100) : 0;
+    const valBruto = vkg>0&&pesoRef>0 ? vkg*pesoRef*(pct/100) : 0;
+    const desconto = Number(entry.desconto_tag)||0;
+    const val    = Math.max(0, valBruto - desconto);
     const label  = _medEtapasLabel(entry);
     const sCfg = (typeof STATUS_CFG_CRON!=='undefined'&&STATUS_CFG_CRON[s.status])||{color:'#475569',bg:'#f1f5f9',icon:'•'};
     const statusBadge = `<span style="background:${sCfg.bg};color:${sCfg.color};border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;white-space:nowrap;">${sCfg.icon} ${s.status||'—'}</span>`;
-    return {subobra: s.subobra, label, pesoB, pesoD, pmVal, pesoRef, val, statusBadge};
+    return {subobra: s.subobra, label, pesoB, pesoD, pmVal, pesoRef, val, desconto, obsDesconto: entry.obs_desconto_tag||'', statusBadge};
   }).filter(Boolean);
 
   // Acumular totais e montar linhas HTML
-  let totalVal = 0, totalPesoB = 0, totalPesoD = 0, totalPesoRef = 0;
+  let totalVal = 0, totalPesoB = 0, totalPesoD = 0, totalPesoRef = 0, totalDesconto = 0;
   const linhas = tagData.map(d => {
     totalVal     += d.val;
     totalPesoB   += d.pesoB;
     totalPesoD   += d.pesoD;
     totalPesoRef += d.pesoRef;
+    totalDesconto+= d.desconto;
     const fmtKg = v => v > 0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' kg' : '—';
     const pmLabel = d.pmVal > 0
       ? `<span style="font-size:8px;background:#fffbeb;color:#b45309;border-radius:3px;padding:1px 4px;font-weight:700;">${fmtKg(d.pmVal)}</span>`
       : `<span style="font-size:8px;color:#94a3b8;">${fmtKg(d.pesoRef)}</span>`;
-    return `<tr style="border-bottom:1px solid #f1f5f9;font-size:9.5px;">
+    const descTip = d.desconto>0 ? ` title="Desconto de R$ ${d.desconto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}${d.obsDesconto?' — '+_esc(d.obsDesconto):''} já aplicado"` : '';
+    const descBadge = d.desconto>0 ? `<div style="font-size:7px;color:#991b1b;font-weight:700;">− R$ ${d.desconto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : '';
+    return `<tr style="border-bottom:1px solid #f1f5f9;font-size:9.5px;"${descTip}>
       <td style="padding:3px 5px;font-family:'Courier New',monospace;font-weight:700;color:#1d4ed8;">${d.subobra}</td>
       <td style="padding:3px 5px;">${d.statusBadge}</td>
       <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;color:#166534;">${d.pesoB>0?d.pesoB.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—'}</td>
       <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;color:#1d4ed8;">${d.pesoD>0?d.pesoD.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg':'—'}</td>
       <td style="padding:3px 5px;text-align:right;">${pmLabel}</td>
       <td style="padding:3px 5px;background:#f1f5f9;border-radius:3px;font-size:8px;font-weight:600;color:#475569;white-space:nowrap;">${d.label}</td>
-      <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;font-weight:700;color:#166534;">${d.val>0?'R$ '+d.val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+      <td style="padding:3px 5px;text-align:right;font-family:'Courier New',monospace;font-weight:700;color:#166534;">${d.val>0?'R$ '+d.val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}${descBadge}</td>
     </tr>`;
   }).join('');
 
@@ -23731,7 +23808,7 @@ function atualizarResumoMedTags(){
             ${totalPesoD>0&&totalPesoB>0?`<span style="${diffStyle(diffBD)}">Det−Bás: ${fmtDiff(diffBD)}</span>`:''} 
             ${totalPesoRef>0&&totalPesoB>0?`<span style="${diffStyle(diffMB)};margin-left:6px;">Med−Bás: ${fmtDiff(diffMB)}</span>`:''}
           </td>
-          <td style="padding:4px 5px;text-align:right;font-family:'Courier New',monospace;color:#a7f3d0;font-size:11px;">${totalVal>0?'R$ '+totalVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+          <td style="padding:4px 5px;text-align:right;font-family:'Courier New',monospace;color:#a7f3d0;font-size:11px;">${totalVal>0?'R$ '+totalVal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}${totalDesconto>0?`<div style="font-size:8px;font-weight:700;color:#fecaca;">(desc. total − R$ ${totalDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})})</div>`:''}</td>
         </tr>
       </tfoot>
     </table>
@@ -23742,7 +23819,7 @@ function atualizarResumoMedTags(){
 }
 
 function getMedTagsIds(){
-  // Salva como JSON: [{id, etapas:[], pct, peso_med?, telha?, valor_manual?}, ...]
+  // Salva como JSON: [{id, etapas:[], pct, peso_med?, telha?, valor_manual?, desconto_tag?, obs_desconto_tag?}, ...]
   const arr = [..._medTagsMap.entries()].map(([id,entry])=>({
     id,
     etapas: [...(entry.etapas||new Set())],
@@ -23751,7 +23828,9 @@ function getMedTagsIds(){
     ...(entry.peso_med ? {peso_med: entry.peso_med} : {}),
     ...(entry.telha ? {telha: true, valor_manual: Number(entry.valor_manual)||0} : {}),
     ...(entry.status_peso ? {status_peso: entry.status_peso} : {}),
-    ...(entry.obs_correcao ? {obs_correcao: entry.obs_correcao} : {})
+    ...(entry.obs_correcao ? {obs_correcao: entry.obs_correcao} : {}),
+    ...(entry.desconto_tag ? {desconto_tag: Number(entry.desconto_tag)||0} : {}),
+    ...(entry.obs_desconto_tag ? {obs_desconto_tag: entry.obs_desconto_tag} : {})
   }));
   return arr.length ? JSON.stringify(arr) : '';
 }
@@ -23769,7 +23848,7 @@ function carregarMedTagsSalvas(raw){
       if(item.etapas && Array.isArray(item.etapas)){
         const etapas = new Set(item.etapas);
         const base = {etapas, pct_manual:item.pct_manual!=null?Number(item.pct_manual):null, telha, valor_manual};
-        _medTagsMap.set(id, Object.assign({}, base, {pct:_medPct(base), peso_med:item.peso_med||null, status_peso:item.status_peso||null, obs_correcao:item.obs_correcao||null}));
+        _medTagsMap.set(id, Object.assign({}, base, {pct:_medPct(base), peso_med:item.peso_med||null, status_peso:item.status_peso||null, obs_correcao:item.obs_correcao||null, desconto_tag:item.desconto_tag!=null?Number(item.desconto_tag):null, obs_desconto_tag:item.obs_desconto_tag||null}));
       } else {
         // Formato legado: etapa era string única
         const etapaStr = item.etapa||'modelo';
